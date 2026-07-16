@@ -1,0 +1,15 @@
+FIFA 9 TOURNAMENT HUB — BURADAN BAŞLA
+
+1) Supabase'de yeni proje oluştur.
+2) supabase/schema.sql dosyasının tamamını SQL Editor'da çalıştır.
+3) Authentication > Users bölümünde kendi e-posta/parolanla yönetici kullanıcı oluştur.
+4) supabase/add_admin_by_email.sql dosyasındaki e-postayı değiştirip SQL Editor'da çalıştır.
+5) Supabase Project URL ve Publishable Key'i kopyala.
+6) cloud-config.js içindeki iki PASTE_... alanını bu bilgilerle değiştir.
+7) Bu klasörün kökünde index.html görünecek şekilde klasörü veya ZIP'i Vercel Drop'a yükle.
+8) Vercel adresini aç: önce izleyici, sonra Yönetici Girişi ile test et.
+9) Gizli sekmede veya telefonda açıp aynı sonuçların göründüğünü doğrula.
+10) Linki WhatsApp grubunda paylaş ve ilk JSON yedeğini al.
+
+ASLA cloud-config.js içine Secret Key / service_role anahtarı yazma.
+Sadece sb_publishable_... (veya legacy anon/public) anahtarı kullan.

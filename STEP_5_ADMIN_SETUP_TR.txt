@@ -1,0 +1,13 @@
+FIFA 9 TOURNAMENT HUB — 5. ADIM / YÖNETİCİ YETKİSİ
+
+Yönetici e-postası: cglrcnttr@gmail.com
+
+1. Supabase > Authentication > Users bölümünde cglrcnttr@gmail.com kullanıcısını oluşturun.
+2. Ana klasördeki ADD_ADMIN_CGLRCNTTR.sql dosyasını Not Defteri ile açın.
+3. Tüm içeriği kopyalayın.
+4. Supabase > SQL Editor > New Query bölümüne yapıştırın.
+5. Run düğmesine basın.
+6. Sonuçta cglrcnttr@gmail.com adresini içeren bir satır görünmelidir.
+
+Sonuç boş gelirse kullanıcı henüz Authentication > Users bölümünde oluşturulmamıştır
+veya farklı bir e-posta yazılmıştır.

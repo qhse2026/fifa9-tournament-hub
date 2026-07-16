@@ -1,0 +1,15 @@
+FIFA 9 TOURNAMENT HUB — CANLI YAYIN KONTROL LİSTESİ
+
+[ ] 1. Supabase projesi oluşturuldu
+[ ] 2. supabase/schema.sql SQL Editor'da çalıştırıldı
+[ ] 3. Authentication > Users bölümünde yönetici hesabı oluşturuldu
+[ ] 4. Yönetici UUID'si tournament_admins tablosuna eklendi
+[ ] 5. Project URL cloud-config.js dosyasına yazıldı
+[ ] 6. anon/public key cloud-config.js dosyasına yazıldı
+[ ] 7. Site yerel olarak açıldı; “Canlı · izleyici” durumu görüldü
+[ ] 8. Yönetici girişi test edildi; “Canlı · yönetici” durumu görüldü
+[ ] 9. Deneme oyuncu adı veya skor kaydedildi
+[ ] 10. Farklı bir telefon/incognito penceresinde veri güncellemesi görüldü
+[ ] 11. Vercel Drop ile yayınlandı
+[ ] 12. Vercel adresi WhatsApp grubunda paylaşıldı
+[ ] 13. İlk JSON yedeği alındı
