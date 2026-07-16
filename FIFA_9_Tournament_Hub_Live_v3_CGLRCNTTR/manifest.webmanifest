@@ -1,0 +1,11 @@
+{
+  "name": "FIFA Turnuva Merkezi",
+  "short_name": "FIFA 9",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#06111f",
+  "theme_color": "#06111f",
+  "icons": [
+    {"src":"assets/f9-mark.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}
+  ]
+}
