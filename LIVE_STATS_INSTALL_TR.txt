@@ -1,0 +1,23 @@
+FIFA 9 CANLI İSTATİSTİKLER v8 — KURULUM
+
+1. Bu paketteki şu dosyaları GitHub repository ana dizinine yükleyin:
+   - index.html
+   - app.js
+   - styles.css
+   - language.js
+   - service-worker.js
+
+2. GitHub aynı adlı dosyaların değiştirileceğini gösterecektir. Onaylayın.
+
+3. Commit mesajı önerisi:
+   Add automatic FIFA 9 live tournament statistics
+
+4. Vercel bağlıysa yeni commit otomatik olarak yayınlanır.
+
+5. Yayın sonrası eski görünüm devam ederse Ctrl+F5 yapın.
+
+ÖNEMLİ:
+- cloud-config.js dosyasını değiştirmeyin.
+- Supabase üzerinde yeni SQL veya tablo gerekmez.
+- Canlı istatistikler mevcut ortak turnuva verisinden otomatik hesaplanır.
+- Yeni girilen veya düzeltilen maçlara güncelleme zamanı otomatik kaydedilir.

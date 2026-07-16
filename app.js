@@ -25,6 +25,7 @@
 
   const titleMap = {
     dashboard: "Dashboard",
+    livestats: "Canlı İstatistikler",
     setup: "Kura & Oyuncular",
     league: "UEFA League Phase",
     gold: "Altın Grup",
@@ -514,6 +515,7 @@
   function render() {
     refreshKnockout();
     switch (activeView) {
+      case "livestats": renderLiveStatistics(); break;
       case "setup": renderSetup(); break;
       case "league": renderLeague(); break;
       case "gold": renderGroup("gold"); break;
@@ -1517,6 +1519,341 @@
     return "FIFA 9";
   }
 
+  function renderLiveStatistics() {
+    const analytics = buildLiveTournamentAnalytics();
+    if (!state.current.league.generated) {
+      view.innerHTML = emptyState("⌁", "Canlı İstatistikler Kura Sonrası Başlar", "16 oyuncu kaydedilip League Phase fikstürü oluşturulduğunda FIFA 9 canlı istatistik merkezi otomatik devreye girecek.", canEdit() ? `<button class="btn btn-gold" data-nav="setup">Kura Sayfasına Git</button>` : "");
+      return;
+    }
+
+    const progress = analytics.summary.totalFixtures ? analytics.summary.completed / analytics.summary.totalFixtures * 100 : 0;
+    const leader = analytics.records.pointsLeader;
+    const topScorer = analytics.records.goalLeader;
+    const lastUpdate = analytics.summary.lastUpdated ? new Date(analytics.summary.lastUpdated).toLocaleString("tr-TR") : "Henüz sonuç girilmedi";
+
+    view.innerHTML = `
+      <div class="group-banner live-stats-banner">
+        <div>
+          <div class="eyebrow">FIFA 9 · LIVE DATA</div>
+          <h2>Canlı Turnuva İstatistikleri</h2>
+          <p>FIFA 9 oynanırken girilen her skorla anında yenilenen oyuncu performansları, rekorlar, takım tercihleri, form grafikleri ve rekabet verileri.</p>
+          <div class="live-banner-actions"><button class="btn btn-gold" data-action="share-live-stats">Canlı Statsı Paylaş</button><button class="btn btn-ghost" data-nav="league">Puan Durumuna Git</button></div>
+        </div>
+        <div class="live-progress-orb"><strong>${Math.round(progress)}%</strong><span>Turnuva Verisi</span></div>
+      </div>
+
+      <div class="live-update-strip"><span class="live-pulse-dot"></span><strong>Canlı Güncelleme Aktif</strong><span>Son veri: ${escapeHTML(lastUpdate)}</span><span>${analytics.summary.completed}/${analytics.summary.totalFixtures} kayıtlı fikstür</span></div>
+
+      <div class="kpi-grid">
+        ${kpiCard("Tamamlanan Maç", analytics.summary.completed, `${analytics.summary.totalFixtures} aktif fikstür`, progress)}
+        ${kpiCard("Toplam Gol", analytics.summary.goals, `Maç başı ${analytics.summary.avgGoals.toFixed(2)}`)}
+        ${kpiCard("Performans Lideri", leader?.name || "–", leader ? `${leader.points} performans puanı · ${leader.wins} galibiyet` : "Sonuç bekleniyor")}
+        ${kpiCard("Gol Lideri", topScorer?.name || "–", topScorer ? `${topScorer.gf} gol · maç başı ${topScorer.avgGoals.toFixed(2)}` : "Sonuç bekleniyor")}
+      </div>
+
+      <section class="panel mt-24">
+        <div class="panel-header"><div><h3 class="panel-title">Canlı Rekor Panosu</h3><div class="panel-subtitle">Yalnızca FIFA 9’da tamamlanan maçlardan hesaplanır ve her skor girişinde değişebilir.</div></div><span class="badge badge-gold">EDITION 09</span></div>
+        <div class="live-record-grid">
+          ${renderLiveRecordCard("En Çok Galibiyet", analytics.records.winsLeader, row => `${row.wins} galibiyet · ${row.games} maç`, "W")}
+          ${renderLiveRecordCard("En İyi Hücum", analytics.records.goalLeader, row => `${row.gf} gol · ${row.avgGoals.toFixed(2)} gol/maç`, "GF")}
+          ${renderLiveRecordCard("En Sağlam Savunma", analytics.records.defenseLeader, row => `${row.gaPerGame.toFixed(2)} yenilen gol/maç`, "DEF")}
+          ${renderLiveRecordCard("En Formda Oyuncu", analytics.records.formLeader, row => `${row.formPoints} form puanı · ${row.form.join("-") || "–"}`, "FORM")}
+          ${renderLiveRecordCard("Galibiyet Serisi", analytics.records.winStreakLeader, row => `${row.currentWinStreak} maç üst üste`, "STREAK")}
+          ${renderLiveMatchRecordCard("En Farklı Galibiyet", analytics.records.biggestWin)}
+          ${renderLiveMatchRecordCard("En Gollü Maç", analytics.records.highestScoringMatch, true)}
+          ${renderLiveTeamRecordCard("En Çok Seçilen Takım", analytics.records.mostUsedTeam)}
+        </div>
+      </section>
+
+      <section class="panel mt-24">
+        <div class="panel-header"><div><h3 class="panel-title">Turnuva Nabzı</h3><div class="panel-subtitle">Her aşamanın maç, gol ve tamamlanma durumu.</div></div></div>
+        <div class="stage-pulse-grid">${analytics.stages.map(renderStagePulseCard).join("")}</div>
+      </section>
+
+      <section class="panel mt-24">
+        <div class="panel-header"><div><h3 class="panel-title">FIFA 9 Oyuncu Performans Kartları</h3><div class="panel-subtitle">Lig, Altın/Gümüş ve eleme maçlarının canlı birleşik performansı. Bu tablo resmî grup sıralamasından ayrı bir istatistik görünümüdür.</div></div><span class="badge badge-blue">${analytics.players.length} OYUNCU</span></div>
+        <div class="live-player-grid">${analytics.players.map(renderLivePlayerCard).join("")}</div>
+      </section>
+
+      <div class="grid-2 mt-24">
+        <section class="panel">
+          <div class="panel-header"><div><h3 class="panel-title">Canlı Performans Tablosu</h3><div class="panel-subtitle">Bütün FIFA 9 maçları üzerinden W/D/L, gol, performans puanı ve form.</div></div></div>
+          ${livePerformanceTable(analytics.players)}
+        </section>
+        <section class="panel">
+          <div class="panel-header"><div><h3 class="panel-title">Form ve Seri Merkezi</h3><div class="panel-subtitle">Son beş maç, güncel galibiyet ve yenilmezlik serileri.</div></div></div>
+          <div class="live-form-list">${analytics.players.slice().sort((a,b)=>b.formPoints-a.formPoints || b.currentUnbeatenStreak-a.currentUnbeatenStreak || b.points-a.points).map(renderLiveFormRow).join("")}</div>
+        </section>
+      </div>
+
+      <div class="grid-2 mt-24">
+        <section class="panel">
+          <div class="panel-header"><div><h3 class="panel-title">Son Tamamlanan Maçlar</h3><div class="panel-subtitle">Skor giriş zamanına göre en güncel sonuçlar.</div></div><span class="badge badge-silver">LIVE RESULTS</span></div>
+          ${renderLiveMatchFeed(analytics.recentMatches, true)}
+        </section>
+        <section class="panel">
+          <div class="panel-header"><div><h3 class="panel-title">Sıradaki Maçlar</h3><div class="panel-subtitle">Henüz sonucu girilmemiş yaklaşan fikstürler.</div></div><span class="badge badge-blue">NEXT UP</span></div>
+          ${renderLiveMatchFeed(analytics.upcomingMatches, false)}
+        </section>
+      </div>
+
+      <div class="grid-2 mt-24">
+        <section class="panel">
+          <div class="panel-header"><div><h3 class="panel-title">FIFA 9 Rekabetleri</h3><div class="panel-subtitle">Bu turnuvada en çok karşılaşan oyuncular ve güncel üstünlük dengesi.</div></div></div>
+          ${liveRivalryTable(analytics.rivalries.slice(0, 12))}
+        </section>
+        <section class="panel">
+          <div class="panel-header"><div><h3 class="panel-title">Canlı Takım Tercihleri</h3><div class="panel-subtitle">Yalnızca FIFA 9’da seçilen takımların kullanım ve başarı özeti.</div></div></div>
+          ${liveTeamTable(analytics.teams.slice(0, 12))}
+        </section>
+      </div>`;
+  }
+
+  function renderLiveRecordCard(label, row, metaFn, icon) {
+    return `<article class="live-record-card"><div class="live-record-icon">${escapeHTML(icon)}</div><div><div class="live-record-label">${escapeHTML(label)}</div><div class="live-record-name">${escapeHTML(row?.name || "–")}</div><div class="live-record-meta">${row ? escapeHTML(metaFn(row)) : "Sonuç bekleniyor"}</div></div></article>`;
+  }
+
+  function renderLiveMatchRecordCard(label, record, totalGoalsMode = false) {
+    if (!record) return `<article class="live-record-card"><div class="live-record-icon">⚡</div><div><div class="live-record-label">${escapeHTML(label)}</div><div class="live-record-name">–</div><div class="live-record-meta">Sonuç bekleniyor</div></div></article>`;
+    const metric = totalGoalsMode ? `${record.totalGoals} toplam gol` : `${record.margin} gol farkı`;
+    return `<article class="live-record-card accent"><div class="live-record-icon">⚡</div><div><div class="live-record-label">${escapeHTML(label)}</div><div class="live-record-name">${escapeHTML(record.homeName)} ${record.homeScore}-${record.awayScore} ${escapeHTML(record.awayName)}</div><div class="live-record-meta">${escapeHTML(record.stage)} · ${metric}</div></div></article>`;
+  }
+
+  function renderLiveTeamRecordCard(label, team) {
+    return `<article class="live-record-card team"><div class="live-record-icon">◉</div><div><div class="live-record-label">${escapeHTML(label)}</div><div class="live-record-name">${escapeHTML(team?.name || "–")}</div><div class="live-record-meta">${team ? `${team.games} seçim · ${team.points} puan · ${team.ppg.toFixed(2)} PPG` : "Takım verisi bekleniyor"}</div></div></article>`;
+  }
+
+  function renderStagePulseCard(stage) {
+    const progress = stage.total ? stage.completed / stage.total * 100 : 0;
+    return `<article class="stage-pulse-card ${stage.key}"><div class="stage-pulse-top"><span>${escapeHTML(stage.label)}</span><strong>${stage.completed}/${stage.total}</strong></div><div class="stage-pulse-track"><i style="width:${Math.min(100, progress)}%"></i></div><div class="stage-pulse-meta"><span>${stage.goals} gol</span><span>${stage.completed ? (stage.goals / stage.completed).toFixed(2) : "0.00"} gol/maç</span></div></article>`;
+  }
+
+  function renderLivePlayerCard(row) {
+    return `<article class="live-player-card rank-${Math.min(row.rank, 4)}">
+      <div class="live-player-head"><div><span class="live-player-rank">#${row.rank}</span><h4>${escapeHTML(row.name)}</h4><small>${escapeHTML(row.officialPosition || "FIFA 9")}</small></div><div class="live-player-points">${row.points}<span>PERF P</span></div></div>
+      <div class="live-player-numbers"><div><span>O</span><strong>${row.games}</strong></div><div><span>G</span><strong>${row.wins}</strong></div><div><span>AG</span><strong>${row.gf}</strong></div><div><span>AV</span><strong>${formatGD(row.gd)}</strong></div></div>
+      <div class="live-player-form">${formHTML(row.form)}<span>${row.currentStreakLabel}</span></div>
+    </article>`;
+  }
+
+  function livePerformanceTable(rows) {
+    return `<div class="table-wrap"><table><thead><tr><th>#</th><th class="player-col">Oyuncu</th><th>O</th><th>G</th><th>B</th><th>M</th><th>AG</th><th>YG</th><th>AV</th><th>Perf P</th><th>PPG</th><th>Form</th></tr></thead><tbody>${rows.map(row => `<tr><td>${row.rank}</td><td class="player-col"><span class="player-name">${escapeHTML(row.name)}</span><small class="table-subline">${escapeHTML(row.officialPosition || "")}</small></td><td>${row.games}</td><td>${row.wins}</td><td>${row.draws}</td><td>${row.losses}</td><td>${row.gf}</td><td>${row.ga}</td><td class="${row.gd > 0 ? "gd-positive" : row.gd < 0 ? "gd-negative" : ""}">${formatGD(row.gd)}</td><td class="points-cell">${row.points}</td><td>${row.ppg.toFixed(2)}</td><td>${formHTML(row.form)}</td></tr>`).join("")}</tbody></table></div>`;
+  }
+
+  function renderLiveFormRow(row) {
+    return `<div class="live-form-row"><div class="live-form-player"><strong>${escapeHTML(row.name)}</strong><span>${row.games} maç · ${row.winRate.toFixed(1)}% galibiyet</span></div><div>${formHTML(row.form)}</div><div class="live-streak-box"><strong>${row.currentWinStreak}</strong><span>Galibiyet Serisi</span></div><div class="live-streak-box"><strong>${row.currentUnbeatenStreak}</strong><span>Yenilmezlik</span></div></div>`;
+  }
+
+  function renderLiveMatchFeed(matches, completed) {
+    if (!matches.length) return `<div class="info-box">${completed ? "Henüz tamamlanan maç yok." : "Şu anda bekleyen fikstür yok."}</div>`;
+    return `<div class="live-match-feed">${matches.map(match => `<article class="live-feed-match"><div class="live-feed-stage">${escapeHTML(match.stage)}</div><div class="live-feed-main"><span>${escapeHTML(match.homeName)}</span><strong>${completed ? `${match.homeScore} – ${match.awayScore}` : "VS"}</strong><span>${escapeHTML(match.awayName)}</span></div><div class="live-feed-teams"><span>${escapeHTML(match.homeTeam || "Takım bekleniyor")}</span><span>${completed && match.winnerName ? `Kazanan: ${escapeHTML(match.winnerName)}` : ""}</span><span>${escapeHTML(match.awayTeam || "Takım bekleniyor")}</span></div></article>`).join("")}</div>`;
+  }
+
+  function liveRivalryTable(rows) {
+    if (!rows.length) return `<div class="info-box">Bu turnuvada henüz tekrar eden bir eşleşme oluşmadı.</div>`;
+    return `<div class="table-wrap compact-table"><table><thead><tr><th>Eşleşme</th><th>Maç</th><th>G</th><th>B</th><th>G</th><th>Gol</th><th>Üstünlük</th></tr></thead><tbody>${rows.map(row => `<tr><td class="player-col"><span class="player-name">${escapeHTML(row.playerA)} – ${escapeHTML(row.playerB)}</span></td><td>${row.meetings}</td><td>${row.winsA}</td><td>${row.draws}</td><td>${row.winsB}</td><td>${row.goalsA}-${row.goalsB}</td><td>${escapeHTML(row.leader || "Denge")}</td></tr>`).join("")}</tbody></table></div>`;
+  }
+
+  function liveTeamTable(rows) {
+    if (!rows.length) return `<div class="info-box">Takım isimleri maç sonuçlarına girildiğinde canlı takım istatistikleri burada oluşacak.</div>`;
+    return `<div class="table-wrap compact-table"><table><thead><tr><th>#</th><th class="player-col">Takım</th><th>Seçim</th><th>G</th><th>B</th><th>M</th><th>AG</th><th>AV</th><th>P</th><th>PPG</th></tr></thead><tbody>${rows.map((row,index) => `<tr><td>${index+1}</td><td class="player-col"><span class="player-name">${escapeHTML(row.name)}</span></td><td>${row.games}</td><td>${row.wins}</td><td>${row.draws}</td><td>${row.losses}</td><td>${row.gf}</td><td class="${row.gd > 0 ? "gd-positive" : row.gd < 0 ? "gd-negative" : ""}">${formatGD(row.gd)}</td><td>${row.points}</td><td>${row.ppg.toFixed(2)}</td></tr>`).join("")}</tbody></table></div>`;
+  }
+
+  function buildLiveTournamentAnalytics() {
+    const allMatches = allCurrentMatches();
+    const completed = allMatches.filter(matchComplete);
+    const playerRows = new Map();
+    const teamRows = new Map();
+    const rivalryRows = new Map();
+    const phaseOrder = { league: 1, gold: 2, silver: 3, knockout: 4, final: 5 };
+
+    for (const p of filledParticipants()) {
+      playerRows.set(p.id, { id: p.id, name: p.name.trim(), games:0,wins:0,draws:0,losses:0,gf:0,ga:0,gd:0,points:0,cleanSheets:0,results:[],bestWin:null });
+    }
+
+    function ensurePlayer(id) {
+      if (!playerRows.has(id)) playerRows.set(id, { id, name: playerName(id), games:0,wins:0,draws:0,losses:0,gf:0,ga:0,gd:0,points:0,cleanSheets:0,results:[],bestWin:null });
+      return playerRows.get(id);
+    }
+
+    function matchOrder(match, index = 0) {
+      const timestamp = match.updatedAt ? Date.parse(match.updatedAt) : 0;
+      const structural = (phaseOrder[match.phase] || 9) * 100000 + (Number(match.round) || 0) * 100 + index;
+      return timestamp ? 1000000000000 + timestamp : structural;
+    }
+
+    completed.forEach((match, index) => {
+      const home = ensurePlayer(match.homeId);
+      const away = ensurePlayer(match.awayId);
+      const winnerId = matchWinnerId(match);
+      const isDraw = match.homeScore === match.awayScore && match.allowDraw;
+      const order = matchOrder(match, index);
+      const sides = [
+        { row: home, id: match.homeId, gf: match.homeScore, ga: match.awayScore, opponent: away.name },
+        { row: away, id: match.awayId, gf: match.awayScore, ga: match.homeScore, opponent: home.name }
+      ];
+      for (const side of sides) {
+        side.row.games += 1; side.row.gf += side.gf; side.row.ga += side.ga;
+        if (side.ga === 0) side.row.cleanSheets += 1;
+        let result = "L";
+        if (isDraw) { result = "D"; side.row.draws += 1; side.row.points += 1; }
+        else if (winnerId === side.id) { result = "W"; side.row.wins += 1; side.row.points += 3; }
+        else side.row.losses += 1;
+        side.row.results.push({ result, gf:side.gf, ga:side.ga, opponent:side.opponent, stage:currentMatchStageLabel(match), order, updatedAt:match.updatedAt || null });
+        if (result === "W") {
+          const margin = side.gf - side.ga;
+          if (!side.row.bestWin || margin > side.row.bestWin.margin || (margin === side.row.bestWin.margin && side.gf > side.row.bestWin.gf)) side.row.bestWin = { margin, gf:side.gf, ga:side.ga, opponent:side.opponent };
+        }
+      }
+
+      const homeName = home.name; const awayName = away.name;
+      const pairKey = rivalryKey(homeName, awayName);
+      if (!rivalryRows.has(pairKey)) {
+        const [playerA, playerB] = [homeName, awayName].sort((a,b)=>a.localeCompare(b,"tr"));
+        rivalryRows.set(pairKey, { playerA, playerB, meetings:0,winsA:0,winsB:0,draws:0,goalsA:0,goalsB:0 });
+      }
+      const rivalry = rivalryRows.get(pairKey);
+      rivalry.meetings += 1;
+      rivalry.goalsA += rivalry.playerA === homeName ? match.homeScore : match.awayScore;
+      rivalry.goalsB += rivalry.playerB === awayName ? match.awayScore : match.homeScore;
+      if (isDraw) rivalry.draws += 1;
+      else if (playerName(winnerId) === rivalry.playerA) rivalry.winsA += 1;
+      else rivalry.winsB += 1;
+
+      const teamSides = [
+        { name:normalizeTeamName(match.homeTeam), player:homeName, gf:match.homeScore, ga:match.awayScore, id:match.homeId },
+        { name:normalizeTeamName(match.awayTeam), player:awayName, gf:match.awayScore, ga:match.homeScore, id:match.awayId }
+      ];
+      for (const side of teamSides) {
+        if (!side.name) continue;
+        if (!teamRows.has(side.name)) teamRows.set(side.name, { name:side.name,games:0,wins:0,draws:0,losses:0,gf:0,ga:0,gd:0,points:0,players:new Set() });
+        const team = teamRows.get(side.name);
+        team.games += 1; team.gf += side.gf; team.ga += side.ga; team.players.add(side.player);
+        if (isDraw) { team.draws += 1; team.points += 1; }
+        else if (winnerId === side.id) { team.wins += 1; team.points += 3; }
+        else team.losses += 1;
+      }
+    });
+
+    const officialMap = new Map();
+    if (state.current.phase2.generated) {
+      phase2Standings("gold").forEach((row,index)=>officialMap.set(row.id, `Altın Grup #${index+1}`));
+      phase2Standings("silver").forEach((row,index)=>officialMap.set(row.id, `Gümüş Grup #${index+1}`));
+      state.current.phase2.eliminatedIds.forEach((id,index)=>officialMap.set(id, `League Phase #${13+index}`));
+    } else {
+      leagueStandings().forEach((row,index)=>officialMap.set(row.id, `League Phase #${index+1}`));
+    }
+
+    const players = [...playerRows.values()].map(row => {
+      row.gd = row.gf - row.ga;
+      row.ppg = row.games ? row.points / row.games : 0;
+      row.winRate = row.games ? row.wins / row.games * 100 : 0;
+      row.avgGoals = row.games ? row.gf / row.games : 0;
+      row.gaPerGame = row.games ? row.ga / row.games : 0;
+      row.results.sort((a,b)=>a.order-b.order);
+      row.form = row.results.slice(-5).map(item=>item.result);
+      row.formPoints = row.form.reduce((sum,result)=>sum + (result === "W" ? 3 : result === "D" ? 1 : 0), 0);
+      const reverse = [...row.results].reverse();
+      row.currentWinStreak = reverse.findIndex(item=>item.result !== "W");
+      if (row.currentWinStreak === -1) row.currentWinStreak = reverse.length;
+      row.currentUnbeatenStreak = reverse.findIndex(item=>item.result === "L");
+      if (row.currentUnbeatenStreak === -1) row.currentUnbeatenStreak = reverse.length;
+      const latest = reverse[0]?.result || "–";
+      const streakCount = latest === "W" ? row.currentWinStreak : latest === "L" ? (()=>{ const i=reverse.findIndex(item=>item.result!=="L"); return i===-1?reverse.length:i; })() : (()=>{ const i=reverse.findIndex(item=>item.result!=="D"); return i===-1?reverse.length:i; })();
+      row.currentStreakLabel = latest === "W" ? `${streakCount}G seri` : latest === "L" ? `${streakCount}M seri` : latest === "D" ? `${streakCount}B seri` : "Maç bekleniyor";
+      row.officialPosition = officialMap.get(row.id) || "FIFA 9";
+      return row;
+    }).sort((a,b)=>b.points-a.points || b.gd-a.gd || b.gf-a.gf || b.wins-a.wins || a.name.localeCompare(b.name,"tr")).map((row,index)=>({ ...row, rank:index+1 }));
+
+    const teams = [...teamRows.values()].map(team => ({ ...team, gd:team.gf-team.ga, ppg:team.games?team.points/team.games:0, winRate:team.games?team.wins/team.games*100:0, playersCount:team.players.size })).sort((a,b)=>b.games-a.games || b.points-a.points || b.gd-a.gd || a.name.localeCompare(b.name,"tr"));
+    const rivalries = [...rivalryRows.values()].map(row => ({ ...row, leader:row.winsA===row.winsB?"":row.winsA>row.winsB?row.playerA:row.playerB })).sort((a,b)=>b.meetings-a.meetings || Math.abs(b.winsA-b.winsB)-Math.abs(a.winsA-a.winsB));
+
+    const decoratedMatches = allMatches.map((match,index)=>({
+      match,
+      order:matchOrder(match,index),
+      stage:currentMatchStageLabel(match),
+      homeName:playerName(match.homeId), awayName:playerName(match.awayId), homeTeam:match.homeTeam||"", awayTeam:match.awayTeam||"",
+      homeScore:match.homeScore, awayScore:match.awayScore, winnerName:matchComplete(match)&&matchWinnerId(match)?playerName(matchWinnerId(match)):"",
+      totalGoals:matchComplete(match)?match.homeScore+match.awayScore:0, margin:matchComplete(match)?Math.abs(match.homeScore-match.awayScore):0
+    }));
+    const completedDecorated = decoratedMatches.filter(item=>matchComplete(item.match));
+
+    function seriesEndedUnused(match) {
+      if (!match.seriesKey) return false;
+      const series = state.current.knockout[match.seriesKey];
+      return Boolean(seriesWinner(series) && !matchComplete(match));
+    }
+    const activeFixtures = decoratedMatches.filter(item=>!seriesEndedUnused(item.match));
+    const upcomingMatches = activeFixtures.filter(item=>!matchComplete(item.match) && item.match.homeId && item.match.awayId).sort((a,b)=>a.order-b.order).slice(0,10);
+    const recentMatches = completedDecorated.sort((a,b)=>b.order-a.order).slice(0,10);
+
+    const stages = [
+      { key:"league", label:"League Phase", matches:leagueMatches() },
+      { key:"gold", label:"Altın Grup", matches:goldMatches() },
+      { key:"silver", label:"Gümüş Grup", matches:silverMatches() },
+      { key:"knockout", label:"Eleme Serileri", matches:allKnockoutGames().filter(m=>m.phase==="knockout") },
+      { key:"final", label:"Büyük Final", matches:allKnockoutGames().filter(m=>m.phase==="final") }
+    ].map(stage => {
+      const valid = stage.matches.filter(match=>!seriesEndedUnused(match));
+      const done = valid.filter(matchComplete);
+      return { ...stage, total:valid.length, completed:done.length, goals:done.reduce((sum,m)=>sum+m.homeScore+m.awayScore,0) };
+    });
+
+    const maxBy = (rows, selector, filter=()=>true) => {
+      const list = rows.filter(filter);
+      return list.length ? [...list].sort((a,b)=>selector(b)-selector(a) || b.games-a.games || a.name.localeCompare(b.name,"tr"))[0] : null;
+    };
+    const biggestWin = completedDecorated.filter(item=>item.margin>0).sort((a,b)=>b.margin-a.margin || b.totalGoals-a.totalGoals)[0] || null;
+    const highestScoringMatch = completedDecorated.sort((a,b)=>b.totalGoals-a.totalGoals || b.margin-a.margin)[0] || null;
+    const lastUpdated = completedDecorated.map(item=>item.match.updatedAt).filter(Boolean).sort().at(-1) || cloudUpdatedAt || null;
+
+    return {
+      players, teams, rivalries, recentMatches, upcomingMatches, stages,
+      records: {
+        pointsLeader:maxBy(players,row=>row.points,row=>row.games>0),
+        winsLeader:maxBy(players,row=>row.wins,row=>row.games>0),
+        goalLeader:maxBy(players,row=>row.gf,row=>row.games>0),
+        defenseLeader:[...players].filter(row=>row.games>=3).sort((a,b)=>a.gaPerGame-b.gaPerGame || b.games-a.games)[0] || null,
+        formLeader:maxBy(players,row=>row.formPoints,row=>row.games>0),
+        winStreakLeader:maxBy(players,row=>row.currentWinStreak,row=>row.games>0),
+        unbeatenLeader:maxBy(players,row=>row.currentUnbeatenStreak,row=>row.games>0),
+        biggestWin, highestScoringMatch,
+        mostUsedTeam:teams[0] || null,
+        topRivalry:rivalries[0] || null
+      },
+      summary: {
+        completed:completedDecorated.length,
+        totalFixtures:activeFixtures.length,
+        goals:completedDecorated.reduce((sum,item)=>sum+item.totalGoals,0),
+        avgGoals:completedDecorated.length?completedDecorated.reduce((sum,item)=>sum+item.totalGoals,0)/completedDecorated.length:0,
+        draws:completed.filter(match=>match.homeScore===match.awayScore&&match.allowDraw).length,
+        lastUpdated
+      }
+    };
+  }
+
+  async function shareLiveStatistics() {
+    const analytics = buildLiveTournamentAnalytics();
+    const leader = analytics.records.pointsLeader;
+    const scorer = analytics.records.goalLeader;
+    const team = analytics.records.mostUsedTeam;
+    const biggest = analytics.records.biggestWin;
+    const lines = [
+      "FIFA 9 · CANLI TURNUVA STATS",
+      `${analytics.summary.completed}/${analytics.summary.totalFixtures} maç · ${analytics.summary.goals} gol · ${analytics.summary.avgGoals.toFixed(2)} gol/maç`,
+      leader ? `Performans lideri: ${leader.name} (${leader.points} puan)` : "Performans lideri: henüz belirlenmedi",
+      scorer ? `Gol lideri: ${scorer.name} (${scorer.gf} gol)` : "Gol lideri: henüz belirlenmedi",
+      team ? `En çok seçilen takım: ${team.name} (${team.games} seçim)` : "Takım verisi: bekleniyor",
+      biggest ? `En farklı skor: ${biggest.homeName} ${biggest.homeScore}-${biggest.awayScore} ${biggest.awayName}` : "En farklı skor: bekleniyor",
+      window.location.href
+    ];
+    const shareData = { title:"FIFA 9 Live Stats", text:lines.join("\n"), url:window.location.href };
+    if (navigator.share) {
+      try { await navigator.share(shareData); return; } catch (error) { if (error?.name === "AbortError") return; }
+    }
+    window.open(`https://wa.me/?text=${encodeURIComponent(lines.join("\n"))}`, "_blank", "noopener,noreferrer");
+  }
+
   function renderTeamStatistics() {
     const analytics = buildTeamAnalytics();
     if (!analytics.teams.length) {
@@ -2095,6 +2432,7 @@
     match.awayTeam = String(data.get("awayTeam") || "").trim();
     match.tiebreakWinnerId = homeScore === awayScore ? tieWinner : null;
     match.note = String(data.get("note") || "").trim();
+    match.updatedAt = new Date().toISOString();
     const warning = reconcileAfterStageEdit(match.phase);
     refreshKnockout();
     saveState();
@@ -2107,7 +2445,7 @@
     if (!canEdit()) return;
     const match = findMatch(matchId);
     if (!match) return;
-    match.homeScore = null; match.awayScore = null; match.tiebreakWinnerId = null; match.note = "";
+    match.homeScore = null; match.awayScore = null; match.tiebreakWinnerId = null; match.note = ""; match.updatedAt = null;
     const warning = reconcileAfterStageEdit(match.phase);
     refreshKnockout();
     saveState(); closeModal(); render();
@@ -2282,6 +2620,7 @@ ${shareData.url}`)}`;
     const action = event.target.closest("[data-action]");
     if (!action) return;
     const type = action.dataset.action;
+    if (type === "share-live-stats") { shareLiveStatistics(); return; }
     if (type === "print-a3-board") { printA3Board(); return; }
     if (type === "print-league-master") { printLeagueMaster(); return; }
     if (type === "print-round-sheets") { printRoundSheets(); return; }
