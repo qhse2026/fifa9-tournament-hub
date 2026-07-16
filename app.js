@@ -37,6 +37,9 @@
 
   let activeView = "dashboard";
   let state = loadState();
+  let allTimeSelectedPlayerName = "";
+  let allTimeRivalryA = "";
+  let allTimeRivalryB = "";
 
   function defaultState() {
     return {
@@ -785,27 +788,456 @@
   }
 
   function renderAllTime() {
-    const liveAllTime = combinedAllTime();
-    const liveChampions = combinedChampions();
-    const maxPoints = Math.max(...liveAllTime.map(row => row.points), 1);
+    const analytics = buildAllTimeAnalytics();
+    if (!analytics.players.length) {
+      view.innerHTML = emptyState("♛", "Tüm Zamanlar Verisi Hazır Değil", "Arşiv ve güncel turnuva maçları yüklendiğinde burada detaylı istatistikler görünecek.");
+      return;
+    }
+    ensureAllTimeSelections(analytics);
+    const selectedPlayer = analytics.playerMap.get(allTimeSelectedPlayerName) || analytics.players[0];
+    const selectedRivalry = analytics.pairMap.get(rivalryKey(allTimeRivalryA, allTimeRivalryB)) || analytics.rivalries[0] || null;
+    const maxPoints = Math.max(...analytics.players.map(row => row.points), 1);
     view.innerHTML = `
       <div class="group-banner gold">
-        <div><div class="eyebrow">HALL OF FAME</div><h2>Tüm Zamanlar Sıralaması</h2><p>FIFA 1–8 arşivi ile FIFA 9’da tamamlanan maçların canlı birleşik performans tablosu.</p></div>
+        <div><div class="eyebrow">HALL OF FAME</div><h2>Tüm Zamanlar Merkezi</h2><p>FIFA 1–8 arşivi ile FIFA 9’da tamamlanan maçların canlı birleşik performans, rekor ve rekabet merkezi. Oyuncu kartları, efsanevi eşleşmeler ve derinlemesine istatistikler tek ekranda.</p></div>
         <div class="group-emblem">♛</div>
       </div>
-      <h3 class="section-title">Şampiyonlar</h3>
-      <div class="champion-strip">${liveChampions.map(c => `<div class="champion-chip"><div class="name">${escapeHTML(c.name)}</div><div class="titles">${c.titles}× Şampiyon</div><div class="small">${c.finals} final · ${c.podiums} podyum</div></div>`).join("")}</div>
-      <div class="grid-2">
+      <div class="kpi-grid">
+        ${kpiCard("Kayıtlı Oyuncu", analytics.summary.players, "Tüm turnuvalarda yer alan oyuncular")}
+        ${kpiCard("Arşivlenen Maç", analytics.summary.matches, "FIFA 1–9 birleşik maç verisi")}
+        ${kpiCard("Toplam Gol", analytics.summary.goals, "Tarihî ve canlı turnuva golleri")}
+        ${kpiCard("Aktif Rekabet", analytics.summary.rivalries, "En az bir kez karşılaşmış eşleşme")}
+      </div>
+
+      <section class="panel mt-24">
+        <div class="panel-header"><div><h3 class="panel-title">Oyuncu Kartları</h3><div class="panel-subtitle">Tüm zamanlar yıldızları. Bir karta tıklayarak oyuncu panelini anında değiştir.</div></div><span class="badge badge-gold">${analytics.players.length} OYUNCU</span></div>
+        <div class="player-card-grid">${analytics.players.map(renderPlayerCard).join("")}</div>
+      </section>
+
+      <div class="grid-2 mt-24">
         <section class="panel">
-          <div class="panel-header"><div><h3 class="panel-title">All-Time League Table</h3><div class="panel-subtitle">Galibiyet 3, beraberlik 1 puan esas alınarak hesaplandı.</div></div><span class="badge badge-gold">${historical.allTime?.length || 0} OYUNCU</span></div>
-          ${allTimeTable(liveAllTime)}
+          <div class="panel-header"><div><h3 class="panel-title">Rekorlar Odası</h3><div class="panel-subtitle">Kupalar, üretkenlik ve üstünlük kayıtları.</div></div></div>
+          <div class="records-grid">
+            ${renderRecordTile("En Çok Şampiyonluk", analytics.records.titles, row => `${row.titles} şampiyonluk · ${row.finals} final`)}
+            ${renderRecordTile("En Çok Final", analytics.records.finals, row => `${row.finals} final · ${row.podiums} podyum`)}
+            ${renderRecordTile("En Çok Galibiyet", analytics.records.wins, row => `${row.wins} galibiyet · ${row.points} puan`)}
+            ${renderRecordTile("En Çok Gol", analytics.records.goals, row => `${row.gf} gol · maç başı ${row.avgGoals.toFixed(2)}`)}
+            ${renderRecordTile("En İyi PPG", analytics.records.ppg, row => `${row.ppg.toFixed(2)} PPG · ${row.games} maç`)}
+            ${renderRecordTile("En Sağlam Savunma", analytics.records.defense, row => `Maç başı ${row.gaPerGame.toFixed(2)} gol yedi`)}
+            ${renderMatchRecordTile("En Farklı Galibiyet", analytics.records.biggestWin)}
+            ${renderRivalryRecordTile("En Çok Oynanan Rekabet", analytics.records.topRivalry)}
+          </div>
         </section>
         <section class="panel">
-          <div class="panel-header"><div><h3 class="panel-title">Puan Gücü</h3><div class="panel-subtitle">Tüm zamanlar puan liderleri.</div></div></div>
-          <div class="stat-bars">${liveAllTime.slice(0,10).map(row => `<div class="stat-bar-row"><div class="stat-bar-name">${escapeHTML(row.name)}</div><div class="stat-bar-track"><div class="stat-bar-fill" style="width:${row.points/maxPoints*100}%"></div></div><div class="stat-bar-value">${row.points}</div></div>`).join("")}</div>
-          <div class="info-box mt-24">En yüksek maç başı puan: <strong>${escapeHTML([...liveAllTime].sort((a,b)=>b.ppg-a.ppg)[0]?.name || "–")}</strong> · ${[...liveAllTime].sort((a,b)=>b.ppg-a.ppg)[0]?.ppg || "–"} PPG</div>
+          <div class="panel-header"><div><h3 class="panel-title">Şampiyonlar Kulübü</h3><div class="panel-subtitle">Kupaya uzanan oyuncuların özeti.</div></div></div>
+          <div class="champion-strip">${analytics.champions.map(c => `<div class="champion-chip"><div class="name">${escapeHTML(c.name)}</div><div class="titles">${c.titles}× Şampiyon</div><div class="small">${c.finals} final · ${c.podiums} podyum</div></div>`).join("")}</div>
+          <div class="info-box mt-24">En yüksek maç başı puan: <strong>${escapeHTML(analytics.records.ppg?.name || "–")}</strong> · ${analytics.records.ppg?.ppg?.toFixed?.(2) || "–"} PPG</div>
+          <div class="info-box mt-16">En çok oynanan rekabet: <strong>${analytics.records.topRivalry ? `${escapeHTML(analytics.records.topRivalry.playerA)} – ${escapeHTML(analytics.records.topRivalry.playerB)}` : "–"}</strong>${analytics.records.topRivalry ? ` · ${analytics.records.topRivalry.meetings} maç` : ""}</div>
+        </section>
+      </div>
+
+      <div class="grid-2 mt-24">
+        <section class="panel">
+          <div class="panel-header"><div><h3 class="panel-title">All-Time League Table</h3><div class="panel-subtitle">Galibiyet 3, beraberlik 1 puan esas alınarak hesaplandı.</div></div><span class="badge badge-gold">${analytics.players.length} OYUNCU</span></div>
+          ${allTimeTable(analytics.players)}
+        </section>
+        <section class="panel">
+          <div class="panel-header"><div><h3 class="panel-title">Puan Gücü</h3><div class="panel-subtitle">Tüm zamanlar puan liderleri ve güç eğrisi.</div></div></div>
+          <div class="stat-bars">${analytics.players.slice(0,10).map(row => `<div class="stat-bar-row"><div class="stat-bar-name">${escapeHTML(row.name)}</div><div class="stat-bar-track"><div class="stat-bar-fill" style="width:${row.points/maxPoints*100}%"></div></div><div class="stat-bar-value">${row.points}</div></div>`).join("")}</div>
+          <div class="mini-stats-grid mt-24">
+            <div class="mini-stat"><span>En Çok Maç</span><strong>${escapeHTML(analytics.records.matches?.name || "–")}</strong><small>${analytics.records.matches?.games || 0} maç</small></div>
+            <div class="mini-stat"><span>En Çok Gol Farkı</span><strong>${escapeHTML(analytics.records.goalDifference?.name || "–")}</strong><small>${formatGD(analytics.records.goalDifference?.gd || 0)} averaj</small></div>
+            <div class="mini-stat"><span>En Yüksek Galibiyet Oranı</span><strong>${escapeHTML(analytics.records.winRate?.name || "–")}</strong><small>${analytics.records.winRate?.winRate?.toFixed?.(1) || analytics.records.winRate?.winRate || 0}%</small></div>
+            <div class="mini-stat"><span>En Çok Clean Sheet</span><strong>${escapeHTML(analytics.records.cleanSheets?.name || "–")}</strong><small>${analytics.records.cleanSheets?.cleanSheets || 0} maç</small></div>
+          </div>
+        </section>
+      </div>
+
+      <div class="grid-2 mt-24">
+        <section class="panel">
+          <div class="panel-header"><div><h3 class="panel-title">Oyuncu Derin Analizi</h3><div class="panel-subtitle">Seçtiğin oyuncunun tüm zamanlar karnesi ve rakip bazlı üstünlükleri.</div></div></div>
+          <div class="explorer-toolbar">
+            <label class="field inline-field"><span>Oyuncu Seç</span><select id="allTimePlayerSelect">${analytics.players.map(row => `<option value="${escapeHTML(row.name)}" ${row.name === selectedPlayer.name ? "selected" : ""}>${escapeHTML(row.name)}</option>`).join("")}</select></label>
+          </div>
+          ${renderSelectedPlayerPanel(selectedPlayer)}
+        </section>
+        <section class="panel">
+          <div class="panel-header"><div><h3 class="panel-title">Rekabet Merkezi</h3><div class="panel-subtitle">Kimin kime karşı ne kadar üstün olduğunu canlı karşılaştır.</div></div></div>
+          <div class="explorer-toolbar rivalry-toolbar">
+            <label class="field inline-field"><span>Oyuncu A</span><select id="rivalrySelectA">${analytics.players.map(row => `<option value="${escapeHTML(row.name)}" ${row.name === allTimeRivalryA ? "selected" : ""}>${escapeHTML(row.name)}</option>`).join("")}</select></label>
+            <label class="field inline-field"><span>Oyuncu B</span><select id="rivalrySelectB">${analytics.players.map(row => `<option value="${escapeHTML(row.name)}" ${row.name === allTimeRivalryB ? "selected" : ""}>${escapeHTML(row.name)}</option>`).join("")}</select></label>
+          </div>
+          ${renderRivalryPanel(selectedRivalry)}
+        </section>
+      </div>
+
+      <div class="grid-2 mt-24">
+        <section class="panel">
+          <div class="panel-header"><div><h3 class="panel-title">En Farklı Galibiyetler</h3><div class="panel-subtitle">Turnuva tarihinin en ağır skorları.</div></div></div>
+          ${renderBiggestWinsTable(analytics.biggestWins.slice(0, 12))}
+        </section>
+        <section class="panel">
+          <div class="panel-header"><div><h3 class="panel-title">En Çok Karşılaşılan Eşleşmeler</h3><div class="panel-subtitle">İzleyiciler için hızlı rekabet özeti. Bir satıra tıklayarak rekabet panelini doldur.</div></div></div>
+          ${renderRivalryTable(analytics.rivalries.slice(0, 12))}
         </section>
       </div>`;
+  }
+
+  function ensureAllTimeSelections(analytics) {
+    if (!analytics.players.length) return;
+    const first = analytics.players[0]?.name || "";
+    const second = analytics.players.find(player => player.name !== first)?.name || first;
+    if (!allTimeSelectedPlayerName || !analytics.playerMap.has(allTimeSelectedPlayerName)) allTimeSelectedPlayerName = first;
+    if (!allTimeRivalryA || !analytics.playerMap.has(allTimeRivalryA)) allTimeRivalryA = first;
+    if (!allTimeRivalryB || !analytics.playerMap.has(allTimeRivalryB) || allTimeRivalryB === allTimeRivalryA) {
+      const alternative = analytics.players.find(player => player.name !== allTimeRivalryA)?.name || second;
+      allTimeRivalryB = alternative;
+    }
+    if (allTimeRivalryA === allTimeRivalryB) allTimeRivalryB = second;
+  }
+
+  function renderPlayerCard(row) {
+    return `<article class="player-stat-card ${row.name === allTimeSelectedPlayerName ? "active" : ""}" data-action="select-alltime-player" data-player-name="${escapeHTML(row.name)}">
+      <div class="player-stat-head">
+        <div>
+          <div class="player-stat-rank">#${row.rank}</div>
+          <div class="player-stat-name">${escapeHTML(row.name)}</div>
+          <div class="player-stat-meta">${row.titles}× şampiyonluk · ${row.finals} final · ${row.podiums} podyum</div>
+        </div>
+        <div class="player-medal">${row.titles ? "★" : row.rank <= 8 ? "◆" : "•"}</div>
+      </div>
+      <div class="player-stat-grid">
+        <div><span>Puan</span><strong>${row.points}</strong></div>
+        <div><span>PPG</span><strong>${row.ppg.toFixed(2)}</strong></div>
+        <div><span>G%</span><strong>${row.winRate.toFixed(1)}%</strong></div>
+        <div><span>Gol</span><strong>${row.gf}</strong></div>
+      </div>
+      <div class="player-stat-footer"><span>${row.games} maç · ${formatGD(row.gd)} averaj</span><span>${row.cleanSheets} clean sheet</span></div>
+    </article>`;
+  }
+
+  function renderRecordTile(label, row, metaFn) {
+    if (!row) return `<div class="record-tile"><div class="record-label">${escapeHTML(label)}</div><div class="record-value">–</div><div class="record-note">Kayıt oluşmadı.</div></div>`;
+    return `<div class="record-tile"><div class="record-label">${escapeHTML(label)}</div><div class="record-value">${escapeHTML(row.name)}</div><div class="record-note">${escapeHTML(metaFn(row))}</div></div>`;
+  }
+
+  function renderMatchRecordTile(label, record) {
+    if (!record) return `<div class="record-tile"><div class="record-label">${escapeHTML(label)}</div><div class="record-value">–</div><div class="record-note">Kayıt oluşmadı.</div></div>`;
+    return `<div class="record-tile accent-gold"><div class="record-label">${escapeHTML(label)}</div><div class="record-value">${escapeHTML(record.winner)}</div><div class="record-note">${escapeHTML(record.loser)} karşısında ${record.score} · ${record.margin} fark · ${record.editionLabel}</div></div>`;
+  }
+
+  function renderRivalryRecordTile(label, record) {
+    if (!record) return `<div class="record-tile"><div class="record-label">${escapeHTML(label)}</div><div class="record-value">–</div><div class="record-note">Kayıt oluşmadı.</div></div>`;
+    return `<div class="record-tile accent-blue"><div class="record-label">${escapeHTML(label)}</div><div class="record-value">${escapeHTML(record.playerA)} – ${escapeHTML(record.playerB)}</div><div class="record-note">${record.meetings} maç · ${record.winsA}-${record.draws}-${record.winsB} rekabet özeti</div></div>`;
+  }
+
+  function renderSelectedPlayerPanel(player) {
+    const topOpponents = (player.opponents || []).slice(0, 10);
+    return `<div class="selected-player-shell">
+      <div class="selected-player-card">
+        <div class="selected-player-main">
+          <div class="selected-player-rank">#${player.rank}</div>
+          <div>
+            <h3>${escapeHTML(player.name)}</h3>
+            <p>${player.titles}× şampiyonluk · ${player.finals} final · ${player.podiums} podyum · ${player.editionsPlayed} turnuva</p>
+          </div>
+        </div>
+        <div class="selected-player-kpis">
+          <div><span>Maç</span><strong>${player.games}</strong></div>
+          <div><span>Galibiyet</span><strong>${player.wins}</strong></div>
+          <div><span>Beraberlik</span><strong>${player.draws}</strong></div>
+          <div><span>Mağlubiyet</span><strong>${player.losses}</strong></div>
+          <div><span>Gol</span><strong>${player.gf}</strong></div>
+          <div><span>Yenilen</span><strong>${player.ga}</strong></div>
+          <div><span>Averaj</span><strong>${formatGD(player.gd)}</strong></div>
+          <div><span>Puan</span><strong>${player.points}</strong></div>
+          <div><span>PPG</span><strong>${player.ppg.toFixed(2)}</strong></div>
+          <div><span>Galibiyet %</span><strong>${player.winRate.toFixed(1)}%</strong></div>
+          <div><span>Clean Sheet</span><strong>${player.cleanSheets}</strong></div>
+          <div><span>Gol / Maç</span><strong>${player.avgGoals.toFixed(2)}</strong></div>
+        </div>
+        <div class="selected-player-insights">
+          <div class="insight-pill"><span>En iyi rakip</span><strong>${player.bestOpponent ? `${escapeHTML(player.bestOpponent.name)} · ${player.bestOpponent.pointsPerGame.toFixed(2)} PPG` : "–"}</strong></div>
+          <div class="insight-pill"><span>Zorlandığı rakip</span><strong>${player.nemesis ? `${escapeHTML(player.nemesis.name)} · ${player.nemesis.pointsPerGame.toFixed(2)} PPG` : "–"}</strong></div>
+          <div class="insight-pill"><span>En farklı galibiyet</span><strong>${player.bestVictory ? `${player.bestVictory.score} · ${escapeHTML(player.bestVictory.loser)}` : "–"}</strong></div>
+          <div class="insight-pill"><span>Turnuva katılımı</span><strong>${player.editionsPlayed} edisyon</strong></div>
+        </div>
+      </div>
+      <div class="opponent-panel mt-24">
+        <div class="panel-subtitle" style="margin-bottom:12px">Rakip Karnesi</div>
+        ${topOpponents.length ? `<div class="table-wrap compact-table"><table><thead><tr><th>Rakip</th><th>Maç</th><th>G</th><th>B</th><th>M</th><th>AG</th><th>YG</th><th>PPG</th><th>Üstünlük</th></tr></thead><tbody>${topOpponents.map(opp => `<tr><td class="player-col"><span class="player-name">${escapeHTML(opp.name)}</span></td><td>${opp.meetings}</td><td>${opp.wins}</td><td>${opp.draws}</td><td>${opp.losses}</td><td>${opp.gf}</td><td>${opp.ga}</td><td>${opp.pointsPerGame.toFixed(2)}</td><td class="${opp.lead > 0 ? "gd-positive" : opp.lead < 0 ? "gd-negative" : ""}">${opp.lead > 0 ? `+${opp.lead}` : opp.lead}</td></tr>`).join("")}</tbody></table></div>` : `<div class="info-box">Henüz rakip verisi oluşmadı.</div>`}
+      </div>
+    </div>`;
+  }
+
+  function renderRivalryPanel(rivalry) {
+    if (!rivalry) return `<div class="info-box">Seçilen oyuncular arasında henüz maç bulunmuyor.</div>`;
+    return `<div class="rivalry-shell">
+      <div class="rivalry-hero">
+        <div class="rivalry-side ${rivalry.leader === rivalry.playerA ? "leader" : ""}"><div class="rivalry-name">${escapeHTML(rivalry.playerA)}</div><div class="rivalry-score">${rivalry.winsA}</div><small>galibiyet</small></div>
+        <div class="rivalry-centre"><div class="rivalry-meetings">${rivalry.meetings} maç</div><div class="rivalry-draws">${rivalry.draws} beraberlik</div><div class="rivalry-balance">${escapeHTML(rivalry.summary)}</div></div>
+        <div class="rivalry-side ${rivalry.leader === rivalry.playerB ? "leader" : ""}"><div class="rivalry-name">${escapeHTML(rivalry.playerB)}</div><div class="rivalry-score">${rivalry.winsB}</div><small>galibiyet</small></div>
+      </div>
+      <div class="selected-player-insights mt-16">
+        <div class="insight-pill"><span>Gol Dengesi</span><strong>${rivalry.goalsA} – ${rivalry.goalsB}</strong></div>
+        <div class="insight-pill"><span>Üstünlük</span><strong>${escapeHTML(rivalry.leader ? `${rivalry.leader} önde` : "Denge" )}</strong></div>
+        <div class="insight-pill"><span>En farklı maç</span><strong>${rivalry.biggestResult ? `${rivalry.biggestResult.score} · ${escapeHTML(rivalry.biggestResult.winner)}` : "–"}</strong></div>
+      </div>
+      <div class="panel-subtitle" style="margin:18px 0 12px">Maç Geçmişi</div>
+      <div class="table-wrap compact-table"><table><thead><tr><th>Edisyon</th><th>Aşama</th><th>${escapeHTML(rivalry.playerA)}</th><th>${escapeHTML(rivalry.playerB)}</th><th>Kazanan</th></tr></thead><tbody>${rivalry.matches.slice(0, 12).map(item => `<tr><td>${escapeHTML(item.editionLabel)}</td><td>${escapeHTML(item.stage)}</td><td>${item.scoreA}</td><td>${item.scoreB}</td><td>${escapeHTML(item.winner || "Berabere")}</td></tr>`).join("")}</tbody></table></div>
+    </div>`;
+  }
+
+  function renderBiggestWinsTable(rows) {
+    if (!rows.length) return `<div class="info-box">Henüz farklı skor verisi oluşmadı.</div>`;
+    return `<div class="table-wrap compact-table"><table><thead><tr><th>#</th><th>Kazanan</th><th>Kaybeden</th><th>Skor</th><th>Fark</th><th>Edisyon</th><th>Aşama</th></tr></thead><tbody>${rows.map((row, index) => `<tr><td>${index + 1}</td><td class="player-col"><span class="player-name">${escapeHTML(row.winner)}</span></td><td class="player-col">${escapeHTML(row.loser)}</td><td>${row.score}</td><td class="gd-positive">+${row.margin}</td><td>${escapeHTML(row.editionLabel)}</td><td>${escapeHTML(row.stage)}</td></tr>`).join("")}</tbody></table></div>`;
+  }
+
+  function renderRivalryTable(rows) {
+    if (!rows.length) return `<div class="info-box">Henüz rekabet verisi oluşmadı.</div>`;
+    return `<div class="table-wrap compact-table"><table><thead><tr><th>Eşleşme</th><th>Maç</th><th>${escapeHTML("Oyuncu A")}</th><th>B</th><th>Oyuncu B</th><th>Gol</th></tr></thead><tbody>${rows.map(row => `<tr data-action="set-rivalry" data-rival-a="${escapeHTML(row.playerA)}" data-rival-b="${escapeHTML(row.playerB)}"><td class="player-col"><span class="player-name">${escapeHTML(row.playerA)} – ${escapeHTML(row.playerB)}</span></td><td>${row.meetings}</td><td>${row.winsA}</td><td>${row.draws}</td><td>${row.winsB}</td><td>${row.goalsA}-${row.goalsB}</td></tr>`).join("")}</tbody></table></div>`;
+  }
+
+  function rivalryKey(a, b) {
+    return [a, b].filter(Boolean).sort((left, right) => left.localeCompare(right, "tr")).join("||");
+  }
+
+  function buildAllTimeAnalytics() {
+    const combinedTable = combinedAllTime();
+    const championRows = combinedChampions();
+    const championMap = new Map(championRows.map(row => [row.name, row]));
+    const statsMap = new Map();
+    const rivalryMap = new Map();
+    const unifiedMatches = buildUnifiedAllTimeMatches();
+
+    function ensurePlayer(name) {
+      if (!statsMap.has(name)) {
+        statsMap.set(name, { name, games: 0, wins: 0, draws: 0, losses: 0, gf: 0, ga: 0, gd: 0, points: 0, cleanSheets: 0, editions: new Set(), bestVictory: null, opponents: [] });
+      }
+      return statsMap.get(name);
+    }
+
+    function noteBestVictory(player, winner, loser, homeScore, awayScore, editionLabel, stage) {
+      const margin = Math.abs(homeScore - awayScore);
+      const score = `${homeScore}-${awayScore}`;
+      if (!player.bestVictory || margin > player.bestVictory.margin || (margin === player.bestVictory.margin && (homeScore + awayScore) > player.bestVictory.totalGoals)) {
+        player.bestVictory = { winner, loser, margin, score, editionLabel, stage, totalGoals: homeScore + awayScore };
+      }
+    }
+
+    for (const match of unifiedMatches) {
+      const home = match.homeName?.trim();
+      const away = match.awayName?.trim();
+      if (!home || !away || /^P\d+$/i.test(home) || /^P\d+$/i.test(away)) continue;
+      const homeRow = ensurePlayer(home);
+      const awayRow = ensurePlayer(away);
+      homeRow.games += 1; awayRow.games += 1;
+      homeRow.gf += match.homeScore; homeRow.ga += match.awayScore;
+      awayRow.gf += match.awayScore; awayRow.ga += match.homeScore;
+      if (match.awayScore === 0) homeRow.cleanSheets += 1;
+      if (match.homeScore === 0) awayRow.cleanSheets += 1;
+      homeRow.editions.add(match.edition);
+      awayRow.editions.add(match.edition);
+
+      let winner = null;
+      if (match.homeScore > match.awayScore) winner = home;
+      else if (match.awayScore > match.homeScore) winner = away;
+      else if (!match.allowDraw && match.winnerName) winner = match.winnerName;
+
+      if (!winner) {
+        homeRow.draws += 1; awayRow.draws += 1;
+        homeRow.points += 1; awayRow.points += 1;
+      } else if (winner === home) {
+        homeRow.wins += 1; homeRow.points += 3; awayRow.losses += 1;
+        noteBestVictory(homeRow, home, away, match.homeScore, match.awayScore, match.editionLabel, match.stage);
+      } else {
+        awayRow.wins += 1; awayRow.points += 3; homeRow.losses += 1;
+        noteBestVictory(awayRow, away, home, match.awayScore, match.homeScore, match.editionLabel, match.stage);
+      }
+
+      const key = rivalryKey(home, away);
+      if (!rivalryMap.has(key)) {
+        const [playerA, playerB] = [home, away].sort((left, right) => left.localeCompare(right, "tr"));
+        rivalryMap.set(key, { key, playerA, playerB, meetings: 0, wins: new Map([[playerA, 0], [playerB, 0]]), draws: 0, goals: new Map([[playerA, 0], [playerB, 0]]), matches: [], biggestResult: null });
+      }
+      const rivalry = rivalryMap.get(key);
+      rivalry.meetings += 1;
+      rivalry.goals.set(home, (rivalry.goals.get(home) || 0) + match.homeScore);
+      rivalry.goals.set(away, (rivalry.goals.get(away) || 0) + match.awayScore);
+      if (!winner) rivalry.draws += 1;
+      else rivalry.wins.set(winner, (rivalry.wins.get(winner) || 0) + 1);
+      const scoreA = rivalry.playerA === home ? match.homeScore : match.awayScore;
+      const scoreB = rivalry.playerB === away ? match.awayScore : match.homeScore;
+      rivalry.matches.push({ edition: match.edition, editionLabel: match.editionLabel, stage: match.stage, scoreA, scoreB, winner });
+      const margin = Math.abs(match.homeScore - match.awayScore);
+      if (margin > 0) {
+        const winName = match.homeScore > match.awayScore ? home : match.awayScore > match.homeScore ? away : winner;
+        const loseName = winName === home ? away : home;
+        const score = `${Math.max(match.homeScore, match.awayScore)}-${Math.min(match.homeScore, match.awayScore)}`;
+        if (!rivalry.biggestResult || margin > rivalry.biggestResult.margin) rivalry.biggestResult = { winner: winName, loser: loseName, margin, score };
+      }
+    }
+
+    for (const row of statsMap.values()) {
+      row.gd = row.gf - row.ga;
+    }
+
+    const baseByName = new Map(combinedTable.map(row => [row.name, row]));
+    const playerRows = combinedTable.map(base => {
+      const computed = statsMap.get(base.name) || { cleanSheets: 0, editions: new Set(), bestVictory: null, opponents: [] };
+      const champion = championMap.get(base.name) || { titles: 0, finals: 0, podiums: 0 };
+      return {
+        ...base,
+        titles: champion.titles || 0,
+        finals: champion.finals || 0,
+        podiums: champion.podiums || 0,
+        cleanSheets: computed.cleanSheets || 0,
+        editionsPlayed: computed.editions?.size || 0,
+        bestVictory: computed.bestVictory || null,
+        avgGoals: base.games ? base.gf / base.games : 0,
+        gaPerGame: base.games ? base.ga / base.games : 0,
+        opponents: []
+      };
+    });
+
+    const playerMap = new Map(playerRows.map(row => [row.name, row]));
+
+    for (const rivalry of rivalryMap.values()) {
+      const winsA = rivalry.wins.get(rivalry.playerA) || 0;
+      const winsB = rivalry.wins.get(rivalry.playerB) || 0;
+      const draws = rivalry.draws || 0;
+      const goalsA = rivalry.goals.get(rivalry.playerA) || 0;
+      const goalsB = rivalry.goals.get(rivalry.playerB) || 0;
+      const rowA = playerMap.get(rivalry.playerA);
+      const rowB = playerMap.get(rivalry.playerB);
+      if (rowA) rowA.opponents.push({ name: rivalry.playerB, meetings: rivalry.meetings, wins: winsA, draws, losses: winsB, gf: goalsA, ga: goalsB, lead: winsA - winsB, pointsPerGame: rivalry.meetings ? ((winsA * 3 + draws) / rivalry.meetings) : 0 });
+      if (rowB) rowB.opponents.push({ name: rivalry.playerA, meetings: rivalry.meetings, wins: winsB, draws, losses: winsA, gf: goalsB, ga: goalsA, lead: winsB - winsA, pointsPerGame: rivalry.meetings ? ((winsB * 3 + draws) / rivalry.meetings) : 0 });
+    }
+
+    for (const row of playerRows) {
+      row.opponents.sort((a, b) => b.meetings - a.meetings || b.pointsPerGame - a.pointsPerGame || a.name.localeCompare(b.name, "tr"));
+      const meaningful = row.opponents.filter(opp => opp.meetings >= 2);
+      const pool = meaningful.length ? meaningful : row.opponents;
+      row.bestOpponent = pool.length ? [...pool].sort((a, b) => b.pointsPerGame - a.pointsPerGame || b.lead - a.lead || a.name.localeCompare(b.name, "tr"))[0] : null;
+      row.nemesis = pool.length ? [...pool].sort((a, b) => a.pointsPerGame - b.pointsPerGame || a.lead - b.lead || a.name.localeCompare(b.name, "tr"))[0] : null;
+      row.avgGoals = row.games ? row.gf / row.games : 0;
+      row.gaPerGame = row.games ? row.ga / row.games : 0;
+    }
+
+    const rivalries = [...rivalryMap.values()].map(rivalry => {
+      const winsA = rivalry.wins.get(rivalry.playerA) || 0;
+      const winsB = rivalry.wins.get(rivalry.playerB) || 0;
+      const goalsA = rivalry.goals.get(rivalry.playerA) || 0;
+      const goalsB = rivalry.goals.get(rivalry.playerB) || 0;
+      const leader = winsA === winsB ? "" : winsA > winsB ? rivalry.playerA : rivalry.playerB;
+      const summary = winsA === winsB ? "Rekabet dengede" : `${leader} ${Math.abs(winsA - winsB)} maç farkla önde`;
+      return {
+        key: rivalry.key,
+        playerA: rivalry.playerA,
+        playerB: rivalry.playerB,
+        meetings: rivalry.meetings,
+        winsA,
+        winsB,
+        draws: rivalry.draws,
+        goalsA,
+        goalsB,
+        leader,
+        summary,
+        biggestResult: rivalry.biggestResult,
+        matches: rivalry.matches.sort((a, b) => a.edition - b.edition)
+      };
+    }).sort((a, b) => b.meetings - a.meetings || (b.goalsA + b.goalsB) - (a.goalsA + a.goalsB) || a.playerA.localeCompare(b.playerA, "tr"));
+
+    const biggestWins = unifiedMatches.map(match => {
+      const home = match.homeName?.trim();
+      const away = match.awayName?.trim();
+      const margin = Math.abs(match.homeScore - match.awayScore);
+      if (!home || !away || margin === 0) return null;
+      const winner = match.homeScore > match.awayScore ? home : away;
+      const loser = winner === home ? away : home;
+      return { winner, loser, score: `${Math.max(match.homeScore, match.awayScore)}-${Math.min(match.homeScore, match.awayScore)}`, margin, edition: match.edition, editionLabel: match.editionLabel, stage: match.stage, totalGoals: match.homeScore + match.awayScore };
+    }).filter(Boolean).sort((a, b) => b.margin - a.margin || b.totalGoals - a.totalGoals || a.edition - b.edition);
+
+    function bestBy(selector, filter = () => true, sorter = (a, b) => 0) {
+      const list = playerRows.filter(filter);
+      return list.length ? [...list].sort((a, b) => selector(b) - selector(a) || sorter(a, b))[0] : null;
+    }
+
+    const records = {
+      titles: bestBy(row => row.titles, row => row.titles > 0, (a, b) => a.name.localeCompare(b.name, "tr")),
+      finals: bestBy(row => row.finals, row => row.finals > 0, (a, b) => a.name.localeCompare(b.name, "tr")),
+      wins: bestBy(row => row.wins, row => row.games > 0, (a, b) => a.name.localeCompare(b.name, "tr")),
+      goals: bestBy(row => row.gf, row => row.games > 0, (a, b) => a.name.localeCompare(b.name, "tr")),
+      ppg: bestBy(row => row.ppg, row => row.games >= 10, (a, b) => a.name.localeCompare(b.name, "tr")),
+      defense: playerRows.filter(row => row.games >= 15).sort((a, b) => a.gaPerGame - b.gaPerGame || b.games - a.games || a.name.localeCompare(b.name, "tr"))[0] || null,
+      matches: bestBy(row => row.games, row => row.games > 0, (a, b) => a.name.localeCompare(b.name, "tr")),
+      goalDifference: bestBy(row => row.gd, row => row.games > 0, (a, b) => a.name.localeCompare(b.name, "tr")),
+      winRate: bestBy(row => row.winRate, row => row.games >= 10, (a, b) => a.name.localeCompare(b.name, "tr")),
+      cleanSheets: bestBy(row => row.cleanSheets, row => row.games > 0, (a, b) => a.name.localeCompare(b.name, "tr")),
+      biggestWin: biggestWins[0] || null,
+      topRivalry: rivalries[0] || null
+    };
+
+    return {
+      players: playerRows,
+      playerMap,
+      champions: championRows,
+      rivalries,
+      pairMap: new Map(rivalries.map(row => [rivalryKey(row.playerA, row.playerB), row])),
+      biggestWins,
+      records,
+      summary: {
+        players: playerRows.length,
+        matches: unifiedMatches.length,
+        goals: unifiedMatches.reduce((sum, match) => sum + match.homeScore + match.awayScore, 0),
+        rivalries: rivalries.length,
+        editions: (historical.summary?.editions || 8) + 1
+      }
+    };
+  }
+
+  function buildUnifiedAllTimeMatches() {
+    const historicalMatches = (historical.editions || []).flatMap(edition => (edition.matches || []).map((match, index) => ({
+      id: `historical-${edition.edition}-${index + 1}`,
+      edition: edition.edition,
+      editionLabel: `FIFA ${edition.edition}`,
+      stage: historicalStageLabel(match.stage),
+      homeName: match.p1,
+      awayName: match.p2,
+      homeScore: Number(match.s1),
+      awayScore: Number(match.s2),
+      allowDraw: true,
+      winnerName: Number(match.s1) === Number(match.s2) ? "" : Number(match.s1) > Number(match.s2) ? match.p1 : match.p2
+    })));
+    const currentMatches = allCurrentMatches().filter(matchComplete).map(match => ({
+      id: match.id,
+      edition: state.current.edition || 9,
+      editionLabel: `FIFA ${state.current.edition || 9}`,
+      stage: currentMatchStageLabel(match),
+      homeName: playerName(match.homeId),
+      awayName: playerName(match.awayId),
+      homeScore: Number(match.homeScore),
+      awayScore: Number(match.awayScore),
+      allowDraw: match.allowDraw,
+      winnerName: matchWinnerId(match) ? playerName(matchWinnerId(match)) : ""
+    }));
+    return [...historicalMatches, ...currentMatches];
+  }
+
+  function historicalStageLabel(stage) {
+    if (!stage) return "League Match";
+    const map = { "Semi Final": "Semi Final", "FINAL": "Final", "3rd Place": "3rd Place" };
+    return map[stage] || stage;
+  }
+
+  function currentMatchStageLabel(match) {
+    const seriesMap = { qf1: "Quarter-final 1", qf2: "Quarter-final 2", qf3: "Quarter-final 3", sf1: "Semi-final 1", sf2: "Semi-final 2" };
+    if (match.phase === "league") return `League Phase · Round ${match.round}`;
+    if (match.phase === "gold") return `Gold Group · Round ${match.round}`;
+    if (match.phase === "silver") return `Silver Group · Round ${match.round}`;
+    if (match.phase === "knockout") return `${seriesMap[match.seriesKey] || "Knockout Series"} · Match ${match.round}`;
+    if (match.phase === "final") return "Grand Final";
+    return "FIFA 9";
   }
 
   function renderBackup() {
@@ -1290,6 +1722,17 @@ ${shareData.url}`)}`;
     const action = event.target.closest("[data-action]");
     if (!action) return;
     const type = action.dataset.action;
+    if (type === "select-alltime-player") {
+      allTimeSelectedPlayerName = action.dataset.playerName || allTimeSelectedPlayerName;
+      if (activeView === "alltime") renderAllTime();
+      return;
+    }
+    if (type === "set-rivalry") {
+      allTimeRivalryA = action.dataset.rivalA || allTimeRivalryA;
+      allTimeRivalryB = action.dataset.rivalB || allTimeRivalryB;
+      if (activeView === "alltime") renderAllTime();
+      return;
+    }
     if (["generate-draw","generate-phase2","generate-knockout","edit-match","clear-match","open-name-import","apply-bulk-names","confirm-reset","reset-current"].includes(type) && !canEdit()) {
       toast("Bu işlem yalnızca turnuva yöneticisine açıktır.", "error");
       return;
@@ -1339,6 +1782,23 @@ ${shareData.url}`)}`;
 
   document.addEventListener("change", event => {
     if (event.target.id === "importFile" && event.target.files?.[0]) importBackup(event.target.files[0]);
+    if (event.target.id === "allTimePlayerSelect") { allTimeSelectedPlayerName = event.target.value; if (activeView === "alltime") renderAllTime(); }
+    if (event.target.id === "rivalrySelectA") {
+      allTimeRivalryA = event.target.value;
+      if (allTimeRivalryA === allTimeRivalryB) {
+        const other = combinedAllTime().find(row => row.name !== allTimeRivalryA)?.name || "";
+        allTimeRivalryB = other;
+      }
+      if (activeView === "alltime") renderAllTime();
+    }
+    if (event.target.id === "rivalrySelectB") {
+      allTimeRivalryB = event.target.value;
+      if (allTimeRivalryA === allTimeRivalryB) {
+        const other = combinedAllTime().find(row => row.name !== allTimeRivalryB)?.name || "";
+        allTimeRivalryA = other;
+      }
+      if (activeView === "alltime") renderAllTime();
+    }
   });
 
   $("#modalClose").addEventListener("click", closeModal);
