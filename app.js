@@ -30,6 +30,7 @@
     gold: "Altın Grup",
     silver: "Gümüş Grup",
     knockout: "Eleme Aşaması",
+    print: "Çıktı Merkezi",
     archive: "Turnuva Arşivi",
     alltime: "Tüm Zamanlar",
     backup: "Veri & Yedek"
@@ -515,6 +516,7 @@
       case "gold": renderGroup("gold"); break;
       case "silver": renderGroup("silver"); break;
       case "knockout": renderKnockout(); break;
+      case "print": renderPrintCenter(); break;
       case "archive": renderArchive(); break;
       case "alltime": renderAllTime(); break;
       case "backup": renderBackup(); break;
@@ -767,6 +769,273 @@
         </div></section>
         <section class="panel"><div class="panel-header"><div><h3 class="panel-title">Altın Grup Avantajı</h3><div class="panel-subtitle">Lig liderliğinin ödülü.</div></div></div><div class="info-box success-box"><strong>${displayName(ko.seeds?.gold1)}</strong>, Altın Grubu birinci bitirdiği için doğrudan yarı finale yükseldi ve Çeyrek Final 2 galibini bekliyor.</div></section>
       </div>`;
+  }
+
+  function renderPrintCenter() {
+    const leagueReady = state.current.league.generated && leagueMatches().length === 48;
+    const goldReady = state.current.phase2.generated && goldMatches().length === 15;
+    const silverReady = state.current.phase2.generated && silverMatches().length === 15;
+    const knockoutReady = state.current.knockout.generated;
+    const availableSections = [leagueReady, goldReady, silverReady, knockoutReady].filter(Boolean).length;
+    const currentUrl = location.protocol.startsWith("http") ? location.href : "Yerel önizleme";
+
+    view.innerHTML = `
+      <div class="group-banner gold">
+        <div><div class="eyebrow">PRINT CONTROL</div><h2>Çıktı Merkezi</h2><p>Kura ve fikstür verilerini otomatik olarak baskıya hazır maç föylerine dönüştür. Oyun masasına asılacak A3 panodan tur bazlı skor kâğıtlarına kadar bütün dokümanlar mevcut canlı veriden üretilir.</p></div>
+        <div class="group-emblem">▤</div>
+      </div>
+      <div class="kpi-grid">
+        ${kpiCard("League Phase", leagueReady ? "48 Maç" : "Bekliyor", leagueReady ? "6 tur · oyuncu başına 6 maç" : "Önce kura çekilmelidir")}
+        ${kpiCard("İkinci Aşama", goldReady && silverReady ? "30 Maç" : "Bekliyor", goldReady && silverReady ? "Altın + Gümüş grupları" : "League Phase tamamlanmalıdır")}
+        ${kpiCard("Eleme Serileri", knockoutReady ? "Hazır" : "Bekliyor", knockoutReady ? "Çeyrek final, yarı final ve final" : "İkinci aşama tamamlanmalıdır")}
+        ${kpiCard("Hazır Paket", `${availableSections}/4`, "Baskıya hazır turnuva bölümü")}
+      </div>
+
+      <div class="info-box mt-24">Çıktılar yeni bir sekmede açılır. Tarayıcı yazdırma ekranından <strong>Yazdır</strong> veya <strong>PDF olarak kaydet</strong> seçebilirsin. A3 pano için kâğıt boyutunu A3 ve yönü yatay seç.</div>
+
+      <h3 class="section-title">League Phase Çıktıları</h3>
+      <div class="print-card-grid">
+        ${printCenterCard("A3", "Oyun Masası Duvar Panosu", "16 oyuncu, altı tur ve 48 maçın tamamını tek, geniş turnuva panosunda gösterir.", "print-a3-board", leagueReady, "A3 · Yatay")}
+        ${printCenterCard("48", "League Phase Ana Skor Föyü", "Bütün maçları; oynandı, siteye girildi ve doğrulandı kutularıyla kompakt kontrol tablosunda toplar.", "print-league-master", leagueReady, "A4 · Yatay")}
+        ${printCenterCard("R6", "Tur Bazlı Maç Föyleri", "Her tur için ayrı sayfa. Büyük skor kutuları, takım alanları, tarih ve sonucu yazan kişi bölümü içerir.", "print-round-sheets", leagueReady, "6 Sayfa · A4")}
+        ${printCenterCard("PTS", "Manuel Puan Tablosu", "Oyuncu isimleri önceden yazılı, elle güncellenebilir O-G-B-M-AG-YG-AV-P çalışma tablosu.", "print-standings-sheet", leagueReady, "A4 · Dikey")}
+      </div>
+
+      <h3 class="section-title">İkinci Aşama ve Eleme Çıktıları</h3>
+      <div class="print-card-grid">
+        ${printCenterCard("G", "Altın Grup Maç Paketi", "Beş turluk fikstür, skor föyleri ve kümülatif puan tablosu.", "print-gold-pack", goldReady, "A4 · Yatay")}
+        ${printCenterCard("S", "Gümüş Grup Maç Paketi", "Beş turluk fikstür, skor föyleri ve kümülatif puan tablosu.", "print-silver-pack", silverReady, "A4 · Yatay")}
+        ${printCenterCard("KO", "Eleme Serileri Panosu", "Üç çeyrek final serisi, iki yarı final ve tek maçlık final için skor kayıt alanları.", "print-knockout-board", knockoutReady, "A3 · Yatay")}
+        ${printCenterCard("ALL", "Mevcut Tam Turnuva Paketi", "Şu anda oluşturulmuş bütün aşamaları tek baskı dokümanında birleştirir.", "print-full-pack", leagueReady, "Çok Sayfalı PDF")}
+      </div>
+
+      <div class="grid-2 mt-24">
+        <section class="panel">
+          <div class="panel-header"><div><h3 class="panel-title">Fiziksel Skor Kontrol Sistemi</h3><div class="panel-subtitle">Sen gemide veya oyun alanında olmadığında kullanılacak standart.</div></div></div>
+          <div class="format-list">
+            <div class="format-row"><div class="format-icon">1</div><div><div class="format-title">Maç oynandıktan sonra skor yazılır</div><div class="format-desc">Her iki oyuncu skoru kontrol eder; beraberlik veya penaltı bilgisi not alanına eklenir.</div></div></div>
+            <div class="format-row"><div class="format-icon">2</div><div><div class="format-title">“Oynandı” kutusu işaretlenir</div><div class="format-desc">Maçın fiziksel kaydı tamamlanır ve sonuç kâğıdı oyun masasında bırakılır.</div></div></div>
+            <div class="format-row"><div class="format-icon">3</div><div><div class="format-title">Sonuç website'e girilir</div><div class="format-desc">Yönetici sonucu sisteme kaydettikten sonra “Site” kutusunu işaretler.</div></div></div>
+            <div class="format-row"><div class="format-icon">4</div><div><div class="format-title">Doğrulama tamamlanır</div><div class="format-desc">Fiziksel kâğıt ile canlı site aynıysa “Doğrulandı” kutusu işaretlenir.</div></div></div>
+          </div>
+        </section>
+        <section class="panel">
+          <div class="panel-header"><div><h3 class="panel-title">Canlı Bağlantı</h3><div class="panel-subtitle">Baskı başlığında yer alacak web adresi.</div></div></div>
+          <div class="print-url-box">${escapeHTML(currentUrl)}</div>
+          <div class="info-box mt-16">Kâğıdın üst kısmında turnuva adı, baskı tarihi, edisyon, canlı site adresi ve sonuç sorumlusu alanı otomatik yer alır.</div>
+        </section>
+      </div>`;
+  }
+
+  function printCenterCard(icon, title, description, action, ready, format) {
+    return `<article class="print-action-card ${ready ? "ready" : "locked"}">
+      <div class="print-action-icon">${escapeHTML(icon)}</div>
+      <div class="print-action-body">
+        <div class="print-action-format">${escapeHTML(format)}</div>
+        <h3>${escapeHTML(title)}</h3>
+        <p>${escapeHTML(description)}</p>
+      </div>
+      <button class="btn ${ready ? "btn-gold" : "btn-ghost"} btn-wide" data-action="${action}" ${ready ? "" : "disabled"}>${ready ? "Çıktıyı Aç" : "Aşama Bekleniyor"}</button>
+    </article>`;
+  }
+
+  function printLanguage() {
+    return document.documentElement.dataset.language === "en" ? "en" : "tr";
+  }
+
+  function printLabel(tr, en) {
+    return printLanguage() === "en" ? en : tr;
+  }
+
+  function printTournamentTitle() {
+    return printLanguage() === "en" ? "FIFA 9 TOURNAMENT HUB" : "FIFA 9 TURNUVA MERKEZİ";
+  }
+
+  function printDateLabel() {
+    return new Date().toLocaleString(printLanguage() === "en" ? "en-GB" : "tr-TR", { dateStyle: "medium", timeStyle: "short" });
+  }
+
+  function printMatchScore(match) {
+    if (!matchComplete(match)) return "";
+    return `${match.homeScore} - ${match.awayScore}${match.tiebreakWinnerId ? " (P)" : ""}`;
+  }
+
+  function printableMatchRows(rounds, startIndex = 1, options = {}) {
+    let counter = startIndex;
+    return (rounds || []).map(round => {
+      const rows = (round.matches || []).map(match => {
+        const index = counter++;
+        return `<tr>
+          <td class="print-index">${index}</td>
+          <td>${round.number}</td>
+          <td class="print-player">${displayName(match.homeId)}</td>
+          <td class="print-team-cell">${escapeHTML(match.homeTeam || "")}</td>
+          <td class="print-score-cell">${escapeHTML(printMatchScore(match))}</td>
+          <td class="print-team-cell">${escapeHTML(match.awayTeam || "")}</td>
+          <td class="print-player">${displayName(match.awayId)}</td>
+          ${options.checks === false ? "" : `<td class="check-cell">□</td><td class="check-cell">□</td><td class="check-cell">□</td>`}
+          <td class="notes-cell">${escapeHTML(match.note || "")}</td>
+        </tr>`;
+      }).join("");
+      return { number: round.number, rows, nextIndex: counter };
+    });
+  }
+
+  function printTableHeader(includeChecks = true) {
+    return `<thead><tr>
+      <th>#</th><th>${printLabel("Tur", "Round")}</th><th>${printLabel("Oyuncu", "Player")}</th><th>${printLabel("Takım", "Team")}</th><th>${printLabel("Skor", "Score")}</th><th>${printLabel("Takım", "Team")}</th><th>${printLabel("Oyuncu", "Player")}</th>
+      ${includeChecks ? `<th>${printLabel("Oynandı", "Played")}</th><th>${printLabel("Site", "Site")}</th><th>${printLabel("Doğrulandı", "Verified")}</th>` : ""}
+      <th>${printLabel("Not", "Notes")}</th>
+    </tr></thead>`;
+  }
+
+  function printDocumentHeader(title, subtitle = "") {
+    const siteUrl = location.protocol.startsWith("http") ? location.href : "";
+    return `<header class="doc-header">
+      <div class="doc-brand"><div class="doc-mark">F9</div><div><div class="doc-brand-title">${printTournamentTitle()}</div><div class="doc-brand-sub">UEFA LEAGUE PHASE · EDITION 09</div></div></div>
+      <div class="doc-heading"><h1>${escapeHTML(title)}</h1>${subtitle ? `<p>${escapeHTML(subtitle)}</p>` : ""}</div>
+      <div class="doc-meta"><div><strong>${printLabel("Baskı", "Printed")}</strong><span>${escapeHTML(printDateLabel())}</span></div><div><strong>${printLabel("Canlı Site", "Live Site")}</strong><span>${escapeHTML(siteUrl || "-")}</span></div></div>
+    </header>`;
+  }
+
+  function printControlFooter() {
+    return `<div class="control-footer"><div>${printLabel("Sonuçları yazan", "Recorded by")}: __________________________</div><div>${printLabel("Tarih / Saat", "Date / Time")}: __________________________</div><div>${printLabel("Kontrol eden", "Verified by")}: __________________________</div></div>`;
+  }
+
+  function printRoundSection(round, phaseLabel, globalStart = 1) {
+    const rows = printableMatchRows([round], globalStart)[0];
+    return `<section class="print-page round-page">
+      ${printDocumentHeader(`${phaseLabel} · ${printLabel("Tur", "Round")} ${round.number}`, printLabel("Maç sonuçlarını okunaklı şekilde yazın ve her iki oyuncuya doğrulatın.", "Write match results clearly and have both players verify them."))}
+      <table class="print-table roomy">${printTableHeader()}<tbody>${rows.rows}</tbody></table>
+      ${printControlFooter()}
+    </section>`;
+  }
+
+  function printStandingsSection(title, ids, rows = null) {
+    const order = rows?.length ? rows : ids.map(id => blankStat(id));
+    return `<section class="print-page portrait-page">
+      ${printDocumentHeader(title, printLabel("Manuel yedek puan tablosu", "Manual backup standings worksheet"))}
+      <table class="print-table standings-print"><thead><tr><th>#</th><th>${printLabel("Oyuncu", "Player")}</th><th>O</th><th>G</th><th>B</th><th>M</th><th>AG</th><th>YG</th><th>AV</th><th>P</th><th>${printLabel("İmza / Kontrol", "Signature / Check")}</th></tr></thead><tbody>
+        ${order.map((row, index) => `<tr><td>${index + 1}</td><td class="print-player">${displayName(row.id)}</td><td>${row.mp || ""}</td><td>${row.w || ""}</td><td>${row.d || ""}</td><td>${row.l || ""}</td><td>${row.gf || ""}</td><td>${row.ga || ""}</td><td>${row.gd ? formatGD(row.gd) : ""}</td><td>${row.pts || ""}</td><td></td></tr>`).join("")}
+      </tbody></table>
+      <div class="standings-note">${printLabel("Sıralama kriterleri: Puan · Genel averaj · Atılan gol · Galibiyet sayısı · Alfabetik sıra", "Ranking criteria: Points · Goal difference · Goals scored · Wins · Alphabetical order")}</div>
+      ${printControlFooter()}
+    </section>`;
+  }
+
+  function buildLeagueMasterSection() {
+    const roundRows = printableMatchRows(state.current.league.rounds);
+    return `<section class="print-page landscape-page">
+      ${printDocumentHeader(printLabel("League Phase Ana Skor Föyü", "League Phase Master Score Sheet"), printLabel("48 maç · 6 tur · fiziksel ve dijital sonuç kontrolü", "48 matches · 6 rounds · physical and digital result control"))}
+      <table class="print-table compact">${printTableHeader()}<tbody>${roundRows.map(group => group.rows).join("")}</tbody></table>
+      ${printControlFooter()}
+    </section>`;
+  }
+
+  function buildA3BoardSection() {
+    const rounds = state.current.league.rounds || [];
+    const participants = state.current.participants.filter(p => p.name.trim());
+    return `<section class="print-page a3-page">
+      ${printDocumentHeader(printLabel("League Phase Oyun Masası Panosu", "League Phase Match Table Board"), printLabel("Skorları yazın · Oynandı / Site / Doğrulandı kontrolünü tamamlayın", "Record scores · Complete Played / Site / Verified checks"))}
+      <div class="a3-layout">
+        <div class="a3-roster"><h3>${printLabel("16 Oyuncu", "16 Players")}</h3>${participants.map((player, index) => `<div class="roster-line"><span>${index + 1}</span><strong>${escapeHTML(player.name)}</strong></div>`).join("")}</div>
+        <div class="a3-rounds">${rounds.map((round, roundIndex) => `<div class="a3-round"><h3>${printLabel("Tur", "Round")} ${round.number}</h3>${round.matches.map((match, matchIndex) => `<div class="a3-match"><span class="a3-no">${roundIndex * 8 + matchIndex + 1}</span><span class="a3-player">${displayName(match.homeId)}</span><span class="a3-score">${escapeHTML(printMatchScore(match)) || "____ - ____"}</span><span class="a3-player right">${displayName(match.awayId)}</span><span class="a3-checks">□ O &nbsp; □ S &nbsp; □ V</span></div>`).join("")}</div>`).join("")}</div>
+      </div>
+      ${printControlFooter()}
+    </section>`;
+  }
+
+  function buildGroupPackSections(group) {
+    const isGold = group === "gold";
+    const rounds = isGold ? state.current.phase2.goldRounds : state.current.phase2.silverRounds;
+    const ids = isGold ? state.current.phase2.goldIds : state.current.phase2.silverIds;
+    const title = printLabel(isGold ? "Altın Grup" : "Gümüş Grup", isGold ? "Gold Group" : "Silver Group");
+    const sections = rounds.map((round, index) => printRoundSection(round, title, index * 3 + 1));
+    sections.push(printStandingsSection(`${title} · ${printLabel("Kümülatif Puan Tablosu", "Cumulative Standings")}`, ids, phase2Standings(group)));
+    return sections;
+  }
+
+  function seriesPrintBlock(series, title, fallbackA, fallbackB) {
+    const playerA = series ? displayName(series.playerAId) : escapeHTML(fallbackA);
+    const playerB = series ? displayName(series.playerBId) : escapeHTML(fallbackB);
+    const games = series?.games || [1,2,3].map(number => ({ homeScore: null, awayScore: null, tiebreakWinnerId: null, note: "", round: number }));
+    return `<div class="ko-series-block"><div class="ko-series-title">${escapeHTML(title)}</div><div class="ko-series-players"><strong>${playerA}</strong><span>VS</span><strong>${playerB}</strong></div><table class="ko-series-table"><thead><tr><th>${printLabel("Maç", "Match")}</th><th>${playerA}</th><th>${playerB}</th><th>${printLabel("Kazanan", "Winner")}</th><th>${printLabel("Not", "Notes")}</th></tr></thead><tbody>${games.map((game, index) => `<tr><td>${index + 1}</td><td>${Number.isFinite(game.homeScore) ? game.homeScore : ""}</td><td>${Number.isFinite(game.awayScore) ? game.awayScore : ""}</td><td>${game.tiebreakWinnerId ? displayName(game.tiebreakWinnerId) : ""}</td><td>${escapeHTML(game.note || "")}</td></tr>`).join("")}</tbody></table><div class="series-winner-line">${printLabel("Seri Galibi", "Series Winner")}: ______________________________</div></div>`;
+  }
+
+  function buildKnockoutBoardSection() {
+    const ko = state.current.knockout;
+    const final = ko.final;
+    return `<section class="print-page a3-page knockout-print-page">
+      ${printDocumentHeader(printLabel("Eleme Serileri ve Büyük Final Panosu", "Knockout Series and Grand Final Board"), printLabel("Çeyrek final ve yarı final: 3 maçta 2 galibiyet · Final: tek maç", "Quarter-finals and semi-finals: best of three · Final: single match"))}
+      <div class="ko-print-grid">
+        ${seriesPrintBlock(ko.qf1, printLabel("Çeyrek Final 1", "Quarter-final 1"), printLabel("Altın 2", "Gold 2"), printLabel("Gümüş 3", "Silver 3"))}
+        ${seriesPrintBlock(ko.qf2, printLabel("Çeyrek Final 2", "Quarter-final 2"), printLabel("Altın 3", "Gold 3"), printLabel("Gümüş 2", "Silver 2"))}
+        ${seriesPrintBlock(ko.qf3, printLabel("Çeyrek Final 3", "Quarter-final 3"), printLabel("Altın 4", "Gold 4"), printLabel("Gümüş 1", "Silver 1"))}
+        ${seriesPrintBlock(ko.sf1, printLabel("Yarı Final 1", "Semi-final 1"), printLabel("Altın 1", "Gold 1"), printLabel("Çeyrek Final 2 Galibi", "Winner of Quarter-final 2"))}
+        ${seriesPrintBlock(ko.sf2, printLabel("Yarı Final 2", "Semi-final 2"), printLabel("Çeyrek Final 1 Galibi", "Winner of Quarter-final 1"), printLabel("Çeyrek Final 3 Galibi", "Winner of Quarter-final 3"))}
+        <div class="ko-series-block final-print-block"><div class="ko-series-title">${printLabel("Büyük Final", "Grand Final")}</div><div class="ko-series-players"><strong>${final ? displayName(final.homeId) : printLabel("Yarı Final 1 Galibi", "Winner of Semi-final 1")}</strong><span>VS</span><strong>${final ? displayName(final.awayId) : printLabel("Yarı Final 2 Galibi", "Winner of Semi-final 2")}</strong></div><div class="final-score-line">${printLabel("Final Skoru", "Final Score")}: ________ - ________</div><div class="series-winner-line">${printLabel("Şampiyon", "Champion")}: __________________________________________</div></div>
+      </div>
+      ${printControlFooter()}
+    </section>`;
+  }
+
+  function openPrintDocument(title, sections, options = {}) {
+    const popup = window.open("", "_blank");
+    if (!popup) { toast("Tarayıcı açılır pencereyi engelledi. Bu site için pop-up izni ver.", "error"); return; }
+    const pageSize = options.pageSize || "A4 landscape";
+    const html = `<!DOCTYPE html><html lang="${printLanguage()}"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHTML(title)}</title><style>${printDocumentCSS(pageSize)}</style></head><body>
+      <div class="screen-toolbar"><button onclick="window.print()">${printLabel("Yazdır / PDF Kaydet", "Print / Save PDF")}</button><button onclick="window.close()">${printLabel("Kapat", "Close")}</button><span>${printLabel("Yazdırma ekranında kenar boşluklarını minimum, ölçeği sayfaya sığdır seç.", "In the print dialog, use minimum margins and fit to page.")}</span></div>
+      <main>${sections.join("")}</main>
+      <script>setTimeout(()=>window.print(),500)<\/script>
+    </body></html>`;
+    popup.document.open();
+    popup.document.write(html);
+    popup.document.close();
+  }
+
+  function printDocumentCSS(pageSize) {
+    return `
+      :root{--ink:#101722;--muted:#5f6b78;--gold:#a87322;--line:#b8c1ca;--soft:#eef1f4;--dark:#08131f}
+      *{box-sizing:border-box}body{margin:0;background:#dfe4e8;color:var(--ink);font-family:Arial,Helvetica,sans-serif;font-size:10px}main{max-width:1500px;margin:70px auto 30px}.screen-toolbar{position:fixed;z-index:20;top:0;left:0;right:0;height:56px;display:flex;align-items:center;gap:10px;padding:10px 18px;background:#07131f;color:white;box-shadow:0 4px 18px rgba(0,0,0,.22)}.screen-toolbar button{border:0;border-radius:8px;padding:9px 14px;font-weight:800;cursor:pointer;background:#d6a84e;color:#151006}.screen-toolbar button+button{background:#fff;color:#111}.screen-toolbar span{margin-left:auto;color:#aeb9c4;font-size:11px}
+      .print-page{width:297mm;min-height:210mm;margin:0 auto 16px;background:white;padding:9mm;box-shadow:0 8px 30px rgba(0,0,0,.18);page-break-after:always;overflow:hidden}.portrait-page{width:210mm;min-height:297mm}.a3-page{width:420mm;min-height:297mm}.doc-header{display:grid;grid-template-columns:1.1fr 1.5fr 1fr;gap:8mm;align-items:center;border-bottom:2px solid var(--gold);padding-bottom:5mm;margin-bottom:5mm}.doc-brand{display:flex;align-items:center;gap:4mm}.doc-mark{width:14mm;height:14mm;border-radius:50%;display:grid;place-items:center;background:var(--dark);color:#e6bd6a;font-size:15px;font-weight:900}.doc-brand-title{font-weight:900;font-size:13px}.doc-brand-sub{margin-top:1mm;color:var(--gold);font-size:8px;font-weight:800;letter-spacing:.12em}.doc-heading{text-align:center}.doc-heading h1{margin:0;font-size:21px}.doc-heading p{margin:2mm 0 0;color:var(--muted);font-size:9px}.doc-meta{display:grid;gap:2mm;font-size:8px}.doc-meta div{display:grid;grid-template-columns:22mm 1fr;gap:2mm}.doc-meta strong{color:var(--gold)}.doc-meta span{word-break:break-all}
+      table{border-collapse:collapse;width:100%}.print-table th,.print-table td{border:1px solid var(--line);padding:2.1mm 1.5mm;text-align:center;height:8mm}.print-table th{background:var(--dark);color:white;font-size:7px;text-transform:uppercase;letter-spacing:.04em}.print-table .print-player{text-align:left;font-weight:800;min-width:28mm}.print-table .print-team-cell{min-width:22mm}.print-table .print-score-cell{min-width:18mm;font-size:14px;font-weight:900}.print-table .check-cell{font-size:15px;width:10mm}.print-table .notes-cell{min-width:25mm;text-align:left}.print-table.compact th,.print-table.compact td{padding:1mm;height:4.6mm;font-size:6.5px}.print-table.compact .print-score-cell{font-size:9px}.print-table.roomy th,.print-table.roomy td{height:15mm;font-size:9px}.print-table.roomy .print-score-cell{font-size:18px}.standings-print th,.standings-print td{height:13mm;font-size:10px}.standings-print .print-player{min-width:55mm}.standings-note{margin-top:4mm;color:var(--muted);font-size:9px}.control-footer{display:grid;grid-template-columns:repeat(3,1fr);gap:8mm;margin-top:7mm;padding-top:4mm;border-top:1px solid var(--line);font-size:9px}
+      .a3-layout{display:grid;grid-template-columns:64mm 1fr;gap:6mm}.a3-roster{border:1px solid var(--line);padding:4mm}.a3-roster h3,.a3-round h3{margin:0 0 3mm;color:var(--gold);font-size:12px}.roster-line{display:grid;grid-template-columns:8mm 1fr;gap:2mm;border-bottom:1px solid #d9dee3;padding:2.1mm 0;font-size:9px}.roster-line span{color:var(--gold);font-weight:900}.a3-rounds{display:grid;grid-template-columns:repeat(3,1fr);gap:4mm}.a3-round{border:1px solid var(--line);padding:3mm;break-inside:avoid}.a3-match{display:grid;grid-template-columns:7mm 1fr 23mm 1fr 31mm;align-items:center;gap:2mm;border-top:1px solid #dfe3e7;padding:2.3mm 0;font-size:8px}.a3-no{font-weight:900;color:var(--gold)}.a3-player{font-weight:800}.a3-player.right{text-align:right}.a3-score{text-align:center;border:1px solid #909aa4;border-radius:3px;padding:1.5mm;font-weight:900;font-size:10px}.a3-checks{font-size:7px;color:var(--muted)}
+      .ko-print-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5mm}.ko-series-block{border:1px solid var(--line);padding:4mm;break-inside:avoid}.ko-series-title{font-size:13px;font-weight:900;color:var(--gold);text-transform:uppercase}.ko-series-players{display:grid;grid-template-columns:1fr 10mm 1fr;align-items:center;gap:2mm;margin:3mm 0;text-align:center;font-size:10px}.ko-series-players span{color:var(--gold);font-weight:900}.ko-series-table th,.ko-series-table td{border:1px solid var(--line);padding:2mm;text-align:center;height:8mm}.ko-series-table th{background:var(--dark);color:white;font-size:7px}.series-winner-line,.final-score-line{margin-top:4mm;padding-top:3mm;border-top:1px solid var(--line);font-weight:800}.final-print-block{display:flex;flex-direction:column;justify-content:center;background:#fbf7ed;border:2px solid var(--gold)}
+      @media print{body{background:white}.screen-toolbar{display:none}main{margin:0;max-width:none}.print-page{box-shadow:none;margin:0;page-break-after:always}@page{size:${pageSize};margin:0}}
+    `;
+  }
+
+  function printLeagueMaster() {
+    openPrintDocument(printLabel("League Phase Ana Skor Föyü", "League Phase Master Score Sheet"), [buildLeagueMasterSection()], { pageSize: "A4 landscape" });
+  }
+
+  function printRoundSheets() {
+    const sections = state.current.league.rounds.map((round, index) => printRoundSection(round, printLabel("League Phase", "League Phase"), index * 8 + 1));
+    openPrintDocument(printLabel("League Phase Tur Föyleri", "League Phase Round Sheets"), sections, { pageSize: "A4 landscape" });
+  }
+
+  function printStandingsSheet() {
+    openPrintDocument(printLabel("League Phase Manuel Puan Tablosu", "League Phase Manual Standings"), [printStandingsSection(printLabel("League Phase Manuel Puan Tablosu", "League Phase Manual Standings"), state.current.participants.map(p => p.id), leagueStandings())], { pageSize: "A4 portrait" });
+  }
+
+  function printA3Board() {
+    openPrintDocument(printLabel("League Phase Oyun Masası Panosu", "League Phase Match Table Board"), [buildA3BoardSection()], { pageSize: "A3 landscape" });
+  }
+
+  function printGroupPack(group) {
+    const title = group === "gold" ? printLabel("Altın Grup Maç Paketi", "Gold Group Match Pack") : printLabel("Gümüş Grup Maç Paketi", "Silver Group Match Pack");
+    openPrintDocument(title, buildGroupPackSections(group), { pageSize: "A4 landscape" });
+  }
+
+  function printKnockoutBoard() {
+    openPrintDocument(printLabel("Eleme Serileri Panosu", "Knockout Series Board"), [buildKnockoutBoardSection()], { pageSize: "A3 landscape" });
+  }
+
+  function printFullPack() {
+    const sections = [buildA3BoardSection(), buildLeagueMasterSection(), ...state.current.league.rounds.map((round, index) => printRoundSection(round, printLabel("League Phase", "League Phase"), index * 8 + 1)), printStandingsSection(printLabel("League Phase Manuel Puan Tablosu", "League Phase Manual Standings"), state.current.participants.map(p => p.id), leagueStandings())];
+    if (state.current.phase2.generated) sections.push(...buildGroupPackSections("gold"), ...buildGroupPackSections("silver"));
+    if (state.current.knockout.generated) sections.push(buildKnockoutBoardSection());
+    openPrintDocument(printLabel("FIFA 9 Mevcut Tam Turnuva Paketi", "FIFA 9 Current Full Tournament Pack"), sections, { pageSize: "A4 landscape" });
   }
 
   function renderArchive() {
@@ -1722,6 +1991,14 @@ ${shareData.url}`)}`;
     const action = event.target.closest("[data-action]");
     if (!action) return;
     const type = action.dataset.action;
+    if (type === "print-a3-board") { printA3Board(); return; }
+    if (type === "print-league-master") { printLeagueMaster(); return; }
+    if (type === "print-round-sheets") { printRoundSheets(); return; }
+    if (type === "print-standings-sheet") { printStandingsSheet(); return; }
+    if (type === "print-gold-pack") { printGroupPack("gold"); return; }
+    if (type === "print-silver-pack") { printGroupPack("silver"); return; }
+    if (type === "print-knockout-board") { printKnockoutBoard(); return; }
+    if (type === "print-full-pack") { printFullPack(); return; }
     if (type === "select-alltime-player") {
       allTimeSelectedPlayerName = action.dataset.playerName || allTimeSelectedPlayerName;
       if (activeView === "alltime") renderAllTime();

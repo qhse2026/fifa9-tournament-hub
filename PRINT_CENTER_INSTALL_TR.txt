@@ -1,0 +1,35 @@
+FIFA 9 TOURNAMENT HUB - PRINT CENTER v6
+
+GITHUB'A UYGULAMA (PROGRAM KURMADAN)
+
+1. Bu paketteki PATCH ZIP dosyasını bilgisayarında ayıkla.
+2. GitHub'da qhse2026/fifa9-tournament-hub reposunu aç.
+3. Code > Add file > Upload files yoluna gir.
+4. Aşağıdaki 5 dosyayı yükleme alanına sürükle:
+   - index.html
+   - app.js
+   - styles.css
+   - language.js
+   - service-worker.js
+5. GitHub dosyaların mevcut olduğunu bildirecek; değiştirme işlemini kabul et.
+6. Commit message olarak şunu yaz:
+   Add dynamic print centre and printable tournament sheets
+7. Commit changes düğmesine bas.
+8. Vercel otomatik deployment başlatır. 1-2 dakika sonra canlı sitede Çıktı Merkezi menüsü görünür.
+9. Eski sürüm görünürse Ctrl+F5 yap. Telefonda site verisini/önbelleği temizle.
+
+ÖNEMLİ:
+- cloud-config.js dosyasını değiştirme.
+- Supabase tablolarında veya SQL tarafında işlem gerekmiyor.
+- Çıktılar canlı fikstürden otomatik üretilir.
+- Tarayıcı yazdırma ekranında fiziksel yazıcı veya PDF olarak kaydet seçilebilir.
+
+ÇIKTI TÜRLERİ
+- A3 Oyun Masası Duvar Panosu
+- League Phase 48 Maç Ana Skor Föyü
+- 6 Ayrı Tur Maç Föyü
+- Manuel Puan Tablosu
+- Altın Grup Maç Paketi
+- Gümüş Grup Maç Paketi
+- Eleme Serileri A3 Panosu
+- Mevcut Tam Turnuva Paketi
