@@ -1,4 +1,4 @@
-const CACHE = "fifa9-hub-live-v6-print-center";
+const CACHE = "fifa9-hub-live-v7-team-intelligence";
 const APP_SHELL = [
   "./",
   "./index.html",

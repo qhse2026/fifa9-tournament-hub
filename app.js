@@ -33,6 +33,7 @@
     print: "Çıktı Merkezi",
     archive: "Turnuva Arşivi",
     alltime: "Tüm Zamanlar",
+    teams: "Takım İstatistikleri",
     backup: "Veri & Yedek"
   };
 
@@ -41,6 +42,8 @@
   let allTimeSelectedPlayerName = "";
   let allTimeRivalryA = "";
   let allTimeRivalryB = "";
+  let selectedTeamStatName = "";
+  let selectedTeamPlayerName = "";
 
   function defaultState() {
     return {
@@ -519,6 +522,7 @@
       case "print": renderPrintCenter(); break;
       case "archive": renderArchive(); break;
       case "alltime": renderAllTime(); break;
+      case "teams": renderTeamStatistics(); break;
       case "backup": renderBackup(); break;
       default: renderDashboard();
     }
@@ -1473,6 +1477,8 @@
       stage: historicalStageLabel(match.stage),
       homeName: match.p1,
       awayName: match.p2,
+      homeTeam: match.t1 || "",
+      awayTeam: match.t2 || "",
       homeScore: Number(match.s1),
       awayScore: Number(match.s2),
       allowDraw: true,
@@ -1485,6 +1491,8 @@
       stage: currentMatchStageLabel(match),
       homeName: playerName(match.homeId),
       awayName: playerName(match.awayId),
+      homeTeam: match.homeTeam || "",
+      awayTeam: match.awayTeam || "",
       homeScore: Number(match.homeScore),
       awayScore: Number(match.awayScore),
       allowDraw: match.allowDraw,
@@ -1507,6 +1515,289 @@
     if (match.phase === "knockout") return `${seriesMap[match.seriesKey] || "Knockout Series"} · Match ${match.round}`;
     if (match.phase === "final") return "Grand Final";
     return "FIFA 9";
+  }
+
+  function renderTeamStatistics() {
+    const analytics = buildTeamAnalytics();
+    if (!analytics.teams.length) {
+      view.innerHTML = emptyState("◉", "Takım Verisi Hazır Değil", "Maç sonuçlarında takım adları kaydedildiğinde takım istatistikleri burada otomatik oluşacak.");
+      return;
+    }
+    ensureTeamSelections(analytics);
+    const selectedTeam = analytics.teamMap.get(selectedTeamStatName) || analytics.teams[0];
+    const selectedPlayer = analytics.playerMap.get(selectedTeamPlayerName) || analytics.players[0];
+    const maxSelections = Math.max(...analytics.teams.map(row => row.games), 1);
+
+    view.innerHTML = `
+      <div class="group-banner team-banner">
+        <div><div class="eyebrow">CLUB INTELLIGENCE</div><h2>Takım İstatistikleri Merkezi</h2><p>Hangi takımın kaç kez seçildiği, takım bazlı puan durumu ve her oyuncunun kullandığı takımlardaki performansı. FIFA 1–8 arşivi ile FIFA 9 canlı sonuçları birlikte hesaplanır.</p></div>
+        <div class="group-emblem">◉</div>
+      </div>
+
+      <div class="kpi-grid">
+        ${kpiCard("En Çok Seçilen Takım", analytics.records.mostSelected?.name || "–", analytics.records.mostSelected ? `${analytics.records.mostSelected.games} seçim · ${analytics.records.mostSelected.playersCount} oyuncu` : "Takım verisi bekleniyor")}
+        ${kpiCard("Takım Puan Lideri", analytics.records.pointsLeader?.name || "–", analytics.records.pointsLeader ? `${analytics.records.pointsLeader.points} puan · ${analytics.records.pointsLeader.wins} galibiyet` : "Takım verisi bekleniyor")}
+        ${kpiCard("En İyi Takım PPG", analytics.records.ppgLeader?.name || "–", analytics.records.ppgLeader ? `${analytics.records.ppgLeader.ppg.toFixed(2)} PPG · minimum 10 seçim` : "Takım verisi bekleniyor")}
+        ${kpiCard("En Çok Gol Atan Takım", analytics.records.goalLeader?.name || "–", analytics.records.goalLeader ? `${analytics.records.goalLeader.gf} gol · maç başı ${analytics.records.goalLeader.goalsPerGame.toFixed(2)}` : "Takım verisi bekleniyor")}
+      </div>
+
+      <section class="panel mt-24">
+        <div class="panel-header"><div><h3 class="panel-title">En Çok Tercih Edilen Takımlar</h3><div class="panel-subtitle">Takım seçimi bir maçtaki her oyuncu tarafı için bir kullanım olarak sayılır. Yazım varyasyonları standardize edilmiştir.</div></div><span class="badge badge-blue">${analytics.summary.teamAppearances} TAKIM SEÇİMİ</span></div>
+        <div class="team-card-grid">${analytics.teams.slice(0, 16).map((team, index) => renderTeamCard(team, index, maxSelections)).join("")}</div>
+      </section>
+
+      <div class="grid-2 mt-24">
+        <section class="panel">
+          <div class="panel-header"><div><h3 class="panel-title">Takım Bazlı Puan Durumu</h3><div class="panel-subtitle">Bütün oyuncuların aynı takımla aldığı sonuçlar birleştirilir: galibiyet 3, beraberlik 1 puan.</div></div><span class="badge badge-gold">${analytics.teams.length} TAKIM</span></div>
+          ${teamStandingsTable(analytics.teams)}
+        </section>
+        <section class="panel">
+          <div class="panel-header"><div><h3 class="panel-title">Takım Güç Endeksi</h3><div class="panel-subtitle">Seçim sayısı, puan ve maç başı performans dengesi.</div></div></div>
+          <div class="team-power-list">${analytics.teams.slice(0, 12).map(team => `
+            <button class="team-power-row" data-action="select-team-stat" data-team-name="${escapeHTML(team.name)}">
+              <span class="team-power-rank">#${team.rank}</span>
+              <span class="team-power-name">${escapeHTML(team.name)}</span>
+              <span class="team-power-track"><i style="width:${team.games / maxSelections * 100}%"></i></span>
+              <span class="team-power-number">${team.games}</span>
+              <span class="team-power-ppg">${team.ppg.toFixed(2)} PPG</span>
+            </button>`).join("")}</div>
+          <div class="mini-stats-grid mt-24">
+            <div class="mini-stat"><span>En İyi Galibiyet Oranı</span><strong>${escapeHTML(analytics.records.winRateLeader?.name || "–")}</strong><small>${analytics.records.winRateLeader ? `${analytics.records.winRateLeader.winRate.toFixed(1)}% · minimum 10 seçim` : "–"}</small></div>
+            <div class="mini-stat"><span>En İyi Averaj</span><strong>${escapeHTML(analytics.records.gdLeader?.name || "–")}</strong><small>${analytics.records.gdLeader ? `${formatGD(analytics.records.gdLeader.gd)} toplam averaj` : "–"}</small></div>
+            <div class="mini-stat"><span>En Sağlam Savunma</span><strong>${escapeHTML(analytics.records.defenseLeader?.name || "–")}</strong><small>${analytics.records.defenseLeader ? `Maç başı ${analytics.records.defenseLeader.gaPerGame.toFixed(2)} gol` : "–"}</small></div>
+            <div class="mini-stat"><span>En Geniş Oyuncu Kitlesi</span><strong>${escapeHTML(analytics.records.playerReachLeader?.name || "–")}</strong><small>${analytics.records.playerReachLeader ? `${analytics.records.playerReachLeader.playersCount} farklı oyuncu` : "–"}</small></div>
+          </div>
+        </section>
+      </div>
+
+      <div class="grid-2 mt-24">
+        <section class="panel">
+          <div class="panel-header"><div><h3 class="panel-title">Takım Derin Analizi</h3><div class="panel-subtitle">Seçilen takımın toplam karnesi ve oyunculara göre katkı dağılımı.</div></div></div>
+          <div class="explorer-toolbar"><label class="field inline-field"><span>Takım Seç</span><select id="teamStatisticsSelect">${analytics.teams.map(team => `<option value="${escapeHTML(team.name)}" ${team.name === selectedTeam.name ? "selected" : ""}>${escapeHTML(team.name)}</option>`).join("")}</select></label></div>
+          ${renderSelectedTeamPanel(selectedTeam)}
+        </section>
+        <section class="panel">
+          <div class="panel-header"><div><h3 class="panel-title">Oyuncu–Takım Performansı</h3><div class="panel-subtitle">Bir oyuncunun hangi takımlarla oynadığını ve her takımla elde ettiği sonuçları incele.</div></div></div>
+          <div class="explorer-toolbar"><label class="field inline-field"><span>Oyuncu Seç</span><select id="teamPlayerSelect">${analytics.players.map(player => `<option value="${escapeHTML(player.name)}" ${player.name === selectedPlayer.name ? "selected" : ""}>${escapeHTML(player.name)}</option>`).join("")}</select></label></div>
+          ${renderPlayerTeamPanel(selectedPlayer)}
+        </section>
+      </div>
+
+      <section class="panel mt-24">
+        <div class="panel-header"><div><h3 class="panel-title">Oyuncuların Takım Tercihleri</h3><div class="panel-subtitle">Her oyuncunun en çok kullandığı takım ve en verimli takım tercihi.</div></div><span class="badge badge-silver">${analytics.players.length} OYUNCU</span></div>
+        ${playerTeamSummaryTable(analytics.players)}
+      </section>`;
+  }
+
+  function ensureTeamSelections(analytics) {
+    const firstTeam = analytics.teams[0]?.name || "";
+    const firstPlayer = analytics.players[0]?.name || "";
+    if (!selectedTeamStatName || !analytics.teamMap.has(selectedTeamStatName)) selectedTeamStatName = firstTeam;
+    if (!selectedTeamPlayerName || !analytics.playerMap.has(selectedTeamPlayerName)) selectedTeamPlayerName = firstPlayer;
+  }
+
+  function renderTeamCard(team, index, maxSelections) {
+    return `<article class="team-stat-card ${team.name === selectedTeamStatName ? "active" : ""}" data-action="select-team-stat" data-team-name="${escapeHTML(team.name)}">
+      <div class="team-card-top"><div><div class="team-card-rank">#${index + 1} · ${team.games} SEÇİM</div><div class="team-card-name">${escapeHTML(team.name)}</div></div><div class="team-card-mark">${String(team.name).slice(0, 2).toUpperCase()}</div></div>
+      <div class="team-card-progress"><i style="width:${team.games / maxSelections * 100}%"></i></div>
+      <div class="team-card-stats"><div><span>Puan</span><strong>${team.points}</strong></div><div><span>PPG</span><strong>${team.ppg.toFixed(2)}</strong></div><div><span>G%</span><strong>${team.winRate.toFixed(1)}%</strong></div><div><span>AV</span><strong>${formatGD(team.gd)}</strong></div></div>
+      <div class="team-card-footer">${team.playersCount} oyuncu · ${team.editionsPlayed} turnuva · ${team.gf} gol</div>
+    </article>`;
+  }
+
+  function teamStandingsTable(rows) {
+    return `<div class="table-wrap"><table><thead><tr><th>#</th><th class="player-col">Takım</th><th>Seçim</th><th>G</th><th>B</th><th>M</th><th>AG</th><th>YG</th><th>AV</th><th>P</th><th>PPG</th><th>G%</th><th>Oyuncu</th></tr></thead><tbody>${rows.map(team => `<tr data-action="select-team-stat" data-team-name="${escapeHTML(team.name)}"><td>${team.rank}</td><td class="player-col"><span class="player-name">${escapeHTML(team.name)}</span></td><td>${team.games}</td><td>${team.wins}</td><td>${team.draws}</td><td>${team.losses}</td><td>${team.gf}</td><td>${team.ga}</td><td class="${team.gd > 0 ? "gd-positive" : team.gd < 0 ? "gd-negative" : ""}">${formatGD(team.gd)}</td><td class="points-cell">${team.points}</td><td>${team.ppg.toFixed(2)}</td><td>${team.winRate.toFixed(1)}%</td><td>${team.playersCount}</td></tr>`).join("")}</tbody></table></div>`;
+  }
+
+  function renderSelectedTeamPanel(team) {
+    const contributors = team.contributors || [];
+    return `<div class="selected-team-shell">
+      <div class="selected-team-hero">
+        <div class="selected-team-logo">${String(team.name).slice(0, 2).toUpperCase()}</div>
+        <div><div class="eyebrow">TEAM PROFILE · #${team.rank}</div><h3>${escapeHTML(team.name)}</h3><p>${team.games} seçim · ${team.playersCount} farklı oyuncu · ${team.editionsPlayed} turnuva</p></div>
+      </div>
+      <div class="selected-player-kpis mt-16">
+        <div><span>Galibiyet</span><strong>${team.wins}</strong></div><div><span>Beraberlik</span><strong>${team.draws}</strong></div><div><span>Mağlubiyet</span><strong>${team.losses}</strong></div><div><span>Puan</span><strong>${team.points}</strong></div>
+        <div><span>Atılan Gol</span><strong>${team.gf}</strong></div><div><span>Yenilen Gol</span><strong>${team.ga}</strong></div><div><span>Averaj</span><strong>${formatGD(team.gd)}</strong></div><div><span>PPG</span><strong>${team.ppg.toFixed(2)}</strong></div>
+        <div><span>Galibiyet %</span><strong>${team.winRate.toFixed(1)}%</strong></div><div><span>Gol / Maç</span><strong>${team.goalsPerGame.toFixed(2)}</strong></div><div><span>Yenilen / Maç</span><strong>${team.gaPerGame.toFixed(2)}</strong></div><div><span>Clean Sheet</span><strong>${team.cleanSheets}</strong></div>
+      </div>
+      <div class="selected-player-insights mt-16">
+        <div class="insight-pill"><span>En Çok Kullanan</span><strong>${team.mostFrequentPlayer ? `${escapeHTML(team.mostFrequentPlayer.name)} · ${team.mostFrequentPlayer.games} maç` : "–"}</strong></div>
+        <div class="insight-pill"><span>En Çok Puan Kazandıran</span><strong>${team.topPointsPlayer ? `${escapeHTML(team.topPointsPlayer.name)} · ${team.topPointsPlayer.points} puan` : "–"}</strong></div>
+        <div class="insight-pill"><span>En Verimli Oyuncu</span><strong>${team.bestPPGPlayer ? `${escapeHTML(team.bestPPGPlayer.name)} · ${team.bestPPGPlayer.ppg.toFixed(2)} PPG` : "–"}</strong></div>
+        <div class="insight-pill"><span>En Farklı Galibiyet</span><strong>${team.biggestWin ? `${team.biggestWin.score} · ${escapeHTML(team.biggestWin.player)}` : "–"}</strong></div>
+      </div>
+      <div class="panel-subtitle" style="margin:18px 0 12px">Oyuncu Katkısı</div>
+      ${contributors.length ? `<div class="table-wrap compact-table"><table><thead><tr><th>Oyuncu</th><th>Maç</th><th>G</th><th>B</th><th>M</th><th>AG</th><th>YG</th><th>AV</th><th>P</th><th>PPG</th><th>G%</th></tr></thead><tbody>${contributors.map(row => `<tr><td class="player-col"><span class="player-name">${escapeHTML(row.name)}</span></td><td>${row.games}</td><td>${row.wins}</td><td>${row.draws}</td><td>${row.losses}</td><td>${row.gf}</td><td>${row.ga}</td><td class="${row.gd > 0 ? "gd-positive" : row.gd < 0 ? "gd-negative" : ""}">${formatGD(row.gd)}</td><td>${row.points}</td><td>${row.ppg.toFixed(2)}</td><td>${row.winRate.toFixed(1)}%</td></tr>`).join("")}</tbody></table></div>` : `<div class="info-box">Oyuncu katkı verisi bulunmuyor.</div>`}
+    </div>`;
+  }
+
+  function renderPlayerTeamPanel(player) {
+    const rows = player.teams || [];
+    return `<div class="player-team-shell">
+      <div class="selected-player-main"><div class="selected-player-rank">${player.uniqueTeams}</div><div><h3>${escapeHTML(player.name)}</h3><p>${player.totalAppearances} takım seçimi · ${player.uniqueTeams} farklı takım</p></div></div>
+      <div class="selected-player-insights mt-16">
+        <div class="insight-pill"><span>En Çok Kullandığı Takım</span><strong>${player.mostUsed ? `${escapeHTML(player.mostUsed.team)} · ${player.mostUsed.games} maç` : "–"}</strong></div>
+        <div class="insight-pill"><span>En Verimli Takımı</span><strong>${player.bestTeam ? `${escapeHTML(player.bestTeam.team)} · ${player.bestTeam.ppg.toFixed(2)} PPG` : "–"}</strong></div>
+        <div class="insight-pill"><span>En Çok Galibiyet Aldığı</span><strong>${player.mostWinsTeam ? `${escapeHTML(player.mostWinsTeam.team)} · ${player.mostWinsTeam.wins} galibiyet` : "–"}</strong></div>
+        <div class="insight-pill"><span>En Çok Gol Attığı</span><strong>${player.topScoringTeam ? `${escapeHTML(player.topScoringTeam.team)} · ${player.topScoringTeam.gf} gol` : "–"}</strong></div>
+      </div>
+      <div class="panel-subtitle" style="margin:18px 0 12px">Takım Bazlı Kariyer Karnesi</div>
+      ${rows.length ? `<div class="table-wrap compact-table"><table><thead><tr><th>Takım</th><th>Maç</th><th>G</th><th>B</th><th>M</th><th>AG</th><th>YG</th><th>AV</th><th>P</th><th>PPG</th><th>G%</th></tr></thead><tbody>${rows.map(row => `<tr data-action="select-team-stat" data-team-name="${escapeHTML(row.team)}"><td class="player-col"><span class="player-name">${escapeHTML(row.team)}</span></td><td>${row.games}</td><td>${row.wins}</td><td>${row.draws}</td><td>${row.losses}</td><td>${row.gf}</td><td>${row.ga}</td><td class="${row.gd > 0 ? "gd-positive" : row.gd < 0 ? "gd-negative" : ""}">${formatGD(row.gd)}</td><td>${row.points}</td><td>${row.ppg.toFixed(2)}</td><td>${row.winRate.toFixed(1)}%</td></tr>`).join("")}</tbody></table></div>` : `<div class="info-box">Bu oyuncu için takım verisi bulunmuyor.</div>`}
+    </div>`;
+  }
+
+  function playerTeamSummaryTable(players) {
+    return `<div class="table-wrap"><table><thead><tr><th>#</th><th class="player-col">Oyuncu</th><th>Takım Seçimi</th><th>Farklı Takım</th><th>En Çok Kullandığı</th><th>Maç</th><th>En Verimli Takımı</th><th>PPG</th><th>G%</th></tr></thead><tbody>${players.map((player, index) => `<tr><td>${index + 1}</td><td class="player-col"><span class="player-name">${escapeHTML(player.name)}</span></td><td>${player.totalAppearances}</td><td>${player.uniqueTeams}</td><td>${escapeHTML(player.mostUsed?.team || "–")}</td><td>${player.mostUsed?.games || 0}</td><td>${escapeHTML(player.bestTeam?.team || "–")}</td><td>${player.bestTeam ? player.bestTeam.ppg.toFixed(2) : "–"}</td><td>${player.bestTeam ? `${player.bestTeam.winRate.toFixed(1)}%` : "–"}</td></tr>`).join("")}</tbody></table></div>`;
+  }
+
+  function normalizeTeamName(value) {
+    const raw = String(value || "").trim();
+    if (!raw) return "";
+    const key = raw.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "");
+    if (["noteam", "takimsecilmedi", "teamnotselected", "tbd", "none"].includes(key)) return "";
+    const aliases = {
+      bdortmund: "Borussia Dortmund", dortmund: "Borussia Dortmund",
+      intermilan: "Inter Milan", ntermilan: "Inter Milan",
+      rbleipzip: "RB Leipzig", rbleipzig: "RB Leipzig",
+      abilbao: "Athletic Bilbao", athleticbilbao: "Athletic Bilbao",
+      amadrid: "Atlético Madrid", atleticomadrid: "Atlético Madrid",
+      alhilal: "Al Hilal", alnassr: "Al Nassr", alahli: "Al Ahli",
+      alittahad: "Al-Ittihad", alittihad: "Al-Ittihad",
+      villereal: "Villarreal", villarreal: "Villarreal",
+      rsociedad: "Real Sociedad", realsociedad: "Real Sociedad", realsocidead: "Real Sociedad",
+      nottforest: "Nottingham Forest", nottinghamforest: "Nottingham Forest",
+      brigton: "Brighton", brighton: "Brighton",
+      frankurt: "Eintracht Frankfurt", eintrachtfrankfurt: "Eintracht Frankfurt",
+      milan: "AC Milan", acmilan: "AC Milan",
+      bmg: "Borussia Mönchengladbach", borussiamonchengladbach: "Borussia Mönchengladbach",
+      olyon: "Olympique Lyon", olympiquelyon: "Olympique Lyon",
+      brasil: "Brazil", brazil: "Brazil",
+      island: "Iceland", iceland: "Iceland",
+      mancity: "Manchester City", manchestercity: "Manchester City",
+      manunited: "Manchester United", manchesterunited: "Manchester United",
+      bayernmunih: "Bayern Munich", bayernmunich: "Bayern Munich",
+      galatasaray: "Galatasaray", fenerbahce: "Fenerbahçe", besiktas: "Beşiktaş",
+      psg: "Paris Saint-Germain", parissaintgermain: "Paris Saint-Germain"
+    };
+    return aliases[key] || raw.replace(/\s+/g, " ");
+  }
+
+  function buildTeamAnalytics() {
+    const matches = buildUnifiedAllTimeMatches();
+    const teamMapRaw = new Map();
+    const playerTeamMap = new Map();
+
+    function ensureTeam(name) {
+      if (!teamMapRaw.has(name)) teamMapRaw.set(name, { name, games: 0, wins: 0, draws: 0, losses: 0, gf: 0, ga: 0, gd: 0, points: 0, cleanSheets: 0, players: new Set(), editions: new Set(), biggestWin: null });
+      return teamMapRaw.get(name);
+    }
+
+    function ensurePlayerTeam(player, team) {
+      const key = `${player}||${team}`;
+      if (!playerTeamMap.has(key)) playerTeamMap.set(key, { player, team, games: 0, wins: 0, draws: 0, losses: 0, gf: 0, ga: 0, gd: 0, points: 0, cleanSheets: 0, editions: new Set() });
+      return playerTeamMap.get(key);
+    }
+
+    for (const match of matches) {
+      const sides = [
+        { player: match.homeName, team: normalizeTeamName(match.homeTeam), gf: match.homeScore, ga: match.awayScore, isHome: true },
+        { player: match.awayName, team: normalizeTeamName(match.awayTeam), gf: match.awayScore, ga: match.homeScore, isHome: false }
+      ];
+      for (const side of sides) {
+        if (!side.team || !side.player || /^P\d+$/i.test(side.player)) continue;
+        const team = ensureTeam(side.team);
+        const playerTeam = ensurePlayerTeam(side.player, side.team);
+        const rows = [team, playerTeam];
+        rows.forEach(row => { row.games += 1; row.gf += side.gf; row.ga += side.ga; row.editions.add(match.edition); if (side.ga === 0) row.cleanSheets += 1; });
+        team.players.add(side.player);
+
+        let sideWon = false;
+        let sideLost = false;
+        if (side.gf > side.ga) sideWon = true;
+        else if (side.gf < side.ga) sideLost = true;
+        else if (!match.allowDraw && match.winnerName) {
+          sideWon = match.winnerName === side.player;
+          sideLost = !sideWon;
+        }
+        if (sideWon) {
+          rows.forEach(row => { row.wins += 1; row.points += 3; });
+          const margin = side.gf - side.ga;
+          if (!team.biggestWin || margin > team.biggestWin.margin || (margin === team.biggestWin.margin && side.gf > team.biggestWin.gf)) {
+            team.biggestWin = { player: side.player, score: `${side.gf}-${side.ga}`, margin, gf: side.gf, opponent: side.isHome ? match.awayName : match.homeName, editionLabel: match.editionLabel };
+          }
+        } else if (sideLost) rows.forEach(row => { row.losses += 1; });
+        else rows.forEach(row => { row.draws += 1; row.points += 1; });
+      }
+    }
+
+    for (const row of playerTeamMap.values()) {
+      row.gd = row.gf - row.ga;
+      row.ppg = row.games ? row.points / row.games : 0;
+      row.winRate = row.games ? row.wins / row.games * 100 : 0;
+    }
+
+    const teams = [...teamMapRaw.values()].map(team => {
+      const contributors = [...playerTeamMap.values()].filter(row => row.team === team.name).map(row => ({ name: row.player, games: row.games, wins: row.wins, draws: row.draws, losses: row.losses, gf: row.gf, ga: row.ga, gd: row.gd, points: row.points, ppg: row.ppg, winRate: row.winRate })).sort((a, b) => b.games - a.games || b.points - a.points || b.gd - a.gd || a.name.localeCompare(b.name, "tr"));
+      team.gd = team.gf - team.ga;
+      team.ppg = team.games ? team.points / team.games : 0;
+      team.winRate = team.games ? team.wins / team.games * 100 : 0;
+      team.goalsPerGame = team.games ? team.gf / team.games : 0;
+      team.gaPerGame = team.games ? team.ga / team.games : 0;
+      team.playersCount = team.players.size;
+      team.editionsPlayed = team.editions.size;
+      team.contributors = contributors;
+      team.mostFrequentPlayer = contributors[0] || null;
+      team.topPointsPlayer = [...contributors].sort((a, b) => b.points - a.points || b.games - a.games || a.name.localeCompare(b.name, "tr"))[0] || null;
+      const eligible = contributors.filter(row => row.games >= 3);
+      team.bestPPGPlayer = [...(eligible.length ? eligible : contributors)].sort((a, b) => b.ppg - a.ppg || b.games - a.games || a.name.localeCompare(b.name, "tr"))[0] || null;
+      return team;
+    }).sort((a, b) => b.points - a.points || b.gd - a.gd || b.gf - a.gf || b.games - a.games || a.name.localeCompare(b.name, "tr"))
+      .map((team, index) => ({ ...team, rank: index + 1 }));
+
+    const playerNames = [...new Set([...playerTeamMap.values()].map(row => row.player))];
+    const players = playerNames.map(name => {
+      const rows = [...playerTeamMap.values()].filter(row => row.player === name).map(row => ({ team: row.team, games: row.games, wins: row.wins, draws: row.draws, losses: row.losses, gf: row.gf, ga: row.ga, gd: row.gd, points: row.points, ppg: row.ppg, winRate: row.winRate, cleanSheets: row.cleanSheets, editionsPlayed: row.editions.size })).sort((a, b) => b.games - a.games || b.points - a.points || b.gd - a.gd || a.team.localeCompare(b.team, "tr"));
+      const eligible = rows.filter(row => row.games >= 3);
+      return {
+        name,
+        teams: rows,
+        totalAppearances: rows.reduce((sum, row) => sum + row.games, 0),
+        uniqueTeams: rows.length,
+        mostUsed: rows[0] || null,
+        bestTeam: [...(eligible.length ? eligible : rows)].sort((a, b) => b.ppg - a.ppg || b.games - a.games || b.gd - a.gd || a.team.localeCompare(b.team, "tr"))[0] || null,
+        mostWinsTeam: [...rows].sort((a, b) => b.wins - a.wins || b.games - a.games || a.team.localeCompare(b.team, "tr"))[0] || null,
+        topScoringTeam: [...rows].sort((a, b) => b.gf - a.gf || b.games - a.games || a.team.localeCompare(b.team, "tr"))[0] || null
+      };
+    }).sort((a, b) => b.totalAppearances - a.totalAppearances || a.name.localeCompare(b.name, "tr"));
+
+    const maxBy = (rows, selector, filter = () => true) => {
+      const eligible = rows.filter(filter);
+      return eligible.length ? [...eligible].sort((a, b) => selector(b) - selector(a) || b.games - a.games || a.name.localeCompare(b.name, "tr"))[0] : null;
+    };
+    const records = {
+      mostSelected: maxBy(teams, row => row.games),
+      pointsLeader: maxBy(teams, row => row.points),
+      ppgLeader: maxBy(teams, row => row.ppg, row => row.games >= 10),
+      goalLeader: maxBy(teams, row => row.gf),
+      winRateLeader: maxBy(teams, row => row.winRate, row => row.games >= 10),
+      gdLeader: maxBy(teams, row => row.gd),
+      playerReachLeader: maxBy(teams, row => row.playersCount),
+      defenseLeader: teams.filter(row => row.games >= 10).sort((a, b) => a.gaPerGame - b.gaPerGame || b.games - a.games || a.name.localeCompare(b.name, "tr"))[0] || null
+    };
+
+    return {
+      teams,
+      teamMap: new Map(teams.map(row => [row.name, row])),
+      players,
+      playerMap: new Map(players.map(row => [row.name, row])),
+      records,
+      summary: {
+        teamAppearances: teams.reduce((sum, row) => sum + row.games, 0),
+        teams: teams.length,
+        players: players.length
+      }
+    };
   }
 
   function renderBackup() {
@@ -1999,6 +2290,11 @@ ${shareData.url}`)}`;
     if (type === "print-silver-pack") { printGroupPack("silver"); return; }
     if (type === "print-knockout-board") { printKnockoutBoard(); return; }
     if (type === "print-full-pack") { printFullPack(); return; }
+    if (type === "select-team-stat") {
+      selectedTeamStatName = action.dataset.teamName || selectedTeamStatName;
+      if (activeView === "teams") renderTeamStatistics();
+      return;
+    }
     if (type === "select-alltime-player") {
       allTimeSelectedPlayerName = action.dataset.playerName || allTimeSelectedPlayerName;
       if (activeView === "alltime") renderAllTime();
@@ -2076,6 +2372,8 @@ ${shareData.url}`)}`;
       }
       if (activeView === "alltime") renderAllTime();
     }
+    if (event.target.id === "teamStatisticsSelect") { selectedTeamStatName = event.target.value; if (activeView === "teams") renderTeamStatistics(); }
+    if (event.target.id === "teamPlayerSelect") { selectedTeamPlayerName = event.target.value; if (activeView === "teams") renderTeamStatistics(); }
   });
 
   $("#modalClose").addEventListener("click", closeModal);
