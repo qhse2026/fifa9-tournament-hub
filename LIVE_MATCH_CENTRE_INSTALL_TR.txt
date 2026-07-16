@@ -1,0 +1,41 @@
+FIFA 9 TOURNAMENT HUB — CANLI MAÇ MERKEZİ v9
+
+YENİ ÖZELLİKLER
+- Sol menüde Canlı Maç bölümü
+- Oynanmamış fikstürlerden canlı maç seçimi
+- Dakika ve ek süre girişi
+- +1 / +5 dakika hızlı kontrolleri
+- Ev sahibi ve deplasman için hızlı gol / skor düzeltme düğmeleri
+- Canlı durum seçenekleri: Canlı, Duraklat, Devre Arası, 2. Yarı, Uzatma, Penaltılar
+- Gol, sarı kart, kırmızı kart ve maç notu zaman çizelgesi
+- Takım adlarının canlı yayında gösterilmesi
+- Supabase Realtime ile tüm cihazlarda anlık güncelleme
+- WhatsApp canlı skor paylaşımı
+- Maç sonunda tek tuşla resmî fikstür sonucuna aktarım
+- Eleme maçlarında beraberlik halinde uzatma / penaltı galibi seçimi
+- Son canlı yayınlar arşivi
+- Dashboard üzerinde aktif canlı maç bandı
+- Türkçe / İngilizce arayüz desteği
+
+GITHUB'A YÜKLEME
+1. PATCH_ONLY ZIP dosyasını indir ve Tümünü Ayıkla.
+2. GitHub'da qhse2026/fifa9-tournament-hub reposunu aç.
+3. Code > Add file > Upload files bölümüne gir.
+4. Aşağıdaki dosyaları yükle:
+   index.html
+   app.js
+   styles.css
+   language.js
+   service-worker.js
+5. Commit mesajı:
+   Add live match centre and real-time score tracking
+6. Commit changes düğmesine bas.
+7. Vercel otomatik olarak yeni sürümü yayınlar.
+8. Eski sürüm görünürse Ctrl + F5 yap.
+
+ÖNEMLİ
+- cloud-config.js dosyasına dokunma.
+- Supabase tarafında yeni SQL veya tablo gerekmiyor.
+- Canlı skor verileri mevcut tournament_state JSON kaydında tutulur.
+- Sadece yönetici canlı maç başlatabilir ve skor değiştirebilir.
+- İzleyiciler giriş yapmadan canlı maçı takip eder.

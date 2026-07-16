@@ -25,6 +25,7 @@
 
   const titleMap = {
     dashboard: "Dashboard",
+    livematch: "Canlı Maç Merkezi",
     livestats: "Canlı İstatistikler",
     setup: "Kura & Oyuncular",
     league: "UEFA League Phase",
@@ -75,6 +76,10 @@
           sf2: null,
           final: null,
           championId: null
+        },
+        live: {
+          active: null,
+          archive: {}
         }
       }
     };
@@ -91,7 +96,8 @@
         ...(raw.current || {}),
         league: { ...fresh.current.league, ...(raw.current?.league || {}) },
         phase2: { ...fresh.current.phase2, ...(raw.current?.phase2 || {}) },
-        knockout: { ...fresh.current.knockout, ...(raw.current?.knockout || {}) }
+        knockout: { ...fresh.current.knockout, ...(raw.current?.knockout || {}) },
+        live: { ...fresh.current.live, ...(raw.current?.live || {}), archive: { ...fresh.current.live.archive, ...(raw.current?.live?.archive || {}) } }
       }
     };
     if (!Array.isArray(merged.current.participants) || merged.current.participants.length !== PLAYER_COUNT) {
@@ -514,7 +520,10 @@
 
   function render() {
     refreshKnockout();
+    const liveNav = document.querySelector('[data-nav="livematch"]');
+    if (liveNav) liveNav.classList.toggle("has-live", Boolean(state.current.live?.active));
     switch (activeView) {
+      case "livematch": renderLiveMatchCentre(); break;
       case "livestats": renderLiveStatistics(); break;
       case "setup": renderSetup(); break;
       case "league": renderLeague(); break;
@@ -591,6 +600,8 @@
         </div>
       </section>
 
+      ${renderDashboardLiveMatch()}
+
       <div class="kpi-grid">
         ${kpiCard("Turnuva Durumu", statusLabel(), `Genel ilerleme %${progressPercent()}`, progressPercent())}
         ${kpiCard("League Phase", `${leagueDone} / 48`, "Tamamlanan lig maçı", Math.round(leagueDone / 48 * 100))}
@@ -634,6 +645,401 @@
       <div class="champion-strip">
         ${combinedChampions().map(c => `<div class="champion-chip"><div class="name">${escapeHTML(c.name)}</div><div class="titles">${c.titles}×</div><div class="small">Şampiyonluk · ${c.finals} final · ${c.podiums} podyum</div></div>`).join("")}
       </div>`;
+  }
+
+
+  function getLiveState() {
+    if (!state.current.live || typeof state.current.live !== "object") state.current.live = { active: null, archive: {} };
+    if (!state.current.live.archive || typeof state.current.live.archive !== "object") state.current.live.archive = {};
+    return state.current.live;
+  }
+
+  function getActiveLive() {
+    const live = getLiveState().active;
+    if (!live?.matchId) return null;
+    const match = findMatch(live.matchId);
+    return match ? { live, match } : null;
+  }
+
+  function liveStatusText(live) {
+    const labels = {
+      live: "CANLI",
+      paused: "DURAKLATILDI",
+      halftime: "DEVRE ARASI",
+      secondhalf: "İKİNCİ YARI",
+      extra: "UZATMA",
+      penalties: "PENALTILAR",
+      fulltime: "MAÇ SONU"
+    };
+    return labels[live?.status] || "CANLI";
+  }
+
+  function liveMinuteText(live) {
+    if (!live) return "–";
+    if (live.status === "halftime") return "HT";
+    if (live.status === "fulltime") return "FT";
+    if (live.status === "penalties") return "PEN";
+    const minute = Math.max(0, Number(live.minute) || 0);
+    const added = Math.max(0, Number(live.addedTime) || 0);
+    return `${minute}${added ? `+${added}` : ""}'`;
+  }
+
+  function liveStageLabel(match) {
+    return currentMatchStageLabel(match).replace(/ · Match \d+$/, "");
+  }
+
+  function liveEligibleMatches() {
+    return allCurrentMatches()
+      .filter(match => match?.homeId && match?.awayId && !matchComplete(match))
+      .sort((a, b) => {
+        const phaseOrder = { league: 1, gold: 2, silver: 3, knockout: 4, final: 5 };
+        return (phaseOrder[a.phase] || 99) - (phaseOrder[b.phase] || 99) || (a.round || 0) - (b.round || 0);
+      });
+  }
+
+  function renderDashboardLiveMatch() {
+    const active = getActiveLive();
+    if (!active) return "";
+    const { live, match } = active;
+    return `<section class="dashboard-live-match" data-nav="livematch">
+      <div class="dashboard-live-status"><span class="live-pulse-dot"></span><strong>${liveStatusText(live)}</strong><span>${escapeHTML(liveStageLabel(match))}</span></div>
+      <div class="dashboard-live-score"><span>${displayName(match.homeId)}</span><strong>${live.homeScore} – ${live.awayScore}</strong><span>${displayName(match.awayId)}</span></div>
+      <div class="dashboard-live-minute">${liveMinuteText(live)}</div>
+      <div class="dashboard-live-open">Canlı Maçı Aç →</div>
+    </section>`;
+  }
+
+  function renderLiveMatchCentre() {
+    const active = getActiveLive();
+    const eligible = liveEligibleMatches();
+    const archive = Object.values(getLiveState().archive || {}).sort((a, b) => String(b.finishedAt || "").localeCompare(String(a.finishedAt || ""))).slice(0, 6);
+
+    if (!active) {
+      view.innerHTML = `
+        <div class="group-banner live-match-banner">
+          <div><div class="eyebrow">LIVE MATCH CENTRE</div><h2>Canlı Maç Merkezi</h2><p>Bir fikstürü canlı yayına al; dakikayı, skoru ve maç olaylarını anlık güncelle. İzleyiciler aynı ekranı Supabase üzerinden eşzamanlı takip eder.</p></div>
+          <div class="group-emblem live-ball">●</div>
+        </div>
+        <div class="live-match-empty-strip"><span class="live-offline-dot"></span><strong>Şu anda canlı maç yok</strong><span>${eligible.length} oynanmamış fikstür canlı yayına hazır.</span></div>
+        <div class="grid-2 mt-24">
+          <section class="panel">
+            <div class="panel-header"><div><h3 class="panel-title">Canlı Yayına Hazır Maçlar</h3><div class="panel-subtitle">Yönetici olarak bir maçı seçip canlı skor takibini başlat.</div></div><span class="badge badge-gold">${eligible.length} MAÇ</span></div>
+            ${eligible.length ? `<div class="live-match-selector">${eligible.slice(0, 24).map(match => renderLiveMatchOption(match)).join("")}</div>` : emptyState("✓", "Bekleyen maç bulunmuyor", "Yeni fikstür oluştuğunda burada görünecek.")}
+          </section>
+          <section class="panel">
+            <div class="panel-header"><div><h3 class="panel-title">Nasıl Çalışır?</h3><div class="panel-subtitle">Canlı maç yönetim akışı.</div></div></div>
+            <div class="format-list">
+              <div class="format-row"><div class="format-icon">1</div><div><div class="format-title">Maçı seç ve yayını başlat</div><div class="format-desc">Takım adlarını gir; skor 0–0 ve dakika 0 olarak başlar.</div></div></div>
+              <div class="format-row"><div class="format-icon">2</div><div><div class="format-title">Dakika ve skoru güncelle</div><div class="format-desc">+1 / +5 dakika kontrolleri, hızlı gol düğmeleri ve olay zaman çizelgesi.</div></div></div>
+              <div class="format-row"><div class="format-icon">3</div><div><div class="format-title">İzleyiciler canlı takip eder</div><div class="format-desc">Her kayıt Supabase Realtime ile açık telefon ve bilgisayarlara aktarılır.</div></div></div>
+              <div class="format-row"><div class="format-icon">4</div><div><div class="format-title">Maç sonunda fikstüre işle</div><div class="format-desc">Final skor, takımlar ve gerekiyorsa penaltı galibi tek tuşla kaydedilir.</div></div></div>
+            </div>
+            ${!canEdit() ? `<div class="info-box live-viewer-box mt-16">İzleyici modundasın. Canlı yayın başlatma ve skor yönetimi yalnızca turnuva yöneticisine açıktır.</div>` : ""}
+          </section>
+        </div>
+        ${archive.length ? `<section class="panel mt-24"><div class="panel-header"><div><h3 class="panel-title">Son Canlı Yayınlar</h3><div class="panel-subtitle">Canlı takip üzerinden tamamlanan son maçlar.</div></div></div><div class="live-archive-grid">${archive.map(renderLiveArchiveCard).join("")}</div></section>` : ""}`;
+      return;
+    }
+
+    const { live, match } = active;
+    const events = [...(live.events || [])].sort((a, b) => (Number(b.minute) || 0) - (Number(a.minute) || 0) || String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+    view.innerHTML = `
+      <div class="group-banner live-match-banner active-live-banner">
+        <div><div class="eyebrow"><span class="live-pulse-dot"></span> LIVE MATCH CENTRE</div><h2>${displayName(match.homeId)} vs ${displayName(match.awayId)}</h2><p>${escapeHTML(liveStageLabel(match))} · Son güncelleme ${escapeHTML(formatLiveUpdatedAt(live.updatedAt))}</p></div>
+        <div class="live-progress-orb"><strong>${liveMinuteText(live)}</strong><span>${liveStatusText(live)}</span></div>
+      </div>
+      <div class="live-match-broadcast">
+        <div class="live-team-side home">
+          <div class="live-team-label">EV SAHİBİ</div>
+          <h3>${displayName(match.homeId)}</h3>
+          <div class="live-team-name">${escapeHTML(live.homeTeam || match.homeTeam || "Takım bekleniyor")}</div>
+          ${canEdit() ? `<div class="live-score-controls"><button data-action="live-score-minus" data-side="home">−</button><strong>${live.homeScore}</strong><button data-action="live-goal" data-side="home">+</button></div>` : `<div class="live-view-score">${live.homeScore}</div>`}
+        </div>
+        <div class="live-score-centre">
+          <div class="live-status-badge"><span class="live-pulse-dot"></span>${liveStatusText(live)}</div>
+          <div class="live-main-score">${live.homeScore}<span>–</span>${live.awayScore}</div>
+          <div class="live-main-minute">${liveMinuteText(live)}</div>
+          <div class="live-stage-small">${escapeHTML(liveStageLabel(match))}</div>
+        </div>
+        <div class="live-team-side away">
+          <div class="live-team-label">DEPLASMAN</div>
+          <h3>${displayName(match.awayId)}</h3>
+          <div class="live-team-name">${escapeHTML(live.awayTeam || match.awayTeam || "Takım bekleniyor")}</div>
+          ${canEdit() ? `<div class="live-score-controls"><button data-action="live-score-minus" data-side="away">−</button><strong>${live.awayScore}</strong><button data-action="live-goal" data-side="away">+</button></div>` : `<div class="live-view-score">${live.awayScore}</div>`}
+        </div>
+      </div>
+
+      ${canEdit() ? `<div class="grid-2 mt-24">
+        <section class="panel live-control-panel">
+          <div class="panel-header"><div><h3 class="panel-title">Canlı Kontrol Masası</h3><div class="panel-subtitle">Dakika, maç durumu, takım ve skor yönetimi.</div></div><span class="badge badge-red">YÖNETİCİ</span></div>
+          <div class="live-minute-console">
+            <div class="live-minute-display">${liveMinuteText(live)}</div>
+            <div class="live-minute-buttons">
+              <button class="btn btn-ghost" data-action="live-minute-change" data-delta="-5">−5</button>
+              <button class="btn btn-ghost" data-action="live-minute-change" data-delta="-1">−1</button>
+              <button class="btn btn-blue" data-action="live-minute-change" data-delta="1">+1</button>
+              <button class="btn btn-blue" data-action="live-minute-change" data-delta="5">+5</button>
+            </div>
+            <div class="live-minute-inputs">
+              <label><span>Dakika</span><input type="number" min="0" max="130" value="${Number(live.minute) || 0}" data-live-number="minute"></label>
+              <label><span>Uzatma</span><input type="number" min="0" max="20" value="${Number(live.addedTime) || 0}" data-live-number="addedTime"></label>
+            </div>
+          </div>
+          <div class="live-status-controls">
+            <button class="btn btn-gold" data-action="live-set-status" data-status="live">Canlı</button>
+            <button class="btn btn-ghost" data-action="live-set-status" data-status="paused">Duraklat</button>
+            <button class="btn btn-ghost" data-action="live-set-status" data-status="halftime">Devre Arası</button>
+            <button class="btn btn-ghost" data-action="live-set-status" data-status="secondhalf">2. Yarı</button>
+            <button class="btn btn-ghost" data-action="live-set-status" data-status="extra">Uzatma</button>
+            <button class="btn btn-ghost" data-action="live-set-status" data-status="penalties">Penaltılar</button>
+          </div>
+          <div class="modal-form-grid mt-16">
+            <div class="field"><label>${displayName(match.homeId)} Takımı</label><input type="text" value="${escapeHTML(live.homeTeam || "")}" data-live-field="homeTeam" placeholder="Takım adı"></div>
+            <div class="field"><label>${displayName(match.awayId)} Takımı</label><input type="text" value="${escapeHTML(live.awayTeam || "")}" data-live-field="awayTeam" placeholder="Takım adı"></div>
+          </div>
+          <div class="live-admin-actions mt-16">
+            <button class="btn btn-blue" data-action="share-live-match">Canlı Skoru Paylaş</button>
+            <button class="btn btn-danger" data-action="open-cancel-live">Yayını İptal Et</button>
+            <button class="btn btn-gold" data-action="open-finish-live">Maçı Bitir ve Kaydet</button>
+          </div>
+        </section>
+        <section class="panel">
+          <div class="panel-header"><div><h3 class="panel-title">Maç Olayı Ekle</h3><div class="panel-subtitle">Gol, kart veya önemli notu dakika bilgisiyle kaydet.</div></div></div>
+          <form id="liveEventForm" class="live-event-form">
+            <div class="modal-form-grid">
+              <div class="field"><label>Olay</label><select name="type"><option value="goal">Gol</option><option value="yellow">Sarı Kart</option><option value="red">Kırmızı Kart</option><option value="note">Maç Notu</option></select></div>
+              <div class="field"><label>Taraf</label><select name="side"><option value="home">${displayName(match.homeId)}</option><option value="away">${displayName(match.awayId)}</option><option value="neutral">Genel</option></select></div>
+              <div class="field"><label>Dakika</label><input type="number" name="minute" min="0" max="130" value="${Number(live.minute) || 0}"></div>
+              <div class="field"><label>Ek Süre</label><input type="number" name="addedTime" min="0" max="20" value="${Number(live.addedTime) || 0}"></div>
+            </div>
+            <div class="field mt-16"><label>Açıklama</label><input type="text" name="text" placeholder="Örn. Hızlı hücum sonrası gol / kritik kurtarış"></div>
+            <button class="btn btn-gold btn-wide mt-16" type="submit">Olayı Canlı Yayına Ekle</button>
+          </form>
+        </section>
+      </div>` : `<div class="live-viewer-message mt-24"><span class="live-pulse-dot"></span><div><strong>Canlı yayın aktif</strong><p>Skor, dakika ve maç olayları yönetici tarafından güncellendikçe bu ekran otomatik yenilenir.</p></div></div>`}
+
+      <section class="panel mt-24">
+        <div class="panel-header"><div><h3 class="panel-title">Canlı Maç Zaman Çizelgesi</h3><div class="panel-subtitle">En yeni olay üstte gösterilir.</div></div><span class="badge badge-gold">${events.length} OLAY</span></div>
+        ${events.length ? `<div class="live-event-timeline">${events.map(event => renderLiveEvent(event, match)).join("")}</div>` : `<div class="info-box">Henüz maç olayı eklenmedi. Skor ve dakika canlı olarak takip ediliyor.</div>`}
+      </section>`;
+  }
+
+  function renderLiveMatchOption(match) {
+    return `<article class="live-match-option">
+      <div class="live-option-stage">${escapeHTML(liveStageLabel(match))}</div>
+      <div class="live-option-players"><span>${displayName(match.homeId)}</span><strong>VS</strong><span>${displayName(match.awayId)}</span></div>
+      <div class="live-option-teams"><span>${escapeHTML(match.homeTeam || "Takım seçilmedi")}</span><span>${escapeHTML(match.awayTeam || "Takım seçilmedi")}</span></div>
+      ${canEdit() ? `<button class="btn btn-gold btn-wide" data-action="start-live-match" data-match-id="${match.id}">Canlı Yayını Başlat</button>` : `<span class="badge">YÖNETİCİ BEKLENİYOR</span>`}
+    </article>`;
+  }
+
+  function renderLiveArchiveCard(item) {
+    return `<article class="live-archive-card"><div class="live-option-stage">${escapeHTML(item.stage || "FIFA 9")}</div><div class="live-archive-score"><span>${escapeHTML(item.homeName || "–")}</span><strong>${item.homeScore} – ${item.awayScore}</strong><span>${escapeHTML(item.awayName || "–")}</span></div><div class="live-archive-meta">${escapeHTML(item.homeTeam || "")} · ${escapeHTML(item.awayTeam || "")} · ${escapeHTML(formatLiveUpdatedAt(item.finishedAt))}</div></article>`;
+  }
+
+  function renderLiveEvent(event, match) {
+    const iconMap = { goal: "⚽", yellow: "▰", red: "■", note: "◆" };
+    const labelMap = { goal: "GOL", yellow: "SARI KART", red: "KIRMIZI KART", note: "MAÇ NOTU" };
+    const sideName = event.side === "home" ? playerName(match.homeId) : event.side === "away" ? playerName(match.awayId) : "Maç Merkezi";
+    const minute = `${Number(event.minute) || 0}${Number(event.addedTime) ? `+${Number(event.addedTime)}` : ""}'`;
+    return `<div class="live-event-row type-${escapeHTML(event.type)}"><div class="live-event-minute">${minute}</div><div class="live-event-icon">${iconMap[event.type] || "◆"}</div><div class="live-event-copy"><strong>${labelMap[event.type] || "OLAY"} · ${escapeHTML(sideName)}</strong><span>${escapeHTML(event.text || (event.type === "goal" ? "Skor güncellendi" : "Canlı maç olayı"))}</span></div>${canEdit() ? `<button class="live-event-delete" data-action="delete-live-event" data-event-id="${event.id}" title="Olayı sil">×</button>` : ""}</div>`;
+  }
+
+  function formatLiveUpdatedAt(value) {
+    if (!value) return "henüz";
+    try { return new Date(value).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" }); } catch { return "henüz"; }
+  }
+
+  function startLiveMatch(matchId) {
+    if (!canEdit()) return;
+    const liveState = getLiveState();
+    if (liveState.active) { toast("Önce aktif canlı maçı bitir veya iptal et.", "error"); return; }
+    const match = findMatch(matchId);
+    if (!match || matchComplete(match)) { toast("Bu maç canlı yayına uygun değil.", "error"); return; }
+    liveState.active = {
+      matchId,
+      status: "live",
+      minute: 0,
+      addedTime: 0,
+      homeScore: 0,
+      awayScore: 0,
+      homeTeam: match.homeTeam || "",
+      awayTeam: match.awayTeam || "",
+      events: [],
+      startedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    saveState(true, true);
+    render();
+    toast("Canlı maç yayını başlatıldı.", "success");
+  }
+
+  function touchLive() {
+    const active = getLiveState().active;
+    if (!active) return;
+    active.updatedAt = new Date().toISOString();
+    saveState(false, true);
+  }
+
+  function addLiveGoal(side) {
+    if (!canEdit()) return;
+    const active = getLiveState().active;
+    if (!active || !["home", "away"].includes(side)) return;
+    const scoreKey = side === "home" ? "homeScore" : "awayScore";
+    active[scoreKey] = Math.max(0, Number(active[scoreKey]) || 0) + 1;
+    active.events = Array.isArray(active.events) ? active.events : [];
+    active.events.push({ id: `live-${Date.now()}-${Math.random().toString(36).slice(2,6)}`, type: "goal", side, minute: Number(active.minute) || 0, addedTime: Number(active.addedTime) || 0, text: "Gol", createdAt: new Date().toISOString() });
+    touchLive();
+    render();
+  }
+
+  function reduceLiveScore(side) {
+    if (!canEdit()) return;
+    const active = getLiveState().active;
+    if (!active || !["home", "away"].includes(side)) return;
+    const scoreKey = side === "home" ? "homeScore" : "awayScore";
+    if ((Number(active[scoreKey]) || 0) <= 0) return;
+    active[scoreKey] = Math.max(0, Number(active[scoreKey]) - 1);
+    const events = Array.isArray(active.events) ? active.events : [];
+    const lastGoalIndex = [...events].map((event, index) => ({ event, index })).reverse().find(item => item.event.type === "goal" && item.event.side === side)?.index;
+    if (Number.isInteger(lastGoalIndex)) events.splice(lastGoalIndex, 1);
+    touchLive();
+    render();
+  }
+
+  function changeLiveMinute(delta) {
+    if (!canEdit()) return;
+    const active = getLiveState().active;
+    if (!active) return;
+    active.minute = Math.min(130, Math.max(0, (Number(active.minute) || 0) + Number(delta || 0)));
+    active.addedTime = 0;
+    touchLive();
+    render();
+  }
+
+  function setLiveStatus(status) {
+    if (!canEdit()) return;
+    const active = getLiveState().active;
+    if (!active) return;
+    active.status = status;
+    if (status === "halftime") active.minute = Math.max(45, Number(active.minute) || 0);
+    if (status === "secondhalf") active.minute = Math.max(46, Number(active.minute) || 0);
+    if (status === "extra") active.minute = Math.max(91, Number(active.minute) || 0);
+    touchLive();
+    render();
+  }
+
+  function addLiveEvent(form) {
+    if (!canEdit()) return;
+    const active = getLiveState().active;
+    if (!active) return;
+    const data = new FormData(form);
+    const type = String(data.get("type") || "note");
+    const side = String(data.get("side") || "neutral");
+    const minute = Math.max(0, Number(data.get("minute")) || 0);
+    const addedTime = Math.max(0, Number(data.get("addedTime")) || 0);
+    const text = String(data.get("text") || "").trim();
+    if (type === "goal" && ["home", "away"].includes(side)) {
+      const scoreKey = side === "home" ? "homeScore" : "awayScore";
+      active[scoreKey] = Math.max(0, Number(active[scoreKey]) || 0) + 1;
+    }
+    active.minute = minute;
+    active.addedTime = addedTime;
+    active.events = Array.isArray(active.events) ? active.events : [];
+    active.events.push({ id: `live-${Date.now()}-${Math.random().toString(36).slice(2,6)}`, type, side, minute, addedTime, text: text || (type === "goal" ? "Gol" : "Canlı maç olayı"), createdAt: new Date().toISOString() });
+    touchLive();
+    render();
+    toast("Maç olayı canlı yayına eklendi.", "success");
+  }
+
+  function deleteLiveEvent(eventId) {
+    if (!canEdit()) return;
+    const active = getLiveState().active;
+    if (!active) return;
+    const events = Array.isArray(active.events) ? active.events : [];
+    const index = events.findIndex(event => event.id === eventId);
+    if (index < 0) return;
+    const [removed] = events.splice(index, 1);
+    if (removed.type === "goal" && ["home", "away"].includes(removed.side)) {
+      const scoreKey = removed.side === "home" ? "homeScore" : "awayScore";
+      active[scoreKey] = Math.max(0, Number(active[scoreKey]) - 1);
+    }
+    touchLive();
+    render();
+  }
+
+  function openFinishLiveMatch() {
+    if (!canEdit()) return;
+    const activePair = getActiveLive();
+    if (!activePair) return;
+    const { live, match } = activePair;
+    openModal("Canlı Maçı Bitir", `<form id="finishLiveMatchForm">
+      <div class="live-finish-score"><span>${displayName(match.homeId)}</span><strong>${live.homeScore} – ${live.awayScore}</strong><span>${displayName(match.awayId)}</span></div>
+      <div class="info-box mt-16">Canlı skor fikstüre resmî maç sonucu olarak işlenecek. Bu işlem puan tablolarını ve tüm istatistikleri otomatik günceller.</div>
+      ${!match.allowDraw && Number(live.homeScore) === Number(live.awayScore) ? `<div class="field mt-16"><label>Uzatma / Penaltı Galibi</label><select name="tiebreakWinnerId" required><option value="">Kazananı seç</option><option value="${match.homeId}">${displayName(match.homeId)}</option><option value="${match.awayId}">${displayName(match.awayId)}</option></select></div>` : ""}
+      <div class="field mt-16"><label>Maç Sonu Notu</label><input type="text" name="note" value="Canlı Maç Merkezi üzerinden tamamlandı" placeholder="Opsiyonel not"></div>
+      <div class="modal-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">Vazgeç</button><button type="submit" class="btn btn-gold">Skoru Kaydet ve Yayını Bitir</button></div>
+    </form>`, "FULL TIME");
+  }
+
+  function finishLiveMatch(form) {
+    if (!canEdit()) return;
+    const activePair = getActiveLive();
+    if (!activePair) return;
+    const { live, match } = activePair;
+    const data = new FormData(form);
+    const tieWinner = String(data.get("tiebreakWinnerId") || "") || null;
+    if (!match.allowDraw && Number(live.homeScore) === Number(live.awayScore) && ![match.homeId, match.awayId].includes(tieWinner)) {
+      toast("Eleme maçında kazanan oyuncuyu seç.", "error"); return;
+    }
+    match.homeScore = Number(live.homeScore) || 0;
+    match.awayScore = Number(live.awayScore) || 0;
+    match.homeTeam = String(live.homeTeam || "").trim();
+    match.awayTeam = String(live.awayTeam || "").trim();
+    match.tiebreakWinnerId = match.homeScore === match.awayScore ? tieWinner : null;
+    match.note = String(data.get("note") || "").trim();
+    match.updatedAt = new Date().toISOString();
+    const liveState = getLiveState();
+    liveState.archive[match.id] = {
+      ...live,
+      status: "fulltime",
+      homeName: playerName(match.homeId),
+      awayName: playerName(match.awayId),
+      stage: liveStageLabel(match),
+      finishedAt: new Date().toISOString()
+    };
+    liveState.active = null;
+    const warning = reconcileAfterStageEdit(match.phase);
+    refreshKnockout();
+    closeModal();
+    saveState(true, true);
+    render();
+    toast(warning || "Canlı maç tamamlandı ve fikstüre işlendi.", warning ? "" : "success");
+  }
+
+  function openCancelLiveMatch() {
+    if (!canEdit()) return;
+    openModal("Canlı Yayını İptal Et", `<div class="info-box warning-box">Canlı skor ve zaman çizelgesi silinecek; fikstürde resmî sonuç oluşmayacak.</div><div class="modal-actions"><button class="btn btn-ghost" data-action="close-modal">Vazgeç</button><button class="btn btn-danger" data-action="cancel-live-match">Yayını İptal Et</button></div>`, "LIVE CONTROL");
+  }
+
+  function cancelLiveMatch() {
+    if (!canEdit()) return;
+    getLiveState().active = null;
+    closeModal();
+    saveState(true, true);
+    render();
+    toast("Canlı yayın iptal edildi.");
+  }
+
+  async function shareLiveMatch() {
+    const activePair = getActiveLive();
+    if (!activePair) return;
+    const { live, match } = activePair;
+    const text = `🔴 FIFA 9 CANLI\n${playerName(match.homeId)} ${live.homeScore}-${live.awayScore} ${playerName(match.awayId)}\n⏱ ${liveMinuteText(live)} · ${liveStatusText(live)}\n${live.homeTeam || ""} vs ${live.awayTeam || ""}\n${window.location.href}`;
+    if (navigator.share) {
+      try { await navigator.share({ title: "FIFA 9 Canlı Maç", text, url: window.location.href }); return; } catch (error) { if (error?.name === "AbortError") return; }
+    }
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
   }
 
   function renderSetup() {
@@ -2620,6 +3026,7 @@ ${shareData.url}`)}`;
     const action = event.target.closest("[data-action]");
     if (!action) return;
     const type = action.dataset.action;
+    if (type === "share-live-match") { shareLiveMatch(); return; }
     if (type === "share-live-stats") { shareLiveStatistics(); return; }
     if (type === "print-a3-board") { printA3Board(); return; }
     if (type === "print-league-master") { printLeagueMaster(); return; }
@@ -2645,10 +3052,19 @@ ${shareData.url}`)}`;
       if (activeView === "alltime") renderAllTime();
       return;
     }
-    if (["generate-draw","generate-phase2","generate-knockout","edit-match","clear-match","open-name-import","apply-bulk-names","confirm-reset","reset-current"].includes(type) && !canEdit()) {
+    if (["generate-draw","generate-phase2","generate-knockout","edit-match","clear-match","open-name-import","apply-bulk-names","confirm-reset","reset-current","start-live-match","live-goal","live-score-minus","live-minute-change","live-set-status","delete-live-event","open-finish-live","open-cancel-live","cancel-live-match"].includes(type) && !canEdit()) {
       toast("Bu işlem yalnızca turnuva yöneticisine açıktır.", "error");
       return;
     }
+    if (type === "start-live-match") startLiveMatch(action.dataset.matchId);
+    if (type === "live-goal") addLiveGoal(action.dataset.side);
+    if (type === "live-score-minus") reduceLiveScore(action.dataset.side);
+    if (type === "live-minute-change") changeLiveMinute(action.dataset.delta);
+    if (type === "live-set-status") setLiveStatus(action.dataset.status);
+    if (type === "delete-live-event") deleteLiveEvent(action.dataset.eventId);
+    if (type === "open-finish-live") openFinishLiveMatch();
+    if (type === "open-cancel-live") openCancelLiveMatch();
+    if (type === "cancel-live-match") cancelLiveMatch();
     if (type === "generate-draw") generateDraw();
     if (type === "generate-phase2") generatePhase2();
     if (type === "generate-knockout") generateKnockout();
@@ -2674,6 +3090,16 @@ ${shareData.url}`)}`;
   });
 
   document.addEventListener("input", event => {
+    if (event.target.dataset.liveField && canEdit()) {
+      const active = getLiveState().active;
+      if (active) { active[event.target.dataset.liveField] = event.target.value; active.updatedAt = new Date().toISOString(); saveState(); }
+      return;
+    }
+    if (event.target.dataset.liveNumber && canEdit()) {
+      const active = getLiveState().active;
+      if (active) { active[event.target.dataset.liveNumber] = Math.max(0, Number(event.target.value) || 0); active.updatedAt = new Date().toISOString(); saveState(); }
+      return;
+    }
     const id = event.target.dataset.playerInput;
     if (!id || !canEdit()) return;
     const p = participant(id);
@@ -2690,9 +3116,28 @@ ${shareData.url}`)}`;
       event.preventDefault();
       handleAdminLogin(event.target);
     }
+    if (event.target.id === "liveEventForm") {
+      event.preventDefault();
+      addLiveEvent(event.target);
+    }
+    if (event.target.id === "finishLiveMatchForm") {
+      event.preventDefault();
+      finishLiveMatch(event.target);
+    }
   });
 
   document.addEventListener("change", event => {
+    if ((event.target.dataset.liveField || event.target.dataset.liveNumber) && canEdit()) {
+      const active = getLiveState().active;
+      if (active) {
+        if (event.target.dataset.liveField) active[event.target.dataset.liveField] = event.target.value;
+        if (event.target.dataset.liveNumber) active[event.target.dataset.liveNumber] = Math.max(0, Number(event.target.value) || 0);
+        active.updatedAt = new Date().toISOString();
+        saveState(false, true);
+        if (activeView === "livematch") renderLiveMatchCentre();
+      }
+      return;
+    }
     if (event.target.id === "importFile" && event.target.files?.[0]) importBackup(event.target.files[0]);
     if (event.target.id === "allTimePlayerSelect") { allTimeSelectedPlayerName = event.target.value; if (activeView === "alltime") renderAllTime(); }
     if (event.target.id === "rivalrySelectA") {
