@@ -1,0 +1,77 @@
+FIFA 9 TOURNAMENT HUB v11 — OYUNCU SOHBETİ KURULUMU
+=====================================================
+
+Bu güncelleme yalnızca dosya yüklemekle tamamlanmaz. Sohbet için Supabase'de
+bir defaya mahsus SQL kurulumu ve Anonymous Sign-Ins ayarı gerekir.
+
+1) GITHUB DOSYA GÜNCELLEMESİ
+----------------------------
+GitHub reposunda Code > Add file > Upload files bölümünü aç.
+Güncelleme paketindeki dosyaları yükle:
+
+- index.html
+- app.js
+- styles.css
+- language.js
+- service-worker.js
+- chat.js
+
+Commit mesajı:
+Add registered-player realtime tournament chat
+
+Vercel bağlıysa yayın otomatik yapılır.
+
+2) SUPABASE SQL KURULUMU
+------------------------
+Supabase Dashboard > SQL Editor > New Query bölümünü aç.
+
+Paket içindeki:
+supabase/chat_feature_v11.sql
+
+dosyasının tamamını kopyala, SQL Editor'a yapıştır ve Run düğmesine bas.
+
+Başarılı kurulumdan sonra Table Editor'da şunlar görünür:
+- chat_profiles
+- chat_messages
+
+3) ANONYMOUS SIGN-INS ÖZELLİĞİNİ AÇ
+-----------------------------------
+Supabase Dashboard > Authentication > Providers bölümüne gir.
+Anonymous / Anonymous Sign-Ins seçeneğini bul ve ENABLE yap.
+
+Bu ayar oyuncuların e-posta veya telefon yazmadan, kayıtlı oyuncu adını seçerek
+sohbet hesabı oluşturmasını sağlar.
+
+4) KULLANIM
+-----------
+- Oyuncu siteyi açar ve Sohbet sekmesine girer.
+- Turnuva kadrosundaki kendi adını listeden seçer.
+- 4–8 haneli kişisel PIN oluşturur.
+- Aynı adı başka cihazda kullanmak için aynı PIN'i girer.
+- Oyuncular Genel Sohbet ve Canlı Maç odalarını kullanabilir.
+
+5) YÖNETİCİ İŞLEMLERİ
+---------------------
+Yönetici Sohbet sekmesinin altında kayıtlı sohbet hesaplarını görür.
+PIN unutulursa ilgili oyuncu için Sıfırla düğmesine basar.
+Oyuncu yeniden adını seçerek yeni PIN oluşturur.
+Yönetici uygunsuz mesajları silebilir.
+
+6) GÜVENLİK NOTU
+----------------
+- Oyuncular isim yazmaz; yalnızca canlı turnuva kadrosundaki isimleri seçebilir.
+- Mesaj yazmak ve okumak için doğrulanmış sohbet profili gerekir.
+- Mesaj gönderme ve silme yetkileri Supabase RLS politikalarıyla korunur.
+- 6 haneli PIN kullanılması önerilir.
+- sb_secret veya service_role anahtarını siteye/GitHub'a ekleme.
+
+7) SORUN GİDERME
+----------------
+"Anonymous sign-in failed" hatası:
+Authentication > Providers > Anonymous ayarını etkinleştir.
+
+"function claim_chat_profile does not exist" hatası:
+chat_feature_v11.sql dosyasını SQL Editor'da çalıştır.
+
+Eski site görünüyorsa:
+Bilgisayarda Ctrl + F5 yap. Telefonda site önbelleğini temizle.
