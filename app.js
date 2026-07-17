@@ -27,6 +27,7 @@
     dashboard: "Dashboard",
     livematch: "Canlı Maç Merkezi",
     livestats: "Canlı İstatistikler",
+    form: "Form Merkezi",
     setup: "Kura & Oyuncular",
     league: "UEFA League Phase",
     gold: "Altın Grup",
@@ -46,6 +47,9 @@
   let allTimeRivalryB = "";
   let selectedTeamStatName = "";
   let selectedTeamPlayerName = "";
+  let formWindowSize = 20;
+  let formScope = "current";
+  let selectedFormPlayerName = "";
 
   function defaultState() {
     return {
@@ -525,6 +529,7 @@
     switch (activeView) {
       case "livematch": renderLiveMatchCentre(); break;
       case "livestats": renderLiveStatistics(); break;
+      case "form": renderFormCentre(); break;
       case "setup": renderSetup(); break;
       case "league": renderLeague(); break;
       case "gold": renderGroup("gold"); break;
@@ -2260,6 +2265,300 @@
     window.open(`https://wa.me/?text=${encodeURIComponent(lines.join("\n"))}`, "_blank", "noopener,noreferrer");
   }
 
+  function renderFormCentre() {
+    const analytics = buildFormAnalytics(formWindowSize, formScope);
+    if (!analytics.players.length) {
+      view.innerHTML = emptyState("↗", "Form Verisi Hazır Değil", "Oyuncuların maç geçmişi oluştuğunda Son 20 Maç Form Merkezi otomatik olarak çalışacak.", canEdit() ? `<button class="btn btn-gold" data-nav="setup">Oyuncuları Aç</button>` : "");
+      return;
+    }
+    ensureFormSelection(analytics);
+    const selected = analytics.playerMap.get(selectedFormPlayerName) || analytics.players[0];
+    const leader = analytics.records.leader;
+    const hottest = analytics.records.hottest;
+    const unbeaten = analytics.records.unbeaten;
+    const momentum = analytics.records.momentum;
+
+    view.innerHTML = `
+      <div class="group-banner form-banner">
+        <div>
+          <div class="eyebrow">FORM & MOMENTUM LAB</div>
+          <h2>Son ${formWindowSize} Maç Form Merkezi</h2>
+          <p>Oyuncuların en güncel ${formWindowSize} maçına göre hesaplanan bağımsız form puan durumu, performans endeksi, seri analizi ve maç maç form çizgisi. FIFA 9 sonuçları girildikçe otomatik yenilenir.</p>
+          <div class="live-banner-actions"><button class="btn btn-gold" data-action="share-form-stats">Form Tablosunu Paylaş</button><button class="btn btn-ghost" data-nav="livestats">Canlı İstatistiklere Git</button></div>
+        </div>
+        <div class="form-orb"><strong>${leader?.formIndex || 0}</strong><span>Form Gücü</span><small>${escapeHTML(leader?.name || "–")}</small></div>
+      </div>
+
+      <section class="panel form-control-panel">
+        <div class="form-control-row">
+          <div><div class="panel-title">Analiz Penceresi</div><div class="panel-subtitle">Son 5, 10 veya 20 maçlık güncel görünüm.</div></div>
+          <div class="segmented-control" role="group" aria-label="Form analiz penceresi">
+            ${[5,10,20].map(size => `<button class="segment-btn ${formWindowSize === size ? "active" : ""}" data-action="set-form-window" data-form-window="${size}">Son ${size}</button>`).join("")}
+          </div>
+        </div>
+        <div class="form-control-row second">
+          <div><div class="panel-title">Oyuncu Havuzu</div><div class="panel-subtitle">FIFA 9 kadrosunu veya arşivdeki bütün oyuncuları karşılaştır.</div></div>
+          <div class="segmented-control" role="group" aria-label="Oyuncu havuzu">
+            <button class="segment-btn ${formScope === "current" ? "active" : ""}" data-action="set-form-scope" data-form-scope="current">FIFA 9 Kadrosu</button>
+            <button class="segment-btn ${formScope === "all" ? "active" : ""}" data-action="set-form-scope" data-form-scope="all">Tüm Oyuncular</button>
+          </div>
+        </div>
+      </section>
+
+      <div class="kpi-grid">
+        ${kpiCard(`Son ${formWindowSize} Lideri`, leader?.name || "–", leader ? `${leader.points} puan · ${leader.ppg.toFixed(2)} PPG · ${leader.formIndex}/100 form` : "Maç verisi bekleniyor")}
+        ${kpiCard("Son 5'in En İyisi", hottest?.name || "–", hottest ? `${hottest.last5Points}/15 puan · ${hottest.last5Label}` : "Maç verisi bekleniyor")}
+        ${kpiCard("Aktif Yenilmezlik", unbeaten?.name || "–", unbeaten ? `${unbeaten.currentUnbeatenStreak} maç · ${unbeaten.currentStreakLabel}` : "Maç verisi bekleniyor")}
+        ${kpiCard("En Büyük Yükseliş", momentum?.name || "–", momentum ? `${momentum.momentum > 0 ? "+" : ""}${momentum.momentum} puan trendi · ${momentum.trendLabel}` : "Maç verisi bekleniyor")}
+      </div>
+
+      <section class="panel mt-24">
+        <div class="panel-header"><div><h3 class="panel-title">Form Güç Kartları</h3><div class="panel-subtitle">Son ${formWindowSize} maç performansı. Kart seçerek detay panelini aç.</div></div><span class="badge badge-gold">${analytics.players.length} OYUNCU</span></div>
+        <div class="form-card-grid">${analytics.players.map(renderFormPlayerCard).join("")}</div>
+      </section>
+
+      <div class="grid-2 mt-24">
+        <section class="panel">
+          <div class="panel-header"><div><h3 class="panel-title">Son ${formWindowSize} Maç Puan Durumu</h3><div class="panel-subtitle">Sadece seçilen form penceresindeki maçlar: galibiyet 3, beraberlik 1 puan.</div></div><span class="badge badge-blue">FORM TABLE</span></div>
+          ${formStandingsTable(analytics.players)}
+        </section>
+        <section class="panel">
+          <div class="panel-header"><div><h3 class="panel-title">Momentum Sıralaması</h3><div class="panel-subtitle">Son 5 maç ile önceki 5 maç arasındaki puan farkı.</div></div></div>
+          <div class="momentum-list">${analytics.players.slice().sort((a,b)=>b.momentum-a.momentum || b.last5Points-a.last5Points || b.formIndex-a.formIndex).map(renderMomentumRow).join("")}</div>
+          <div class="info-box mt-24"><strong>Form Gücü:</strong> PPG %70, son 5 maç %20 ve maç başı averaj %10 ağırlıkla 100 üzerinden hesaplanır.</div>
+        </section>
+      </div>
+
+      <section class="panel mt-24">
+        <div class="panel-header"><div><h3 class="panel-title">Oyuncu Form Dosyası</h3><div class="panel-subtitle">Seçilen oyuncunun maç maç form şeridi, seri durumu ve rakip detayları.</div></div>
+          <label class="field inline-field form-player-select"><span>Oyuncu Seç</span><select id="formPlayerSelect">${analytics.players.map(row => `<option value="${escapeHTML(row.name)}" ${row.name === selected.name ? "selected" : ""}>${escapeHTML(row.name)}</option>`).join("")}</select></label>
+        </div>
+        ${renderFormPlayerDetail(selected, formWindowSize)}
+      </section>
+
+      <div class="grid-2 mt-24">
+        <section class="panel">
+          <div class="panel-header"><div><h3 class="panel-title">Form Rekorları</h3><div class="panel-subtitle">Seçili maç penceresinin öne çıkan performansları.</div></div></div>
+          <div class="records-grid">
+            ${renderFormRecordTile("En Çok Puan", analytics.records.leader, row => `${row.points} puan · ${row.games} maç`)}
+            ${renderFormRecordTile("En İyi Hücum", analytics.records.attack, row => `${row.gf} gol · ${row.avgGoals.toFixed(2)} gol/maç`)}
+            ${renderFormRecordTile("En İyi Averaj", analytics.records.goalDifference, row => `${formatGD(row.gd)} averaj · ${row.gf}-${row.ga}`)}
+            ${renderFormRecordTile("En Sağlam Savunma", analytics.records.defense, row => `${row.gaPerGame.toFixed(2)} gol/maç · ${row.cleanSheets} clean sheet`)}
+            ${renderFormRecordTile("Galibiyet Serisi", analytics.records.winStreak, row => `${row.currentWinStreak} maç üst üste`)}
+            ${renderFormRecordTile("En Yüksek G%", analytics.records.winRate, row => `${row.winRate.toFixed(1)}% · ${row.wins}/${row.games}`)}
+          </div>
+        </section>
+        <section class="panel">
+          <div class="panel-header"><div><h3 class="panel-title">Form Haritası</h3><div class="panel-subtitle">Her satırda en eski maç solda, en güncel maç sağda.</div></div></div>
+          <div class="form-heatmap">${analytics.players.map(renderFormHeatmapRow).join("")}</div>
+        </section>
+      </div>`;
+  }
+
+  function ensureFormSelection(analytics) {
+    if (!selectedFormPlayerName || !analytics.playerMap.has(selectedFormPlayerName)) selectedFormPlayerName = analytics.players[0]?.name || "";
+  }
+
+  function renderFormPlayerCard(row) {
+    const trendClass = row.trend === "up" ? "up" : row.trend === "down" ? "down" : "steady";
+    return `<article class="form-player-card ${row.name === selectedFormPlayerName ? "active" : ""}" data-action="select-form-player" data-player-name="${escapeHTML(row.name)}">
+      <div class="form-card-top"><div><span class="form-rank">#${row.rank}</span><h4>${escapeHTML(row.name)}</h4><small>${row.games}/${row.windowSize} maç kapsama</small></div><div class="form-index-ring" style="--form-value:${row.formIndex}"><strong>${row.formIndex}</strong><span>FORM</span></div></div>
+      <div class="form-card-strip">${renderResultSquares(row.results, row.windowSize, false)}</div>
+      <div class="form-card-stats"><div><span>P</span><strong>${row.points}</strong></div><div><span>PPG</span><strong>${row.ppg.toFixed(2)}</strong></div><div><span>AV</span><strong>${formatGD(row.gd)}</strong></div><div><span>G%</span><strong>${row.winRate.toFixed(0)}%</strong></div></div>
+      <div class="form-card-footer"><span class="trend-pill ${trendClass}">${row.trendIcon} ${escapeHTML(row.trendLabel)}</span><span>${escapeHTML(row.currentStreakLabel)}</span></div>
+    </article>`;
+  }
+
+  function formStandingsTable(rows) {
+    return `<div class="table-wrap"><table><thead><tr><th>#</th><th class="player-col">Oyuncu</th><th>O</th><th>G</th><th>B</th><th>M</th><th>AG</th><th>YG</th><th>AV</th><th>P</th><th>PPG</th><th>Form</th><th>Güç</th></tr></thead><tbody>${rows.map(row => `<tr data-action="select-form-player" data-player-name="${escapeHTML(row.name)}"><td>${row.rank}</td><td class="player-col"><span class="player-name">${escapeHTML(row.name)}</span><small class="table-subline">${row.games}/${row.windowSize} maç · ${escapeHTML(row.trendLabel)}</small></td><td>${row.games}</td><td>${row.wins}</td><td>${row.draws}</td><td>${row.losses}</td><td>${row.gf}</td><td>${row.ga}</td><td class="${row.gd > 0 ? "gd-positive" : row.gd < 0 ? "gd-negative" : ""}">${formatGD(row.gd)}</td><td class="points-cell">${row.points}</td><td>${row.ppg.toFixed(2)}</td><td>${formHTML(row.results.slice(-5).map(item=>item.result))}</td><td><strong>${row.formIndex}</strong></td></tr>`).join("")}</tbody></table></div>`;
+  }
+
+  function renderMomentumRow(row) {
+    const maxWidth = 15;
+    const recentWidth = Math.max(3, row.last5Points / maxWidth * 100);
+    const previousWidth = Math.max(3, row.previous5Points / maxWidth * 100);
+    const trendClass = row.trend === "up" ? "up" : row.trend === "down" ? "down" : "steady";
+    return `<button class="momentum-row" data-action="select-form-player" data-player-name="${escapeHTML(row.name)}"><div class="momentum-player"><strong>${escapeHTML(row.name)}</strong><span>${row.last5Label}</span></div><div class="momentum-bars"><div><span>Önceki 5</span><i class="previous" style="width:${previousWidth}%"></i><b>${row.previous5Points}</b></div><div><span>Son 5</span><i class="recent" style="width:${recentWidth}%"></i><b>${row.last5Points}</b></div></div><div class="momentum-change ${trendClass}">${row.momentum > 0 ? "+" : ""}${row.momentum}</div></button>`;
+  }
+
+  function renderFormPlayerDetail(row, windowSize) {
+    const favoriteTeam = row.favoriteTeam ? `${escapeHTML(row.favoriteTeam.name)} · ${row.favoriteTeam.games} kullanım` : "Takım verisi yok";
+    return `<div class="form-detail-shell">
+      <div class="form-detail-hero">
+        <div class="form-detail-person"><span>#${row.rank}</span><h3>${escapeHTML(row.name)}</h3><p>Son ${windowSize} maç · ${row.points} puan · ${row.ppg.toFixed(2)} PPG · ${row.formIndex}/100 form gücü</p></div>
+        <div class="form-detail-kpis"><div><span>Galibiyet</span><strong>${row.wins}</strong></div><div><span>Beraberlik</span><strong>${row.draws}</strong></div><div><span>Mağlubiyet</span><strong>${row.losses}</strong></div><div><span>Gol</span><strong>${row.gf}</strong></div><div><span>Averaj</span><strong>${formatGD(row.gd)}</strong></div><div><span>G%</span><strong>${row.winRate.toFixed(1)}%</strong></div></div>
+      </div>
+      <div class="form-detail-insights"><div><span>Trend</span><strong>${row.trendIcon} ${escapeHTML(row.trendLabel)}</strong></div><div><span>Aktif Seri</span><strong>${escapeHTML(row.currentStreakLabel)}</strong></div><div><span>Yenilmezlik</span><strong>${row.currentUnbeatenStreak} maç</strong></div><div><span>En Çok Kullanılan Takım</span><strong>${favoriteTeam}</strong></div><div><span>En Farklı Galibiyet</span><strong>${row.bestWin ? `${row.bestWin.gf}-${row.bestWin.ga} · ${escapeHTML(row.bestWin.opponent)}` : "–"}</strong></div><div><span>Son 5</span><strong>${row.last5Points}/15 puan</strong></div></div>
+      <div class="form-timeline-wrap"><div class="panel-subtitle">Maç Maç Form Çizgisi</div><div class="form-timeline">${renderResultSquares(row.results, windowSize, true)}</div></div>
+      ${formMatchesTable(row.results)}
+    </div>`;
+  }
+
+  function renderResultSquares(results, windowSize, detailed) {
+    const emptyCount = Math.max(0, windowSize - results.length);
+    const empty = Array.from({length: emptyCount}, () => `<span class="result-square empty" title="Maç yok">–</span>`).join("");
+    return empty + results.map(item => `<span class="result-square ${item.result.toLowerCase()}" title="${escapeHTML(`${item.stage} · ${item.opponent} · ${item.gf}-${item.ga}`)}">${detailed ? `<b>${item.result}</b><small>${item.gf}-${item.ga}</small>` : item.result}</span>`).join("");
+  }
+
+  function formMatchesTable(results) {
+    if (!results.length) return `<div class="info-box mt-24">Henüz maç geçmişi yok.</div>`;
+    return `<div class="table-wrap compact-table mt-24"><table><thead><tr><th>#</th><th>Edisyon</th><th>Aşama</th><th>Rakip</th><th>Takım</th><th>Skor</th><th>Sonuç</th></tr></thead><tbody>${[...results].reverse().map((item,index) => `<tr><td>${index+1}</td><td>${escapeHTML(item.editionLabel)}</td><td>${escapeHTML(item.stage)}</td><td class="player-col"><span class="player-name">${escapeHTML(item.opponent)}</span></td><td>${escapeHTML(item.team || "–")}</td><td>${item.gf}-${item.ga}</td><td><span class="form-result-badge ${item.result.toLowerCase()}">${item.result}</span></td></tr>`).join("")}</tbody></table></div>`;
+  }
+
+  function renderFormRecordTile(label, row, metaFn) {
+    if (!row) return `<div class="record-tile"><div class="record-label">${escapeHTML(label)}</div><div class="record-value">–</div><div class="record-note">Kayıt oluşmadı.</div></div>`;
+    return `<button class="record-tile form-record-tile" data-action="select-form-player" data-player-name="${escapeHTML(row.name)}"><div class="record-label">${escapeHTML(label)}</div><div class="record-value">${escapeHTML(row.name)}</div><div class="record-note">${escapeHTML(metaFn(row))}</div></button>`;
+  }
+
+  function renderFormHeatmapRow(row) {
+    return `<button class="form-heatmap-row" data-action="select-form-player" data-player-name="${escapeHTML(row.name)}"><span class="form-heatmap-name">${escapeHTML(row.name)}</span><span class="form-heatmap-squares">${renderResultSquares(row.results, row.windowSize, false)}</span><strong>${row.points}</strong></button>`;
+  }
+
+  function buildFormAnalytics(windowSize = 20, scope = "current") {
+    const history = buildFormMatchHistory();
+    const allNames = new Set();
+    history.forEach(match => { if (match.homeName) allNames.add(match.homeName); if (match.awayName) allNames.add(match.awayName); });
+    const currentNames = filledParticipants().map(player => player.name.trim()).filter(Boolean);
+    let names = scope === "current" && currentNames.length ? currentNames : [...allNames];
+    names = [...new Set(names)].filter(name => name && !/^P\d+$/i.test(name));
+
+    const players = names.map(name => {
+      const matches = history.filter(match => match.homeName === name || match.awayName === name).sort((a,b)=>a.order-b.order).slice(-windowSize);
+      const results = matches.map(match => {
+        const isHome = match.homeName === name;
+        const gf = isHome ? match.homeScore : match.awayScore;
+        const ga = isHome ? match.awayScore : match.homeScore;
+        const opponent = isHome ? match.awayName : match.homeName;
+        const team = isHome ? match.homeTeam : match.awayTeam;
+        let result = "D";
+        if (match.winnerName) result = match.winnerName === name ? "W" : "L";
+        else if (gf > ga) result = "W";
+        else if (gf < ga) result = "L";
+        return { result, gf, ga, opponent, team, stage:match.stage, edition:match.edition, editionLabel:match.editionLabel, order:match.order };
+      });
+      const row = { name, windowSize, results, games:results.length, wins:0,draws:0,losses:0,gf:0,ga:0,gd:0,points:0,cleanSheets:0,bestWin:null };
+      const teamUse = new Map();
+      for (const item of results) {
+        row.gf += item.gf; row.ga += item.ga;
+        if (item.ga === 0) row.cleanSheets += 1;
+        if (item.result === "W") { row.wins += 1; row.points += 3; }
+        else if (item.result === "D") { row.draws += 1; row.points += 1; }
+        else row.losses += 1;
+        if (item.result === "W") {
+          const margin = item.gf - item.ga;
+          if (!row.bestWin || margin > row.bestWin.margin || (margin === row.bestWin.margin && item.gf > row.bestWin.gf)) row.bestWin = { ...item, margin };
+        }
+        const normalized = normalizeTeamName(item.team);
+        if (normalized) teamUse.set(normalized, (teamUse.get(normalized) || 0) + 1);
+      }
+      row.gd = row.gf - row.ga;
+      row.ppg = row.games ? row.points / row.games : 0;
+      row.winRate = row.games ? row.wins / row.games * 100 : 0;
+      row.avgGoals = row.games ? row.gf / row.games : 0;
+      row.gaPerGame = row.games ? row.ga / row.games : 0;
+      const last5 = results.slice(-5);
+      const previous5 = results.slice(-10,-5);
+      const pointsOf = list => list.reduce((sum,item)=>sum+(item.result === "W" ? 3 : item.result === "D" ? 1 : 0),0);
+      row.last5Points = pointsOf(last5);
+      row.previous5Points = pointsOf(previous5);
+      row.momentum = row.last5Points - row.previous5Points;
+      row.trend = row.momentum >= 3 ? "up" : row.momentum <= -3 ? "down" : "steady";
+      row.trendIcon = row.trend === "up" ? "▲" : row.trend === "down" ? "▼" : "◆";
+      row.trendLabel = row.trend === "up" ? "Yükselişte" : row.trend === "down" ? "Düşüşte" : "Dengeli";
+      row.last5Label = last5.length ? last5.map(item=>item.result).join("-") : "Maç bekleniyor";
+      const reverse = [...results].reverse();
+      const streak = (predicate) => { const index = reverse.findIndex(item=>!predicate(item)); return index === -1 ? reverse.length : index; };
+      row.currentWinStreak = streak(item=>item.result === "W");
+      row.currentUnbeatenStreak = streak(item=>item.result !== "L");
+      const latest = reverse[0]?.result || "";
+      const activeCount = latest ? streak(item=>item.result === latest) : 0;
+      row.currentStreakLabel = latest === "W" ? `${activeCount} galibiyet` : latest === "D" ? `${activeCount} beraberlik` : latest === "L" ? `${activeCount} mağlubiyet` : "Maç bekleniyor";
+      const gdPerGame = row.games ? row.gd / row.games : 0;
+      const ppgScore = Math.min(70, Math.max(0, row.ppg / 3 * 70));
+      const recentScore = Math.min(20, Math.max(0, row.last5Points / 15 * 20));
+      const gdScore = Math.min(10, Math.max(0, ((gdPerGame + 1) / 2) * 10));
+      row.formIndex = Math.round(ppgScore + recentScore + gdScore);
+      const favorite = [...teamUse.entries()].sort((a,b)=>b[1]-a[1] || a[0].localeCompare(b[0],"tr"))[0];
+      row.favoriteTeam = favorite ? { name:favorite[0], games:favorite[1] } : null;
+      return row;
+    }).filter(row => row.games > 0 || scope === "current")
+      .sort((a,b)=>b.points-a.points || b.gd-a.gd || b.gf-a.gf || b.wins-a.wins || b.formIndex-a.formIndex || a.name.localeCompare(b.name,"tr"))
+      .map((row,index)=>({ ...row, rank:index+1 }));
+
+    const playerMap = new Map(players.map(row=>[row.name,row]));
+    const maxBy = (selector, filter=()=>true) => {
+      const list = players.filter(filter);
+      return list.length ? [...list].sort((a,b)=>selector(b)-selector(a) || b.games-a.games || a.name.localeCompare(b.name,"tr"))[0] : null;
+    };
+    return {
+      players,
+      playerMap,
+      records: {
+        leader:maxBy(row=>row.points,row=>row.games>0),
+        hottest:maxBy(row=>row.last5Points,row=>row.games>0),
+        unbeaten:maxBy(row=>row.currentUnbeatenStreak,row=>row.games>0),
+        momentum:maxBy(row=>row.momentum,row=>row.games>0),
+        attack:maxBy(row=>row.gf,row=>row.games>0),
+        goalDifference:maxBy(row=>row.gd,row=>row.games>0),
+        defense:[...players].filter(row=>row.games>=Math.min(5,windowSize)).sort((a,b)=>a.gaPerGame-b.gaPerGame || b.games-a.games || a.name.localeCompare(b.name,"tr"))[0] || null,
+        winStreak:maxBy(row=>row.currentWinStreak,row=>row.games>0),
+        winRate:maxBy(row=>row.winRate,row=>row.games>=Math.min(5,windowSize))
+      },
+      summary:{ windowSize, scope, matches:history.length }
+    };
+  }
+
+  function buildFormMatchHistory() {
+    const historicalMatches = (historical.editions || []).flatMap(edition => (edition.matches || []).map((match,index) => ({
+      id:`historical-${edition.edition}-${index+1}`,
+      edition:edition.edition,
+      editionLabel:`FIFA ${edition.edition}`,
+      stage:historicalStageLabel(match.stage),
+      homeName:String(match.p1 || "").trim(),
+      awayName:String(match.p2 || "").trim(),
+      homeTeam:match.t1 || "",
+      awayTeam:match.t2 || "",
+      homeScore:Number(match.s1),
+      awayScore:Number(match.s2),
+      winnerName:Number(match.s1) === Number(match.s2) ? "" : Number(match.s1) > Number(match.s2) ? match.p1 : match.p2,
+      order:edition.edition * 1000000 + index + 1
+    })));
+    const currentCompleted = allCurrentMatches().filter(matchComplete);
+    const phaseOrder = { league:1,gold:2,silver:3,knockout:4,final:5 };
+    const currentMatches = currentCompleted.map((match,index) => {
+      const time = match.updatedAt ? Date.parse(match.updatedAt) : 0;
+      const structural = (phaseOrder[match.phase] || 9) * 100000 + (Number(match.round)||0) * 100 + index;
+      return {
+        id:match.id,
+        edition:state.current.edition || 9,
+        editionLabel:`FIFA ${state.current.edition || 9}`,
+        stage:currentMatchStageLabel(match),
+        homeName:playerName(match.homeId), awayName:playerName(match.awayId),
+        homeTeam:match.homeTeam || "", awayTeam:match.awayTeam || "",
+        homeScore:Number(match.homeScore), awayScore:Number(match.awayScore),
+        winnerName:matchWinnerId(match) ? playerName(matchWinnerId(match)) : "",
+        order:9000000 + (time ? time / 10000000000000 : structural)
+      };
+    }).sort((a,b)=>a.order-b.order).map((match,index)=>({ ...match, order:9000000+index+1 }));
+    return [...historicalMatches, ...currentMatches];
+  }
+
+  async function shareFormStatistics() {
+    const analytics = buildFormAnalytics(formWindowSize, formScope);
+    const top = analytics.players.slice(0,5);
+    const lines = [
+      `FIFA 9 · SON ${formWindowSize} MAÇ FORM DURUMU`,
+      ...top.map(row=>`#${row.rank} ${row.name} · ${row.points} puan · ${row.ppg.toFixed(2)} PPG · Form ${row.formIndex}/100 · ${row.last5Label}`),
+      analytics.records.unbeaten ? `Yenilmezlik lideri: ${analytics.records.unbeaten.name} (${analytics.records.unbeaten.currentUnbeatenStreak} maç)` : "",
+      window.location.href
+    ].filter(Boolean);
+    const shareData = { title:`FIFA 9 Son ${formWindowSize} Form`, text:lines.join("\n"), url:window.location.href };
+    if (navigator.share) {
+      try { await navigator.share(shareData); return; } catch (error) { if (error?.name === "AbortError") return; }
+    }
+    window.open(`https://wa.me/?text=${encodeURIComponent(lines.join("\n"))}`, "_blank", "noopener,noreferrer");
+  }
+
   function renderTeamStatistics() {
     const analytics = buildTeamAnalytics();
     if (!analytics.teams.length) {
@@ -3026,8 +3325,25 @@ ${shareData.url}`)}`;
     const action = event.target.closest("[data-action]");
     if (!action) return;
     const type = action.dataset.action;
+    if (type === "set-form-window") {
+      formWindowSize = Math.max(5, Math.min(20, Number(action.dataset.formWindow) || 20));
+      if (activeView === "form") renderFormCentre();
+      return;
+    }
+    if (type === "set-form-scope") {
+      formScope = action.dataset.formScope === "all" ? "all" : "current";
+      selectedFormPlayerName = "";
+      if (activeView === "form") renderFormCentre();
+      return;
+    }
+    if (type === "select-form-player") {
+      selectedFormPlayerName = action.dataset.playerName || selectedFormPlayerName;
+      if (activeView === "form") renderFormCentre();
+      return;
+    }
     if (type === "share-live-match") { shareLiveMatch(); return; }
     if (type === "share-live-stats") { shareLiveStatistics(); return; }
+    if (type === "share-form-stats") { shareFormStatistics(); return; }
     if (type === "print-a3-board") { printA3Board(); return; }
     if (type === "print-league-master") { printLeagueMaster(); return; }
     if (type === "print-round-sheets") { printRoundSheets(); return; }
@@ -3139,6 +3455,7 @@ ${shareData.url}`)}`;
       return;
     }
     if (event.target.id === "importFile" && event.target.files?.[0]) importBackup(event.target.files[0]);
+    if (event.target.id === "formPlayerSelect") { selectedFormPlayerName = event.target.value; if (activeView === "form") renderFormCentre(); }
     if (event.target.id === "allTimePlayerSelect") { allTimeSelectedPlayerName = event.target.value; if (activeView === "alltime") renderAllTime(); }
     if (event.target.id === "rivalrySelectA") {
       allTimeRivalryA = event.target.value;

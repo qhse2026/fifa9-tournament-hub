@@ -1,0 +1,20 @@
+FIFA 9 FORM MERKEZİ v10 — KURULUM
+
+1. Bu paketteki index.html, app.js, styles.css, language.js ve service-worker.js dosyalarını GitHub repository ana dizinine yükleyin.
+2. Aynı adlı dosyaların değiştirilmesini onaylayın.
+3. Commit mesajı: Add last 20 match form and momentum centre
+4. Vercel otomatik yayın yapacaktır.
+5. Eski sürüm görünürse Ctrl+F5 yapın veya site önbelleğini temizleyin.
+
+Supabase tarafında yeni SQL, tablo veya ayar gerekmez. cloud-config.js dosyasına dokunmayın.
+
+YENİ ÖZELLİKLER
+- Son 5 / 10 / 20 maç form penceresi
+- Son 20 maça göre bağımsız puan durumu
+- 100 üzerinden şeffaf Form Gücü endeksi
+- Son 5 ile önceki 5 karşılaştırmalı momentum
+- Aktif galibiyet, mağlubiyet ve yenilmezlik serileri
+- Oyuncu form kartları ve maç maç form çizgisi
+- FIFA 9 kadrosu / tüm oyuncular filtresi
+- WhatsApp form özeti paylaşımı
+- Türkçe / İngilizce arayüz
