@@ -28,6 +28,7 @@
     livematch: "Canlı Maç Merkezi",
     livestats: "Canlı İstatistikler",
     form: "Form Merkezi",
+    odds: "Maç Oranları",
     chat: "Turnuva Sohbeti",
     setup: "Kura & Oyuncular",
     league: "UEFA League Phase",
@@ -51,6 +52,7 @@
   let formWindowSize = 20;
   let formScope = "current";
   let selectedFormPlayerName = "";
+  let oddsPhaseFilter = "all";
 
   function defaultState() {
     return {
@@ -531,6 +533,7 @@
       case "livematch": renderLiveMatchCentre(); break;
       case "livestats": renderLiveStatistics(); break;
       case "form": renderFormCentre(); break;
+      case "odds": renderOddsCentre(); break;
       case "chat": window.FIFA_CHAT_UI?.render?.(view); break;
       case "setup": renderSetup(); break;
       case "league": renderLeague(); break;
@@ -2561,6 +2564,432 @@
     window.open(`https://wa.me/?text=${encodeURIComponent(lines.join("\n"))}`, "_blank", "noopener,noreferrer");
   }
 
+
+  function oddsClamp(value, min, max) {
+    return Math.max(min, Math.min(max, Number(value) || 0));
+  }
+
+  function oddsSigmoid(value) {
+    return 1 / (1 + Math.exp(-value));
+  }
+
+  function oddsStageKey(match) {
+    if (match.phase === "final" || match.phase === "knockout") return "knockout";
+    return match.phase || "league";
+  }
+
+  function oddsStageLabel(match) {
+    if (match.phase === "league") return `League Phase · Tur ${match.round}`;
+    if (match.phase === "gold") return `Altın Grup · Tur ${match.round}`;
+    if (match.phase === "silver") return `Gümüş Grup · Tur ${match.round}`;
+    if (match.phase === "final") return "Büyük Final";
+    if (match.phase === "knockout") return currentMatchStageLabel(match);
+    return currentMatchStageLabel(match);
+  }
+
+  function oddsSeriesEndedUnused(match) {
+    if (!match?.seriesKey) return false;
+    const series = state.current.knockout?.[match.seriesKey];
+    return Boolean(seriesWinner(series) && !matchComplete(match));
+  }
+
+  function oddsAvailableFixtures() {
+    const phaseOrder = { league: 1, gold: 2, silver: 3, knockout: 4, final: 5 };
+    return allCurrentMatches()
+      .filter(match => match?.homeId && match?.awayId && !matchComplete(match) && !oddsSeriesEndedUnused(match))
+      .sort((a, b) => (phaseOrder[a.phase] || 99) - (phaseOrder[b.phase] || 99) || (Number(a.round) || 0) - (Number(b.round) || 0) || String(a.id).localeCompare(String(b.id)));
+  }
+
+  function oddsBlankForm(name) {
+    return { name, games: 0, wins: 0, draws: 0, losses: 0, gf: 0, ga: 0, gd: 0, ppg: 0, winRate: 0, avgGoals: 0, gaPerGame: 0, formIndex: 50, last5Points: 0, previous5Points: 0, momentum: 0, results: [], currentUnbeatenStreak: 0, currentWinStreak: 0 };
+  }
+
+  function oddsBuildContext() {
+    const formAnalytics = buildFormAnalytics(20, "all");
+    const careerRows = combinedAllTime();
+    const currentAnalytics = buildLiveTournamentAnalytics();
+    const unifiedMatches = buildUnifiedAllTimeMatches();
+    return {
+      formMap: formAnalytics.playerMap,
+      careerMap: new Map(careerRows.map(row => [row.name, row])),
+      currentMap: new Map(currentAnalytics.players.map(row => [row.name, row])),
+      unifiedMatches
+    };
+  }
+
+  function oddsRegression(value, coverage, neutral = 50) {
+    const weight = oddsClamp(coverage, 0, 1);
+    return neutral * (1 - weight) + value * weight;
+  }
+
+  function oddsPlayerProfile(name, context) {
+    const form = context.formMap.get(name) || oddsBlankForm(name);
+    const career = context.careerMap.get(name) || null;
+    const current = context.currentMap.get(name) || null;
+
+    const formCoverage = oddsClamp(form.games / 20, 0, 1);
+    const careerGames = Number(career?.games) || 0;
+    const careerCoverage = oddsClamp(careerGames / 30, 0, 1);
+    const currentGames = Number(current?.games) || 0;
+    const currentCoverage = oddsClamp(currentGames / 6, 0, 1);
+
+    const formStrength = oddsRegression(Number(form.formIndex) || 0, formCoverage);
+    const recentStrength = oddsRegression((Number(form.last5Points) || 0) / 15 * 100, oddsClamp(form.games / 5, 0, 1));
+    const careerPpg = careerGames ? Number(career.points || 0) / careerGames : 1.5;
+    const careerWinRate = careerGames ? Number(career.wins || 0) / careerGames * 100 : 50;
+    const careerRaw = oddsClamp((careerPpg / 3 * 72) + (careerWinRate / 100 * 28), 0, 100);
+    const careerStrength = oddsRegression(careerRaw, careerCoverage);
+    const currentRaw = currentGames
+      ? oddsClamp((Number(current.ppg || 0) / 3 * 70) + (Number(current.winRate || 0) / 100 * 20) + (50 + Math.tanh((Number(current.gd || 0) / currentGames) / 2) * 50) * .10, 0, 100)
+      : 50;
+    const currentStrength = oddsRegression(currentRaw, currentCoverage);
+
+    const recentGdPerGame = form.games ? Number(form.gd || 0) / form.games : 0;
+    const careerGdPerGame = careerGames ? Number(career.gd || 0) / careerGames : 0;
+    const goalRaw = oddsClamp(50 + Math.tanh((recentGdPerGame * .7 + careerGdPerGame * .3) / 2) * 48, 0, 100);
+    const goalCoverage = oddsClamp((form.games + Math.min(careerGames, 20)) / 35, 0, 1);
+    const goalStrength = oddsRegression(goalRaw, goalCoverage);
+    const momentumRaw = oddsClamp(50 + (Number(form.momentum) || 0) / 15 * 50, 0, 100);
+    const momentumStrength = oddsRegression(momentumRaw, oddsClamp(form.games / 10, 0, 1));
+
+    const strength = oddsClamp(
+      formStrength * .36 +
+      recentStrength * .14 +
+      careerStrength * .20 +
+      currentStrength * .14 +
+      goalStrength * .10 +
+      momentumStrength * .06,
+      5,
+      95
+    );
+
+    const recentDrawRate = form.games ? Number(form.draws || 0) / form.games : .15;
+    const avgGoals = form.games ? Number(form.avgGoals || 0) : careerGames ? Number(career.gf || 0) / careerGames : 3;
+    const gaPerGame = form.games ? Number(form.gaPerGame || 0) : careerGames ? Number(career.ga || 0) / careerGames : 3;
+    const sampleScore = oddsClamp((Math.min(form.games, 20) / 20 * .48) + (Math.min(careerGames, 30) / 30 * .37) + (Math.min(currentGames, 6) / 6 * .15), 0, 1);
+
+    return {
+      name,
+      form,
+      career,
+      current,
+      strength,
+      formStrength,
+      recentStrength,
+      careerStrength,
+      currentStrength,
+      goalStrength,
+      momentumStrength,
+      recentDrawRate,
+      avgGoals,
+      gaPerGame,
+      sampleScore,
+      formCoverage,
+      careerCoverage,
+      currentCoverage
+    };
+  }
+
+  function oddsHeadToHead(nameA, nameB, matches) {
+    const relevant = matches.filter(match =>
+      (match.homeName === nameA && match.awayName === nameB) ||
+      (match.homeName === nameB && match.awayName === nameA)
+    );
+    const row = { meetings: 0, winsA: 0, draws: 0, winsB: 0, goalsA: 0, goalsB: 0, edgeA: 0, latest: [] };
+    for (const match of relevant) {
+      row.meetings += 1;
+      const isAHome = match.homeName === nameA;
+      const gfA = isAHome ? Number(match.homeScore) : Number(match.awayScore);
+      const gfB = isAHome ? Number(match.awayScore) : Number(match.homeScore);
+      row.goalsA += gfA;
+      row.goalsB += gfB;
+      if (gfA > gfB) row.winsA += 1;
+      else if (gfB > gfA) row.winsB += 1;
+      else row.draws += 1;
+      row.latest.push({ ...match, gfA, gfB });
+    }
+    row.latest = row.latest.slice(-5).reverse();
+    if (row.meetings) {
+      const resultEdge = (row.winsA - row.winsB) / Math.max(4, row.meetings) * 5;
+      const goalEdge = (row.goalsA - row.goalsB) / Math.max(12, row.meetings * 3) * 2;
+      row.edgeA = oddsClamp(resultEdge + goalEdge, -6, 6);
+    }
+    return row;
+  }
+
+  function oddsDecimal(probability, overround = 1.06) {
+    return oddsClamp(1 / Math.max(.01, probability * overround), 1.12, 14.50);
+  }
+
+  function oddsConfidenceLabel(value) {
+    if (value >= 78) return "Yüksek veri güveni";
+    if (value >= 62) return "Orta veri güveni";
+    return "Sınırlı veri güveni";
+  }
+
+  function oddsBuildReason(profileA, profileB, h2h, favoriteSide) {
+    const fav = favoriteSide === "home" ? profileA : profileB;
+    const dog = favoriteSide === "home" ? profileB : profileA;
+    const h2hEdge = favoriteSide === "home" ? h2h.edgeA : -h2h.edgeA;
+    const candidates = [
+      { delta: fav.formStrength - dog.formStrength, text: "son 20 maç form gücü" },
+      { delta: fav.recentStrength - dog.recentStrength, text: "son 5 maç performansı" },
+      { delta: fav.careerStrength - dog.careerStrength, text: "tüm zamanlar verimliliği" },
+      { delta: fav.currentStrength - dog.currentStrength, text: "FIFA 9 güncel performansı" },
+      { delta: fav.goalStrength - dog.goalStrength, text: "gol ve averaj profili" },
+      { delta: fav.momentumStrength - dog.momentumStrength, text: "momentum trendi" },
+      { delta: h2hEdge * 3, text: "ikili rekabet üstünlüğü" }
+    ].filter(item => item.delta > 2.5).sort((a, b) => b.delta - a.delta);
+    if (!candidates.length) return "Model iki oyuncuyu birbirine yakın görüyor; küçük fark genel veri dengesiyle oluşuyor.";
+    const reasons = candidates.slice(0, 2).map(item => item.text);
+    return `${fav.name}, ${reasons.join(" ve ")} sayesinde model favorisi.`;
+  }
+
+  function buildMatchOdds(match, context) {
+    const homeName = playerName(match.homeId);
+    const awayName = playerName(match.awayId);
+    const home = oddsPlayerProfile(homeName, context);
+    const away = oddsPlayerProfile(awayName, context);
+    const h2h = oddsHeadToHead(homeName, awayName, context.unifiedMatches);
+
+    const adjustedHomeStrength = oddsClamp(home.strength + h2h.edgeA, 1, 99);
+    const adjustedAwayStrength = oddsClamp(away.strength - h2h.edgeA, 1, 99);
+    const difference = adjustedHomeStrength - adjustedAwayStrength;
+    const closeness = 1 - oddsClamp(Math.abs(difference) / 32, 0, 1);
+    const empiricalDraw = (home.recentDrawRate + away.recentDrawRate) / 2;
+    const h2hDrawRate = h2h.meetings ? h2h.draws / h2h.meetings : .15;
+    let drawProbability = oddsClamp(.105 + closeness * .105 + empiricalDraw * .20 + h2hDrawRate * .045, .10, .30);
+    const homeShare = oddsSigmoid(difference / 10.5);
+    let homeProbability = (1 - drawProbability) * homeShare;
+    let awayProbability = (1 - drawProbability) * (1 - homeShare);
+
+    homeProbability = Math.max(.065, homeProbability);
+    awayProbability = Math.max(.065, awayProbability);
+    drawProbability = Math.max(.09, drawProbability);
+    const total = homeProbability + drawProbability + awayProbability;
+    homeProbability /= total;
+    drawProbability /= total;
+    awayProbability /= total;
+
+    const favoriteSide = homeProbability >= awayProbability ? "home" : "away";
+    const favorite = favoriteSide === "home" ? home : away;
+    const underdog = favoriteSide === "home" ? away : home;
+    const favoriteProbability = Math.max(homeProbability, awayProbability);
+    const underdogProbability = Math.min(homeProbability, awayProbability);
+    const sample = (home.sampleScore + away.sampleScore) / 2;
+    const confidence = Math.round(oddsClamp(46 + sample * 30 + Math.min(Math.abs(difference), 22) * .75 - closeness * 4, 45, 92));
+
+    const expectedHomeBase = (home.avgGoals + away.gaPerGame) / 2;
+    const expectedAwayBase = (away.avgGoals + home.gaPerGame) / 2;
+    const expectedHome = oddsClamp(expectedHomeBase + difference / 38, .5, 7.5);
+    const expectedAway = oddsClamp(expectedAwayBase - difference / 38, .5, 7.5);
+    let predictedHome = Math.max(0, Math.round(expectedHome));
+    let predictedAway = Math.max(0, Math.round(expectedAway));
+    if (predictedHome === predictedAway && Math.abs(difference) > 5) {
+      if (difference > 0) predictedHome += 1;
+      else predictedAway += 1;
+    }
+
+    const market = {
+      home: { probability: homeProbability, odds: oddsDecimal(homeProbability) },
+      draw: { probability: drawProbability, odds: oddsDecimal(drawProbability) },
+      away: { probability: awayProbability, odds: oddsDecimal(awayProbability) }
+    };
+    const isBalanced = Math.abs(homeProbability - awayProbability) <= .08;
+    const strongFavorite = favoriteProbability >= .62;
+    const surprisePotential = favoriteProbability >= .54 && underdogProbability >= .25;
+    const reason = oddsBuildReason(home, away, h2h, favoriteSide);
+    const activeLive = getActiveLive();
+
+    return {
+      match,
+      id: match.id,
+      stage: oddsStageLabel(match),
+      phaseKey: oddsStageKey(match),
+      home,
+      away,
+      h2h,
+      difference,
+      market,
+      favoriteSide,
+      favorite,
+      underdog,
+      favoriteProbability,
+      underdogProbability,
+      confidence,
+      confidenceLabel: oddsConfidenceLabel(confidence),
+      predictedHome,
+      predictedAway,
+      reason,
+      isBalanced,
+      strongFavorite,
+      surprisePotential,
+      isLive: activeLive?.match?.id === match.id,
+      overround: 1.06
+    };
+  }
+
+  function buildOddsAnalytics() {
+    const context = oddsBuildContext();
+    const fixtures = oddsAvailableFixtures().map(match => buildMatchOdds(match, context));
+    const strongest = fixtures.length ? [...fixtures].sort((a, b) => b.favoriteProbability - a.favoriteProbability)[0] : null;
+    const balanced = fixtures.length ? [...fixtures].sort((a, b) => Math.abs(a.market.home.probability - a.market.away.probability) - Math.abs(b.market.home.probability - b.market.away.probability))[0] : null;
+    const drawMatch = fixtures.length ? [...fixtures].sort((a, b) => b.market.draw.probability - a.market.draw.probability)[0] : null;
+    const surprise = fixtures.filter(item => item.surprisePotential).sort((a, b) => b.underdogProbability - a.underdogProbability || b.favoriteProbability - a.favoriteProbability)[0] || balanced;
+    return { context, fixtures, strongest, balanced, drawMatch, surprise };
+  }
+
+  function oddsPercent(value) {
+    return `${Math.round(Number(value || 0) * 100)}%`;
+  }
+
+  function oddsFormStrip(profile) {
+    const results = profile.form?.results || [];
+    if (!results.length) return `<span class="odds-no-form">Veri bekleniyor</span>`;
+    return renderResultSquares(results.slice(-5), 5, false);
+  }
+
+  function renderOddsMarketBox(code, item, active = false) {
+    return `<div class="odds-market-box ${active ? "favorite" : ""}"><span>${escapeHTML(code)}</span><strong>${item.odds.toFixed(2)}</strong><small>${oddsPercent(item.probability)}</small></div>`;
+  }
+
+  function renderOddsCard(item) {
+    const favoriteName = item.favorite.name;
+    const flag = item.isLive ? `<span class="odds-live-badge"><i></i> CANLI</span>` : item.strongFavorite ? `<span class="odds-signal strong">NET FAVORİ</span>` : item.isBalanced ? `<span class="odds-signal balanced">DENGE MAÇI</span>` : item.surprisePotential ? `<span class="odds-signal upset">SÜRPRİZ ADAYI</span>` : `<span class="odds-signal">MODEL AÇIK</span>`;
+    return `<article class="odds-card">
+      <div class="odds-card-head"><div><span class="odds-stage">${escapeHTML(item.stage)}</span>${flag}</div><button class="odds-analysis-link" data-action="open-odds-analysis" data-match-id="${escapeHTML(item.id)}">Detaylı Analiz →</button></div>
+      <div class="odds-player-line">
+        <div class="odds-player home"><strong>${escapeHTML(item.home.name)}</strong><span>${item.home.strength.toFixed(0)} güç · ${item.home.form.games}/20 veri</span><div class="odds-mini-form">${oddsFormStrip(item.home)}</div></div>
+        <div class="odds-versus"><span>VS</span><strong>${item.predictedHome}-${item.predictedAway}</strong><small>model skoru</small></div>
+        <div class="odds-player away"><strong>${escapeHTML(item.away.name)}</strong><span>${item.away.strength.toFixed(0)} güç · ${item.away.form.games}/20 veri</span><div class="odds-mini-form">${oddsFormStrip(item.away)}</div></div>
+      </div>
+      <div class="odds-market-row">
+        ${renderOddsMarketBox(`1 · ${item.home.name}`, item.market.home, item.favoriteSide === "home")}
+        ${renderOddsMarketBox("X · Beraberlik", item.market.draw, false)}
+        ${renderOddsMarketBox(`2 · ${item.away.name}`, item.market.away, item.favoriteSide === "away")}
+      </div>
+      <div class="odds-probability-rail" aria-label="Olasılık dağılımı"><i class="home" style="width:${item.market.home.probability * 100}%"></i><i class="draw" style="width:${item.market.draw.probability * 100}%"></i><i class="away" style="width:${item.market.away.probability * 100}%"></i></div>
+      <div class="odds-card-insight"><div><span>Model favorisi</span><strong>${escapeHTML(favoriteName)} · ${oddsPercent(item.favoriteProbability)}</strong></div><div><span>İkili rekabet</span><strong>${item.h2h.meetings ? `${item.h2h.winsA}-${item.h2h.draws}-${item.h2h.winsB} · ${item.h2h.meetings} maç` : "İlk karşılaşma"}</strong></div><div><span>Güven</span><strong>${item.confidence}%</strong></div></div>
+      <p class="odds-reason">${escapeHTML(item.reason)}</p>
+    </article>`;
+  }
+
+  function oddsRecordCard(label, item, note) {
+    if (!item) return `<article class="odds-record-card"><span>${escapeHTML(label)}</span><strong>–</strong><small>Fikstür bekleniyor</small></article>`;
+    return `<article class="odds-record-card"><span>${escapeHTML(label)}</span><strong>${escapeHTML(item.home.name)} – ${escapeHTML(item.away.name)}</strong><small>${escapeHTML(note(item))}</small></article>`;
+  }
+
+  function renderOddsCentre() {
+    if (!state.current.league.generated || filledParticipants().length < 2) {
+      view.innerHTML = emptyState("1X2", "Maç Oranları Kura Sonrası Başlar", "Oyuncular kaydedilip fikstür oluşturulduğunda geçmiş sonuçlara dayalı dinamik oran motoru otomatik çalışacak.", canEdit() ? `<button class="btn btn-gold" data-nav="setup">Kura Sayfasına Git</button>` : "");
+      return;
+    }
+
+    const analytics = buildOddsAnalytics();
+    const allowed = new Set(["all", "league", "gold", "silver", "knockout"]);
+    if (!allowed.has(oddsPhaseFilter)) oddsPhaseFilter = "all";
+    const filtered = analytics.fixtures.filter(item => oddsPhaseFilter === "all" || item.phaseKey === oddsPhaseFilter);
+    const filterLabels = { all: "Tüm Maçlar", league: "League Phase", gold: "Altın Grup", silver: "Gümüş Grup", knockout: "Eleme & Final" };
+
+    view.innerHTML = `
+      <div class="group-banner odds-banner">
+        <div>
+          <div class="eyebrow">FIFA 9 · PREDICTION ENGINE</div>
+          <h2>Tahmin & Oran Merkezi</h2>
+          <p>Geçmiş turnuvalar, son 20 maç formu, FIFA 9 güncel performansı ve ikili rekabet verileriyle hesaplanan dinamik 1–X–2 oranları. Her yeni sonuçtan sonra oynanmamış maçlar otomatik yeniden değerlendirilir.</p>
+          <div class="live-banner-actions"><button class="btn btn-gold" data-action="share-odds">Oranları Paylaş</button><button class="btn btn-ghost" data-nav="form">Form Merkezine Git</button></div>
+        </div>
+        <div class="odds-hero-mark"><span>1</span><span>X</span><span>2</span><small>DİNAMİK MODEL</small></div>
+      </div>
+
+      <div class="odds-disclaimer"><strong>Özel turnuva tahmini:</strong> Bu oranlar yalnızca eğlence ve istatistiksel karşılaştırma amacıyla üretilir. Gerçek bahis, para yatırma veya ödeme özelliği içermez.</div>
+
+      <div class="odds-record-grid">
+        ${oddsRecordCard("En Güçlü Favori", analytics.strongest, item => `${item.favorite.name} · ${oddsPercent(item.favoriteProbability)} · ${item.favoriteSide === "home" ? item.market.home.odds.toFixed(2) : item.market.away.odds.toFixed(2)} oran`)}
+        ${oddsRecordCard("En Dengeli Maç", analytics.balanced, item => `${oddsPercent(item.market.home.probability)} / ${oddsPercent(item.market.draw.probability)} / ${oddsPercent(item.market.away.probability)}`)}
+        ${oddsRecordCard("Beraberlik Sinyali", analytics.drawMatch, item => `X olasılığı ${oddsPercent(item.market.draw.probability)} · ${item.market.draw.odds.toFixed(2)} oran`)}
+        ${oddsRecordCard("Sürpriz Potansiyeli", analytics.surprise, item => `${item.underdog.name} · ${oddsPercent(item.underdogProbability)} kazanma ihtimali`)}
+      </div>
+
+      <section class="panel odds-filter-panel">
+        <div><div class="panel-title">Yaklaşan Maçlar</div><div class="panel-subtitle">${analytics.fixtures.length} oynanmamış fikstür · oranlar resmî sonuç girildiğinde otomatik değişir.</div></div>
+        <div class="segmented-control odds-filter-control" role="group" aria-label="Oran fikstürü filtresi">
+          ${Object.entries(filterLabels).map(([key, label]) => `<button class="segment-btn ${oddsPhaseFilter === key ? "active" : ""}" data-action="set-odds-filter" data-odds-filter="${key}">${label}</button>`).join("")}
+        </div>
+      </section>
+
+      ${filtered.length ? `<div class="odds-card-grid">${filtered.map(renderOddsCard).join("")}</div>` : `<div class="info-box mt-24">${escapeHTML(filterLabels[oddsPhaseFilter])} için oynanmamış fikstür bulunmuyor.</div>`}
+
+      <section class="panel mt-24 odds-method-panel">
+        <div class="panel-header"><div><h3 class="panel-title">Oran Motoru Nasıl Çalışır?</h3><div class="panel-subtitle">Model şeffaf, deterministik ve her cihazda aynı sonucu üretir.</div></div><span class="badge badge-blue">MODEL v14</span></div>
+        <div class="odds-weight-grid">
+          <div><strong>36%</strong><span>Son 20 maç form gücü</span></div>
+          <div><strong>14%</strong><span>Son 5 maç performansı</span></div>
+          <div><strong>20%</strong><span>Tüm zamanlar verimliliği</span></div>
+          <div><strong>14%</strong><span>FIFA 9 güncel performansı</span></div>
+          <div><strong>10%</strong><span>Gol ve averaj profili</span></div>
+          <div><strong>6%</strong><span>Momentum trendi</span></div>
+        </div>
+        <div class="odds-method-notes">
+          <div><span>H2H düzeltmesi</span><strong>İkili rekabet sonucuna göre en fazla ±6 güç puanı</strong></div>
+          <div><span>Model marjı</span><strong>%6 gösterim marjı; gerçek bahis marjı değildir</strong></div>
+          <div><span>Yeni oyuncu koruması</span><strong>Az maçlı oyuncular nötr değere yaklaştırılır; tek sonuç oranı aşırı değiştirmez</strong></div>
+          <div><span>Eleme maçlarında X</span><strong>Normal süre beraberlik olasılığını ifade eder</strong></div>
+        </div>
+      </section>`;
+  }
+
+  function openOddsAnalysis(matchId) {
+    const analytics = buildOddsAnalytics();
+    const item = analytics.fixtures.find(row => row.id === matchId);
+    if (!item) { toast("Bu maç için güncel oran bulunamadı.", "error"); return; }
+    const rows = [
+      ["Son 20 form gücü", item.home.formStrength, item.away.formStrength],
+      ["Son 5 performansı", item.home.recentStrength, item.away.recentStrength],
+      ["Tüm zamanlar", item.home.careerStrength, item.away.careerStrength],
+      ["FIFA 9 güncel", item.home.currentStrength, item.away.currentStrength],
+      ["Gol profili", item.home.goalStrength, item.away.goalStrength],
+      ["Momentum", item.home.momentumStrength, item.away.momentumStrength]
+    ];
+    const h2hRows = item.h2h.latest.length ? item.h2h.latest.map(match => `<div class="odds-h2h-match"><span>${escapeHTML(match.editionLabel || "FIFA")}</span><strong>${escapeHTML(item.home.name)} ${match.gfA}-${match.gfB} ${escapeHTML(item.away.name)}</strong><small>${escapeHTML(match.stage || "")}</small></div>`).join("") : `<div class="info-box">Bu iki oyuncu arasında kayıtlı geçmiş maç bulunmuyor.</div>`;
+    openModal(`${item.home.name} vs ${item.away.name}`, `
+      <div class="odds-modal-summary">
+        <div><span>${escapeHTML(item.stage)}</span><h3>${escapeHTML(item.home.name)} <b>vs</b> ${escapeHTML(item.away.name)}</h3><p>${escapeHTML(item.reason)}</p></div>
+        <div class="odds-modal-score"><span>MODEL SKORU</span><strong>${item.predictedHome}-${item.predictedAway}</strong><small>${item.confidenceLabel} · ${item.confidence}%</small></div>
+      </div>
+      <div class="odds-market-row odds-modal-market">
+        ${renderOddsMarketBox(`1 · ${item.home.name}`, item.market.home, item.favoriteSide === "home")}
+        ${renderOddsMarketBox("X · Beraberlik", item.market.draw, false)}
+        ${renderOddsMarketBox(`2 · ${item.away.name}`, item.market.away, item.favoriteSide === "away")}
+      </div>
+      <div class="table-wrap compact-table mt-24"><table><thead><tr><th>Model Bileşeni</th><th>${escapeHTML(item.home.name)}</th><th>${escapeHTML(item.away.name)}</th><th>Üstünlük</th></tr></thead><tbody>${rows.map(row => `<tr><td>${escapeHTML(row[0])}</td><td>${row[1].toFixed(0)}</td><td>${row[2].toFixed(0)}</td><td class="${row[1] > row[2] ? "gd-positive" : row[2] > row[1] ? "gd-negative" : ""}">${row[1] === row[2] ? "Denge" : escapeHTML(row[1] > row[2] ? item.home.name : item.away.name)}</td></tr>`).join("")}</tbody></table></div>
+      <div class="grid-2 mt-24">
+        <div class="odds-modal-profile"><h4>${escapeHTML(item.home.name)}</h4><div>${oddsFormStrip(item.home)}</div><p>${item.home.form.games} form maçı · ${item.home.form.ppg.toFixed(2)} PPG · ${item.home.form.gf}-${item.home.form.ga} gol</p><strong>${item.home.strength.toFixed(1)} ham güç</strong></div>
+        <div class="odds-modal-profile"><h4>${escapeHTML(item.away.name)}</h4><div>${oddsFormStrip(item.away)}</div><p>${item.away.form.games} form maçı · ${item.away.form.ppg.toFixed(2)} PPG · ${item.away.form.gf}-${item.away.form.ga} gol</p><strong>${item.away.strength.toFixed(1)} ham güç</strong></div>
+      </div>
+      <section class="odds-h2h-section mt-24"><div class="panel-title">Son İkili Karşılaşmalar</div><div class="panel-subtitle">Genel H2H: ${item.h2h.meetings ? `${item.h2h.winsA}-${item.h2h.draws}-${item.h2h.winsB} · Goller ${item.h2h.goalsA}-${item.h2h.goalsB}` : "İlk karşılaşma"}</div><div class="odds-h2h-list">${h2hRows}</div></section>
+      <div class="info-box mt-24"><strong>Not:</strong> Gösterilen oranlar, model olasılıklarına %6 sunum marjı uygulanarak oluşturulur. Gerçek para veya bahis işlevi yoktur.</div>
+      <div class="modal-actions"><button class="btn btn-ghost" data-action="close-modal">Kapat</button><button class="btn btn-gold" data-action="share-single-odds" data-match-id="${escapeHTML(item.id)}">Bu Maçı Paylaş</button></div>
+    `, "MATCH ODDS ANALYSIS");
+  }
+
+  async function shareOdds(matchId = "") {
+    const analytics = buildOddsAnalytics();
+    const list = matchId ? analytics.fixtures.filter(item => item.id === matchId) : analytics.fixtures.slice(0, 6);
+    if (!list.length) { toast("Paylaşılacak oynanmamış maç bulunmuyor.", "error"); return; }
+    const lines = [
+      "FIFA 9 · DİNAMİK MAÇ ORANLARI",
+      ...list.map(item => `${item.home.name} vs ${item.away.name} | 1: ${item.market.home.odds.toFixed(2)} · X: ${item.market.draw.odds.toFixed(2)} · 2: ${item.market.away.odds.toFixed(2)} | Favori: ${item.favorite.name} ${oddsPercent(item.favoriteProbability)}`),
+      "Yalnızca eğlence ve istatistiksel tahmin amaçlıdır; gerçek bahis içermez.",
+      window.location.href
+    ];
+    const text = lines.join("\n");
+    if (navigator.share) {
+      try { await navigator.share({ title: "FIFA 9 Maç Oranları", text, url: window.location.href }); return; } catch (error) { if (error?.name === "AbortError") return; }
+    }
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
+  }
+
   function renderTeamStatistics() {
     const analytics = buildTeamAnalytics();
     if (!analytics.teams.length) {
@@ -3328,6 +3757,14 @@ ${shareData.url}`)}`;
     const action = event.target.closest("[data-action]");
     if (!action) return;
     const type = action.dataset.action;
+    if (type === "set-odds-filter") {
+      oddsPhaseFilter = action.dataset.oddsFilter || "all";
+      if (activeView === "odds") renderOddsCentre();
+      return;
+    }
+    if (type === "open-odds-analysis") { openOddsAnalysis(action.dataset.matchId); return; }
+    if (type === "share-odds") { shareOdds(); return; }
+    if (type === "share-single-odds") { shareOdds(action.dataset.matchId); return; }
     if (type === "set-form-window") {
       formWindowSize = Math.max(5, Math.min(20, Number(action.dataset.formWindow) || 20));
       if (activeView === "form") renderFormCentre();

@@ -1,0 +1,28 @@
+FIFA 9 — DİNAMİK MAÇ ORANLARI v14 KURULUMU
+
+1. Bu güncelleme paketindeki dosyaları GitHub reposunun ana dizinine yükleyin:
+   - index.html
+   - app.js
+   - styles.css
+   - language.js
+   - service-worker.js
+
+2. Mevcut dosyaların değiştirilmesini onaylayın.
+
+3. Önerilen commit mesajı:
+   Add dynamic match odds and prediction centre v14
+
+4. Vercel dağıtımının tamamlanmasını bekleyin.
+
+5. Siteyi Ctrl + F5 ile yenileyin. Telefonda eski sürüm görünürse site verisini/önbelleği temizleyin.
+
+SUPABASE
+- Yeni SQL dosyası veya tablo gerekmiyor.
+- cloud-config.js dosyasına dokunmayın.
+- Oranlar mevcut FIFA 1–8 arşivi ile FIFA 9 canlı sonuçlarından tarayıcıda otomatik hesaplanır.
+
+YENİ SEKME
+- Sol menüde “Maç Oranları / Match Odds” sekmesi görünür.
+- Her tamamlanan resmî maçtan sonra oynanmamış fikstürlerin 1-X-2 oranları otomatik güncellenir.
+- Eleme maçlarındaki X, normal süre beraberliğini ifade eder.
+- Sistem gerçek bahis, ödeme veya para yatırma özelliği içermez.
