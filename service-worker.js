@@ -1,4 +1,4 @@
-const CACHE = "fifa9-hub-live-v10-form-centre";
+const CACHE = "fifa9-hub-live-v12-simple-pin-chat";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -6,6 +6,7 @@ const APP_SHELL = [
   "./app.js",
   "./language.js",
   "./cloud.js",
+  "./chat.js",
   "./data/historical-data.js",
   "./assets/f9-mark.svg",
   "./manifest.webmanifest"

@@ -28,6 +28,7 @@
     livematch: "Canlı Maç Merkezi",
     livestats: "Canlı İstatistikler",
     form: "Form Merkezi",
+    chat: "Turnuva Sohbeti",
     setup: "Kura & Oyuncular",
     league: "UEFA League Phase",
     gold: "Altın Grup",
@@ -530,6 +531,7 @@
       case "livematch": renderLiveMatchCentre(); break;
       case "livestats": renderLiveStatistics(); break;
       case "form": renderFormCentre(); break;
+      case "chat": window.FIFA_CHAT_UI?.render?.(view); break;
       case "setup": renderSetup(); break;
       case "league": renderLeague(); break;
       case "gold": renderGroup("gold"); break;
@@ -3320,6 +3322,7 @@ ${shareData.url}`)}`;
   }
 
   document.addEventListener("click", event => {
+    if (window.FIFA_CHAT_UI?.handleClick?.(event)) return;
     const nav = event.target.closest("[data-nav]");
     if (nav) { navTo(nav.dataset.nav); return; }
     const action = event.target.closest("[data-action]");
@@ -3424,6 +3427,7 @@ ${shareData.url}`)}`;
   });
 
   document.addEventListener("submit", event => {
+    if (window.FIFA_CHAT_UI?.handleSubmit?.(event)) return;
     if (event.target.id === "matchForm") {
       event.preventDefault();
       saveMatch(event.target);
@@ -3487,6 +3491,17 @@ ${shareData.url}`)}`;
     navigator.serviceWorker.register("service-worker.js").catch(() => {});
   }
 
+  window.FIFA_APP_CONTEXT = {
+    getState: () => state,
+    getParticipants: () => state.current.participants,
+    getActiveView: () => activeView,
+    canEdit,
+    isAdmin: () => cloudAdmin,
+    toast,
+    refreshView: () => render(),
+    navigate: target => navTo(target)
+  };
+
   async function initializeCloud() {
     updateAuthUI();
     if (!cloudConfigured || !cloud?.init) {
@@ -3518,6 +3533,7 @@ ${shareData.url}`)}`;
     }
     updateAuthUI();
     render();
+    window.FIFA_CHAT_UI?.onCloudReady?.();
   }
 
   initializeCloud();
