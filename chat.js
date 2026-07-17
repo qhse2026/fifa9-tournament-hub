@@ -5,6 +5,7 @@
   const TOKEN_KEY = "fifa9-chat-session-token-v12";
   const READ_KEY = "fifa9-chat-last-read-v12";
   const CHANNEL_KEY = "fifa9-chat-channel";
+  const DRAFT_KEY = "fifa9-chat-draft-v13";
   const MAX_MESSAGES = 150;
   const POLL_INTERVAL = 3500;
 
@@ -18,6 +19,38 @@
   let unreadCount = 0;
   let lastError = "";
   let lastMessageStamp = "";
+
+  function draftKey(channel = activeChannel) {
+    const identity = profile?.player_id || "guest";
+    return `${DRAFT_KEY}:${tournamentId()}:${identity}:${channel}`;
+  }
+
+  function getDraft(channel = activeChannel) {
+    return localStorage.getItem(draftKey(channel)) || "";
+  }
+
+  function setDraft(value, channel = activeChannel) {
+    const clean = String(value ?? "").slice(0, 500);
+    if (clean) localStorage.setItem(draftKey(channel), clean);
+    else localStorage.removeItem(draftKey(channel));
+    return clean;
+  }
+
+  function captureComposerDraft() {
+    const input = document.querySelector("#chatMessageInput");
+    if (!input) return { focused: false, cursor: null, value: getDraft() };
+    const value = setDraft(input.value);
+    return {
+      focused: document.activeElement === input,
+      cursor: Number.isInteger(input.selectionStart) ? input.selectionStart : value.length,
+      value
+    };
+  }
+
+  function composerIsActive() {
+    const input = document.querySelector("#chatMessageInput");
+    return Boolean(input && (document.activeElement === input || input.value.length > 0));
+  }
 
   const escapeHTML = value => String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -245,6 +278,7 @@
       toast(message, "error");
       return;
     }
+    setDraft("");
     const input = document.querySelector("#chatMessageInput");
     if (input) input.value = "";
     await Promise.all([loadMessages(), loadRosterProfiles()]);
@@ -282,6 +316,7 @@
   }
 
   function signOutChat() {
+    setDraft("");
     localStorage.removeItem(TOKEN_KEY);
     profile = null;
     messages = [];
@@ -295,8 +330,12 @@
     if (document.hidden || !client()) return;
     if (!sessionToken() && !isAdmin()) return;
     await Promise.all([loadMessages({ silent: true }), loadRosterProfiles()]);
-    if (context()?.getActiveView?.() === "chat") refreshView();
-    else updateUnreadBadge();
+    if (context()?.getActiveView?.() === "chat") {
+      // Do not rebuild the entire chat view while the player is typing.
+      // Rebuilding replaces the textarea and previously erased the draft.
+      if (!composerIsActive()) refreshView();
+      else updateUnreadBadge();
+    } else updateUnreadBadge();
   }
 
   function startPolling() {
@@ -396,6 +435,7 @@
 
   function render(root) {
     if (!root) return;
+    const composerState = captureComposerDraft();
     const configured = Boolean(cloud()?.isConfigured?.());
     if (!configured) {
       root.innerHTML = `<div class="group-banner silver"><div><div class="eyebrow">COMMUNITY</div><h2>${t("Turnuva Sohbeti", "Tournament Chat")}</h2><p>${t("Sohbet özelliği için canlı Supabase bağlantısı gereklidir.", "A live Supabase connection is required for chat.")}</p></div><div class="group-emblem">✦</div></div>`;
@@ -425,7 +465,7 @@
             <div class="chat-message-list" id="chatMessageList">${renderMessages()}</div>
             <form id="chatMessageForm" class="chat-composer">
               <div class="chat-emoji-row">${["⚽", "🔥", "👏", "😂", "🏆", "🤝"].map(emoji => `<button type="button" data-chat-action="add-emoji" data-emoji="${emoji}">${emoji}</button>`).join("")}</div>
-              <div class="chat-compose-row"><textarea id="chatMessageInput" name="message" maxlength="500" rows="2" placeholder="${t("Mesajını yaz...", "Write a message...")}" required></textarea><button class="btn btn-gold" type="submit">${t("Gönder", "Send")}</button></div>
+              <div class="chat-compose-row"><textarea id="chatMessageInput" name="message" maxlength="500" rows="2" placeholder="${t("Mesajını yaz...", "Write a message...")}" required>${escapeHTML(composerState.value || getDraft())}</textarea><button class="btn btn-gold" type="submit">${t("Gönder", "Send")}</button></div>
               <div class="chat-compose-meta"><span>${escapeHTML(profile.display_name)}</span><span>${t("Enter: gönder · Shift+Enter: yeni satır", "Enter: send · Shift+Enter: new line")}</span></div>
             </form>
           </section>
@@ -444,6 +484,12 @@
     setTimeout(() => {
       const list = document.querySelector("#chatMessageList");
       if (list) list.scrollTop = list.scrollHeight;
+      const input = document.querySelector("#chatMessageInput");
+      if (input && composerState.focused) {
+        input.focus({ preventScroll: true });
+        const cursor = Math.min(composerState.cursor ?? input.value.length, input.value.length);
+        try { input.setSelectionRange(cursor, cursor); } catch (_) {}
+      }
     }, 30);
   }
 
@@ -489,6 +535,12 @@
     }
     return false;
   }
+
+  document.addEventListener("input", event => {
+    const input = event.target.closest?.("#chatMessageInput");
+    if (!input) return;
+    setDraft(input.value);
+  });
 
   document.addEventListener("keydown", event => {
     const input = event.target.closest("#chatMessageInput");
