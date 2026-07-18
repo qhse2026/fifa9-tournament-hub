@@ -559,6 +559,8 @@
     init,
     handleClick,
     handleSubmit,
+    getProfile: () => profile ? { ...profile } : null,
+    getSessionToken: () => sessionToken(),
     onCloudReady: () => { initialized = false; init(); }
   };
 })();

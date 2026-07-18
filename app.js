@@ -29,9 +29,10 @@
     livestats: "Canlı İstatistikler",
     form: "Form Merkezi",
     odds: "Maç Oranları",
+    intelligence: "Turnuva Zekâ Merkezi",
     chat: "Turnuva Sohbeti",
     setup: "Kura & Oyuncular",
-    league: "UEFA League Phase",
+    league: "League Phase",
     gold: "Altın Grup",
     silver: "Gümüş Grup",
     knockout: "Eleme Aşaması",
@@ -53,6 +54,13 @@
   let formScope = "current";
   let selectedFormPlayerName = "";
   let oddsPhaseFilter = "all";
+  let intelligenceSection = "matchday";
+  let intelligenceRivalA = "";
+  let intelligenceRivalB = "";
+  let intelligencePlayerCard = "";
+  let intelligenceSimulatorGroup = "gold";
+  let qualificationScenario = {};
+  const predictionCache = { rows: [], loading: false, error: "", loadedAt: 0 };
 
   function defaultState() {
     return {
@@ -534,6 +542,7 @@
       case "livestats": renderLiveStatistics(); break;
       case "form": renderFormCentre(); break;
       case "odds": renderOddsCentre(); break;
+      case "intelligence": renderIntelligenceCentre(); break;
       case "chat": window.FIFA_CHAT_UI?.render?.(view); break;
       case "setup": renderSetup(); break;
       case "league": renderLeague(); break;
@@ -592,7 +601,7 @@
     view.innerHTML = `
       <section class="hero">
         <div class="hero-copy">
-          <div class="hero-kicker">✦ UEFA LEAGUE PHASE FORMAT</div>
+          <div class="hero-kicker">✦ LEAGUE PHASE FORMAT</div>
           <h2><span>FIFA 9</span><br>Turnuva Merkezi</h2>
           <p>16 oyunculu League Phase, Altın ve Gümüş ligleri, üç maçlık eleme serileri ve sekiz turnuvalık tarihçe tek bir merkezde. Sonuçlar yönetici tarafından girilir; puan tabloları, sıralamalar ve eşleşmeler bütün cihazlarda otomatik güncellenir.</p>
           <div class="hero-actions">
@@ -1072,7 +1081,7 @@
         </section>
 
         <aside class="panel">
-          <div class="panel-header"><div><h3 class="panel-title">Nihai Format</h3><div class="panel-subtitle">FIFA 9 · UEFA League Phase sistemi</div></div></div>
+          <div class="panel-header"><div><h3 class="panel-title">Nihai Format</h3><div class="panel-subtitle">FIFA 9 · League Phase sistemi</div></div></div>
           <div class="format-list">
             <div class="format-row"><div class="format-icon">1</div><div><div class="format-title">League Phase</div><div class="format-desc">16 oyuncu, tek tablo, oyuncu başına 6 maç; toplam 48 maç.</div></div></div>
             <div class="format-row"><div class="format-icon">2</div><div><div class="format-title">Altın / Gümüş</div><div class="format-desc">İlk 6 Altın, sonraki 6 Gümüş; son 4 elenir. Puanlar taşınır.</div></div></div>
@@ -1096,7 +1105,7 @@
     const completed = leagueMatches().filter(matchComplete).length;
     view.innerHTML = `
       <div class="group-banner gold">
-        <div><div class="eyebrow">ROUND 1</div><h2>UEFA League Phase</h2><p>16 oyuncu · 6 tur · tek puan tablosu · ilk 12 bir sonraki aşamaya yükselir.</p></div>
+        <div><div class="eyebrow">ROUND 1</div><h2>League Phase</h2><p>16 oyuncu · 6 tur · tek puan tablosu · ilk 12 bir sonraki aşamaya yükselir.</p></div>
         <div class="group-emblem">◉</div>
       </div>
       <div class="kpi-grid">
@@ -1314,7 +1323,7 @@
   function printDocumentHeader(title, subtitle = "") {
     const siteUrl = location.protocol.startsWith("http") ? location.href : "";
     return `<header class="doc-header">
-      <div class="doc-brand"><div class="doc-mark">F9</div><div><div class="doc-brand-title">${printTournamentTitle()}</div><div class="doc-brand-sub">UEFA LEAGUE PHASE · EDITION 09</div></div></div>
+      <div class="doc-brand"><div class="doc-mark">F9</div><div><div class="doc-brand-title">${printTournamentTitle()}</div><div class="doc-brand-sub">LEAGUE PHASE · EDITION 09</div></div></div>
       <div class="doc-heading"><h1>${escapeHTML(title)}</h1>${subtitle ? `<p>${escapeHTML(subtitle)}</p>` : ""}</div>
       <div class="doc-meta"><div><strong>${printLabel("Baskı", "Printed")}</strong><span>${escapeHTML(printDateLabel())}</span></div><div><strong>${printLabel("Canlı Site", "Live Site")}</strong><span>${escapeHTML(siteUrl || "-")}</span></div></div>
     </header>`;
@@ -2990,6 +2999,661 @@
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
   }
 
+  // ──────────────────────────────────────────────────────────────────────────
+  // FIFA 9 INTELLIGENCE SUITE v15
+  // Matchday intelligence, Elo, Rivalry DNA, prediction league, achievements,
+  // qualification simulator and dynamic player identity cards.
+  // ──────────────────────────────────────────────────────────────────────────
+
+  function intelligenceClamp(value, min = 0, max = 100) {
+    return Math.max(min, Math.min(max, Number(value) || 0));
+  }
+
+  function intelligenceNames() {
+    const roster = filledParticipants().map(player => player.name.trim()).filter(Boolean);
+    if (roster.length) return [...new Set(roster)];
+    return combinedAllTime().map(row => row.name);
+  }
+
+  function intelligenceOutcome(homeScore, awayScore) {
+    if (Number(homeScore) > Number(awayScore)) return "home";
+    if (Number(awayScore) > Number(homeScore)) return "away";
+    return "draw";
+  }
+
+  function intelligenceTier(rating) {
+    if (rating >= 1825) return { key: "icon", label: "ICON", note: "Tarihî elit seviye" };
+    if (rating >= 1725) return { key: "elite", label: "ELITE", note: "Şampiyonluk seviyesi" };
+    if (rating >= 1625) return { key: "contender", label: "CONTENDER", note: "Ciddi şampiyonluk adayı" };
+    if (rating >= 1525) return { key: "challenger", label: "CHALLENGER", note: "Tehlikeli rakip" };
+    if (rating >= 1425) return { key: "rising", label: "RISING", note: "Yükseliş potansiyeli" };
+    return { key: "outsider", label: "OUTSIDER", note: "Sürpriz arayan oyuncu" };
+  }
+
+  function buildEloAnalytics() {
+    const ratings = new Map();
+    const rows = new Map();
+    const records = [];
+    const matches = buildUnifiedAllTimeMatches();
+
+    function ensure(name) {
+      if (!ratings.has(name)) ratings.set(name, 1500);
+      if (!rows.has(name)) rows.set(name, {
+        name, rating: 1500, peak: 1500, floor: 1500, games: 0,
+        wins: 0, draws: 0, losses: 0, lastChange: 0, last5Change: 0,
+        timeline: [{ index: 0, rating: 1500, label: "Başlangıç" }]
+      });
+      return rows.get(name);
+    }
+
+    matches.forEach((match, index) => {
+      const home = String(match.homeName || "").trim();
+      const away = String(match.awayName || "").trim();
+      if (!home || !away || /^P\d+$/i.test(home) || /^P\d+$/i.test(away)) return;
+      const homeRow = ensure(home);
+      const awayRow = ensure(away);
+      const beforeHome = ratings.get(home) || 1500;
+      const beforeAway = ratings.get(away) || 1500;
+      const expectedHome = 1 / (1 + Math.pow(10, (beforeAway - beforeHome) / 400));
+      const winner = match.winnerName || (match.homeScore > match.awayScore ? home : match.awayScore > match.homeScore ? away : "");
+      const scoreHome = !winner ? 0.5 : winner === home ? 1 : 0;
+      const stage = String(match.stage || "").toLowerCase();
+      const stageMultiplier = stage.includes("final") ? 1.35 : stage.includes("semi") ? 1.22 : stage.includes("quarter") || stage.includes("knockout") ? 1.14 : 1;
+      const editionMultiplier = Number(match.edition) === Number(state.current.edition || 9) ? 1.08 : 1;
+      const margin = Math.abs(Number(match.homeScore) - Number(match.awayScore));
+      const marginMultiplier = margin <= 1 ? 1 : Math.min(1.65, 1 + Math.log1p(margin - 1) * 0.24);
+      const k = 24 * stageMultiplier * editionMultiplier;
+      const delta = Math.round(k * marginMultiplier * (scoreHome - expectedHome));
+      const afterHome = beforeHome + delta;
+      const afterAway = beforeAway - delta;
+      ratings.set(home, afterHome);
+      ratings.set(away, afterAway);
+
+      homeRow.rating = afterHome; awayRow.rating = afterAway;
+      homeRow.games += 1; awayRow.games += 1;
+      if (!winner) { homeRow.draws += 1; awayRow.draws += 1; }
+      else if (winner === home) { homeRow.wins += 1; awayRow.losses += 1; }
+      else { awayRow.wins += 1; homeRow.losses += 1; }
+      homeRow.lastChange = delta; awayRow.lastChange = -delta;
+      homeRow.peak = Math.max(homeRow.peak, afterHome); awayRow.peak = Math.max(awayRow.peak, afterAway);
+      homeRow.floor = Math.min(homeRow.floor, afterHome); awayRow.floor = Math.min(awayRow.floor, afterAway);
+      homeRow.timeline.push({ index: index + 1, rating: afterHome, label: `${match.editionLabel} · ${match.stage}` });
+      awayRow.timeline.push({ index: index + 1, rating: afterAway, label: `${match.editionLabel} · ${match.stage}` });
+      records.push({
+        id: match.id, match, home, away, winner,
+        beforeHome, beforeAway, afterHome, afterAway,
+        deltaHome: delta, deltaAway: -delta,
+        expectedHome, surprise: winner === home ? beforeHome < beforeAway - 90 : winner === away ? beforeAway < beforeHome - 90 : false
+      });
+    });
+
+    const recordByPlayer = new Map();
+    records.forEach(record => {
+      for (const name of [record.home, record.away]) {
+        if (!recordByPlayer.has(name)) recordByPlayer.set(name, []);
+        recordByPlayer.get(name).push(record);
+      }
+    });
+
+    const players = [...rows.values()].map(row => {
+      const playerRecords = recordByPlayer.get(row.name) || [];
+      row.last5Change = playerRecords.slice(-5).reduce((sum, record) => sum + (record.home === row.name ? record.deltaHome : record.deltaAway), 0);
+      row.rating = Math.round(row.rating);
+      row.peak = Math.round(row.peak);
+      row.floor = Math.round(row.floor);
+      row.tier = intelligenceTier(row.rating);
+      row.winRate = row.games ? row.wins / row.games * 100 : 0;
+      return row;
+    }).sort((a, b) => b.rating - a.rating || b.peak - a.peak || a.name.localeCompare(b.name, "tr"))
+      .map((row, index) => ({ ...row, rank: index + 1 }));
+
+    return {
+      players,
+      playerMap: new Map(players.map(row => [row.name, row])),
+      records,
+      recordMap: new Map(records.map(row => [row.id, row])),
+      summary: {
+        leader: players[0] || null,
+        mover: [...players].sort((a, b) => b.last5Change - a.last5Change)[0] || null,
+        faller: [...players].sort((a, b) => a.last5Change - b.last5Change)[0] || null,
+        average: players.length ? Math.round(players.reduce((sum, row) => sum + row.rating, 0) / players.length) : 1500
+      }
+    };
+  }
+
+  function matchImportance(match) {
+    if (!match) return { level: "standard", label: "Standart Maç", note: "Turnuva fikstürü" };
+    if (match.phase === "final") return { level: "legendary", label: "Şampiyonluk Maçı", note: "Tek maç, tek kupa, tek şampiyon" };
+    if (match.phase === "knockout") return { level: "critical", label: "Eleme Serisi", note: "Serinin ve tur biletinin kaderini belirleyebilir" };
+    if (match.phase === "gold") return { level: "critical", label: "Altın Grup Mücadelesi", note: "Yarı final ve eleme sıralamasını doğrudan etkiler" };
+    if (match.phase === "silver") return { level: "high", label: "Gümüş Grup Mücadelesi", note: "Eleme aşaması biletini doğrudan etkiler" };
+    const table = leagueStandings();
+    const homeRank = table.findIndex(row => row.id === match.homeId) + 1;
+    const awayRank = table.findIndex(row => row.id === match.awayId) + 1;
+    const nearCut = [homeRank, awayRank].some(rank => rank >= 4 && rank <= 14);
+    if (nearCut) return { level: "high", label: "Kritik Sıralama Maçı", note: "Altın, Gümüş veya elenme çizgisini etkileyebilir" };
+    return { level: "standard", label: "League Phase", note: "Tek lig tablosunda değerli üç puan" };
+  }
+
+  function liveProbabilityModel(oddsItem, live) {
+    const base = oddsItem?.market || { home: { probability: .34 }, draw: { probability: .32 }, away: { probability: .34 } };
+    const minute = intelligenceClamp(Number(live?.minute) || 0, 0, 120);
+    const progress = Math.min(1, minute / 90);
+    const scoreDiff = (Number(live?.homeScore) || 0) - (Number(live?.awayScore) || 0);
+    const leverage = 1.05 + progress * 2.65;
+    let home = base.home.probability * Math.exp(scoreDiff * leverage);
+    let away = base.away.probability * Math.exp(-scoreDiff * leverage);
+    let draw = base.draw.probability * (scoreDiff === 0 ? 1 + progress * 1.2 : Math.max(.08, 1 - progress * .92));
+    if (minute >= 89 && scoreDiff !== 0) {
+      if (scoreDiff > 0) home *= 2.2;
+      else away *= 2.2;
+    }
+    const total = home + draw + away || 1;
+    return { home: home / total, draw: draw / total, away: away / total };
+  }
+
+  function liveMomentumLabel(live, match) {
+    const goals = [...(live?.events || [])].filter(event => event.type === "goal").sort((a, b) => Number(a.minute) - Number(b.minute));
+    const recent = goals.slice(-3);
+    const homeCount = recent.filter(event => event.side === "home").length;
+    const awayCount = recent.filter(event => event.side === "away").length;
+    if (homeCount >= 2 && homeCount > awayCount) return { side: "home", label: `${playerName(match.homeId)} momentumu ele aldı`, strength: Math.min(100, 58 + homeCount * 12) };
+    if (awayCount >= 2 && awayCount > homeCount) return { side: "away", label: `${playerName(match.awayId)} momentumu ele aldı`, strength: Math.min(100, 58 + awayCount * 12) };
+    if ((Number(live?.homeScore) || 0) === (Number(live?.awayScore) || 0)) return { side: "draw", label: "Maç dengede", strength: 50 };
+    const leader = Number(live?.homeScore) > Number(live?.awayScore) ? playerName(match.homeId) : playerName(match.awayId);
+    return { side: Number(live?.homeScore) > Number(live?.awayScore) ? "home" : "away", label: `${leader} oyun kontrolünü koruyor`, strength: 62 };
+  }
+
+  function analyzeLiveArchive(match) {
+    const archive = state.current.live?.archive?.[match.id];
+    if (!archive) return { comeback: false, maxDeficit: 0, lateWinner: false, turningPoint: "Canlı olay kaydı bulunmuyor" };
+    const events = [...(archive.events || [])].filter(event => event.type === "goal").sort((a, b) => Number(a.minute) - Number(b.minute) || String(a.createdAt || "").localeCompare(String(b.createdAt || "")));
+    let home = 0; let away = 0; let maxHomeDeficit = 0; let maxAwayDeficit = 0; let lastLeadChange = null;
+    let previousLeader = "draw";
+    events.forEach(event => {
+      if (event.side === "home") home += 1;
+      if (event.side === "away") away += 1;
+      maxHomeDeficit = Math.max(maxHomeDeficit, away - home);
+      maxAwayDeficit = Math.max(maxAwayDeficit, home - away);
+      const leader = home === away ? "draw" : home > away ? "home" : "away";
+      if (leader !== previousLeader) lastLeadChange = event;
+      previousLeader = leader;
+    });
+    const winnerId = matchWinnerId(match);
+    const winnerSide = winnerId === match.homeId ? "home" : winnerId === match.awayId ? "away" : "draw";
+    const maxDeficit = winnerSide === "home" ? maxHomeDeficit : winnerSide === "away" ? maxAwayDeficit : 0;
+    const winningGoals = events.filter(event => event.side === winnerSide);
+    const finalWinnerGoal = winningGoals.at(-1);
+    return {
+      comeback: maxDeficit >= 2,
+      maxDeficit,
+      lateWinner: Boolean(finalWinnerGoal && Number(finalWinnerGoal.minute) >= 85 && Math.abs(Number(match.homeScore) - Number(match.awayScore)) === 1),
+      turningPoint: lastLeadChange ? `${Number(lastLeadChange.minute) || 0}' · ${lastLeadChange.side === "home" ? playerName(match.homeId) : playerName(match.awayId)} skorda üstünlüğü değiştirdi` : "Skor üstünlüğü değişmedi"
+    };
+  }
+
+  function postMatchStory(item, eloAnalytics) {
+    const match = item.match;
+    const winnerId = matchWinnerId(match);
+    const winner = winnerId ? playerName(winnerId) : "";
+    const loser = winnerId === match.homeId ? playerName(match.awayId) : winnerId === match.awayId ? playerName(match.homeId) : "";
+    const margin = Math.abs(Number(match.homeScore) - Number(match.awayScore));
+    const total = Number(match.homeScore) + Number(match.awayScore);
+    const liveInsight = analyzeLiveArchive(match);
+    const eloRecord = eloAnalytics.recordMap.get(match.id);
+    let lead = `${item.homeName} ile ${item.awayName} arasındaki karşılaşma ${match.homeScore}-${match.awayScore} tamamlandı.`;
+    if (winner) {
+      if (liveInsight.comeback) lead = `${winner}, ${liveInsight.maxDeficit} farklı geriden gelerek ${loser} karşısında ${match.homeScore}-${match.awayScore} kazandı.`;
+      else if (margin >= 4) lead = `${winner}, ${loser} karşısında ${margin} farklı dominant bir galibiyet aldı.`;
+      else if (total >= 10) lead = `${winner}, gol düellosuna dönüşen karşılaşmayı ${match.homeScore}-${match.awayScore} kazandı.`;
+      else lead = `${winner}, dengeli mücadelede ${loser} karşısında ${match.homeScore}-${match.awayScore} kazandı.`;
+    } else lead = `${item.homeName} ve ${item.awayName}, ${match.homeScore}-${match.awayScore} beraberlikle puanları paylaştı.`;
+    const eloText = eloRecord ? `${eloRecord.deltaHome >= 0 ? item.homeName : item.awayName} Elo sıralamasında ${Math.abs(eloRecord.deltaHome)} puanlık değişim yarattı.` : "";
+    return { lead, eloText, ...liveInsight };
+  }
+
+  function buildMatchdayIntelligence() {
+    const odds = buildOddsAnalytics();
+    const elo = buildEloAnalytics();
+    const livePair = getActiveLive();
+    const liveItem = livePair ? (() => {
+      const base = odds.fixtures.find(item => item.id === livePair.match.id) || buildMatchOdds(livePair.match, oddsBuildContext());
+      const probability = liveProbabilityModel(base, livePair.live);
+      return { ...base, match: livePair.match, live: livePair.live, probability, momentum: liveMomentumLabel(livePair.live, livePair.match), importance: matchImportance(livePair.match) };
+    })() : null;
+    const upcoming = odds.fixtures.map(item => ({ ...item, match: findMatch(item.id), importance: matchImportance(findMatch(item.id)) }));
+    const recent = buildLiveTournamentAnalytics().recentMatches.slice(0, 8).map(item => ({ ...item, story: postMatchStory(item, elo), importance: matchImportance(item.match) }));
+    return { live: liveItem, upcoming, recent, elo };
+  }
+
+  function renderProbabilityRail(probability, labels) {
+    return `<div class="intel-probability">
+      <div class="intel-probability-labels"><span>${escapeHTML(labels.home)} <strong>${Math.round(probability.home * 100)}%</strong></span><span>X <strong>${Math.round(probability.draw * 100)}%</strong></span><span>${escapeHTML(labels.away)} <strong>${Math.round(probability.away * 100)}%</strong></span></div>
+      <div class="intel-probability-track"><i class="home" style="width:${probability.home * 100}%"></i><i class="draw" style="width:${probability.draw * 100}%"></i><i class="away" style="width:${probability.away * 100}%"></i></div>
+    </div>`;
+  }
+
+  function renderMatchdaySection() {
+    const data = buildMatchdayIntelligence();
+    const featured = data.live || data.upcoming[0] || null;
+    const liveBlock = data.live ? `<section class="intel-live-command">
+      <div class="intel-live-head"><div><span class="intel-live-badge"><i></i> CANLI INTELLIGENCE</span><h3>${escapeHTML(data.live.home.name)} <b>${data.live.live.homeScore}-${data.live.live.awayScore}</b> ${escapeHTML(data.live.away.name)}</h3><p>${escapeHTML(data.live.importance.label)} · ${Number(data.live.live.minute) || 0}' · ${escapeHTML(data.live.momentum.label)}</p></div><div class="intel-momentum-gauge"><strong>${data.live.momentum.strength}</strong><span>MOMENTUM</span></div></div>
+      ${renderProbabilityRail(data.live.probability, { home: data.live.home.name, away: data.live.away.name })}
+      <div class="intel-live-insights"><div><span>Anlık favori</span><strong>${escapeHTML(data.live.probability.home > data.live.probability.away ? data.live.home.name : data.live.away.name)}</strong></div><div><span>Maç öncesi tahmin</span><strong>${data.live.predictedHome}-${data.live.predictedAway}</strong></div><div><span>Kritiklik</span><strong>${escapeHTML(data.live.importance.label)}</strong></div></div>
+      <button class="btn btn-gold" data-nav="livematch">Canlı Maç Merkezini Aç</button>
+    </section>` : `<div class="intel-no-live"><span>○</span><div><strong>Şu anda canlı maç yok</strong><p>Bir maç canlı yayına alındığında momentum ve anlık kazanma ihtimali burada otomatik açılır.</p></div></div>`;
+
+    return `<div class="intel-section-stack">
+      ${liveBlock}
+      <section class="panel intel-featured-match">
+        <div class="panel-header"><div><h3 class="panel-title">Matchday Intelligence</h3><div class="panel-subtitle">Maç öncesi analiz, canlı hikâye ve maç sonrası otomatik rapor tek akışta.</div></div><span class="badge badge-gold">AI MATCHDAY</span></div>
+        ${featured ? `<div class="intel-feature-grid">
+          <div class="intel-feature-copy"><span class="intel-importance ${featured.importance?.level || "standard"}">${escapeHTML(featured.importance?.label || featured.stage)}</span><h2>${escapeHTML(featured.home.name)} <b>vs</b> ${escapeHTML(featured.away.name)}</h2><p>${escapeHTML(featured.reason || featured.importance?.note || "İstatistiksel maç analizi")}</p><div class="intel-feature-actions"><button class="btn btn-gold" data-action="open-matchday-analysis" data-match-id="${escapeHTML(featured.id)}">Tam Maç Dosyasını Aç</button><button class="btn btn-ghost" data-nav="odds">Oran Merkezine Git</button></div></div>
+          <div class="intel-score-prediction"><span>MODEL SKORU</span><strong>${featured.predictedHome}-${featured.predictedAway}</strong><small>${featured.confidence || 0}% güven · ${escapeHTML(featured.confidenceLabel || "Model açık")}</small></div>
+        </div>` : `<div class="info-box">Henüz analiz edilecek fikstür bulunmuyor.</div>`}
+      </section>
+      <section class="panel">
+        <div class="panel-header"><div><h3 class="panel-title">Yaklaşan Maç Dosyaları</h3><div class="panel-subtitle">Form, Elo, H2H ve turnuva önemine göre otomatik hazırlanır.</div></div><span class="badge badge-blue">${data.upcoming.length} MATCH FILES</span></div>
+        ${data.upcoming.length ? `<div class="intel-match-list">${data.upcoming.slice(0, 10).map(item => `<button class="intel-match-row" data-action="open-matchday-analysis" data-match-id="${escapeHTML(item.id)}"><span class="intel-match-stage">${escapeHTML(item.stage)}</span><strong>${escapeHTML(item.home.name)} <b>vs</b> ${escapeHTML(item.away.name)}</strong><span>${item.predictedHome}-${item.predictedAway}</span><small class="${item.importance.level}">${escapeHTML(item.importance.label)}</small></button>`).join("")}</div>` : `<div class="info-box">Oynanmamış maç bulunmuyor.</div>`}
+      </section>
+      <section class="panel">
+        <div class="panel-header"><div><h3 class="panel-title">Otomatik Maç Sonu Hikâyeleri</h3><div class="panel-subtitle">Canlı zaman çizelgesi, skor, Elo ve rekor etkisinden oluşturulur.</div></div><span class="badge badge-silver">POST MATCH</span></div>
+        ${data.recent.length ? `<div class="intel-story-grid">${data.recent.map(item => `<article class="intel-story-card"><span>${escapeHTML(item.stage)}</span><h4>${escapeHTML(item.homeName)} ${item.homeScore}-${item.awayScore} ${escapeHTML(item.awayName)}</h4><p>${escapeHTML(item.story.lead)}</p><small>${escapeHTML(item.story.turningPoint)}${item.story.eloText ? ` · ${escapeHTML(item.story.eloText)}` : ""}</small></article>`).join("")}</div>` : `<div class="info-box">İlk sonuç girildiğinde otomatik maç hikâyeleri burada görünür.</div>`}
+      </section>
+    </div>`;
+  }
+
+  function openMatchdayAnalysis(matchId) {
+    const match = findMatch(matchId);
+    if (!match) { toast("Maç dosyası bulunamadı.", "error"); return; }
+    const context = oddsBuildContext();
+    const item = buildMatchOdds(match, context);
+    const elo = buildEloAnalytics();
+    const homeElo = elo.playerMap.get(item.home.name);
+    const awayElo = elo.playerMap.get(item.away.name);
+    const importance = matchImportance(match);
+    const live = getActiveLive()?.match?.id === match.id ? getActiveLive().live : null;
+    const liveProbability = live ? liveProbabilityModel(item, live) : null;
+    const h2hLatest = item.h2h.latest.length ? item.h2h.latest.map(row => `<div class="intel-dossier-h2h"><span>${escapeHTML(row.editionLabel)}</span><strong>${escapeHTML(item.home.name)} ${row.gfA}-${row.gfB} ${escapeHTML(item.away.name)}</strong><small>${escapeHTML(row.stage)}</small></div>`).join("") : `<div class="info-box">İlk karşılaşma.</div>`;
+    openModal(`${item.home.name} vs ${item.away.name}`, `
+      <div class="intel-dossier-hero"><div><span class="intel-importance ${importance.level}">${escapeHTML(importance.label)}</span><h3>${escapeHTML(item.home.name)} <b>vs</b> ${escapeHTML(item.away.name)}</h3><p>${escapeHTML(item.reason)}</p></div><div class="intel-score-prediction"><span>MODEL SKORU</span><strong>${item.predictedHome}-${item.predictedAway}</strong><small>${item.confidence}% güven</small></div></div>
+      ${renderProbabilityRail(liveProbability || { home: item.market.home.probability, draw: item.market.draw.probability, away: item.market.away.probability }, { home: item.home.name, away: item.away.name })}
+      <div class="intel-dossier-kpis"><div><span>Elo</span><strong>${homeElo?.rating || 1500} – ${awayElo?.rating || 1500}</strong></div><div><span>Son 20 PPG</span><strong>${item.home.form.ppg.toFixed(2)} – ${item.away.form.ppg.toFixed(2)}</strong></div><div><span>H2H</span><strong>${item.h2h.meetings ? `${item.h2h.winsA}-${item.h2h.draws}-${item.h2h.winsB}` : "İlk maç"}</strong></div><div><span>Kritiklik</span><strong>${escapeHTML(importance.label)}</strong></div></div>
+      <div class="grid-2 mt-24"><div class="intel-dossier-player"><h4>${escapeHTML(item.home.name)}</h4><strong>${item.home.strength.toFixed(0)} güç</strong><p>${item.home.form.games} maç · ${item.home.form.wins}G ${item.home.form.draws}B ${item.home.form.losses}M · ${item.home.form.gf}-${item.home.form.ga}</p>${oddsFormStrip(item.home)}</div><div class="intel-dossier-player"><h4>${escapeHTML(item.away.name)}</h4><strong>${item.away.strength.toFixed(0)} güç</strong><p>${item.away.form.games} maç · ${item.away.form.wins}G ${item.away.form.draws}B ${item.away.form.losses}M · ${item.away.form.gf}-${item.away.form.ga}</p>${oddsFormStrip(item.away)}</div></div>
+      <section class="mt-24"><div class="panel-title">Rivalry Timeline</div><div class="intel-dossier-h2h-list">${h2hLatest}</div></section>
+      <div class="modal-actions"><button class="btn btn-ghost" data-action="close-modal">Kapat</button><button class="btn btn-gold" data-action="share-single-odds" data-match-id="${escapeHTML(match.id)}">Maçı Paylaş</button></div>
+    `, "MATCHDAY INTELLIGENCE");
+  }
+
+  function renderEloSection() {
+    const data = buildEloAnalytics();
+    return `<div class="intel-section-stack">
+      <section class="intel-elo-hero"><div><div class="eyebrow">FIFA POWER INDEX</div><h2>Elo Güç Sıralaması</h2><p>Rakibin gücü, maç sonucu, skor farkı ve turnuva aşamasını dikkate alan uzun vadeli performans modeli.</p></div><div class="intel-elo-crown"><span>#1</span><strong>${escapeHTML(data.summary.leader?.name || "–")}</strong><b>${data.summary.leader?.rating || 1500}</b></div></section>
+      <div class="kpi-grid">
+        ${kpiCard("Elo Lideri", data.summary.leader?.name || "–", data.summary.leader ? `${data.summary.leader.rating} Elo · ${data.summary.leader.tier.label}` : "Veri bekleniyor")}
+        ${kpiCard("En Hızlı Yükselen", data.summary.mover?.name || "–", data.summary.mover ? `Son 5 maç ${data.summary.mover.last5Change >= 0 ? "+" : ""}${data.summary.mover.last5Change}` : "Veri bekleniyor")}
+        ${kpiCard("Ortalama Güç", data.summary.average, `${data.players.length} oyuncu`)}
+        ${kpiCard("İşlenen Maç", data.records.length, "FIFA 1–9 birleşik Elo akışı")}
+      </div>
+      <section class="panel">
+        <div class="panel-header"><div><h3 class="panel-title">Canlı Elo Sıralaması</h3><div class="panel-subtitle">Güçlü rakibe karşı alınan sonuç daha yüksek değer taşır.</div></div><span class="badge badge-gold">DYNAMIC</span></div>
+        <div class="intel-elo-table"><div class="intel-elo-head"><span>#</span><span>Oyuncu</span><span>Elo</span><span>Son Maç</span><span>Son 5</span><span>Peak</span><span>Seviye</span></div>${data.players.map(row => `<div class="intel-elo-row tier-${row.tier.key}"><span>${row.rank}</span><strong>${escapeHTML(row.name)}</strong><b>${row.rating}</b><em class="${row.lastChange >= 0 ? "positive" : "negative"}">${row.lastChange >= 0 ? "+" : ""}${row.lastChange}</em><em class="${row.last5Change >= 0 ? "positive" : "negative"}">${row.last5Change >= 0 ? "+" : ""}${row.last5Change}</em><span>${row.peak}</span><small>${row.tier.label}</small></div>`).join("")}</div>
+      </section>
+      <section class="panel"><div class="panel-header"><div><h3 class="panel-title">Seviye Sistemi</h3><div class="panel-subtitle">Oyuncu kartları ve tahmin modeli aynı Elo omurgasını kullanır.</div></div></div><div class="intel-tier-grid">${["ICON · 1825+","ELITE · 1725+","CONTENDER · 1625+","CHALLENGER · 1525+","RISING · 1425+","OUTSIDER · <1425"].map((label, index) => `<div class="tier-${["icon","elite","contender","challenger","rising","outsider"][index]}"><strong>${label.split(" · ")[0]}</strong><span>${label.split(" · ")[1]}</span></div>`).join("")}</div></section>
+    </div>`;
+  }
+
+  function rivalryDNAData(playerA, playerB) {
+    const analytics = buildAllTimeAnalytics();
+    const names = intelligenceNames();
+    const defaultRivalry = analytics.rivalries[0];
+    const a = names.includes(playerA) ? playerA : defaultRivalry?.playerA || names[0] || "";
+    const bCandidate = names.includes(playerB) && playerB !== a ? playerB : defaultRivalry && defaultRivalry.playerA === a ? defaultRivalry.playerB : names.find(name => name !== a) || "";
+    const rivalry = analytics.pairMap.get(rivalryKey(a, bCandidate)) || {
+      playerA: a, playerB: bCandidate, meetings: 0, winsA: 0, winsB: 0, draws: 0, goalsA: 0, goalsB: 0, matches: [], summary: "İlk karşılaşma"
+    };
+    const oriented = rivalry.playerA === a ? rivalry : {
+      ...rivalry, playerA: a, playerB: bCandidate,
+      winsA: rivalry.winsB, winsB: rivalry.winsA,
+      goalsA: rivalry.goalsB, goalsB: rivalry.goalsA,
+      matches: (rivalry.matches || []).map(match => ({ ...match, scoreA: match.scoreB, scoreB: match.scoreA }))
+    };
+    const totalGoals = oriented.goalsA + oriented.goalsB;
+    const avgGoals = oriented.meetings ? totalGoals / oriented.meetings : 0;
+    const balance = oriented.meetings ? 100 - Math.min(100, Math.abs(oriented.winsA - oriented.winsB) / oriented.meetings * 100) : 100;
+    const drawRate = oriented.meetings ? oriented.draws / oriented.meetings * 100 : 0;
+    const tags = [];
+    if (oriented.meetings >= 8) tags.push("CLASSIC RIVALRY");
+    if (avgGoals >= 7) tags.push("GOAL FESTIVAL");
+    if (drawRate >= 25) tags.push("TACTICAL DEADLOCK");
+    if (balance >= 80 && oriented.meetings >= 3) tags.push("50/50 BATTLE");
+    if (Math.abs(oriented.winsA - oriented.winsB) >= 4) tags.push("MENTAL EDGE");
+    if (!tags.length) tags.push(oriented.meetings ? "RIVALRY BUILDING" : "FIRST CONTACT");
+    return { analytics, names, a, b: bCandidate, rivalry: oriented, avgGoals, balance, drawRate, tags };
+  }
+
+  function renderRivalrySection() {
+    const data = rivalryDNAData(intelligenceRivalA, intelligenceRivalB);
+    intelligenceRivalA = data.a; intelligenceRivalB = data.b;
+    const r = data.rivalry;
+    const timeline = [...(r.matches || [])].slice(-10).reverse();
+    const aPlayer = data.analytics.playerMap.get(data.a);
+    const bPlayer = data.analytics.playerMap.get(data.b);
+    return `<div class="intel-section-stack">
+      <section class="intel-rivalry-hero"><div><div class="eyebrow">RIVALRY DNA</div><h2>Rekabet Kimliği</h2><p>Her eşleşmenin tarihini, psikolojik üstünlüğünü, gol karakterini ve kader anlarını tek kartta çözümler.</p></div><div class="intel-rivalry-selectors"><select id="intelRivalA">${data.names.map(name => `<option value="${escapeHTML(name)}" ${name === data.a ? "selected" : ""}>${escapeHTML(name)}</option>`).join("")}</select><span>VS</span><select id="intelRivalB">${data.names.filter(name => name !== data.a).map(name => `<option value="${escapeHTML(name)}" ${name === data.b ? "selected" : ""}>${escapeHTML(name)}</option>`).join("")}</select></div></section>
+      <section class="intel-rivalry-scoreboard"><div><span>${escapeHTML(data.a)}</span><strong>${r.winsA}</strong><small>${r.goalsA} gol</small></div><div class="intel-rivalry-centre"><b>${r.meetings}</b><span>MAÇ</span><em>${r.draws} beraberlik</em></div><div><span>${escapeHTML(data.b)}</span><strong>${r.winsB}</strong><small>${r.goalsB} gol</small></div></section>
+      <div class="intel-dna-grid"><article><span>Denge Endeksi</span><strong>${Math.round(data.balance)}</strong><div><i style="width:${data.balance}%"></i></div></article><article><span>Gol Yoğunluğu</span><strong>${data.avgGoals.toFixed(2)}</strong><small>maç başına</small></article><article><span>Beraberlik Oranı</span><strong>${data.drawRate.toFixed(0)}%</strong><small>taktik kilit sinyali</small></article><article><span>Psikolojik Üstünlük</span><strong>${r.winsA === r.winsB ? "DENGE" : escapeHTML(r.winsA > r.winsB ? data.a : data.b)}</strong><small>${Math.abs(r.winsA-r.winsB)} galibiyet farkı</small></article></div>
+      <div class="intel-tag-row">${data.tags.map(tag => `<span>${tag}</span>`).join("")}</div>
+      <div class="grid-2">
+        <section class="panel"><div class="panel-header"><div><h3 class="panel-title">Rekabet Zaman Çizelgesi</h3><div class="panel-subtitle">En yeni karşılaşmadan geriye doğru.</div></div></div>${timeline.length ? `<div class="intel-rivalry-timeline">${timeline.map(match => `<div><span>${escapeHTML(match.editionLabel || `FIFA ${match.edition}`)}</span><strong>${escapeHTML(data.a)} ${match.scoreA}-${match.scoreB} ${escapeHTML(data.b)}</strong><small>${escapeHTML(match.stage || "")}</small></div>`).join("")}</div>` : `<div class="info-box">Henüz karşılaşma yok.</div>`}</section>
+        <section class="panel"><div class="panel-header"><div><h3 class="panel-title">Oyuncu Üzerindeki Etki</h3><div class="panel-subtitle">Rakibe özel başarı profili.</div></div></div><div class="intel-opponent-impact"><div><strong>${escapeHTML(data.a)}</strong><span>${aPlayer?.nemesis?.name === data.b ? "Nemesis rakibi" : aPlayer?.bestOpponent?.name === data.b ? "Favori rakibi" : "Özel rekabet"}</span><b>${r.meetings ? ((r.winsA*3+r.draws)/r.meetings).toFixed(2) : "0.00"} PPG</b></div><div><strong>${escapeHTML(data.b)}</strong><span>${bPlayer?.nemesis?.name === data.a ? "Nemesis rakibi" : bPlayer?.bestOpponent?.name === data.a ? "Favori rakibi" : "Özel rekabet"}</span><b>${r.meetings ? ((r.winsB*3+r.draws)/r.meetings).toFixed(2) : "0.00"} PPG</b></div></div></section>
+      </div>
+    </div>`;
+  }
+
+  function predictionProfile() {
+    return window.FIFA_CHAT_UI?.getProfile?.() || null;
+  }
+
+  async function loadPredictionRows(force = false) {
+    const client = cloud?.getClient?.();
+    if (!client || predictionCache.loading) return;
+    if (!force && predictionCache.loadedAt && Date.now() - predictionCache.loadedAt < 12000) return;
+    predictionCache.loading = true;
+    predictionCache.error = "";
+    try {
+      const { data, error } = await client.rpc("list_match_predictions_v15", { p_tournament_id: window.FIFA_CLOUD_CONFIG?.tournamentRowId || "fifa-9" });
+      if (error) throw error;
+      predictionCache.rows = Array.isArray(data) ? data : [];
+      predictionCache.loadedAt = Date.now();
+    } catch (error) {
+      predictionCache.error = String(error?.message || error || "Tahmin verisi yüklenemedi");
+    } finally {
+      predictionCache.loading = false;
+      if (activeView === "intelligence" && intelligenceSection === "predictions") renderIntelligenceCentre();
+    }
+  }
+
+  function predictionScore(row, match, oddsItem) {
+    if (!match || !matchComplete(match)) return { points: 0, status: "pending", exact: false, outcome: false, goalDifference: false, upset: false };
+    const predictedOutcome = intelligenceOutcome(row.home_score, row.away_score);
+    const actualOutcome = intelligenceOutcome(match.homeScore, match.awayScore);
+    const exact = Number(row.home_score) === Number(match.homeScore) && Number(row.away_score) === Number(match.awayScore);
+    const outcome = predictedOutcome === actualOutcome;
+    const goalDifference = Number(row.home_score) - Number(row.away_score) === Number(match.homeScore) - Number(match.awayScore);
+    let points = exact ? 5 : outcome ? 3 : 0;
+    if (goalDifference) points += 1;
+    const probabilities = {
+      home: Number(row.model_home_probability) || oddsItem?.market.home.probability || .34,
+      draw: Number(row.model_draw_probability) || oddsItem?.market.draw.probability || .32,
+      away: Number(row.model_away_probability) || oddsItem?.market.away.probability || .34
+    };
+    const upset = outcome && probabilities[actualOutcome] <= .30;
+    if (upset) points += 1;
+    return { points, status: "scored", exact, outcome, goalDifference, upset };
+  }
+
+  function buildPredictionAnalytics() {
+    const oddsContext = oddsBuildContext();
+    const oddsMap = new Map(allCurrentMatches().filter(match => match.homeId && match.awayId).map(match => [match.id, buildMatchOdds(match, oddsContext)]));
+    const leaderboard = new Map();
+    const rows = predictionCache.rows.map(row => {
+      const match = findMatch(row.match_id);
+      const score = predictionScore(row, match, oddsMap.get(row.match_id));
+      const enriched = { ...row, match, score };
+      if (!leaderboard.has(row.player_id)) leaderboard.set(row.player_id, { playerId: row.player_id, name: row.display_name, predictions: 0, scored: 0, points: 0, exact: 0, outcomes: 0, upset: 0 });
+      const player = leaderboard.get(row.player_id);
+      player.predictions += 1;
+      if (score.status === "scored") {
+        player.scored += 1; player.points += score.points;
+        if (score.exact) player.exact += 1;
+        if (score.outcome) player.outcomes += 1;
+        if (score.upset) player.upset += 1;
+      }
+      return enriched;
+    });
+    const table = [...leaderboard.values()].map(row => ({ ...row, ppg: row.scored ? row.points / row.scored : 0 }))
+      .sort((a, b) => b.points - a.points || b.exact - a.exact || b.outcomes - a.outcomes || a.name.localeCompare(b.name, "tr"))
+      .map((row, index) => ({ ...row, rank: index + 1 }));
+    const profile = predictionProfile();
+    const myRows = profile ? rows.filter(row => row.player_id === profile.player_id) : [];
+    return { rows, table, myRows, oddsMap };
+  }
+
+  function renderPredictionSection() {
+    const profile = predictionProfile();
+    const fixtures = oddsAvailableFixtures().filter(match => getActiveLive()?.match?.id !== match.id);
+    const data = buildPredictionAnalytics();
+    if (!predictionCache.loadedAt && !predictionCache.loading && !predictionCache.error) setTimeout(() => loadPredictionRows(), 0);
+    return `<div class="intel-section-stack">
+      <section class="intel-prediction-hero"><div><div class="eyebrow">COMMUNITY PREDICTION LEAGUE</div><h2>Tahmin Şampiyonası</h2><p>Oyuncular maç başlamadan skor tahmini yapar. Tam skor, doğru sonuç, gol farkı ve sürpriz tahmin bonuslarıyla ayrı bir şampiyonluk yarışı oluşur.</p></div><div class="intel-prediction-score"><strong>${data.table[0]?.points || 0}</strong><span>LİDER PUANI</span><small>${escapeHTML(data.table[0]?.name || "Tahmin bekleniyor")}</small></div></section>
+      ${predictionCache.error ? `<div class="info-box warning-box"><strong>Tahmin sistemi kurulumu gerekli:</strong> ${escapeHTML(predictionCache.error)}<br><small>Supabase SQL Editor’da <b>intelligence_feature_v15.sql</b> dosyasını çalıştır.</small></div>` : ""}
+      <div class="grid-2">
+        <section class="panel"><div class="panel-header"><div><h3 class="panel-title">Tahminini Gönder</h3><div class="panel-subtitle">Sohbet için oluşturduğun oyuncu adı ve PIN oturumu kullanılır.</div></div><span class="badge badge-gold">LOCK BEFORE LIVE</span></div>
+          ${profile ? fixtures.length ? `<form id="predictionForm" class="intel-prediction-form"><div class="field"><label>Oyuncu</label><div class="intel-identity-chip"><span>${escapeHTML(profile.display_name?.charAt(0) || "P")}</span><strong>${escapeHTML(profile.display_name)}</strong></div></div><div class="field"><label>Maç</label><select name="matchId" required>${fixtures.map(match => `<option value="${escapeHTML(match.id)}">${escapeHTML(playerName(match.homeId))} vs ${escapeHTML(playerName(match.awayId))} · ${escapeHTML(currentMatchStageLabel(match))}</option>`).join("")}</select></div><div class="intel-score-inputs"><label><span>Ev Skoru</span><input type="number" min="0" max="30" name="homeScore" required value="2"></label><b>–</b><label><span>Dep. Skoru</span><input type="number" min="0" max="30" name="awayScore" required value="1"></label></div><button class="btn btn-gold" type="submit">Tahmini Kaydet / Güncelle</button></form>` : `<div class="info-box">Tahmine açık oynanmamış maç bulunmuyor.</div>` : `<div class="intel-login-required"><span>🔐</span><h4>Oyuncu oturumu gerekli</h4><p>İsmini yazmadan, kayıtlı oyuncu adını seçip PIN ile Sohbet bölümüne giriş yap. Aynı oturum tahmin liginde otomatik tanınır.</p><button class="btn btn-gold" data-nav="chat">Sohbetten Oyuncu Girişi Yap</button></div>`}
+        </section>
+        <section class="panel"><div class="panel-header"><div><h3 class="panel-title">Puanlama</h3><div class="panel-subtitle">Gerçek bahis yoktur; yalnızca turnuva içi eğlence yarışmasıdır.</div></div></div><div class="intel-points-rules"><div><strong>5</strong><span>Tam skor</span></div><div><strong>3</strong><span>Doğru sonuç</span></div><div><strong>+1</strong><span>Doğru gol farkı</span></div><div><strong>+1</strong><span>Sürpriz sonucu bilme</span></div></div><button class="btn btn-ghost mt-16" data-action="refresh-predictions">Tahminleri Yenile</button></section>
+      </div>
+      <section class="panel"><div class="panel-header"><div><h3 class="panel-title">Tahmin Ligi Puan Durumu</h3><div class="panel-subtitle">Tamamlanan maçlardan otomatik hesaplanır.</div></div><span class="badge badge-blue">${predictionCache.rows.length} PREDICTIONS</span></div>${data.table.length ? `<div class="intel-prediction-table"><div class="head"><span>#</span><span>Oyuncu</span><span>Puan</span><span>Tam Skor</span><span>Doğru Sonuç</span><span>Sürpriz</span><span>Ort.</span></div>${data.table.map(row => `<div><span>${row.rank}</span><strong>${escapeHTML(row.name)}</strong><b>${row.points}</b><span>${row.exact}</span><span>${row.outcomes}</span><span>${row.upset}</span><span>${row.ppg.toFixed(2)}</span></div>`).join("")}</div>` : `<div class="info-box">Henüz tahmin girilmedi.</div>`}</section>
+      ${profile ? `<section class="panel"><div class="panel-header"><div><h3 class="panel-title">Tahminlerim</h3><div class="panel-subtitle">${escapeHTML(profile.display_name)} adına kayıtlı tahminler.</div></div></div>${data.myRows.length ? `<div class="intel-my-predictions">${data.myRows.slice().sort((a,b)=>String(b.updated_at).localeCompare(String(a.updated_at))).map(row => `<div><span>${escapeHTML(row.match ? `${playerName(row.match.homeId)} vs ${playerName(row.match.awayId)}` : row.match_id)}</span><strong>${row.home_score}-${row.away_score}</strong><small>${row.score.status === "scored" ? `${row.score.points} puan` : "Maç bekleniyor"}</small></div>`).join("")}</div>` : `<div class="info-box">Henüz tahminin yok.</div>`}</section>` : ""}
+    </div>`;
+  }
+
+  async function submitPrediction(form) {
+    const profile = predictionProfile();
+    const token = window.FIFA_CHAT_UI?.getSessionToken?.() || "";
+    if (!profile || !token) { toast("Önce Sohbet bölümünden oyuncu PIN oturumu aç.", "error"); return; }
+    const data = new FormData(form);
+    const matchId = String(data.get("matchId") || "");
+    const match = findMatch(matchId);
+    if (!match || matchComplete(match) || getActiveLive()?.match?.id === matchId) { toast("Bu maç tahmine kapalı.", "error"); return; }
+    const oddsItem = buildMatchOdds(match, oddsBuildContext());
+    const client = cloud?.getClient?.();
+    if (!client) { toast("Canlı bağlantı hazır değil.", "error"); return; }
+    const button = form.querySelector("button[type=submit]");
+    if (button) { button.disabled = true; button.textContent = "Kaydediliyor..."; }
+    try {
+      const { error } = await client.rpc("submit_match_prediction_v15", {
+        p_tournament_id: window.FIFA_CLOUD_CONFIG?.tournamentRowId || "fifa-9",
+        p_token: token,
+        p_match_id: matchId,
+        p_home_score: Math.max(0, Number(data.get("homeScore")) || 0),
+        p_away_score: Math.max(0, Number(data.get("awayScore")) || 0),
+        p_model_home_probability: oddsItem.market.home.probability,
+        p_model_draw_probability: oddsItem.market.draw.probability,
+        p_model_away_probability: oddsItem.market.away.probability
+      });
+      if (error) throw error;
+      toast("Tahminin kaydedildi.", "success");
+      predictionCache.loadedAt = 0;
+      await loadPredictionRows(true);
+    } catch (error) {
+      toast(String(error?.message || error || "Tahmin kaydedilemedi"), "error");
+      if (button) { button.disabled = false; button.textContent = "Tahmini Kaydet / Güncelle"; }
+    }
+  }
+
+  function buildAchievements() {
+    const names = intelligenceNames();
+    const form = buildFormAnalytics(20, "all");
+    const allTime = buildAllTimeAnalytics();
+    const elo = buildEloAnalytics();
+    const matches = buildUnifiedAllTimeMatches();
+    const liveArchive = state.current.live?.archive || {};
+    const teamAnalytics = buildTeamAnalytics();
+    const badges = new Map(names.map(name => [name, []]));
+    const add = (name, badge) => { if (badges.has(name) && !badges.get(name).some(item => item.key === badge.key)) badges.get(name).push(badge); };
+    const badge = (key, title, icon, note, level = "standard") => ({ key, title, icon, note, level });
+
+    form.players.forEach(row => {
+      if (row.currentWinStreak >= 3) add(row.name, badge("hat-trick", "Hat-Trick Hunter", "③", `${row.currentWinStreak} maçlık galibiyet serisi`, "gold"));
+      if (row.currentUnbeatenStreak >= 5) add(row.name, badge("unbeaten", "Unbeaten Run", "∞", `${row.currentUnbeatenStreak} maç yenilmez`, "elite"));
+      if (row.avgGoals >= 5 && row.games >= 5) add(row.name, badge("goal-machine", "Goal Machine", "⚡", `${row.avgGoals.toFixed(2)} gol/maç`, "red"));
+      if (row.gaPerGame <= 2.5 && row.games >= 5) add(row.name, badge("iron-defence", "Iron Defence", "◆", `${row.gaPerGame.toFixed(2)} yenilen gol/maç`, "blue"));
+      if (row.momentum >= 5) add(row.name, badge("momentum", "Momentum Hunter", "↗", `Momentum +${row.momentum}`, "green"));
+    });
+
+    matches.forEach(match => {
+      const winner = match.winnerName || (match.homeScore > match.awayScore ? match.homeName : match.awayScore > match.homeScore ? match.awayName : "");
+      if (!winner) return;
+      const scored = winner === match.homeName ? match.homeScore : match.awayScore;
+      if (Number(scored) >= 7) add(winner, badge("seven-plus", "Seven Goal Club", "7+", `${match.editionLabel} · ${scored} gol`, "red"));
+    });
+
+    elo.records.forEach(record => {
+      if (record.surprise && record.winner) add(record.winner, badge("giant-killer", "Giant Killer", "♜", `Elo favorisini devirdi`, "purple"));
+    });
+
+    allCurrentMatches().filter(matchComplete).forEach(match => {
+      const insight = analyzeLiveArchive(match);
+      const winner = matchWinnerId(match) ? playerName(matchWinnerId(match)) : "";
+      if (winner && insight.comeback) add(winner, badge("comeback", "Comeback King", "↺", `${insight.maxDeficit} farklı geriden dönüş`, "gold"));
+      if (winner && insight.lateWinner) add(winner, badge("late-hero", "Last-Minute Hero", "90+", "85. dakikadan sonra kazandıran gol", "purple"));
+    });
+
+    (teamAnalytics.players || []).forEach(player => {
+      const specialty = player.teams?.filter(team => team.games >= 4).sort((a,b)=>b.winRate-a.winRate || b.games-a.games)[0];
+      if (specialty && specialty.winRate >= 60) add(player.name, badge("specialist", "Team Specialist", "◉", `${specialty.team} · %${specialty.winRate.toFixed(0)} başarı`, "blue"));
+    });
+
+    allTime.players.forEach(player => {
+      if (player.titles >= 2) add(player.name, badge("dynasty", "Dynasty", "♛", `${player.titles} şampiyonluk`, "elite"));
+      if (player.games >= 40) add(player.name, badge("veteran", "Iron Veteran", "★", `${player.games} kayıtlı maç`, "standard"));
+    });
+
+    const players = names.map(name => ({
+      name,
+      badges: badges.get(name) || [],
+      elo: elo.playerMap.get(name)?.rating || 1500,
+      form: form.playerMap.get(name)?.formIndex || 50
+    })).sort((a,b)=>b.badges.length-a.badges.length || b.elo-a.elo || a.name.localeCompare(b.name,"tr"));
+    return { players, badgeCount: players.reduce((sum,row)=>sum+row.badges.length,0), leader: players[0] || null };
+  }
+
+  function renderAchievementsSection() {
+    const data = buildAchievements();
+    return `<div class="intel-section-stack"><section class="intel-achievement-hero"><div><div class="eyebrow">ACHIEVEMENT ENGINE</div><h2>Başarımlar & Rozetler</h2><p>Sonuçlar, canlı maç olayları, seriler, Elo sürprizleri ve takım uzmanlığından otomatik kazanılan dijital başarımlar.</p></div><div><strong>${data.badgeCount}</strong><span>AKTİF ROZET</span><small>${escapeHTML(data.leader?.name || "Lider bekleniyor")}</small></div></section>
+      <section class="panel"><div class="panel-header"><div><h3 class="panel-title">Oyuncu Rozet Vitrini</h3><div class="panel-subtitle">Her yeni skor ve canlı maç kaydında otomatik yeniden değerlendirilir.</div></div><span class="badge badge-gold">AUTO UNLOCK</span></div><div class="intel-achievement-grid">${data.players.map(player => `<article class="intel-achievement-player"><div class="intel-achievement-head"><span>${escapeHTML(player.name.charAt(0).toUpperCase())}</span><div><h4>${escapeHTML(player.name)}</h4><small>${player.elo} Elo · Form ${player.form}/100</small></div><strong>${player.badges.length}</strong></div>${player.badges.length ? `<div class="intel-badge-list">${player.badges.map(item => `<div class="badge-${item.level}" title="${escapeHTML(item.note)}"><span>${item.icon}</span><strong>${escapeHTML(item.title)}</strong><small>${escapeHTML(item.note)}</small></div>`).join("")}</div>` : `<div class="intel-no-badge">İlk rozet için performans bekleniyor.</div>`}</article>`).join("")}</div></section>
+      <section class="panel"><div class="panel-header"><div><h3 class="panel-title">Rozet Kataloğu</h3><div class="panel-subtitle">Sistemin izlediği ana başarımlar.</div></div></div><div class="intel-catalog-grid">${[
+        ["↺","Comeback King","İki veya daha fazla farktan geri dönüp kazan"],["♜","Giant Killer","Elo favorisini mağlup et"],["③","Hat-Trick Hunter","Üst üste üç maç kazan"],["∞","Unbeaten Run","Beş maç yenilmez kal"],["⚡","Goal Machine","Yüksek gol ortalaması üret"],["◆","Iron Defence","Savunma ortalamasında elit seviyeye çık"],["90+","Last-Minute Hero","Geç dakikada kazandıran gol"],["◉","Team Specialist","Bir takımla sürdürülebilir yüksek başarı"]
+      ].map(item => `<div><span>${item[0]}</span><strong>${item[1]}</strong><small>${item[2]}</small></div>`).join("")}</div></section>
+    </div>`;
+  }
+
+  function simulatorContext() {
+    if (!state.current.league.generated) return { key: "none", label: "Kura bekleniyor", ids: [], baseMatches: [], remaining: [] };
+    if (!leagueFinished()) return { key: "league", label: "League Phase", ids: state.current.participants.map(p=>p.id), baseMatches: leagueMatches(), remaining: leagueMatches().filter(match=>!matchComplete(match)) };
+    if (state.current.phase2.generated && !phase2Finished()) {
+      const group = intelligenceSimulatorGroup === "silver" ? "silver" : "gold";
+      return { key: group, label: group === "gold" ? "Altın Grup" : "Gümüş Grup", ids: group === "gold" ? state.current.phase2.goldIds : state.current.phase2.silverIds, baseMatches: [...leagueMatches(), ...(group === "gold" ? goldMatches() : silverMatches())], remaining: (group === "gold" ? goldMatches() : silverMatches()).filter(match=>!matchComplete(match)) };
+    }
+    return { key: "completed", label: "Aktif lig aşaması tamamlandı", ids: [], baseMatches: [], remaining: [] };
+  }
+
+  function simulatedMatch(match) {
+    const scenario = qualificationScenario[match.id];
+    if (!scenario || scenario.home === "" || scenario.away === "") return match;
+    return { ...match, homeScore: Number(scenario.home), awayScore: Number(scenario.away), tiebreakWinnerId: null };
+  }
+
+  function simulatorStatus(row, context) {
+    if (context.key === "league") {
+      if (row.rank <= 6) return { key: "gold", label: "ALTIN" };
+      if (row.rank <= 12) return { key: "silver", label: "GÜMÜŞ" };
+      return { key: "out", label: "ELENİR" };
+    }
+    if (context.key === "gold") {
+      if (row.rank === 1) return { key: "direct", label: "DİREKT YF" };
+      if (row.rank <= 4) return { key: "playoff", label: "ELEME" };
+      return { key: "out", label: "ELENİR" };
+    }
+    if (context.key === "silver") {
+      if (row.rank <= 3) return { key: "playoff", label: "ELEME" };
+      return { key: "out", label: "ELENİR" };
+    }
+    return { key: "standard", label: "–" };
+  }
+
+  function renderSimulatorSection() {
+    const context = simulatorContext();
+    if (context.key === "none") return emptyState("◇", "Simülatör Kura Sonrası Açılır", "League Phase fikstürü oluşturulduğunda olası skorları girerek sıralama senaryolarını test edebilirsin.", `<button class="btn btn-gold" data-nav="setup">Kura Sayfasına Git</button>`);
+    if (context.key === "completed") return `<div class="intel-section-stack"><section class="intel-simulator-hero"><div><div class="eyebrow">QUALIFICATION SIMULATOR</div><h2>Aktif Lig Aşaması Tamamlandı</h2><p>Yeni bir League Phase veya Altın/Gümüş aşaması başladığında senaryo motoru yeniden açılır.</p></div></section></div>`;
+    const roundValues = context.remaining.map(match=>Number(match.round)||0);
+    const minRound = roundValues.length ? Math.min(...roundValues) : 0;
+    const shown = context.remaining.filter(match => Number(match.round) <= minRound + 1).slice(0, 12);
+    const tableMatches = context.baseMatches.map(simulatedMatch);
+    const rows = standings(context.ids, tableMatches).map((row,index)=>({ ...row, rank:index+1 }));
+    const entered = Object.values(qualificationScenario).filter(item=>item?.home!==""&&item?.away!=="").length;
+    return `<div class="intel-section-stack"><section class="intel-simulator-hero"><div><div class="eyebrow">WHAT-IF ENGINE</div><h2>Qualification Simulator</h2><p>Olası skorları gir, gerçek turnuva verisini değiştirmeden sıralamanın ve yükselme çizgilerinin nasıl değişeceğini anında gör.</p></div><div class="intel-sim-counter"><strong>${entered}</strong><span>SENARYO SKORU</span><small>${escapeHTML(context.label)}</small></div></section>
+      ${state.current.phase2.generated && !phase2Finished() ? `<div class="segmented-control intel-sim-group"><button class="segment-btn ${context.key === "gold" ? "active" : ""}" data-action="set-simulator-group" data-group="gold">Altın Grup</button><button class="segment-btn ${context.key === "silver" ? "active" : ""}" data-action="set-simulator-group" data-group="silver">Gümüş Grup</button></div>` : ""}
+      <div class="grid-2"><section class="panel"><div class="panel-header"><div><h3 class="panel-title">Skor Senaryoları</h3><div class="panel-subtitle">Sıradaki iki turun maçları. Boş bırakılan maç mevcut hâliyle kalır.</div></div><button class="btn btn-ghost" data-action="clear-simulator">Temizle</button></div><div class="intel-sim-fixtures">${shown.map(match => { const s=qualificationScenario[match.id]||{home:"",away:""}; return `<div class="intel-sim-match"><span>${escapeHTML(currentMatchStageLabel(match))}</span><strong>${escapeHTML(playerName(match.homeId))}</strong><input type="number" min="0" max="30" value="${escapeHTML(s.home)}" data-sim-match="${escapeHTML(match.id)}" data-sim-side="home" placeholder="–"><b>:</b><input type="number" min="0" max="30" value="${escapeHTML(s.away)}" data-sim-match="${escapeHTML(match.id)}" data-sim-side="away" placeholder="–"><strong>${escapeHTML(playerName(match.awayId))}</strong></div>`; }).join("")}</div><button class="btn btn-gold mt-16" data-action="run-simulator">Sıralamayı Yeniden Hesapla</button></section>
+      <section class="panel"><div class="panel-header"><div><h3 class="panel-title">Simüle Puan Durumu</h3><div class="panel-subtitle">Bu görünüm resmî sonuçları kaydetmez.</div></div><span class="badge badge-blue">WHAT IF</span></div><div class="intel-sim-table"><div class="head"><span>#</span><span>Oyuncu</span><span>O</span><span>P</span><span>AV</span><span>Durum</span></div>${rows.map(row => { const status=simulatorStatus(row,context); return `<div class="status-${status.key}"><span>${row.rank}</span><strong>${escapeHTML(row.p)}</strong><span>${row.mp}</span><b>${row.pts}</b><span>${formatGD(row.gd)}</span><small>${status.label}</small></div>`; }).join("")}</div></section></div>
+      <section class="panel"><div class="panel-header"><div><h3 class="panel-title">Senaryo Notları</h3><div class="panel-subtitle">Matematiksel olarak kesin garanti değildir; girilen skor kombinasyonunun anlık sonucudur.</div></div></div><div class="intel-scenario-notes">${rows.slice(0,6).map(row => { const status=simulatorStatus(row,context); return `<div><strong>${escapeHTML(row.p)}</strong><span>${status.key === "gold" ? "Altın Grup bölgesinde" : status.key === "silver" ? "Gümüş Grup bölgesinde" : status.key === "direct" ? "doğrudan yarı final çizgisinde" : status.key === "playoff" ? "eleme bileti bölgesinde" : "risk bölgesinde"}</span><b>${row.pts} puan · ${formatGD(row.gd)} averaj</b></div>`; }).join("")}</div></section>
+    </div>`;
+  }
+
+  function buildPlayerIdentityCards() {
+    const names = intelligenceNames();
+    const form = buildFormAnalytics(20, "all");
+    const allTime = buildAllTimeAnalytics();
+    const elo = buildEloAnalytics();
+    const achievements = buildAchievements();
+    const achievementMap = new Map(achievements.players.map(row=>[row.name,row]));
+    const matches = buildUnifiedAllTimeMatches();
+    return names.map(name => {
+      const f = form.playerMap.get(name) || { games:0,avgGoals:0,gaPerGame:0,formIndex:50,winRate:0,results:[],momentum:0,currentUnbeatenStreak:0 };
+      const career = allTime.playerMap.get(name) || { games:0,winRate:0,ppg:0,avgGoals:0,gaPerGame:0,titles:0 };
+      const e = elo.playerMap.get(name) || { rating:1500,tier:intelligenceTier(1500),last5Change:0 };
+      const playerMatches = matches.filter(match=>match.homeName===name||match.awayName===name).slice(-20);
+      const closeMatches = playerMatches.filter(match=>Math.abs(match.homeScore-match.awayScore)<=1);
+      const closeWins = closeMatches.filter(match=>match.winnerName===name).length;
+      const mental = intelligenceClamp(45 + (closeMatches.length ? closeWins/closeMatches.length*40 : 20) + Math.min(15,f.currentUnbeatenStreak*2));
+      const attack = intelligenceClamp(35 + (f.avgGoals/7)*45 + (f.winRate/100)*20);
+      const defense = intelligenceClamp(100 - (f.gaPerGame/7)*72 + (f.winRate/100)*12);
+      const formScore = intelligenceClamp(f.formIndex || 50);
+      const consistencyPoints = (f.results||[]).map(item=>item.result==="W"?3:item.result==="D"?1:0);
+      const mean = consistencyPoints.length ? consistencyPoints.reduce((s,v)=>s+v,0)/consistencyPoints.length : 1.5;
+      const variance = consistencyPoints.length ? consistencyPoints.reduce((s,v)=>s+Math.pow(v-mean,2),0)/consistencyPoints.length : 1;
+      const consistency = intelligenceClamp(92 - variance*22 + Math.min(8, f.games));
+      const legacy = intelligenceClamp(35 + (career.ppg/3)*35 + Math.min(18,(career.titles||0)*9) + Math.min(12,(career.games||0)/5));
+      const overall = Math.round(attack*.22 + defense*.18 + formScore*.22 + mental*.15 + consistency*.11 + legacy*.12);
+      let style = "Balanced Competitor";
+      if (attack-defense>=14) style="Aggressive Controller";
+      else if (defense-attack>=14) style="Tactical Wall";
+      else if (formScore>=82) style="Momentum Hunter";
+      else if (mental>=82) style="Clutch Specialist";
+      else if (legacy>=80) style="Tournament General";
+      const tier = overall>=90?{key:"icon",label:"ICON"}:overall>=84?{key:"elite",label:"ELITE"}:overall>=77?{key:"gold",label:"GOLD"}:overall>=68?{key:"silver",label:"SILVER"}:{key:"bronze",label:"BRONZE"};
+      return { name, overall, attack:Math.round(attack), defense:Math.round(defense), form:Math.round(formScore), mental:Math.round(mental), consistency:Math.round(consistency), legacy:Math.round(legacy), style, tier, elo:e.rating, eloTier:e.tier, momentum:f.momentum||0, favoriteTeam:f.favoriteTeam?.name||"–", badges:achievementMap.get(name)?.badges||[], career };
+    }).sort((a,b)=>b.overall-a.overall||b.elo-a.elo||a.name.localeCompare(b.name,"tr"));
+  }
+
+  function renderPlayerCardSection() {
+    const cards = buildPlayerIdentityCards();
+    const selected = cards.find(row=>row.name===intelligencePlayerCard) || cards[0];
+    intelligencePlayerCard = selected?.name || "";
+    if (!selected) return `<div class="info-box">Oyuncu verisi bulunmuyor.</div>`;
+    const stats = [["HÜCUM",selected.attack],["SAVUNMA",selected.defense],["FORM",selected.form],["MENTAL",selected.mental],["İSTİKRAR",selected.consistency],["MİRAS",selected.legacy]];
+    return `<div class="intel-section-stack"><section class="intel-card-hero"><div><div class="eyebrow">DYNAMIC PLAYER IDENTITY</div><h2>Oyuncu Kimlik Kartları</h2><p>Her sonuçtan sonra değişen overall, oyun stili, güçlü yönler, Elo seviyesi, rozetler ve takım uzmanlığı.</p></div><select id="intelPlayerCardSelect">${cards.map(row=>`<option value="${escapeHTML(row.name)}" ${row.name===selected.name?"selected":""}>${escapeHTML(row.name)} · ${row.overall} OVR</option>`).join("")}</select></section>
+      <section class="intel-player-card-stage"><article class="intel-master-card tier-${selected.tier.key}"><div class="intel-card-top"><strong>${selected.overall}</strong><span>${selected.tier.label}</span><b>F9</b></div><div class="intel-card-avatar">${escapeHTML(selected.name.split(" ").map(part=>part[0]).slice(0,2).join("").toUpperCase())}</div><h3>${escapeHTML(selected.name)}</h3><p>${escapeHTML(selected.style)}</p><div class="intel-card-meta"><span>${selected.elo} ELO</span><span>${escapeHTML(selected.favoriteTeam)}</span></div><div class="intel-card-badges">${selected.badges.slice(0,4).map(item=>`<span title="${escapeHTML(item.title)}">${item.icon}</span>`).join("")||"<span>◇</span>"}</div></article>
+      <div class="intel-card-analysis"><div class="panel-header"><div><h3 class="panel-title">Performance DNA</h3><div class="panel-subtitle">Son 20 maç ve tüm zamanlar verisinin birleşik profili.</div></div><span class="badge badge-gold">${selected.overall} OVR</span></div><div class="intel-card-bars">${stats.map(stat=>`<div><span>${stat[0]}</span><div><i style="width:${stat[1]}%"></i></div><strong>${stat[1]}</strong></div>`).join("")}</div><div class="intel-card-insight-grid"><div><span>Oyun Stili</span><strong>${escapeHTML(selected.style)}</strong></div><div><span>Elo Sınıfı</span><strong>${selected.eloTier.label}</strong></div><div><span>Momentum</span><strong>${selected.momentum>=0?"+":""}${selected.momentum}</strong></div><div><span>Rozet</span><strong>${selected.badges.length}</strong></div></div></div></section>
+      <section class="panel"><div class="panel-header"><div><h3 class="panel-title">Kart Koleksiyonu</h3><div class="panel-subtitle">Tüm oyuncular overall değerine göre sıralanır.</div></div><span class="badge badge-blue">${cards.length} CARDS</span></div><div class="intel-mini-card-grid">${cards.map(row=>`<button class="intel-mini-card tier-${row.tier.key} ${row.name===selected.name?"active":""}" data-action="select-player-card" data-player-name="${escapeHTML(row.name)}"><span>${row.overall}</span><strong>${escapeHTML(row.name)}</strong><small>${escapeHTML(row.style)}</small><b>${row.elo} ELO</b></button>`).join("")}</div></section>
+    </div>`;
+  }
+
+  function renderIntelligenceCentre() {
+    const sections = [
+      ["matchday", "Matchday", "◈"], ["elo", "Elo", "↗"], ["rivalry", "Rivalry DNA", "∞"],
+      ["predictions", "Tahmin Ligi", "1X2"], ["achievements", "Rozetler", "♛"],
+      ["simulator", "Simülatör", "◇"], ["cards", "Oyuncu Kartları", "▣"]
+    ];
+    const renderers = { matchday:renderMatchdaySection, elo:renderEloSection, rivalry:renderRivalrySection, predictions:renderPredictionSection, achievements:renderAchievementsSection, simulator:renderSimulatorSection, cards:renderPlayerCardSection };
+    if (!renderers[intelligenceSection]) intelligenceSection = "matchday";
+    view.innerHTML = `<div class="group-banner intelligence-banner"><div><div class="eyebrow">FIFA 9 · INTELLIGENCE SUITE v15</div><h2>Turnuva Zekâ Merkezi</h2><p>Maç öncesi analizden canlı momentuma, Elo gücünden rekabet DNA’sına, tahmin liginden oyuncu kartlarına kadar bütün veri katmanları tek merkezde.</p></div><div class="intelligence-orbit"><span>AI</span><i>LIVE</i><b>DATA</b></div></div>
+      <nav class="intel-tabs" aria-label="Intelligence modules">${sections.map(([key,label,icon])=>`<button class="${intelligenceSection===key?"active":""}" data-action="set-intelligence-section" data-intelligence-section="${key}"><span>${icon}</span><strong>${label}</strong></button>`).join("")}</nav>
+      ${renderers[intelligenceSection]()}`;
+  }
+
   function renderTeamStatistics() {
     const analytics = buildTeamAnalytics();
     if (!analytics.teams.length) {
@@ -3757,6 +4421,34 @@ ${shareData.url}`)}`;
     const action = event.target.closest("[data-action]");
     if (!action) return;
     const type = action.dataset.action;
+    if (type === "set-intelligence-section") {
+      intelligenceSection = action.dataset.intelligenceSection || "matchday";
+      if (activeView === "intelligence") renderIntelligenceCentre();
+      return;
+    }
+    if (type === "open-matchday-analysis") { openMatchdayAnalysis(action.dataset.matchId); return; }
+    if (type === "refresh-predictions") { predictionCache.loadedAt = 0; loadPredictionRows(true); return; }
+    if (type === "set-simulator-group") {
+      intelligenceSimulatorGroup = action.dataset.group === "silver" ? "silver" : "gold";
+      qualificationScenario = {};
+      if (activeView === "intelligence") renderIntelligenceCentre();
+      return;
+    }
+    if (type === "clear-simulator") {
+      qualificationScenario = {};
+      if (activeView === "intelligence") renderIntelligenceCentre();
+      return;
+    }
+    if (type === "run-simulator") {
+      if (activeView === "intelligence") renderIntelligenceCentre();
+      toast("Senaryo sıralaması yeniden hesaplandı.", "success");
+      return;
+    }
+    if (type === "select-player-card") {
+      intelligencePlayerCard = action.dataset.playerName || intelligencePlayerCard;
+      if (activeView === "intelligence") renderIntelligenceCentre();
+      return;
+    }
     if (type === "set-odds-filter") {
       oddsPhaseFilter = action.dataset.oddsFilter || "all";
       if (activeView === "odds") renderOddsCentre();
@@ -3856,6 +4548,13 @@ ${shareData.url}`)}`;
       if (active) { active[event.target.dataset.liveNumber] = Math.max(0, Number(event.target.value) || 0); active.updatedAt = new Date().toISOString(); saveState(); }
       return;
     }
+    if (event.target.dataset.simMatch) {
+      const matchId = event.target.dataset.simMatch;
+      const side = event.target.dataset.simSide === "away" ? "away" : "home";
+      if (!qualificationScenario[matchId]) qualificationScenario[matchId] = { home: "", away: "" };
+      qualificationScenario[matchId][side] = event.target.value;
+      return;
+    }
     const id = event.target.dataset.playerInput;
     if (!id || !canEdit()) return;
     const p = participant(id);
@@ -3881,6 +4580,10 @@ ${shareData.url}`)}`;
       event.preventDefault();
       finishLiveMatch(event.target);
     }
+    if (event.target.id === "predictionForm") {
+      event.preventDefault();
+      submitPrediction(event.target);
+    }
   });
 
   document.addEventListener("change", event => {
@@ -3893,6 +4596,22 @@ ${shareData.url}`)}`;
         saveState(false, true);
         if (activeView === "livematch") renderLiveMatchCentre();
       }
+      return;
+    }
+    if (event.target.id === "intelRivalA") {
+      intelligenceRivalA = event.target.value;
+      if (intelligenceRivalA === intelligenceRivalB) intelligenceRivalB = intelligenceNames().find(name => name !== intelligenceRivalA) || "";
+      if (activeView === "intelligence") renderIntelligenceCentre();
+      return;
+    }
+    if (event.target.id === "intelRivalB") {
+      intelligenceRivalB = event.target.value;
+      if (activeView === "intelligence") renderIntelligenceCentre();
+      return;
+    }
+    if (event.target.id === "intelPlayerCardSelect") {
+      intelligencePlayerCard = event.target.value;
+      if (activeView === "intelligence") renderIntelligenceCentre();
       return;
     }
     if (event.target.id === "importFile" && event.target.files?.[0]) importBackup(event.target.files[0]);

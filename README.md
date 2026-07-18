@@ -4,7 +4,7 @@ Bu paket, WhatsApp grubunda paylaşılabilecek tek bir web adresi üzerinden ça
 
 ## Canlı sistemde neler var?
 
-- 16 oyunculu UEFA League Phase: kişi başı 6 maç, toplam 48 maç
+- 16 oyunculu League Phase: kişi başı 6 maç, toplam 48 maç
 - İlk 6 Altın Grup, 7–12 Gümüş Grup, 13–16 elenir
 - League Phase puan ve averajlarının ikinci aşamaya taşınması
 - Altın ve Gümüş gruplarında kişi başı 5 ek maç
@@ -121,3 +121,35 @@ Yönetici panelindeki **Veri & Yedek** bölümünden düzenli JSON yedeği alın
 ---
 
 FIFA 9 Tournament Hub bağımsız ve özel bir oyun turnuvasıdır; UEFA, FIFA veya EA Sports ile bağlantılı değildir.
+
+## Simple PIN Player Chat v12/v13
+
+The site includes roster-based player identity selection, a personal 4–8 digit PIN, General and Live Match rooms, unread badges and administrator moderation. It does not require Supabase Anonymous Sign-In. v13 preserves the message draft while live chat polling runs.
+
+Required one-time setup:
+
+1. Run `supabase/chat_feature_v12.sql` in Supabase SQL Editor.
+2. Deploy `chat.js` together with the updated website files.
+3. Do not enable Anonymous Sign-In; it is not used by this version.
+
+See `CHAT_V12_FIX_INSTALL_TR.txt` and `CHAT_V13_DRAFT_FIX_TR.txt` for details.
+
+## Dynamic Match Odds v14
+
+The Match Odds centre calculates entertainment-only 1-X-2 probabilities and decimal odds for every unplayed FIFA 9 fixture. The model combines last-20 form, last-five performance, all-time efficiency, current FIFA 9 results, goal profile, momentum and a limited head-to-head adjustment. It recalculates automatically after every official result. No database migration is required and no real-money wagering functionality is included.
+
+## Intelligence Suite v15
+
+The v15 release adds one integrated Tournament Intelligence Centre with seven modules:
+
+- Matchday Intelligence: pre-match dossier, live momentum/win probability and automatic post-match narratives
+- Elo Power Ranking: long-term opponent-adjusted strength ratings and tier system
+- Rivalry DNA: head-to-head identity, balance, scoring intensity and rivalry tags
+- Community Prediction League: score predictions using the existing roster/PIN chat identity
+- Achievements & Badges: automatic performance, streak, upset, comeback and team-specialist awards
+- Qualification Simulator: non-destructive what-if score scenarios and simulated qualification lines
+- Dynamic Player Identity Cards: overall rating, play style, attributes, Elo and badge showcase
+
+Run `supabase/intelligence_feature_v15.sql` once to activate the Prediction League database functions. The other six modules are calculated directly from the existing tournament and historical match data.
+
+See `INTELLIGENCE_SUITE_INSTALL_TR.txt` for installation steps.

@@ -1,0 +1,61 @@
+FIFA 9 INTELLIGENCE SUITE v15 — KURULUM
+========================================
+
+Bu güncelleme aşağıdaki yedi modülü ekler:
+1. Matchday Intelligence
+2. Elo Güç Sıralaması
+3. Rivalry DNA
+4. Tahmin Şampiyonası
+5. Başarımlar ve Rozetler
+6. Qualification Simulator
+7. Dinamik Oyuncu Kimlik Kartları
+
+A) SUPABASE — YALNIZCA TAHMİN LİGİ İÇİN
+----------------------------------------
+1. Supabase projenizi açın.
+2. SQL Editor > New Query seçin.
+3. supabase/intelligence_feature_v15.sql dosyasının tamamını yapıştırın.
+4. Run düğmesine basın.
+5. Başarı mesajını kontrol edin.
+
+Bu SQL mevcut maçları, chat mesajlarını ve oyuncu hesaplarını silmez.
+Mevcut v12 Simple PIN Chat kurulumu gereklidir.
+
+B) GITHUB / VERCEL
+------------------
+Paket içindeki şu dosyaları repository ana dizinine yükleyin:
+- index.html
+- app.js
+- styles.css
+- language.js
+- chat.js
+- service-worker.js
+- supabase/intelligence_feature_v15.sql
+
+cloud-config.js dosyasına dokunmayın.
+
+Önerilen commit mesajı:
+Add FIFA 9 Intelligence Suite v15
+
+Vercel deployment tamamlandıktan sonra bilgisayarda Ctrl+F5 yapın.
+Telefonda eski sürüm görünürse site verisini/önbelleği temizleyin.
+
+TAHMİN LİGİ AKIŞI
+-----------------
+- Oyuncu önce Sohbet sekmesinde kayıtlı adını seçip PIN ile giriş yapar.
+- Zekâ Merkezi > Tahmin Ligi sekmesine gider.
+- Maç başlamadan skor tahminini kaydeder.
+- Aynı maç için tahminini maç canlıya alınmadan önce güncelleyebilir.
+- Maç sonucu kaydedildiğinde puan otomatik hesaplanır.
+
+PUANLAMA
+--------
+Tam skor: 5 puan
+Doğru sonuç: 3 puan
+Doğru gol farkı: +1 puan
+Sürpriz sonucu bilme: +1 puan
+
+NOT
+---
+Maç oranları ve tahmin ligi yalnızca özel turnuva içi eğlence ve istatistiksel
+karşılaştırma amacı taşır. Gerçek bahis, para yatırma veya ödeme işlevi yoktur.

@@ -15,7 +15,7 @@
     "Kapat": "Close",
     "Dashboard": "Dashboard",
     "Kura & Oyuncular": "Draw & Players",
-    "UEFA League Phase": "UEFA League Phase",
+    "League Phase": "League Phase",
     "Altın Grup": "Gold Group",
     "Gümüş Grup": "Silver Group",
     "Eleme Aşaması": "Knockout Stage",
@@ -104,7 +104,7 @@
     "İsimleri değiştirebilirsin; ancak oyuncu sıraları ve maç kimlikleri korunur. Tamamen yeni bir kura için “FIFA 9 Verisini Sıfırla” işlemini kullan.": "You may change the names, but player slots and match IDs will remain unchanged. Use “Reset FIFA 9 Data” for a completely new draw.",
     "Kura ve oyuncu listesi canlı olarak yayımlanıyor.": "The draw and player list are being published live.",
     "Nihai Format": "Final Format",
-    "FIFA 9 · UEFA League Phase sistemi": "FIFA 9 · UEFA League Phase system",
+    "FIFA 9 · League Phase sistemi": "FIFA 9 · League Phase system",
     "16 oyuncu, tek tablo, oyuncu başına 6 maç; toplam 48 maç.": "16 players, one table, 6 matches per player; 48 matches in total.",
     "İlk 6 Altın, sonraki 6 Gümüş; son 4 elenir. Puanlar taşınır.": "The top 6 enter Gold, the next 6 enter Silver; the bottom 4 are eliminated. Points carry over.",
     "İkinci Lig Aşaması": "Second League Stage",
@@ -741,7 +741,61 @@
     "Orta veri güveni": "Medium data confidence",
     "Sınırlı veri güveni": "Limited data confidence",
     "Kayıt oluşmadı.": "No record available.",
-    "Tüm hakları saklıdır.": "All rights reserved."
+    "Tüm hakları saklıdır.": "All rights reserved.",
+    "Zekâ Merkezi": "Intelligence Centre",
+    "Turnuva Zekâ Merkezi": "Tournament Intelligence Centre",
+    "Maç öncesi analizden canlı momentuma, Elo gücünden rekabet DNA’sına, tahmin liginden oyuncu kartlarına kadar bütün veri katmanları tek merkezde.": "All data layers in one centre, from pre-match analysis and live momentum to Elo strength, rivalry DNA, the prediction league and player cards.",
+    "Matchday": "Matchday",
+    "Tahmin Ligi": "Prediction League",
+    "Rozetler": "Achievements",
+    "Simülatör": "Simulator",
+    "Oyuncu Kartları": "Player Cards",
+    "Maç öncesi analiz, canlı hikâye ve maç sonrası otomatik rapor tek akışta.": "Pre-match analysis, live narrative and an automatic post-match report in one flow.",
+    "Yaklaşan Maç Dosyaları": "Upcoming Match Files",
+    "Otomatik Maç Sonu Hikâyeleri": "Automatic Post-Match Stories",
+    "Elo Güç Sıralaması": "Elo Power Ranking",
+    "Rakibin gücü, maç sonucu, skor farkı ve turnuva aşamasını dikkate alan uzun vadeli performans modeli.": "A long-term performance model that considers opponent strength, match result, score margin and tournament stage.",
+    "Canlı Elo Sıralaması": "Live Elo Ranking",
+    "En Hızlı Yükselen": "Fastest Riser",
+    "Ortalama Güç": "Average Strength",
+    "İşlenen Maç": "Processed Matches",
+    "Rekabet Kimliği": "Rivalry Identity",
+    "Her eşleşmenin tarihini, psikolojik üstünlüğünü, gol karakterini ve kader anlarını tek kartta çözümler.": "Analyses the history, psychological edge, scoring character and defining moments of every matchup in one card.",
+    "Denge Endeksi": "Balance Index",
+    "Gol Yoğunluğu": "Goal Intensity",
+    "Beraberlik Oranı": "Draw Rate",
+    "Psikolojik Üstünlük": "Psychological Edge",
+    "Rekabet Zaman Çizelgesi": "Rivalry Timeline",
+    "Oyuncu Üzerindeki Etki": "Player Impact",
+    "Tahmin Şampiyonası": "Prediction Championship",
+    "Oyuncular maç başlamadan skor tahmini yapar. Tam skor, doğru sonuç, gol farkı ve sürpriz tahmin bonuslarıyla ayrı bir şampiyonluk yarışı oluşur.": "Players predict the score before kickoff. Exact score, correct outcome, goal-difference and upset bonuses create a separate championship race.",
+    "Tahminini Gönder": "Submit Your Prediction",
+    "Tahmin Ligi Puan Durumu": "Prediction League Standings",
+    "Tahminlerim": "My Predictions",
+    "Tahmini Kaydet / Güncelle": "Save / Update Prediction",
+    "Oyuncu oturumu gerekli": "Player Session Required",
+    "Sohbetten Oyuncu Girişi Yap": "Sign In Through Chat",
+    "Başarımlar & Rozetler": "Achievements & Badges",
+    "Sonuçlar, canlı maç olayları, seriler, Elo sürprizleri ve takım uzmanlığından otomatik kazanılan dijital başarımlar.": "Digital achievements automatically unlocked from results, live match events, streaks, Elo upsets and team expertise.",
+    "Oyuncu Rozet Vitrini": "Player Badge Showcase",
+    "Rozet Kataloğu": "Badge Catalogue",
+    "Qualification Simulator": "Qualification Simulator",
+    "Olası skorları gir, gerçek turnuva verisini değiştirmeden sıralamanın ve yükselme çizgilerinin nasıl değişeceğini anında gör.": "Enter possible scores and instantly see how the standings and qualification lines change without altering official tournament data.",
+    "Skor Senaryoları": "Score Scenarios",
+    "Simüle Puan Durumu": "Simulated Standings",
+    "Sıralamayı Yeniden Hesapla": "Recalculate Standings",
+    "Senaryo Notları": "Scenario Notes",
+    "Oyuncu Kimlik Kartları": "Player Identity Cards",
+    "Her sonuçtan sonra değişen overall, oyun stili, güçlü yönler, Elo seviyesi, rozetler ve takım uzmanlığı.": "Overall rating, play style, strengths, Elo level, badges and team expertise that change after every result.",
+    "Kart Koleksiyonu": "Card Collection",
+    "Oyun Stili": "Play Style",
+    "Elo Sınıfı": "Elo Tier",
+    "İSTİKRAR": "CONSISTENCY",
+    "MİRAS": "LEGACY",
+    "Senaryo sıralaması yeniden hesaplandı.": "Scenario standings recalculated.",
+    "Tahminin kaydedildi.": "Your prediction has been saved.",
+    "Önce Sohbet bölümünden oyuncu PIN oturumu aç.": "Open a player PIN session in Chat first.",
+    "Bu maç tahmine kapalı.": "Predictions are closed for this match."
   };
 
   const reverse = Object.fromEntries(Object.entries(dictionary).map(([tr, en]) => [en, tr]));
@@ -896,8 +950,8 @@
     document.title = lang === "en" ? "FIFA 9 Tournament Hub" : "FIFA Turnuva Merkezi";
     const meta = document.querySelector('meta[name="description"]');
     if (meta) meta.content = lang === "en"
-      ? "FIFA Tournament Hub — FIFA 9 UEFA League Phase, live standings, fixtures, knockout series and an eight-tournament archive."
-      : "FIFA Turnuva Merkezi — FIFA 9 UEFA League Phase, canlı puan tabloları, fikstür, eleme serileri ve 8 turnuvalık arşiv.";
+      ? "FIFA Tournament Hub — FIFA 9 League Phase, live standings, fixtures, knockout series and an eight-tournament archive."
+      : "FIFA Turnuva Merkezi — FIFA 9 League Phase, canlı puan tabloları, fikstür, eleme serileri ve 8 turnuvalık arşiv.";
 
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     const textNodes = [];
