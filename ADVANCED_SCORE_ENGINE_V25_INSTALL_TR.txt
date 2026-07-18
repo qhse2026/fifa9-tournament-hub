@@ -1,0 +1,33 @@
+FIFA 9 Advanced Score Engine v25 — Kurulum Notu
+
+Bu güncelleme, turnuva simülatöründeki tekrar eden 4-3 / 3-2 tipi basit skor tahminlerini daha gerçekçi ve eşleşmeye özel bir skor modeline dönüştürür.
+
+Yeni motor:
+- Bayesçi veri güvenilirliği düzeltmesi
+- Oyuncu hücum gücü × rakip savunma zayıflığı
+- Son 20 maç, FIFA 9 performansı ve tüm zamanlar verisinin ayrı ağırlıkları
+- League Phase / grup / eleme / final için aşama-tempo farkı
+- Negative Binomial aşırı dağılımlı gol modeli
+- 0-0 ile 15-15 arasındaki yüzlerce skorun olasılık matrisi
+- Skor matrisinin 1-X-2 oran olasılıklarına kalibrasyonu
+- Her maç için xG-benzeri beklenen skor
+- Volatilite ve maç tempo sınıfı
+- Alternatif skor ihtimalleri
+- Yakın maç, dominant sonuç, gol düellosu ve sürpriz senaryo etiketleri
+- Güncel sonuç değişmediği sürece sabit kalan; yeni sonuç geldiğinde tamamen yeniden hesaplanan ana turnuva yolu
+
+PATCH ONLY kurulumu:
+1. ZIP dosyasını ayıkla.
+2. GitHub repository ana dizinine aşağıdaki dosyaları yükle:
+   - app.js
+   - styles.css
+   - service-worker.js
+   - ADVANCED_SCORE_ENGINE_V25_INSTALL_TR.txt
+3. Commit mesajı:
+   Add Advanced Score Engine v25
+4. Vercel deployment tamamlandıktan sonra Ctrl + F5 yap.
+5. Telefonda eski sürüm görünürse site önbelleğini temizle.
+
+Supabase SQL gerekmez.
+cloud-config.js dosyasına dokunma.
+Mevcut maçlar, canlı yayınlar, sohbet, rozetler ve topluluk oyları korunur.

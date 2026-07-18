@@ -3220,6 +3220,148 @@
     return `${fav.name}, ${reasons.join(" ve ")} sayesinde model favorisi.`;
   }
 
+
+  function advancedGlobalScoringEnvironment(context) {
+    const matches = (context?.unifiedMatches || []).filter(match => Number.isFinite(Number(match.homeScore)) && Number.isFinite(Number(match.awayScore)));
+    const recent = matches.slice(-160);
+    const sample = recent.length ? recent : matches;
+    if (!sample.length) return { meanPerSide:3, meanTotal:6, varianceTotal:7, drawRate:.14, sample:0 };
+    const totals = sample.map(match => Number(match.homeScore) + Number(match.awayScore));
+    const meanTotal = totals.reduce((sum,value)=>sum+value,0) / totals.length;
+    const varianceTotal = totals.reduce((sum,value)=>sum+Math.pow(value-meanTotal,2),0) / totals.length;
+    const drawRate = sample.filter(match=>Number(match.homeScore)===Number(match.awayScore)).length / sample.length;
+    return {
+      meanPerSide:oddsClamp(meanTotal/2,1.6,5.8),
+      meanTotal:oddsClamp(meanTotal,3.2,11.6),
+      varianceTotal:oddsClamp(varianceTotal,2,28),
+      drawRate:oddsClamp(drawRate,.04,.34),
+      sample:sample.length
+    };
+  }
+
+  function advancedWeightedRate(recentValue, recentGames, currentValue, currentGames, careerValue, careerGames, neutral) {
+    const recentWeight = Math.min(1, Number(recentGames||0)/20) * .46;
+    const currentWeight = Math.min(1, Number(currentGames||0)/6) * .24;
+    const careerWeight = Math.min(1, Number(careerGames||0)/40) * .30;
+    const used = recentWeight + currentWeight + careerWeight;
+    const observed = used
+      ? ((Number(recentValue)||neutral)*recentWeight + (Number(currentValue)||neutral)*currentWeight + (Number(careerValue)||neutral)*careerWeight) / used
+      : neutral;
+    const credibility = oddsClamp((Number(recentGames||0)+Math.min(18,Number(currentGames||0)*2)+Math.min(30,Number(careerGames||0))) / 60,0,1);
+    return neutral*(1-credibility)+observed*credibility;
+  }
+
+  function advancedMatchGoalModel(home, away, h2h, match, context) {
+    const env = advancedGlobalScoringEnvironment(context);
+    const homeCareerGames = Number(home.career?.games)||0;
+    const awayCareerGames = Number(away.career?.games)||0;
+    const homeCurrentGames = Number(home.current?.games)||0;
+    const awayCurrentGames = Number(away.current?.games)||0;
+    const homeCareerGF = homeCareerGames ? Number(home.career?.gf||0)/homeCareerGames : env.meanPerSide;
+    const awayCareerGF = awayCareerGames ? Number(away.career?.gf||0)/awayCareerGames : env.meanPerSide;
+    const homeCareerGA = homeCareerGames ? Number(home.career?.ga||0)/homeCareerGames : env.meanPerSide;
+    const awayCareerGA = awayCareerGames ? Number(away.career?.ga||0)/awayCareerGames : env.meanPerSide;
+    const homeCurrentGF = homeCurrentGames ? Number(home.current?.gf||0)/homeCurrentGames : env.meanPerSide;
+    const awayCurrentGF = awayCurrentGames ? Number(away.current?.gf||0)/awayCurrentGames : env.meanPerSide;
+    const homeCurrentGA = homeCurrentGames ? Number(home.current?.ga||0)/homeCurrentGames : env.meanPerSide;
+    const awayCurrentGA = awayCurrentGames ? Number(away.current?.ga||0)/awayCurrentGames : env.meanPerSide;
+
+    const homeAttack = advancedWeightedRate(home.avgGoals,home.form?.games,homeCurrentGF,homeCurrentGames,homeCareerGF,homeCareerGames,env.meanPerSide);
+    const awayAttack = advancedWeightedRate(away.avgGoals,away.form?.games,awayCurrentGF,awayCurrentGames,awayCareerGF,awayCareerGames,env.meanPerSide);
+    const homeWeakness = advancedWeightedRate(home.gaPerGame,home.form?.games,homeCurrentGA,homeCurrentGames,homeCareerGA,homeCareerGames,env.meanPerSide);
+    const awayWeakness = advancedWeightedRate(away.gaPerGame,away.form?.games,awayCurrentGA,awayCurrentGames,awayCareerGA,awayCareerGames,env.meanPerSide);
+
+    const homeBase = Math.sqrt(Math.max(.12,homeAttack)*Math.max(.12,awayWeakness));
+    const awayBase = Math.sqrt(Math.max(.12,awayAttack)*Math.max(.12,homeWeakness));
+    const playerTempo = (homeAttack+homeWeakness+awayAttack+awayWeakness)/2;
+    const h2hTempo = h2h.meetings ? (h2h.goalsA+h2h.goalsB)/h2h.meetings : env.meanTotal;
+    const h2hWeight = oddsClamp(h2h.meetings/8,0,.38);
+    let targetTotal = env.meanTotal*.35 + playerTempo*.47 + h2hTempo*h2hWeight*.18 + env.meanTotal*(1-h2hWeight)*.18;
+    const phaseFactor = match?.phase === 'final' ? .91 : match?.phase === 'knockout' ? .95 : match?.phase === 'gold' || match?.phase === 'silver' ? .99 : 1.03;
+    const averageMomentum = ((Number(home.form?.momentum)||0)+(Number(away.form?.momentum)||0))/30;
+    const momentumTempo = 1 + oddsClamp(Math.abs(averageMomentum)*.055,0,.075);
+    targetTotal = oddsClamp(targetTotal*phaseFactor*momentumTempo,2.6,11.8);
+
+    const rawShare = homeBase/(homeBase+awayBase || 1);
+    const strengthShare = oddsSigmoid((home.strength-away.strength+h2h.edgeA*1.2)/12.5);
+    const share = oddsClamp(rawShare*.64+strengthShare*.36,.16,.84);
+    let expectedHome = oddsClamp(targetTotal*share,.35,9.2);
+    let expectedAway = oddsClamp(targetTotal*(1-share),.35,9.2);
+
+    const observedVarianceRatio = env.varianceTotal / Math.max(1,env.meanTotal);
+    const styleSpread = Math.abs((home.avgGoals+home.gaPerGame)-(away.avgGoals+away.gaPerGame));
+    const dispersion = oddsClamp(5.5-observedVarianceRatio*.72-styleSpread*.10+(home.sampleScore+away.sampleScore)*.7,1.65,6.2);
+    const tempoLabel = targetTotal >= 8.3 ? 'Gol Fırtınası' : targetTotal >= 6.7 ? 'Açık Oyun' : targetTotal <= 4.4 ? 'Taktik Savaş' : 'Dengeli Tempo';
+    const volatility = oddsClamp((1/dispersion)*100+Math.abs(home.form?.momentum||0)*1.3+Math.abs(away.form?.momentum||0)*1.3,18,88);
+    return { expectedHome, expectedAway, expectedTotal:expectedHome+expectedAway, dispersion, tempoLabel, volatility, environment:env, homeAttack,awayAttack,homeWeakness,awayWeakness };
+  }
+
+  function simulationLogGamma(z) {
+    const coefficients=[676.5203681218851,-1259.1392167224028,771.32342877765313,-176.61502916214059,12.507343278686905,-0.13857109526572012,9.9843695780195716e-6,1.5056327351493116e-7];
+    if (z<.5) return Math.log(Math.PI)-Math.log(Math.sin(Math.PI*z))-simulationLogGamma(1-z);
+    z-=1;
+    let x=.99999999999980993;
+    for(let i=0;i<coefficients.length;i++) x+=coefficients[i]/(z+i+1);
+    const t=z+coefficients.length-.5;
+    return .5*Math.log(2*Math.PI)+(z+.5)*Math.log(t)-t+Math.log(x);
+  }
+
+  function simulationNegativeBinomialPmf(score, mean, dispersion) {
+    const x=Math.max(0,Math.floor(Number(score)||0));
+    const mu=Math.max(.02,Number(mean)||0);
+    const k=Math.max(.45,Number(dispersion)||2.5);
+    const p=k/(k+mu);
+    const logP=simulationLogGamma(x+k)-simulationLogGamma(k)-simulationLogGamma(x+1)+k*Math.log(p)+x*Math.log(1-p);
+    return Math.exp(logP);
+  }
+
+  function simulationOutcomeOfScore(homeScore,awayScore) {
+    return homeScore>awayScore?'home':awayScore>homeScore?'away':'draw';
+  }
+
+  function simulationBuildScoreDistribution(model, allowDraw=true, phase='league') {
+    const maxScore=Math.max(10,Math.min(15,Math.ceil(Math.max(model.expectedHome||3,model.expectedAway||3)+6)));
+    const homePmf=[],awayPmf=[];
+    for(let score=0;score<=maxScore;score++) {
+      homePmf.push(simulationNegativeBinomialPmf(score,model.expectedHome,model.dispersion));
+      awayPmf.push(simulationNegativeBinomialPmf(score,model.expectedAway,model.dispersion));
+    }
+    const rows=[];
+    const rawMass={home:0,draw:0,away:0};
+    for(let h=0;h<=maxScore;h++) for(let a=0;a<=maxScore;a++) {
+      const outcome=simulationOutcomeOfScore(h,a);
+      if(!allowDraw && outcome==='draw') continue;
+      let correlation=1;
+      if(h===0&&a===0) correlation=.82;
+      else if(h===1&&a===1) correlation=1.08;
+      else if((h===1&&a===0)||(h===0&&a===1)) correlation=.92;
+      if(phase==='final' && h+a<=3) correlation*=1.08;
+      const raw=homePmf[h]*awayPmf[a]*correlation;
+      rows.push({homeScore:h,awayScore:a,outcome,raw});
+      rawMass[outcome]+=raw;
+    }
+    const targets={
+      home:Number(model.market?.home?.probability)||.34,
+      draw:allowDraw?(Number(model.market?.draw?.probability)||.32):0,
+      away:Number(model.market?.away?.probability)||.34
+    };
+    if(!allowDraw) {
+      const total=targets.home+targets.away||1;
+      targets.home/=total; targets.away/=total;
+    }
+    const factors={home:targets.home/Math.max(1e-9,rawMass.home),draw:allowDraw?targets.draw/Math.max(1e-9,rawMass.draw):0,away:targets.away/Math.max(1e-9,rawMass.away)};
+    let total=0;
+    rows.forEach(row=>{ row.probability=row.raw*factors[row.outcome]; total+=row.probability; });
+    rows.forEach(row=>{ row.probability/=total||1; });
+    rows.sort((a,b)=>b.probability-a.probability || Math.abs((a.homeScore+a.awayScore)-(model.expectedHome+model.expectedAway))-Math.abs((b.homeScore+b.awayScore)-(model.expectedHome+model.expectedAway)));
+    return rows;
+  }
+
+  function simulationMostLikelyScore(distribution, preferredOutcome='') {
+    const pool=preferredOutcome?distribution.filter(row=>row.outcome===preferredOutcome):distribution;
+    return pool[0]||distribution[0]||{homeScore:0,awayScore:0,probability:0,outcome:'draw'};
+  }
+
   function buildMatchOdds(match, context) {
     const homeName = playerName(match.homeId);
     const awayName = playerName(match.awayId);
@@ -3254,22 +3396,20 @@
     const sample = (home.sampleScore + away.sampleScore) / 2;
     const confidence = Math.round(oddsClamp(46 + sample * 30 + Math.min(Math.abs(difference), 22) * .75 - closeness * 4, 45, 92));
 
-    const expectedHomeBase = (home.avgGoals + away.gaPerGame) / 2;
-    const expectedAwayBase = (away.avgGoals + home.gaPerGame) / 2;
-    const expectedHome = oddsClamp(expectedHomeBase + difference / 38, .5, 7.5);
-    const expectedAway = oddsClamp(expectedAwayBase - difference / 38, .5, 7.5);
-    let predictedHome = Math.max(0, Math.round(expectedHome));
-    let predictedAway = Math.max(0, Math.round(expectedAway));
-    if (predictedHome === predictedAway && Math.abs(difference) > 5) {
-      if (difference > 0) predictedHome += 1;
-      else predictedAway += 1;
-    }
+    const goalModel = advancedMatchGoalModel(home, away, h2h, match, context);
+    const expectedHome = goalModel.expectedHome;
+    const expectedAway = goalModel.expectedAway;
 
     const market = {
       home: { probability: homeProbability, odds: oddsDecimal(homeProbability) },
       draw: { probability: drawProbability, odds: oddsDecimal(drawProbability) },
       away: { probability: awayProbability, odds: oddsDecimal(awayProbability) }
     };
+    const scoreDistribution = simulationBuildScoreDistribution({ market, expectedHome, expectedAway, dispersion:goalModel.dispersion }, match.allowDraw !== false, match.phase);
+    const marketOutcome = homeProbability >= drawProbability && homeProbability >= awayProbability ? "home" : awayProbability >= homeProbability && awayProbability >= drawProbability ? "away" : "draw";
+    const modalScore = simulationMostLikelyScore(scoreDistribution, marketOutcome);
+    const predictedHome = modalScore.homeScore;
+    const predictedAway = modalScore.awayScore;
     const isBalanced = Math.abs(homeProbability - awayProbability) <= .08;
     const strongFavorite = favoriteProbability >= .62;
     const surprisePotential = favoriteProbability >= .54 && underdogProbability >= .25;
@@ -3295,6 +3435,14 @@
       confidenceLabel: oddsConfidenceLabel(confidence),
       predictedHome,
       predictedAway,
+      expectedHome,
+      expectedAway,
+      expectedTotal:goalModel.expectedTotal,
+      dispersion:goalModel.dispersion,
+      tempoLabel:goalModel.tempoLabel,
+      volatility:goalModel.volatility,
+      scoreDistribution,
+      scorelineProbability:modalScore.probability,
       reason,
       isBalanced,
       strongFavorite,
@@ -3558,7 +3706,7 @@
   }
 
   // ──────────────────────────────────────────────────────────────────────────
-  // FIFA 9 INTELLIGENCE SUITE v18
+  // FIFA 9 INTELLIGENCE SUITE · ADVANCED SCORE ENGINE v25
   // Matchday intelligence, Elo, Rivalry DNA, prediction league, achievements,
   // qualification simulator and dynamic player identity cards.
   // ──────────────────────────────────────────────────────────────────────────
@@ -4434,27 +4582,77 @@
     return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
   }
 
+
   function simulationPoisson(lambda, rand) {
-    const safe = Math.max(.05, Math.min(10, Number(lambda) || 0));
+    const safe = Math.max(.05, Math.min(12, Number(lambda) || 0));
     if (safe > 7) return Math.max(0, Math.round(safe + Math.sqrt(safe) * simulationNormal(rand)));
     const threshold = Math.exp(-safe);
     let product = 1;
     let value = 0;
-    do { value += 1; product *= rand(); } while (product > threshold && value < 30);
+    do { value += 1; product *= rand(); } while (product > threshold && value < 34);
     return Math.max(0, value - 1);
+  }
+
+  function simulationWeightedScoreChoice(distribution, rand, outcome = "", representative = false) {
+    let pool = outcome ? distribution.filter(row => row.outcome === outcome) : distribution;
+    if (!pool.length) pool = distribution;
+    if (representative) {
+      const top = pool.slice(0, Math.min(18, pool.length));
+      const total = top.reduce((sum,row)=>sum+Math.pow(Math.max(1e-12,row.probability),.72),0);
+      let roll = rand() * (total || 1);
+      for (const row of top) {
+        roll -= Math.pow(Math.max(1e-12,row.probability),.72);
+        if (roll <= 0) return row;
+      }
+      return top[0];
+    }
+    let roll = rand();
+    for (const row of pool) {
+      roll -= row.probability;
+      if (roll <= 0) return row;
+    }
+    return pool[pool.length-1] || {homeScore:0,awayScore:0,outcome:"draw",probability:0};
+  }
+
+  function simulationRepresentativeOutcome(model, allowDraw, rand) {
+    const source = {
+      home:Number(model.market.home.probability)||.34,
+      draw:allowDraw?(Number(model.market.draw.probability)||.32):0,
+      away:Number(model.market.away.probability)||.34
+    };
+    const favorite = Math.max(source.home,source.draw,source.away);
+    const power = favorite >= .62 ? 1.30 : favorite >= .52 ? 1.16 : 1.04;
+    const weights={home:Math.pow(source.home,power),draw:allowDraw?Math.pow(source.draw,power):0,away:Math.pow(source.away,power)};
+    const total=weights.home+weights.draw+weights.away||1;
+    let roll=rand()*total;
+    for(const key of ["home","draw","away"]) { roll-=weights[key]; if(roll<=0) return key; }
+    return source.home>=source.away?"home":"away";
+  }
+
+  function simulationScenarioLabel(model, score) {
+    const total=score.homeScore+score.awayScore;
+    const margin=Math.abs(score.homeScore-score.awayScore);
+    const favoriteOutcome=model.favoriteSide;
+    const upset=score.outcome!=="draw" && score.outcome!==favoriteOutcome && model.favoriteProbability>=.54;
+    if(upset) return "Sürpriz Senaryo";
+    if(total>=10) return "Skor Patlaması";
+    if(total>=8&&margin<=2) return "Gol Düellosu";
+    if(margin>=4) return "Dominant Sonuç";
+    if(score.outcome==="draw") return "Denge Senaryosu";
+    if(margin===1) return "İnce Marj";
+    return model.tempoLabel||"Model Senaryosu";
   }
 
   function buildTournamentSimulationEngine() {
     const context = oddsBuildContext();
     const matchupCache = new Map();
     function matchup(homeId, awayId, allowDraw = true, phase = "league", round = 1) {
-      const key = `${homeId}|${awayId}|${allowDraw ? 1 : 0}`;
+      const key = `${homeId}|${awayId}|${allowDraw ? 1 : 0}|${phase}`;
       if (!matchupCache.has(key)) {
         const match = { id:`sim-model-${key}`, phase, round, homeId, awayId, allowDraw, homeScore:null, awayScore:null, tiebreakWinnerId:null };
         const odds = buildMatchOdds(match, context);
-        const expectedHome = oddsClamp((odds.home.avgGoals + odds.away.gaPerGame) / 2 + odds.difference / 38, .45, 8.2);
-        const expectedAway = oddsClamp((odds.away.avgGoals + odds.home.gaPerGame) / 2 - odds.difference / 38, .45, 8.2);
-        matchupCache.set(key, { ...odds, expectedHome, expectedAway });
+        const scoreDistribution = odds.scoreDistribution || simulationBuildScoreDistribution(odds, allowDraw, phase);
+        matchupCache.set(key, { ...odds, scoreDistribution });
       }
       return matchupCache.get(key);
     }
@@ -4472,44 +4670,25 @@
 
   function resolveSimulationMatch(match, engine, rand, deterministic = false, customLabel = "") {
     if (matchComplete(match)) return { ...match, simulated:false, stageLabel:simulationStageLabel(match, customLabel) };
-    const model = engine.matchup(match.homeId, match.awayId, match.allowDraw !== false, match.phase, match.round);
-    let outcome = "draw";
-    if (match.allowDraw === false) {
-      const total = model.market.home.probability + model.market.away.probability;
-      const homeChance = total ? model.market.home.probability / total : .5;
-      outcome = (deterministic ? homeChance >= .5 : rand() < homeChance) ? "home" : "away";
-    } else if (deterministic) {
-      const values = [
-        ["home", model.market.home.probability],
-        ["draw", model.market.draw.probability],
-        ["away", model.market.away.probability]
-      ].sort((a,b) => b[1]-a[1]);
-      outcome = values[0][0];
+    const allowDraw = match.allowDraw !== false;
+    const model = engine.matchup(match.homeId, match.awayId, allowDraw, match.phase, match.round);
+    let score;
+    if (deterministic) {
+      const outcome = simulationRepresentativeOutcome(model, allowDraw, rand);
+      score = simulationWeightedScoreChoice(model.scoreDistribution, rand, outcome, true);
     } else {
-      const roll = rand();
-      if (roll < model.market.home.probability) outcome = "home";
-      else if (roll < model.market.home.probability + model.market.draw.probability) outcome = "draw";
-      else outcome = "away";
+      score = simulationWeightedScoreChoice(model.scoreDistribution, rand, "", false);
     }
-
-    let homeScore = deterministic ? model.predictedHome : simulationPoisson(model.expectedHome, rand);
-    let awayScore = deterministic ? model.predictedAway : simulationPoisson(model.expectedAway, rand);
-    if (outcome === "draw") {
-      const level = Math.max(0, Math.round((homeScore + awayScore) / 2));
-      homeScore = level; awayScore = level;
-    } else if (outcome === "home" && homeScore <= awayScore) {
-      homeScore = awayScore + 1 + (!deterministic && rand() < .18 ? 1 : 0);
-    } else if (outcome === "away" && awayScore <= homeScore) {
-      awayScore = homeScore + 1 + (!deterministic && rand() < .18 ? 1 : 0);
-    }
-
+    const scenarioLabel = simulationScenarioLabel(model, score);
     return {
       ...match,
-      homeScore,
-      awayScore,
-      tiebreakWinnerId: match.allowDraw === false && homeScore === awayScore ? (outcome === "home" ? match.homeId : match.awayId) : null,
+      homeScore:score.homeScore,
+      awayScore:score.awayScore,
+      tiebreakWinnerId:null,
       simulated:true,
       stageLabel:simulationStageLabel(match, customLabel),
+      scenarioLabel,
+      scorelineProbability:score.probability,
       model
     };
   }
@@ -4606,7 +4785,7 @@
       leagueRankTotal:0, leaguePointsTotal:0
     }]));
     const finalPairs = new Map();
-    const seed = `fifa9-tournament-simulation-v18-${fingerprint}-${runs}-${tournamentSimulationNonce}`;
+    const seed = `fifa9-tournament-simulation-v25-${fingerprint}-${runs}-${tournamentSimulationNonce}`;
     const rand = seededRandom(seed);
     for (let index = 0; index < runs; index++) {
       const result = simulateTournamentOnce(engine, rand, false);
@@ -4700,6 +4879,26 @@
     }).join("")}</div>`;
   }
 
+
+  function simulationPredictionCard(match, index) {
+    const model=match.model;
+    const homeName=playerName(match.homeId),awayName=playerName(match.awayId);
+    if(!model) return `<article class="advanced-prediction-card actual"><header><span>${index+1}</span><small>${escapeHTML(match.stageLabel)}</small><b>GERÇEK</b></header><div class="advanced-prediction-score"><strong>${escapeHTML(homeName)}</strong><span>${match.homeScore}–${match.awayScore}</span><strong>${escapeHTML(awayName)}</strong></div></article>`;
+    const alternatives=(model.scoreDistribution||[]).filter(row=>!(row.homeScore===match.homeScore&&row.awayScore===match.awayScore)).slice(0,3);
+    const scoreProbability=Number(match.scorelineProbability||0);
+    const scenario=match.scenarioLabel||model.tempoLabel||"Model Senaryosu";
+    const outcome=match.homeScore>match.awayScore?"home":match.awayScore>match.homeScore?"away":"draw";
+    const resultLabel=outcome==="home"?homeName:outcome==="away"?awayName:"Beraberlik";
+    return `<article class="advanced-prediction-card outcome-${outcome}">
+      <header><span>${index+1}</span><small>${escapeHTML(match.stageLabel)}</small><b>${escapeHTML(scenario)}</b></header>
+      <div class="advanced-prediction-main"><div class="advanced-prediction-player home"><strong>${escapeHTML(homeName)}</strong><small>${model.home?.form?.last5Label||"–"}</small></div><div class="advanced-prediction-score"><span>${match.homeScore}<i>–</i>${match.awayScore}</span><small>${escapeHTML(resultLabel)} · temsilî ana yol</small></div><div class="advanced-prediction-player away"><strong>${escapeHTML(awayName)}</strong><small>${model.away?.form?.last5Label||"–"}</small></div></div>
+      <div class="advanced-model-grid"><div><span>xG-benzeri beklenen skor</span><strong>${Number(model.expectedHome||0).toFixed(2)} – ${Number(model.expectedAway||0).toFixed(2)}</strong></div><div><span>Skor olasılığı</span><strong>${(scoreProbability*100).toFixed(1)}%</strong></div><div><span>Model güveni</span><strong>${model.confidence||0}%</strong></div><div><span>Volatilite</span><strong>${Math.round(model.volatility||0)}/100</strong></div></div>
+      <div class="advanced-outcome-rail"><i class="home" style="width:${model.market.home.probability*100}%"></i><i class="draw" style="width:${model.market.draw.probability*100}%"></i><i class="away" style="width:${model.market.away.probability*100}%"></i></div>
+      <div class="advanced-outcome-labels"><span>1 · ${simulationPct(model.market.home.probability)}</span><span>X · ${simulationPct(model.market.draw.probability)}</span><span>2 · ${simulationPct(model.market.away.probability)}</span></div>
+      <footer><div><span>Alternatif skorlar</span><strong>${alternatives.map(row=>`${row.homeScore}-${row.awayScore} (${(row.probability*100).toFixed(1)}%)`).join(" · ")||"—"}</strong></div><em>${escapeHTML(model.tempoLabel||"Dengeli Tempo")}</em></footer>
+    </article>`;
+  }
+
   function renderManualQualificationPanel() {
     const context = simulatorContext();
     if (context.key === "none" || context.key === "completed") return "";
@@ -4743,9 +4942,13 @@
     const finalNames = data.mostLikelyFinalIds.map(playerName);
     const topRows = data.rows.slice(0,8);
     const allPredictions = path.predictedMatches;
+    const uniqueScorelines = new Set(allPredictions.map(match=>`${match.homeScore}-${match.awayScore}`)).size;
+    const averagePredictedGoals = allPredictions.length ? allPredictions.reduce((sum,match)=>sum+Number(match.homeScore||0)+Number(match.awayScore||0),0)/allPredictions.length : 0;
+    const upsetScenarios = allPredictions.filter(match=>match.scenarioLabel==="Sürpriz Senaryo").length;
+    const closeScenarios = allPredictions.filter(match=>Math.abs(Number(match.homeScore||0)-Number(match.awayScore||0))<=1).length;
     const progress = data.totalKnown ? data.completed / data.totalKnown * 100 : 0;
     return `<div class="intel-section-stack tournament-simulation-centre">
-      <section class="simulation-hero"><div><div class="eyebrow">LIVE MONTE CARLO · v18</div><h2>Dinamik Turnuva Simülasyonu</h2><p>Girilen gerçek sonuçları sabitler; kalan League Phase, Altın/Gümüş Grup, eleme serileri, yarı finaller ve finali güncel Elo, son 20 maç formu, momentum, gol profili ve ikili rekabete göre sürekli yeniden oynatır.</p><div class="simulation-actions"><button class="btn btn-gold" data-action="rerun-tournament-simulation">Simülasyonu Yenile</button><button class="btn btn-ghost" data-action="share-tournament-simulation">WhatsApp’ta Paylaş</button></div></div><div class="simulation-orb"><strong>${data.runs.toLocaleString("tr-TR")}</strong><span>SANAL TURNUVA</span><small>${data.completed} gerçek sonuç sabitlendi</small><i style="--progress:${Math.round(progress * 3.6)}deg"></i></div></section>
+      <section class="simulation-hero"><div><div class="eyebrow">ADVANCED SCORE ENGINE · v25</div><h2>Dinamik Turnuva Simülasyonu</h2><p>Girilen gerçek sonuçları sabitler; kalan turnuvayı Bayesçi hücum-savunma profili, aşırı dağılımlı skor matrisi, güncel Elo, form, tempo, volatilite ve ikili rekabetle binlerce kez yeniden oynatır.</p><div class="simulation-actions"><button class="btn btn-gold" data-action="rerun-tournament-simulation">Simülasyonu Yenile</button><button class="btn btn-ghost" data-action="share-tournament-simulation">WhatsApp’ta Paylaş</button></div></div><div class="simulation-orb"><strong>${data.runs.toLocaleString("tr-TR")}</strong><span>SANAL TURNUVA</span><small>${data.completed} gerçek sonuç sabitlendi</small><i style="--progress:${Math.round(progress * 3.6)}deg"></i></div></section>
 
       <section class="simulation-control-strip"><div><span>Simülasyon Hassasiyeti</span><strong>Her skor girişinden sonra otomatik yeniden hesaplanır.</strong></div><div class="segmented-control">${[1000,5000,10000].map(value => `<button class="segment-btn ${data.runs === value ? "active" : ""}" data-action="set-simulation-runs" data-simulation-runs="${value}">${value/1000}K</button>`).join("")}</div><small>Son hesaplama: ${new Date(data.recalculatedAt).toLocaleTimeString("tr-TR", {hour:"2-digit",minute:"2-digit",second:"2-digit"})}</small></section>
 
@@ -4764,9 +4967,12 @@
 
       <section class="panel simulation-bracket"><div class="panel-header"><div><h3 class="panel-title">Simüle Eleme Ağacı</h3><div class="panel-subtitle">Üç maçlık serilerde iki galibiyete ulaşan oyuncu tur atlar; final tek maçtır.</div></div></div><div class="simulation-bracket-columns"><div><h4>Eleme Serileri</h4>${path.qf.map(simulationSeriesCard).join("")}</div><div><h4>Yarı Finaller</h4>${path.semifinals.map(simulationSeriesCard).join("")}</div><div><h4>Büyük Final</h4><article class="sim-final-card"><span>TAHMİNİ FİNAL</span><strong>${escapeHTML(playerName(path.final.homeId))}</strong><b>${path.final.homeScore}–${path.final.awayScore}</b><strong>${escapeHTML(playerName(path.final.awayId))}</strong><small>Şampiyon: ${escapeHTML(playerName(path.championId))}</small></article></div></div></section>
 
-      <section class="panel"><div class="panel-header"><div><h3 class="panel-title">Kalan Tüm Maçların Model Tahmini</h3><div class="panel-subtitle">Mevcut fikstür ve simülasyonda oluşacak sonraki aşamalar dahil ${allPredictions.length} tahmini maç.</div></div><span class="badge badge-blue">FULL FLOW</span></div><div class="simulation-fixture-scroll"><div class="simulation-fixture-list">${allPredictions.map((match,index) => `<div><span>${index + 1}</span><small>${escapeHTML(match.stageLabel)}</small><strong>${escapeHTML(playerName(match.homeId))}</strong><b>${match.homeScore}–${match.awayScore}</b><strong>${escapeHTML(playerName(match.awayId))}</strong><em>${match.model ? `${simulationPct(match.model.market.home.probability)} · ${simulationPct(match.model.market.draw.probability)} · ${simulationPct(match.model.market.away.probability)}` : "Gerçek sonuç"}</em></div>`).join("") || `<div class="info-box">Kalan maç bulunmuyor; turnuva tamamlandı.</div>`}</div></div></section>
+      <section class="panel advanced-prediction-centre"><div class="panel-header"><div><h3 class="panel-title">Kalan Tüm Maçların Gelişmiş Model Tahmini</h3><div class="panel-subtitle">Tekrarlayan yuvarlak skorlar yerine her eşleşmeye özel tempo, xG-benzeri beklenen skor, volatilite ve kalibre edilmiş skor dağılımı.</div></div><span class="badge badge-blue">REALISTIC SCORE ENGINE</span></div>
+        <div class="advanced-prediction-summary"><div><span>Tahmini Maç</span><strong>${allPredictions.length}</strong></div><div><span>Farklı Skor</span><strong>${uniqueScorelines}</strong></div><div><span>Ortalama Gol</span><strong>${averagePredictedGoals.toFixed(2)}</strong></div><div><span>Yakın Maç</span><strong>${closeScenarios}</strong></div><div><span>Sürpriz Yol</span><strong>${upsetScenarios}</strong></div></div>
+        <div class="advanced-prediction-scroll"><div class="advanced-prediction-grid">${allPredictions.map(simulationPredictionCard).join("") || `<div class="info-box">Kalan maç bulunmuyor; turnuva tamamlandı.</div>`}</div></div>
+      </section>
 
-      <section class="panel simulation-method"><div class="panel-header"><div><h3 class="panel-title">Simülasyon Motoru</h3><div class="panel-subtitle">Aynı gerçek veri bütün cihazlarda aynı model girdisini üretir.</div></div><span class="badge badge-blue">MONTE CARLO</span></div><div class="simulation-method-grid"><div><strong>36%</strong><span>Son 20 maç formu</span></div><div><strong>20%</strong><span>Tüm zamanlar gücü</span></div><div><strong>14%</strong><span>Son 5 maç momentumu</span></div><div><strong>14%</strong><span>FIFA 9 performansı</span></div><div><strong>10%</strong><span>Gol / savunma profili</span></div><div><strong>±6</strong><span>İkili rekabet etkisi</span></div></div><div class="info-box mt-16"><strong>Dinamik çalışma:</strong> Yeni resmî skor kaydedildiğinde Elo, form, momentum ve mevcut sıralama değişir. Simülasyon önbelleği otomatik geçersiz olur ve kalan turnuva baştan sona yeniden hesaplanır.</div></section>
+      <section class="panel simulation-method advanced-engine-method"><div class="panel-header"><div><h3 class="panel-title">Advanced Score Engine v25</h3><div class="panel-subtitle">Skoru yalnızca ortalamayı yuvarlayarak değil, bütün olası skorları olasılık matrisi içinde hesaplayarak üretir.</div></div><span class="badge badge-blue">BAYES + NEGATIVE BINOMIAL</span></div><div class="simulation-method-grid"><div><strong>BAYES</strong><span>Az veriyi lig ortalamasına yaklaştıran güvenilirlik düzeltmesi</span></div><div><strong>A/D</strong><span>Oyuncu hücumu × rakip savunma zayıflığı</span></div><div><strong>NB</strong><span>Poisson’dan daha gerçekçi aşırı dağılımlı gol modeli</span></div><div><strong>1-X-2</strong><span>Skor matrisi dinamik oran olasılıklarına kalibre edilir</span></div><div><strong>TEMPO</strong><span>Lig, eleme ve final aşamasına özel maç ritmi</span></div><div><strong>SEEDED</strong><span>Sonuç değişmedikçe sabit, veri değişince tamamen yenilenen ana yol</span></div></div><div class="info-box mt-16"><strong>Neden daha gerçekçi?</strong> Model her maç için 0-0’dan 15-15’e kadar yüzlerce skor ihtimalini değerlendirir; yakın maç, dominant sonuç, beraberlik, sürpriz ve yüksek skorlu düello senaryolarını ayrı ayrı ağırlıklandırır. Yeni resmî sonuç geldiğinde bütün hücum, savunma, tempo ve skor dağılımları yeniden hesaplanır.</div></section>
       ${renderManualQualificationPanel()}
     </div>`;
   }

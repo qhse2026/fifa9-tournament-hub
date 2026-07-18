@@ -2665,3 +2665,77 @@ html[data-language="en"] .brand-subtitle { letter-spacing: .095em; }
   .achievement-catalog-v24 article { grid-template-columns:46px 1fr; }
   .achievement-catalog-v24 article > b { grid-column:2; }
 }
+
+/* ──────────────────────────────────────────────────────────
+   Advanced Tournament Score Engine v25
+   realistic model prediction cards and calibration summary
+   ────────────────────────────────────────────────────────── */
+.advanced-prediction-centre { overflow:hidden; }
+.advanced-prediction-summary {
+  display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:12px; margin-bottom:18px;
+}
+.advanced-prediction-summary > div {
+  padding:15px 17px; border:1px solid rgba(76,119,178,.16); border-radius:18px;
+  background:linear-gradient(180deg,rgba(9,23,40,.97),rgba(10,29,49,.94));
+}
+.advanced-prediction-summary span { display:block; color:#8399af; font-size:10px; letter-spacing:.15em; text-transform:uppercase; }
+.advanced-prediction-summary strong { display:block; margin-top:7px; color:#f0d28a; font-size:25px; }
+.advanced-prediction-scroll { max-height:860px; overflow:auto; padding-right:7px; }
+.advanced-prediction-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+.advanced-prediction-card {
+  position:relative; overflow:hidden; padding:18px; border-radius:22px;
+  border:1px solid rgba(73,117,174,.18);
+  background:
+    radial-gradient(circle at 50% 0%,rgba(231,193,99,.08),transparent 30%),
+    linear-gradient(145deg,rgba(8,21,37,.98),rgba(10,29,48,.96));
+  box-shadow:0 13px 32px rgba(0,0,0,.21),inset 0 1px 0 rgba(255,255,255,.025);
+}
+.advanced-prediction-card::before {
+  content:""; position:absolute; inset:0; pointer-events:none; opacity:.22;
+  background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.055) 50%,transparent 70%);
+}
+.advanced-prediction-card > * { position:relative; z-index:1; }
+.advanced-prediction-card.outcome-home { border-left:3px solid #49adff; }
+.advanced-prediction-card.outcome-away { border-right:3px solid #ff708b; }
+.advanced-prediction-card.outcome-draw { border-top:2px solid #dfc06d; }
+.advanced-prediction-card header { display:grid; grid-template-columns:34px 1fr auto; align-items:center; gap:10px; }
+.advanced-prediction-card header > span { width:30px; height:30px; border-radius:10px; display:grid; place-items:center; background:rgba(255,255,255,.045); color:#7690aa; font-size:11px; }
+.advanced-prediction-card header small { color:#7f96ad; font-size:10px; letter-spacing:.08em; text-transform:uppercase; }
+.advanced-prediction-card header b { padding:6px 9px; border-radius:999px; border:1px solid rgba(231,193,99,.18); color:#e6c76f; font-size:9px; letter-spacing:.11em; }
+.advanced-prediction-main { display:grid; grid-template-columns:1fr 140px 1fr; align-items:center; gap:12px; margin-top:18px; }
+.advanced-prediction-player strong,.advanced-prediction-player small { display:block; }
+.advanced-prediction-player strong { font-size:16px; line-height:1.25; }
+.advanced-prediction-player small { margin-top:6px; color:#7690a8; font-size:10px; letter-spacing:.08em; }
+.advanced-prediction-player.away { text-align:right; }
+.advanced-prediction-score { text-align:center; }
+.advanced-prediction-score > span { display:block; color:#f1d27e; font-size:40px; font-weight:900; letter-spacing:-.06em; }
+.advanced-prediction-score > span i { font-style:normal; margin:0 5px; color:#8ea2b6; }
+.advanced-prediction-score small { display:block; margin-top:5px; color:#95a8bb; font-size:10px; }
+.advanced-model-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin-top:17px; }
+.advanced-model-grid > div { padding:11px 10px; border-radius:14px; border:1px solid rgba(255,255,255,.055); background:rgba(255,255,255,.018); }
+.advanced-model-grid span { display:block; color:#7d94aa; font-size:8px; line-height:1.35; text-transform:uppercase; letter-spacing:.09em; }
+.advanced-model-grid strong { display:block; margin-top:6px; color:#dce6ee; font-size:13px; }
+.advanced-outcome-rail { display:flex; height:9px; margin-top:16px; border-radius:999px; overflow:hidden; background:rgba(255,255,255,.04); }
+.advanced-outcome-rail i { display:block; height:100%; }
+.advanced-outcome-rail .home { background:linear-gradient(90deg,#2578c3,#52b5ff); }
+.advanced-outcome-rail .draw { background:linear-gradient(90deg,#b99845,#efd179); }
+.advanced-outcome-rail .away { background:linear-gradient(90deg,#d53c60,#ff718c); }
+.advanced-outcome-labels { display:flex; justify-content:space-between; gap:10px; margin-top:7px; color:#8298ae; font-size:9px; }
+.advanced-prediction-card footer { display:flex; justify-content:space-between; align-items:flex-end; gap:14px; margin-top:15px; padding-top:13px; border-top:1px solid rgba(255,255,255,.055); }
+.advanced-prediction-card footer span,.advanced-prediction-card footer strong { display:block; }
+.advanced-prediction-card footer span { color:#7c93a9; font-size:9px; text-transform:uppercase; letter-spacing:.11em; }
+.advanced-prediction-card footer strong { margin-top:5px; color:#b8c7d4; font-size:10px; line-height:1.5; }
+.advanced-prediction-card footer em { flex:0 0 auto; padding:7px 10px; border-radius:999px; background:rgba(231,193,99,.08); color:#e5c66f; font-size:9px; font-style:normal; white-space:nowrap; }
+.advanced-engine-method .simulation-method-grid > div { min-height:112px; }
+.advanced-engine-method .simulation-method-grid strong { font-size:21px; }
+@media (max-width:1180px) {
+  .advanced-prediction-grid { grid-template-columns:1fr; }
+  .advanced-prediction-summary { grid-template-columns:repeat(3,minmax(0,1fr)); }
+}
+@media (max-width:760px) {
+  .advanced-prediction-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .advanced-prediction-main { grid-template-columns:1fr; }
+  .advanced-prediction-player,.advanced-prediction-player.away { text-align:center; }
+  .advanced-model-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .advanced-prediction-card footer { flex-direction:column; align-items:flex-start; }
+}
