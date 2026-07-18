@@ -1,0 +1,51 @@
+FIFA 9 DİNAMİK TURNUVA SİMÜLASYONU v18
+========================================
+
+Bu sürüm Zekâ Merkezi > Simülatör bölümünü tam kapsamlı canlı turnuva simülasyon merkezine dönüştürür.
+
+YENİ ÖZELLİKLER
+----------------
+- Girilmiş gerçek maç sonuçlarını sabit veri olarak kabul eder.
+- Oynanmamış bütün League Phase maçlarını tahmin eder.
+- Tahmini League Phase sıralamasından Altın ve Gümüş grupları oluşturur.
+- İkinci aşamadaki bütün grup maçlarını simüle eder.
+- Eleme serilerini, yarı finalleri ve tek maçlık finali sonuna kadar oynatır.
+- Varsayılan 1.000 Monte Carlo koşusu kullanır.
+- 5.000 ve 10.000 koşu seçenekleri sunar.
+- Altın Grup, Gümüş Grup, yarı final, final ve şampiyonluk ihtimallerini hesaplar.
+- En olası finali, şampiyonu, sürpriz adayı ve tüm tahmini maçları gösterir.
+- Güncel Elo, son 20 maç formu, son 5 maç momentumu, FIFA 9 performansı, gol profili ve H2H verisini kullanır.
+- Her yeni resmî sonuçta simülasyon önbelleği otomatik yenilenir.
+- WhatsApp paylaşım özeti oluşturur.
+- Eski manuel What-if skor senaryosu korunmuştur.
+
+KURULUM
+-------
+1. ZIP dosyasını ayıkla.
+2. GitHub repository ana dizinine aşağıdaki dosyaları yükle:
+
+   index.html
+   app.js
+   styles.css
+   language.js
+   service-worker.js
+   TOURNAMENT_SIMULATOR_INSTALL_TR.txt
+
+3. Commit mesajı:
+
+   Add dynamic full tournament simulation v18
+
+4. Vercel deployment tamamlandıktan sonra Ctrl + F5 yap.
+5. Telefonda eski sürüm görünürse site önbelleğini/site verisini temizle.
+
+SUPABASE
+--------
+Bu güncelleme için yeni SQL, tablo veya Supabase ayarı gerekmez.
+Mevcut cloud-config.js dosyasına dokunma.
+Chat v17 SQL düzeltmesi ve mevcut Intelligence Suite tabloları korunur.
+
+PERFORMANS
+----------
+- 1K: Telefon ve hızlı canlı güncelleme için önerilen varsayılan seçenek.
+- 5K: Daha dengeli olasılık dağılımı.
+- 10K: En yüksek hassasiyet; düşük güçlü telefonlarda birkaç saniye sürebilir.

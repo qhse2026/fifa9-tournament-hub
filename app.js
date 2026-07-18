@@ -60,6 +60,9 @@
   let intelligencePlayerCard = "";
   let intelligenceSimulatorGroup = "gold";
   let qualificationScenario = {};
+  let tournamentSimulationRuns = 1000;
+  let tournamentSimulationNonce = 0;
+  const tournamentSimulationCache = { key: "", data: null };
   const predictionCache = { rows: [], loading: false, error: "", loadedAt: 0 };
 
   function defaultState() {
@@ -3000,7 +3003,7 @@
   }
 
   // ──────────────────────────────────────────────────────────────────────────
-  // FIFA 9 INTELLIGENCE SUITE v15
+  // FIFA 9 INTELLIGENCE SUITE v18
   // Matchday intelligence, Elo, Rivalry DNA, prediction league, achievements,
   // qualification simulator and dynamic player identity cards.
   // ──────────────────────────────────────────────────────────────────────────
@@ -3574,21 +3577,421 @@
     return { key: "standard", label: "–" };
   }
 
-  function renderSimulatorSection() {
+  function simulationFingerprint() {
+    const compactMatches = allCurrentMatches().map(match => [
+      match.id, match.phase, Number(match.round) || 0, match.homeId, match.awayId,
+      Number.isFinite(match.homeScore) ? Number(match.homeScore) : null,
+      Number.isFinite(match.awayScore) ? Number(match.awayScore) : null,
+      match.tiebreakWinnerId || ""
+    ]);
+    return JSON.stringify({
+      edition: state.current.edition,
+      players: state.current.participants.map(player => [player.id, player.name]),
+      leagueGenerated: state.current.league.generated,
+      phase2Generated: state.current.phase2.generated,
+      goldIds: state.current.phase2.goldIds,
+      silverIds: state.current.phase2.silverIds,
+      knockoutGenerated: state.current.knockout.generated,
+      matches: compactMatches
+    });
+  }
+
+  function simulationRoundRobin(ids, phase) {
+    const list = [...ids];
+    if (list.length % 2) list.push(null);
+    const rounds = [];
+    let rotation = [...list];
+    for (let round = 0; round < rotation.length - 1; round++) {
+      for (let index = 0; index < rotation.length / 2; index++) {
+        let homeId = rotation[index];
+        let awayId = rotation[rotation.length - 1 - index];
+        if (!homeId || !awayId) continue;
+        if ((round + index) % 2 === 1) [homeId, awayId] = [awayId, homeId];
+        rounds.push({
+          id: `simulation-${phase}-${round + 1}-${homeId}-${awayId}`,
+          phase,
+          round: round + 1,
+          homeId,
+          awayId,
+          homeScore: null,
+          awayScore: null,
+          tiebreakWinnerId: null,
+          allowDraw: true,
+          seriesKey: null
+        });
+      }
+      rotation = [rotation[0], rotation[rotation.length - 1], ...rotation.slice(1, rotation.length - 1)];
+    }
+    return rounds;
+  }
+
+  function simulationStandings(ids, matches) {
+    const map = new Map(ids.map(id => [id, { id, mp:0, w:0, d:0, l:0, gf:0, ga:0, gd:0, pts:0 }]));
+    for (const match of matches) {
+      if (!Number.isFinite(match.homeScore) || !Number.isFinite(match.awayScore)) continue;
+      const home = map.get(match.homeId);
+      const away = map.get(match.awayId);
+      const winnerId = match.homeScore > match.awayScore ? match.homeId : match.awayScore > match.homeScore ? match.awayId : match.tiebreakWinnerId || null;
+      if (home) {
+        home.mp += 1; home.gf += Number(match.homeScore); home.ga += Number(match.awayScore);
+        if (winnerId === home.id) { home.w += 1; home.pts += 3; }
+        else if (!winnerId) { home.d += 1; home.pts += 1; }
+        else home.l += 1;
+      }
+      if (away) {
+        away.mp += 1; away.gf += Number(match.awayScore); away.ga += Number(match.homeScore);
+        if (winnerId === away.id) { away.w += 1; away.pts += 3; }
+        else if (!winnerId) { away.d += 1; away.pts += 1; }
+        else away.l += 1;
+      }
+    }
+    const rows = [...map.values()];
+    rows.forEach(row => { row.gd = row.gf - row.ga; });
+    rows.sort((a,b) => b.pts-a.pts || b.gd-a.gd || b.gf-a.gf || b.w-a.w || playerName(a.id).localeCompare(playerName(b.id), "tr"));
+    rows.forEach((row,index) => { row.rank = index + 1; });
+    return rows;
+  }
+
+  function simulationNormal(rand) {
+    const u1 = Math.max(rand(), 1e-9);
+    const u2 = Math.max(rand(), 1e-9);
+    return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+  }
+
+  function simulationPoisson(lambda, rand) {
+    const safe = Math.max(.05, Math.min(10, Number(lambda) || 0));
+    if (safe > 7) return Math.max(0, Math.round(safe + Math.sqrt(safe) * simulationNormal(rand)));
+    const threshold = Math.exp(-safe);
+    let product = 1;
+    let value = 0;
+    do { value += 1; product *= rand(); } while (product > threshold && value < 30);
+    return Math.max(0, value - 1);
+  }
+
+  function buildTournamentSimulationEngine() {
+    const context = oddsBuildContext();
+    const matchupCache = new Map();
+    function matchup(homeId, awayId, allowDraw = true, phase = "league", round = 1) {
+      const key = `${homeId}|${awayId}|${allowDraw ? 1 : 0}`;
+      if (!matchupCache.has(key)) {
+        const match = { id:`sim-model-${key}`, phase, round, homeId, awayId, allowDraw, homeScore:null, awayScore:null, tiebreakWinnerId:null };
+        const odds = buildMatchOdds(match, context);
+        const expectedHome = oddsClamp((odds.home.avgGoals + odds.away.gaPerGame) / 2 + odds.difference / 38, .45, 8.2);
+        const expectedAway = oddsClamp((odds.away.avgGoals + odds.home.gaPerGame) / 2 - odds.difference / 38, .45, 8.2);
+        matchupCache.set(key, { ...odds, expectedHome, expectedAway });
+      }
+      return matchupCache.get(key);
+    }
+    return { context, matchup };
+  }
+
+  function simulationStageLabel(match, custom = "") {
+    if (custom) return custom;
+    if (match.phase === "league") return `League Phase · Tur ${match.round}`;
+    if (match.phase === "gold") return `Altın Grup · Tur ${match.round}`;
+    if (match.phase === "silver") return `Gümüş Grup · Tur ${match.round}`;
+    if (match.phase === "final") return "Büyük Final";
+    return currentMatchStageLabel(match);
+  }
+
+  function resolveSimulationMatch(match, engine, rand, deterministic = false, customLabel = "") {
+    if (matchComplete(match)) return { ...match, simulated:false, stageLabel:simulationStageLabel(match, customLabel) };
+    const model = engine.matchup(match.homeId, match.awayId, match.allowDraw !== false, match.phase, match.round);
+    let outcome = "draw";
+    if (match.allowDraw === false) {
+      const total = model.market.home.probability + model.market.away.probability;
+      const homeChance = total ? model.market.home.probability / total : .5;
+      outcome = (deterministic ? homeChance >= .5 : rand() < homeChance) ? "home" : "away";
+    } else if (deterministic) {
+      const values = [
+        ["home", model.market.home.probability],
+        ["draw", model.market.draw.probability],
+        ["away", model.market.away.probability]
+      ].sort((a,b) => b[1]-a[1]);
+      outcome = values[0][0];
+    } else {
+      const roll = rand();
+      if (roll < model.market.home.probability) outcome = "home";
+      else if (roll < model.market.home.probability + model.market.draw.probability) outcome = "draw";
+      else outcome = "away";
+    }
+
+    let homeScore = deterministic ? model.predictedHome : simulationPoisson(model.expectedHome, rand);
+    let awayScore = deterministic ? model.predictedAway : simulationPoisson(model.expectedAway, rand);
+    if (outcome === "draw") {
+      const level = Math.max(0, Math.round((homeScore + awayScore) / 2));
+      homeScore = level; awayScore = level;
+    } else if (outcome === "home" && homeScore <= awayScore) {
+      homeScore = awayScore + 1 + (!deterministic && rand() < .18 ? 1 : 0);
+    } else if (outcome === "away" && awayScore <= homeScore) {
+      awayScore = homeScore + 1 + (!deterministic && rand() < .18 ? 1 : 0);
+    }
+
+    return {
+      ...match,
+      homeScore,
+      awayScore,
+      tiebreakWinnerId: match.allowDraw === false && homeScore === awayScore ? (outcome === "home" ? match.homeId : match.awayId) : null,
+      simulated:true,
+      stageLabel:simulationStageLabel(match, customLabel),
+      model
+    };
+  }
+
+  function simulationSeries(key, label, playerAId, playerBId, existing, engine, rand, deterministic, predictedMatches) {
+    const usable = existing && existing.playerAId === playerAId && existing.playerBId === playerBId ? existing : null;
+    const games = [];
+    let winsA = 0;
+    let winsB = 0;
+    for (let index = 0; index < 3 && winsA < 2 && winsB < 2; index++) {
+      const base = usable?.games?.[index] || {
+        id:`simulation-${key}-${index + 1}-${playerAId}-${playerBId}`,
+        phase:"knockout", round:index + 1, homeId:playerAId, awayId:playerBId,
+        homeScore:null, awayScore:null, tiebreakWinnerId:null, allowDraw:false, seriesKey:key
+      };
+      const resolved = resolveSimulationMatch(base, engine, rand, deterministic, `${label} · Maç ${index + 1}`);
+      games.push(resolved);
+      const winner = resolved.homeScore > resolved.awayScore ? resolved.homeId : resolved.awayScore > resolved.homeScore ? resolved.awayId : resolved.tiebreakWinnerId;
+      if (winner === playerAId) winsA += 1;
+      if (winner === playerBId) winsB += 1;
+      if (deterministic && resolved.simulated) predictedMatches.push(resolved);
+    }
+    return { key, label, playerAId, playerBId, winsA, winsB, games, winnerId:winsA >= 2 ? playerAId : playerBId };
+  }
+
+  function simulateTournamentOnce(engine, rand, deterministic = false) {
+    const predictedMatches = [];
+    const allIds = state.current.participants.map(player => player.id);
+    const leagueResults = leagueMatches().map(match => {
+      const resolved = resolveSimulationMatch(match, engine, rand, deterministic);
+      if (deterministic && resolved.simulated) predictedMatches.push(resolved);
+      return resolved;
+    });
+    const leagueTable = simulationStandings(allIds, leagueResults);
+    const goldIds = state.current.phase2.generated ? [...state.current.phase2.goldIds] : leagueTable.slice(0,6).map(row => row.id);
+    const silverIds = state.current.phase2.generated ? [...state.current.phase2.silverIds] : leagueTable.slice(6,12).map(row => row.id);
+    const eliminatedIds = leagueTable.slice(12).map(row => row.id);
+
+    const goldSource = state.current.phase2.generated ? goldMatches() : simulationRoundRobin(goldIds, "gold");
+    const silverSource = state.current.phase2.generated ? silverMatches() : simulationRoundRobin(silverIds, "silver");
+    const goldResults = goldSource.map(match => {
+      const resolved = resolveSimulationMatch(match, engine, rand, deterministic);
+      if (deterministic && resolved.simulated) predictedMatches.push(resolved);
+      return resolved;
+    });
+    const silverResults = silverSource.map(match => {
+      const resolved = resolveSimulationMatch(match, engine, rand, deterministic);
+      if (deterministic && resolved.simulated) predictedMatches.push(resolved);
+      return resolved;
+    });
+    const goldTable = simulationStandings(goldIds, [...leagueResults, ...goldResults]);
+    const silverTable = simulationStandings(silverIds, [...leagueResults, ...silverResults]);
+    const seeds = {
+      gold1:goldTable[0]?.id, gold2:goldTable[1]?.id, gold3:goldTable[2]?.id, gold4:goldTable[3]?.id,
+      silver1:silverTable[0]?.id, silver2:silverTable[1]?.id, silver3:silverTable[2]?.id
+    };
+
+    const ko = state.current.knockout.generated ? state.current.knockout : {};
+    const qf1 = simulationSeries("qf1", "Eleme Eşleşmesi 1", seeds.gold2, seeds.silver3, ko.qf1, engine, rand, deterministic, predictedMatches);
+    const qf2 = simulationSeries("qf2", "Eleme Eşleşmesi 2", seeds.gold3, seeds.silver2, ko.qf2, engine, rand, deterministic, predictedMatches);
+    const qf3 = simulationSeries("qf3", "Eleme Eşleşmesi 3", seeds.gold4, seeds.silver1, ko.qf3, engine, rand, deterministic, predictedMatches);
+    const sf1 = simulationSeries("sf1", "Yarı Final 1", seeds.gold1, qf2.winnerId, ko.sf1, engine, rand, deterministic, predictedMatches);
+    const sf2 = simulationSeries("sf2", "Yarı Final 2", qf1.winnerId, qf3.winnerId, ko.sf2, engine, rand, deterministic, predictedMatches);
+
+    let finalMatch;
+    if (ko.final && ko.final.homeId === sf1.winnerId && ko.final.awayId === sf2.winnerId) finalMatch = ko.final;
+    else finalMatch = { id:`simulation-final-${sf1.winnerId}-${sf2.winnerId}`, phase:"final", round:1, homeId:sf1.winnerId, awayId:sf2.winnerId, homeScore:null, awayScore:null, tiebreakWinnerId:null, allowDraw:false };
+    const final = resolveSimulationMatch(finalMatch, engine, rand, deterministic, "Büyük Final");
+    if (deterministic && final.simulated) predictedMatches.push(final);
+    const championId = final.homeScore > final.awayScore ? final.homeId : final.awayScore > final.homeScore ? final.awayId : final.tiebreakWinnerId;
+
+    return {
+      leagueResults, leagueTable, goldIds, silverIds, eliminatedIds,
+      goldResults, silverResults, goldTable, silverTable, seeds,
+      qf:[qf1,qf2,qf3], semifinals:[sf1,sf2], final, championId,
+      playoffIds:[seeds.gold2,seeds.gold3,seeds.gold4,seeds.silver1,seeds.silver2,seeds.silver3].filter(Boolean),
+      semifinalIds:[seeds.gold1,qf2.winnerId,qf1.winnerId,qf3.winnerId].filter(Boolean),
+      finalistIds:[sf1.winnerId,sf2.winnerId].filter(Boolean),
+      predictedMatches
+    };
+  }
+
+  function buildTournamentSimulation() {
+    if (!state.current.league.generated || filledParticipants().length < 2) return null;
+    const runs = [1000,5000,10000].includes(Number(tournamentSimulationRuns)) ? Number(tournamentSimulationRuns) : 1000;
+    const fingerprint = simulationFingerprint();
+    const cacheKey = `${fingerprint}|${runs}|${tournamentSimulationNonce}`;
+    if (tournamentSimulationCache.key === cacheKey && tournamentSimulationCache.data) return tournamentSimulationCache.data;
+
+    const engine = buildTournamentSimulationEngine();
+    const ids = state.current.participants.map(player => player.id);
+    const aggregates = new Map(ids.map(id => [id, {
+      id, gold:0, silver:0, eliminated:0, playoff:0, directSemi:0, semi:0, final:0, champion:0,
+      leagueRankTotal:0, leaguePointsTotal:0
+    }]));
+    const finalPairs = new Map();
+    const seed = `fifa9-tournament-simulation-v18-${fingerprint}-${runs}-${tournamentSimulationNonce}`;
+    const rand = seededRandom(seed);
+    for (let index = 0; index < runs; index++) {
+      const result = simulateTournamentOnce(engine, rand, false);
+      result.leagueTable.forEach(row => {
+        const agg = aggregates.get(row.id);
+        if (!agg) return;
+        agg.leagueRankTotal += row.rank;
+        agg.leaguePointsTotal += row.pts;
+      });
+      result.goldIds.forEach(id => { if (aggregates.has(id)) aggregates.get(id).gold += 1; });
+      result.silverIds.forEach(id => { if (aggregates.has(id)) aggregates.get(id).silver += 1; });
+      result.eliminatedIds.forEach(id => { if (aggregates.has(id)) aggregates.get(id).eliminated += 1; });
+      result.playoffIds.forEach(id => { if (aggregates.has(id)) aggregates.get(id).playoff += 1; });
+      if (result.seeds.gold1 && aggregates.has(result.seeds.gold1)) aggregates.get(result.seeds.gold1).directSemi += 1;
+      result.semifinalIds.forEach(id => { if (aggregates.has(id)) aggregates.get(id).semi += 1; });
+      result.finalistIds.forEach(id => { if (aggregates.has(id)) aggregates.get(id).final += 1; });
+      if (result.championId && aggregates.has(result.championId)) aggregates.get(result.championId).champion += 1;
+      const pair = [...result.finalistIds].sort().join("|");
+      if (pair) finalPairs.set(pair, (finalPairs.get(pair) || 0) + 1);
+    }
+
+    const elo = buildEloAnalytics();
+    const eloRows = [...elo.players];
+    const eloRank = new Map(eloRows.map((row,index) => [row.name,index + 1]));
+    const rows = [...aggregates.values()].map(agg => {
+      const name = playerName(agg.id);
+      const eloRow = elo.playerMap.get(name) || { rating:1500, tier:intelligenceTier(1500) };
+      return {
+        ...agg,
+        name,
+        elo:eloRow.rating,
+        eloTier:eloRow.tier,
+        eloRank:eloRank.get(name) || 99,
+        goldProbability:agg.gold / runs,
+        silverProbability:agg.silver / runs,
+        eliminatedProbability:agg.eliminated / runs,
+        playoffProbability:agg.playoff / runs,
+        directSemiProbability:agg.directSemi / runs,
+        semiProbability:agg.semi / runs,
+        finalProbability:agg.final / runs,
+        championProbability:agg.champion / runs,
+        expectedLeagueRank:agg.leagueRankTotal / runs,
+        expectedLeaguePoints:agg.leaguePointsTotal / runs
+      };
+    }).sort((a,b) => b.championProbability-a.championProbability || b.finalProbability-a.finalProbability || b.elo-a.elo || a.name.localeCompare(b.name,"tr"));
+
+    const mostLikely = simulateTournamentOnce(engine, seededRandom(`${seed}-path`), true);
+    const finalPair = [...finalPairs.entries()].sort((a,b) => b[1]-a[1])[0] || null;
+    const mostLikelyFinalIds = finalPair ? finalPair[0].split("|") : mostLikely.finalistIds;
+    const favorite = rows[0] || null;
+    const surprise = rows.filter(row => row.eloRank >= 7 && row.championProbability > 0).sort((a,b) => b.championProbability-a.championProbability || b.finalProbability-a.finalProbability)[0] || rows[1] || favorite;
+    const completed = allCurrentMatches().filter(matchComplete).length;
+    const totalKnown = allCurrentMatches().length;
+    const data = {
+      runs,
+      rows,
+      favorite,
+      surprise,
+      mostLikely,
+      mostLikelyFinalIds,
+      mostLikelyFinalProbability:finalPair ? finalPair[1] / runs : 1,
+      completed,
+      totalKnown,
+      recalculatedAt:new Date().toISOString(),
+      fingerprint
+    };
+    tournamentSimulationCache.key = cacheKey;
+    tournamentSimulationCache.data = data;
+    return data;
+  }
+
+  function simulationPct(value, decimals = 0) {
+    const amount = Number(value || 0) * 100;
+    return `${amount.toFixed(decimals)}%`;
+  }
+
+  function simulationSeriesCard(series) {
+    if (!series) return "";
+    return `<article class="sim-bracket-card"><span>${escapeHTML(series.label)}</span><strong>${escapeHTML(playerName(series.playerAId))}</strong><b>${series.winsA}–${series.winsB}</b><strong>${escapeHTML(playerName(series.playerBId))}</strong><small>Kazanan: ${escapeHTML(playerName(series.winnerId))}</small></article>`;
+  }
+
+  function simulationProjectedTable(rows, type = "league") {
+    if (!rows?.length) return `<div class="info-box">Tahmini tablo oluşmadı.</div>`;
+    return `<div class="sim-projected-table"><div class="head"><span>#</span><span>Oyuncu</span><span>O</span><span>P</span><span>AV</span><span>Hat</span></div>${rows.map(row => {
+      let status = "";
+      if (type === "league") status = row.rank <= 6 ? "ALTIN" : row.rank <= 12 ? "GÜMÜŞ" : "ELENİR";
+      if (type === "gold") status = row.rank === 1 ? "DİREKT YF" : row.rank <= 4 ? "ELEME" : "ELENİR";
+      if (type === "silver") status = row.rank <= 3 ? "ELEME" : "ELENİR";
+      const key = status === "ALTIN" || status === "DİREKT YF" ? "gold" : status === "GÜMÜŞ" ? "silver" : status === "ELEME" ? "playoff" : "out";
+      return `<div class="line-${key}"><span>${row.rank}</span><strong>${escapeHTML(playerName(row.id))}</strong><span>${row.mp}</span><b>${row.pts}</b><span>${formatGD(row.gd)}</span><small>${status}</small></div>`;
+    }).join("")}</div>`;
+  }
+
+  function renderManualQualificationPanel() {
     const context = simulatorContext();
-    if (context.key === "none") return emptyState("◇", "Simülatör Kura Sonrası Açılır", "League Phase fikstürü oluşturulduğunda olası skorları girerek sıralama senaryolarını test edebilirsin.", `<button class="btn btn-gold" data-nav="setup">Kura Sayfasına Git</button>`);
-    if (context.key === "completed") return `<div class="intel-section-stack"><section class="intel-simulator-hero"><div><div class="eyebrow">QUALIFICATION SIMULATOR</div><h2>Aktif Lig Aşaması Tamamlandı</h2><p>Yeni bir League Phase veya Altın/Gümüş aşaması başladığında senaryo motoru yeniden açılır.</p></div></section></div>`;
-    const roundValues = context.remaining.map(match=>Number(match.round)||0);
+    if (context.key === "none" || context.key === "completed") return "";
+    const roundValues = context.remaining.map(match => Number(match.round) || 0);
     const minRound = roundValues.length ? Math.min(...roundValues) : 0;
-    const shown = context.remaining.filter(match => Number(match.round) <= minRound + 1).slice(0, 12);
+    const shown = context.remaining.filter(match => Number(match.round) <= minRound + 1).slice(0,12);
     const tableMatches = context.baseMatches.map(simulatedMatch);
-    const rows = standings(context.ids, tableMatches).map((row,index)=>({ ...row, rank:index+1 }));
-    const entered = Object.values(qualificationScenario).filter(item=>item?.home!==""&&item?.away!=="").length;
-    return `<div class="intel-section-stack"><section class="intel-simulator-hero"><div><div class="eyebrow">WHAT-IF ENGINE</div><h2>Qualification Simulator</h2><p>Olası skorları gir, gerçek turnuva verisini değiştirmeden sıralamanın ve yükselme çizgilerinin nasıl değişeceğini anında gör.</p></div><div class="intel-sim-counter"><strong>${entered}</strong><span>SENARYO SKORU</span><small>${escapeHTML(context.label)}</small></div></section>
+    const rows = standings(context.ids, tableMatches).map((row,index) => ({ ...row, rank:index + 1 }));
+    const entered = Object.values(qualificationScenario).filter(item => item?.home !== "" && item?.away !== "").length;
+    return `<details class="panel sim-whatif-panel"><summary><div><span class="eyebrow">MANUEL WHAT-IF</span><strong>Skor Senaryosu Testi</strong><small>Resmî veriyi değiştirmeden kendi skor kombinasyonunu dene.</small></div><b>${entered} skor</b></summary><div class="sim-whatif-content">
       ${state.current.phase2.generated && !phase2Finished() ? `<div class="segmented-control intel-sim-group"><button class="segment-btn ${context.key === "gold" ? "active" : ""}" data-action="set-simulator-group" data-group="gold">Altın Grup</button><button class="segment-btn ${context.key === "silver" ? "active" : ""}" data-action="set-simulator-group" data-group="silver">Gümüş Grup</button></div>` : ""}
-      <div class="grid-2"><section class="panel"><div class="panel-header"><div><h3 class="panel-title">Skor Senaryoları</h3><div class="panel-subtitle">Sıradaki iki turun maçları. Boş bırakılan maç mevcut hâliyle kalır.</div></div><button class="btn btn-ghost" data-action="clear-simulator">Temizle</button></div><div class="intel-sim-fixtures">${shown.map(match => { const s=qualificationScenario[match.id]||{home:"",away:""}; return `<div class="intel-sim-match"><span>${escapeHTML(currentMatchStageLabel(match))}</span><strong>${escapeHTML(playerName(match.homeId))}</strong><input type="number" min="0" max="30" value="${escapeHTML(s.home)}" data-sim-match="${escapeHTML(match.id)}" data-sim-side="home" placeholder="–"><b>:</b><input type="number" min="0" max="30" value="${escapeHTML(s.away)}" data-sim-match="${escapeHTML(match.id)}" data-sim-side="away" placeholder="–"><strong>${escapeHTML(playerName(match.awayId))}</strong></div>`; }).join("")}</div><button class="btn btn-gold mt-16" data-action="run-simulator">Sıralamayı Yeniden Hesapla</button></section>
-      <section class="panel"><div class="panel-header"><div><h3 class="panel-title">Simüle Puan Durumu</h3><div class="panel-subtitle">Bu görünüm resmî sonuçları kaydetmez.</div></div><span class="badge badge-blue">WHAT IF</span></div><div class="intel-sim-table"><div class="head"><span>#</span><span>Oyuncu</span><span>O</span><span>P</span><span>AV</span><span>Durum</span></div>${rows.map(row => { const status=simulatorStatus(row,context); return `<div class="status-${status.key}"><span>${row.rank}</span><strong>${escapeHTML(row.p)}</strong><span>${row.mp}</span><b>${row.pts}</b><span>${formatGD(row.gd)}</span><small>${status.label}</small></div>`; }).join("")}</div></section></div>
-      <section class="panel"><div class="panel-header"><div><h3 class="panel-title">Senaryo Notları</h3><div class="panel-subtitle">Matematiksel olarak kesin garanti değildir; girilen skor kombinasyonunun anlık sonucudur.</div></div></div><div class="intel-scenario-notes">${rows.slice(0,6).map(row => { const status=simulatorStatus(row,context); return `<div><strong>${escapeHTML(row.p)}</strong><span>${status.key === "gold" ? "Altın Grup bölgesinde" : status.key === "silver" ? "Gümüş Grup bölgesinde" : status.key === "direct" ? "doğrudan yarı final çizgisinde" : status.key === "playoff" ? "eleme bileti bölgesinde" : "risk bölgesinde"}</span><b>${row.pts} puan · ${formatGD(row.gd)} averaj</b></div>`; }).join("")}</div></section>
+      <div class="grid-2"><section><div class="panel-header"><div><h3 class="panel-title">Skor Senaryoları</h3><div class="panel-subtitle">Sıradaki iki turun maçları.</div></div><button class="btn btn-ghost" data-action="clear-simulator">Temizle</button></div><div class="intel-sim-fixtures">${shown.map(match => { const scenario=qualificationScenario[match.id] || {home:"",away:""}; return `<div class="intel-sim-match"><span>${escapeHTML(currentMatchStageLabel(match))}</span><strong>${escapeHTML(playerName(match.homeId))}</strong><input type="number" min="0" max="30" value="${escapeHTML(scenario.home)}" data-sim-match="${escapeHTML(match.id)}" data-sim-side="home" placeholder="–"><b>:</b><input type="number" min="0" max="30" value="${escapeHTML(scenario.away)}" data-sim-match="${escapeHTML(match.id)}" data-sim-side="away" placeholder="–"><strong>${escapeHTML(playerName(match.awayId))}</strong></div>`; }).join("")}</div><button class="btn btn-gold mt-16" data-action="run-simulator">Sıralamayı Yeniden Hesapla</button></section>
+      <section><div class="panel-header"><div><h3 class="panel-title">Simüle Puan Durumu</h3><div class="panel-subtitle">Yalnızca girilen senaryonun anlık sonucu.</div></div><span class="badge badge-blue">WHAT IF</span></div><div class="intel-sim-table"><div class="head"><span>#</span><span>Oyuncu</span><span>O</span><span>P</span><span>AV</span><span>Durum</span></div>${rows.map(row => { const status=simulatorStatus(row,context); return `<div class="status-${status.key}"><span>${row.rank}</span><strong>${escapeHTML(row.p)}</strong><span>${row.mp}</span><b>${row.pts}</b><span>${formatGD(row.gd)}</span><small>${status.label}</small></div>`; }).join("")}</div></section></div></div></details>`;
+  }
+
+  async function shareTournamentSimulation() {
+    const data = buildTournamentSimulation();
+    if (!data?.favorite) { toast("Paylaşılacak simülasyon bulunmuyor.", "error"); return; }
+    const top = data.rows.slice(0,5);
+    const finalNames = data.mostLikelyFinalIds.map(playerName).join(" vs ");
+    const lines = [
+      `FIFA 9 · CANLI TURNUVA SİMÜLASYONU (${data.runs.toLocaleString("tr-TR")} koşu)`,
+      `Model favorisi: ${data.favorite.name} · Şampiyonluk ${simulationPct(data.favorite.championProbability,1)}`,
+      `En olası final: ${finalNames} · ${simulationPct(data.mostLikelyFinalProbability,1)}`,
+      ...top.map((row,index) => `${index + 1}. ${row.name} · Şampiyon ${simulationPct(row.championProbability,1)} · Final ${simulationPct(row.finalProbability,1)}`),
+      "Gerçek sonuçlar sabitlenir; kalan turnuva güncel Elo, form ve performansa göre yeniden simüle edilir.",
+      window.location.href
+    ];
+    const text = lines.join("\n");
+    if (navigator.share) {
+      try { await navigator.share({ title:"FIFA 9 Turnuva Simülasyonu", text, url:window.location.href }); return; } catch (error) { if (error?.name === "AbortError") return; }
+    }
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
+  }
+
+  function renderSimulatorSection() {
+    if (!state.current.league.generated || filledParticipants().length < 2) return emptyState("◇", "Turnuva Simülasyonu Kura Sonrası Açılır", "League Phase fikstürü oluşturulduğunda kalan bütün turnuva güncel performanslara göre binlerce kez otomatik oynatılır.", `<button class="btn btn-gold" data-nav="setup">Kura Sayfasına Git</button>`);
+    const data = buildTournamentSimulation();
+    if (!data) return `<div class="info-box">Simülasyon verisi oluşturulamadı.</div>`;
+    const path = data.mostLikely;
+    const finalNames = data.mostLikelyFinalIds.map(playerName);
+    const topRows = data.rows.slice(0,8);
+    const allPredictions = path.predictedMatches;
+    const progress = data.totalKnown ? data.completed / data.totalKnown * 100 : 0;
+    return `<div class="intel-section-stack tournament-simulation-centre">
+      <section class="simulation-hero"><div><div class="eyebrow">LIVE MONTE CARLO · v18</div><h2>Dinamik Turnuva Simülasyonu</h2><p>Girilen gerçek sonuçları sabitler; kalan League Phase, Altın/Gümüş Grup, eleme serileri, yarı finaller ve finali güncel Elo, son 20 maç formu, momentum, gol profili ve ikili rekabete göre sürekli yeniden oynatır.</p><div class="simulation-actions"><button class="btn btn-gold" data-action="rerun-tournament-simulation">Simülasyonu Yenile</button><button class="btn btn-ghost" data-action="share-tournament-simulation">WhatsApp’ta Paylaş</button></div></div><div class="simulation-orb"><strong>${data.runs.toLocaleString("tr-TR")}</strong><span>SANAL TURNUVA</span><small>${data.completed} gerçek sonuç sabitlendi</small><i style="--progress:${Math.round(progress * 3.6)}deg"></i></div></section>
+
+      <section class="simulation-control-strip"><div><span>Simülasyon Hassasiyeti</span><strong>Her skor girişinden sonra otomatik yeniden hesaplanır.</strong></div><div class="segmented-control">${[1000,5000,10000].map(value => `<button class="segment-btn ${data.runs === value ? "active" : ""}" data-action="set-simulation-runs" data-simulation-runs="${value}">${value/1000}K</button>`).join("")}</div><small>Son hesaplama: ${new Date(data.recalculatedAt).toLocaleTimeString("tr-TR", {hour:"2-digit",minute:"2-digit",second:"2-digit"})}</small></section>
+
+      <div class="simulation-kpi-grid">
+        <article><span>Şampiyonluk Favorisi</span><strong>${escapeHTML(data.favorite?.name || "–")}</strong><b>${simulationPct(data.favorite?.championProbability,1)}</b><small>${data.favorite?.elo || 1500} Elo · ${data.favorite?.eloTier?.label || ""}</small></article>
+        <article><span>En Olası Final</span><strong>${escapeHTML(finalNames.join(" vs ") || "–")}</strong><b>${simulationPct(data.mostLikelyFinalProbability,1)}</b><small>${data.runs.toLocaleString("tr-TR")} turnuvadaki en sık eşleşme</small></article>
+        <article><span>Sürpriz Şampiyon Adayı</span><strong>${escapeHTML(data.surprise?.name || "–")}</strong><b>${simulationPct(data.surprise?.championProbability,1)}</b><small>Elo sırası ${data.surprise?.eloRank || "–"} · Final ${simulationPct(data.surprise?.finalProbability,1)}</small></article>
+        <article><span>En Olası Şampiyon</span><strong>${escapeHTML(playerName(path.championId))}</strong><b>${path.final.homeScore}–${path.final.awayScore}</b><small>${escapeHTML(playerName(path.final.homeId))} vs ${escapeHTML(playerName(path.final.awayId))}</small></article>
+      </div>
+
+      <section class="panel simulation-title-race"><div class="panel-header"><div><h3 class="panel-title">Şampiyonluk Olasılığı</h3><div class="panel-subtitle">Model tek bir sonuç söylemez; kalan turnuvayı binlerce farklı olasılıkla oynatır.</div></div><span class="badge badge-gold">${data.runs.toLocaleString("tr-TR")} RUNS</span></div><div class="simulation-title-bars">${data.rows.slice(0,8).map((row,index) => `<div><span>${index + 1}</span><strong>${escapeHTML(row.name)}</strong><div><i style="width:${Math.max(1,row.championProbability*100)}%"></i></div><b>${simulationPct(row.championProbability,1)}</b><small>${row.elo} Elo</small></div>`).join("")}</div></section>
+
+      <section class="panel"><div class="panel-header"><div><h3 class="panel-title">Tur Atlama Olasılık Matrisi</h3><div class="panel-subtitle">Altın/Gümüş Grup, yarı final, final ve şampiyonluk ihtimalleri aynı anda izlenir.</div></div><span class="badge badge-blue">AUTO UPDATE</span></div><div class="simulation-probability-table"><div class="head"><span>#</span><span>Oyuncu</span><span>Elo</span><span>Altın</span><span>Gümüş</span><span>Yarı Final</span><span>Final</span><span>Şampiyon</span><span>Tahmini Lig</span></div>${data.rows.map((row,index) => `<div><span>${index + 1}</span><strong>${escapeHTML(row.name)}</strong><b>${row.elo}</b><span>${simulationPct(row.goldProbability)}</span><span>${simulationPct(row.silverProbability)}</span><span>${simulationPct(row.semiProbability)}</span><span>${simulationPct(row.finalProbability)}</span><strong class="champ-prob">${simulationPct(row.championProbability,1)}</strong><small>${row.expectedLeagueRank.toFixed(1)}. · ${row.expectedLeaguePoints.toFixed(1)} P</small></div>`).join("")}</div></section>
+
+      <section class="panel"><div class="panel-header"><div><h3 class="panel-title">En Olası Turnuva Akışı</h3><div class="panel-subtitle">Modelin mevcut veriden ürettiği tek ana senaryo. Kesin sonuç değil, en yüksek olasılıklı yol haritasıdır.</div></div><span class="badge badge-gold">MOST LIKELY PATH</span></div><div class="simulation-flow-grid"><div><h4>League Phase</h4>${simulationProjectedTable(path.leagueTable,"league")}</div><div><h4>Altın Grup</h4>${simulationProjectedTable(path.goldTable,"gold")}</div><div><h4>Gümüş Grup</h4>${simulationProjectedTable(path.silverTable,"silver")}</div></div></section>
+
+      <section class="panel simulation-bracket"><div class="panel-header"><div><h3 class="panel-title">Simüle Eleme Ağacı</h3><div class="panel-subtitle">Üç maçlık serilerde iki galibiyete ulaşan oyuncu tur atlar; final tek maçtır.</div></div></div><div class="simulation-bracket-columns"><div><h4>Eleme Serileri</h4>${path.qf.map(simulationSeriesCard).join("")}</div><div><h4>Yarı Finaller</h4>${path.semifinals.map(simulationSeriesCard).join("")}</div><div><h4>Büyük Final</h4><article class="sim-final-card"><span>TAHMİNİ FİNAL</span><strong>${escapeHTML(playerName(path.final.homeId))}</strong><b>${path.final.homeScore}–${path.final.awayScore}</b><strong>${escapeHTML(playerName(path.final.awayId))}</strong><small>Şampiyon: ${escapeHTML(playerName(path.championId))}</small></article></div></div></section>
+
+      <section class="panel"><div class="panel-header"><div><h3 class="panel-title">Kalan Tüm Maçların Model Tahmini</h3><div class="panel-subtitle">Mevcut fikstür ve simülasyonda oluşacak sonraki aşamalar dahil ${allPredictions.length} tahmini maç.</div></div><span class="badge badge-blue">FULL FLOW</span></div><div class="simulation-fixture-scroll"><div class="simulation-fixture-list">${allPredictions.map((match,index) => `<div><span>${index + 1}</span><small>${escapeHTML(match.stageLabel)}</small><strong>${escapeHTML(playerName(match.homeId))}</strong><b>${match.homeScore}–${match.awayScore}</b><strong>${escapeHTML(playerName(match.awayId))}</strong><em>${match.model ? `${simulationPct(match.model.market.home.probability)} · ${simulationPct(match.model.market.draw.probability)} · ${simulationPct(match.model.market.away.probability)}` : "Gerçek sonuç"}</em></div>`).join("") || `<div class="info-box">Kalan maç bulunmuyor; turnuva tamamlandı.</div>`}</div></div></section>
+
+      <section class="panel simulation-method"><div class="panel-header"><div><h3 class="panel-title">Simülasyon Motoru</h3><div class="panel-subtitle">Aynı gerçek veri bütün cihazlarda aynı model girdisini üretir.</div></div><span class="badge badge-blue">MONTE CARLO</span></div><div class="simulation-method-grid"><div><strong>36%</strong><span>Son 20 maç formu</span></div><div><strong>20%</strong><span>Tüm zamanlar gücü</span></div><div><strong>14%</strong><span>Son 5 maç momentumu</span></div><div><strong>14%</strong><span>FIFA 9 performansı</span></div><div><strong>10%</strong><span>Gol / savunma profili</span></div><div><strong>±6</strong><span>İkili rekabet etkisi</span></div></div><div class="info-box mt-16"><strong>Dinamik çalışma:</strong> Yeni resmî skor kaydedildiğinde Elo, form, momentum ve mevcut sıralama değişir. Simülasyon önbelleği otomatik geçersiz olur ve kalan turnuva baştan sona yeniden hesaplanır.</div></section>
+      ${renderManualQualificationPanel()}
     </div>`;
   }
 
@@ -3649,7 +4052,7 @@
     ];
     const renderers = { matchday:renderMatchdaySection, elo:renderEloSection, rivalry:renderRivalrySection, predictions:renderPredictionSection, achievements:renderAchievementsSection, simulator:renderSimulatorSection, cards:renderPlayerCardSection };
     if (!renderers[intelligenceSection]) intelligenceSection = "matchday";
-    view.innerHTML = `<div class="group-banner intelligence-banner"><div><div class="eyebrow">FIFA 9 · INTELLIGENCE SUITE v15</div><h2>Turnuva Zekâ Merkezi</h2><p>Maç öncesi analizden canlı momentuma, Elo gücünden rekabet DNA’sına, tahmin liginden oyuncu kartlarına kadar bütün veri katmanları tek merkezde.</p></div><div class="intelligence-orbit"><span>AI</span><i>LIVE</i><b>DATA</b></div></div>
+    view.innerHTML = `<div class="group-banner intelligence-banner"><div><div class="eyebrow">FIFA 9 · INTELLIGENCE SUITE v18</div><h2>Turnuva Zekâ Merkezi</h2><p>Maç öncesi analizden canlı momentuma, Elo gücünden rekabet DNA’sına, tahmin liginden oyuncu kartlarına kadar bütün veri katmanları tek merkezde.</p></div><div class="intelligence-orbit"><span>AI</span><i>LIVE</i><b>DATA</b></div></div>
       <nav class="intel-tabs" aria-label="Intelligence modules">${sections.map(([key,label,icon])=>`<button class="${intelligenceSection===key?"active":""}" data-action="set-intelligence-section" data-intelligence-section="${key}"><span>${icon}</span><strong>${label}</strong></button>`).join("")}</nav>
       ${renderers[intelligenceSection]()}`;
   }
@@ -4428,6 +4831,25 @@ ${shareData.url}`)}`;
     }
     if (type === "open-matchday-analysis") { openMatchdayAnalysis(action.dataset.matchId); return; }
     if (type === "refresh-predictions") { predictionCache.loadedAt = 0; loadPredictionRows(true); return; }
+    if (type === "set-simulation-runs") {
+      const runs = Number(action.dataset.simulationRuns);
+      if ([1000, 5000, 10000].includes(runs)) tournamentSimulationRuns = runs;
+      tournamentSimulationNonce += 1;
+      tournamentSimulationCache.key = ""; tournamentSimulationCache.data = null;
+      if (activeView === "intelligence") renderIntelligenceCentre();
+      return;
+    }
+    if (type === "rerun-tournament-simulation") {
+      tournamentSimulationNonce += 1;
+      tournamentSimulationCache.key = ""; tournamentSimulationCache.data = null;
+      if (activeView === "intelligence") renderIntelligenceCentre();
+      toast("Turnuva simülasyonu güncel verilerle yeniden çalıştırıldı.", "success");
+      return;
+    }
+    if (type === "share-tournament-simulation") {
+      shareTournamentSimulation();
+      return;
+    }
     if (type === "set-simulator-group") {
       intelligenceSimulatorGroup = action.dataset.group === "silver" ? "silver" : "gold";
       qualificationScenario = {};

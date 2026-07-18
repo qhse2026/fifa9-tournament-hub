@@ -1537,7 +1537,7 @@ html[data-language="en"] .brand-subtitle { letter-spacing: .095em; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   FIFA 9 Intelligence Suite v15
+   FIFA 9 Intelligence Suite v18
    ═══════════════════════════════════════════════════════════════════════════ */
 .intelligence-nav .nav-icon { color:#82d7ff; text-shadow:0 0 14px rgba(71,172,230,.6); }
 .intelligence-banner {
@@ -1587,4 +1587,143 @@ html[data-language="en"] .brand-subtitle { letter-spacing: .095em; }
 }
 @media (max-width:620px){
   .intel-tabs{grid-template-columns:repeat(2,1fr)}.intel-tabs button{min-height:52px}.intel-feature-grid{grid-template-columns:1fr}.intel-score-prediction{max-width:190px;width:100%}.intel-live-head{align-items:flex-start}.intel-momentum-gauge{width:75px;height:75px;flex:0 0 75px}.intel-momentum-gauge strong{font-size:22px}.intel-live-insights,.intel-dossier-kpis,.intel-card-insight-grid{grid-template-columns:1fr}.intel-match-row{grid-template-columns:1fr 65px}.intel-match-row .intel-match-stage,.intel-match-row small{grid-column:1/-1;text-align:left}.intel-story-grid{grid-template-columns:1fr}.intel-dossier-hero{align-items:flex-start;flex-direction:column}.intel-dossier-h2h{grid-template-columns:1fr}.intel-rivalry-scoreboard{grid-template-columns:1fr 75px 1fr;padding:17px}.intel-rivalry-scoreboard>div>strong{font-size:38px}.intel-dna-grid,.intel-points-rules,.intel-catalog-grid,.intel-scenario-notes{grid-template-columns:1fr}.intel-tier-grid{grid-template-columns:repeat(2,1fr)}.intel-badge-list{grid-template-columns:1fr}.intel-sim-match{grid-template-columns:1fr 42px 12px 42px 1fr}.intel-sim-match>span{grid-column:1/-1}.intel-sim-table>.head,.intel-sim-table>div{grid-template-columns:28px 1fr 35px 45px 65px}.intel-sim-table>.head>*:nth-child(3),.intel-sim-table>div>*:nth-child(3){display:none}.intel-mini-card-grid{grid-template-columns:1fr}.intel-player-card-stage{padding:16px}.intel-master-card{width:260px;min-height:400px}.intel-card-bars>div{grid-template-columns:70px 1fr 30px}.intel-rivalry-timeline>div{grid-template-columns:1fr}.intel-my-predictions>div{grid-template-columns:1fr 55px 70px}.intel-probability-labels{font-size:8px}
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   FIFA 9 Dynamic Tournament Simulator v18
+   ═══════════════════════════════════════════════════════════════════════════ */
+.tournament-simulation-centre { --sim-cyan:#78d6ff; --sim-gold:#f0cf83; }
+.simulation-hero {
+  position:relative; overflow:hidden; display:flex; align-items:center; justify-content:space-between; gap:32px;
+  padding:30px; border:1px solid rgba(98,197,245,.24); border-radius:26px;
+  background:
+    radial-gradient(circle at 82% 24%, rgba(47,158,216,.18), transparent 30%),
+    radial-gradient(circle at 30% 120%, rgba(213,168,78,.14), transparent 36%),
+    linear-gradient(135deg, rgba(7,29,48,.98), rgba(4,14,25,.98));
+  box-shadow:0 24px 70px rgba(0,0,0,.3), inset 0 1px rgba(255,255,255,.035);
+}
+.simulation-hero::after { content:""; position:absolute; inset:0; pointer-events:none; opacity:.18; background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px); background-size:34px 34px; mask-image:linear-gradient(90deg,transparent,black 55%,transparent); }
+.simulation-hero>div:first-child { position:relative; z-index:1; max-width:830px; }
+.simulation-hero h2 { margin:8px 0 10px; font-size:34px; letter-spacing:-.025em; }
+.simulation-hero p { margin:0; max-width:840px; color:#9eb2c3; font-size:12px; line-height:1.75; }
+.simulation-actions { display:flex; gap:9px; flex-wrap:wrap; margin-top:19px; }
+.simulation-orb { position:relative; z-index:1; width:190px; height:190px; flex:0 0 190px; display:grid; place-items:center; align-content:center; text-align:center; border-radius:50%; border:1px solid rgba(113,211,255,.28); background:radial-gradient(circle,rgba(24,74,105,.62),rgba(4,17,29,.94) 68%); box-shadow:inset 0 0 55px rgba(70,183,236,.14),0 0 50px rgba(40,147,207,.14); }
+.simulation-orb::before { content:""; position:absolute; inset:12px; border-radius:50%; border:1px dashed rgba(240,207,131,.28); animation:simOrbit 18s linear infinite; }
+.simulation-orb strong { font-size:39px; color:#f7fbff; line-height:1; }
+.simulation-orb span { margin-top:7px; color:var(--sim-gold); font-size:8px; font-weight:900; letter-spacing:.17em; }
+.simulation-orb small { margin-top:7px; color:#7792a7; font-size:8px; }
+.simulation-orb i { position:absolute; inset:-5px; border-radius:50%; background:conic-gradient(var(--sim-cyan) var(--progress),rgba(255,255,255,.035) 0); mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 0); opacity:.8; }
+@keyframes simOrbit { to { transform:rotate(360deg); } }
+
+.simulation-control-strip { display:grid; grid-template-columns:minmax(220px,1fr) auto auto; align-items:center; gap:18px; padding:14px 18px; border:1px solid rgba(255,255,255,.06); border-radius:17px; background:rgba(7,21,35,.82); }
+.simulation-control-strip span { display:block; color:#7990a4; font-size:8px; text-transform:uppercase; letter-spacing:.11em; }
+.simulation-control-strip strong { display:block; margin-top:4px; font-size:10px; color:#d9e4eb; }
+.simulation-control-strip small { color:#71889b; font-size:8px; }
+
+.simulation-kpi-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:11px; }
+.simulation-kpi-grid article { min-height:142px; padding:17px; border:1px solid rgba(255,255,255,.06); border-radius:18px; background:linear-gradient(145deg,rgba(255,255,255,.035),rgba(255,255,255,.012)); position:relative; overflow:hidden; }
+.simulation-kpi-grid article::after { content:""; position:absolute; width:90px; height:90px; right:-38px; bottom:-40px; border-radius:50%; background:rgba(67,173,226,.09); }
+.simulation-kpi-grid span { display:block; color:#70879a; font-size:8px; font-weight:850; text-transform:uppercase; letter-spacing:.1em; }
+.simulation-kpi-grid strong { display:block; margin-top:11px; min-height:35px; color:#eef5f9; font-size:14px; line-height:1.25; }
+.simulation-kpi-grid b { display:block; color:var(--sim-gold); font-size:26px; line-height:1; }
+.simulation-kpi-grid small { display:block; margin-top:8px; color:#7f94a6; font-size:8px; line-height:1.4; }
+
+.simulation-title-bars { display:grid; gap:8px; }
+.simulation-title-bars>div { display:grid; grid-template-columns:26px minmax(150px,220px) minmax(160px,1fr) 65px 70px; align-items:center; gap:10px; padding:10px 11px; border:1px solid rgba(255,255,255,.045); border-radius:11px; background:rgba(255,255,255,.017); }
+.simulation-title-bars>div>span { color:#687f93; font-size:9px; text-align:center; }
+.simulation-title-bars strong { font-size:10px; }
+.simulation-title-bars>div>div { height:9px; border-radius:999px; overflow:hidden; background:rgba(255,255,255,.05); }
+.simulation-title-bars i { display:block; height:100%; border-radius:inherit; background:linear-gradient(90deg,#2c84b8,#76d5ff 60%,#f0cf83); box-shadow:0 0 16px rgba(89,193,241,.25); }
+.simulation-title-bars b { color:#f0cf83; font-size:11px; text-align:right; }
+.simulation-title-bars small { color:#74899a; font-size:8px; text-align:right; }
+
+.simulation-probability-table { min-width:920px; display:grid; gap:5px; }
+.simulation-probability-table>.head,.simulation-probability-table>div { display:grid; grid-template-columns:34px minmax(150px,1.35fr) 60px repeat(5,76px) 100px; align-items:center; gap:8px; padding:9px 11px; border-radius:10px; }
+.simulation-probability-table>.head { color:#6e8497; font-size:7px; font-weight:900; text-transform:uppercase; letter-spacing:.06em; }
+.simulation-probability-table>div:not(.head) { border:1px solid rgba(255,255,255,.045); background:rgba(255,255,255,.018); font-size:9px; }
+.simulation-probability-table>div:not(.head):hover { border-color:rgba(103,196,239,.18); background:rgba(74,163,207,.04); }
+.simulation-probability-table .champ-prob { color:#f0cf83; }
+.simulation-probability-table small { color:#7e93a5; text-align:right; }
+.panel:has(.simulation-probability-table) { overflow-x:auto; }
+
+.simulation-flow-grid { display:grid; grid-template-columns:1.15fr 1fr 1fr; gap:12px; }
+.simulation-flow-grid>div { min-width:0; padding:13px; border:1px solid rgba(255,255,255,.05); border-radius:15px; background:rgba(255,255,255,.015); }
+.simulation-flow-grid h4,.simulation-bracket h4 { margin:0 0 11px; color:#dbe6ed; font-size:9px; text-transform:uppercase; letter-spacing:.12em; }
+.sim-projected-table { display:grid; gap:4px; }
+.sim-projected-table>.head,.sim-projected-table>div { display:grid; grid-template-columns:24px minmax(90px,1fr) 28px 32px 38px 58px; align-items:center; gap:5px; padding:7px 7px; border-radius:8px; font-size:8px; }
+.sim-projected-table>.head { color:#687f93; text-transform:uppercase; }
+.sim-projected-table>div:not(.head) { border:1px solid rgba(255,255,255,.035); background:rgba(255,255,255,.014); }
+.sim-projected-table small { justify-self:end; padding:3px 5px; border-radius:999px; font-size:6px; font-weight:900; }
+.sim-projected-table .line-gold small { color:#f0cf83; background:rgba(213,168,78,.1); }
+.sim-projected-table .line-silver small,.sim-projected-table .line-playoff small { color:#abd9ef; background:rgba(68,160,207,.1); }
+.sim-projected-table .line-out small { color:#ef9098; background:rgba(239,74,89,.08); }
+
+.simulation-bracket-columns { display:grid; grid-template-columns:1.25fr 1fr .9fr; gap:13px; }
+.simulation-bracket-columns>div { min-width:0; padding:14px; border-radius:16px; border:1px solid rgba(255,255,255,.05); background:linear-gradient(145deg,rgba(255,255,255,.02),rgba(255,255,255,.008)); }
+.sim-bracket-card,.sim-final-card { display:grid; grid-template-columns:1fr auto; align-items:center; gap:6px 10px; padding:12px; margin-top:8px; border:1px solid rgba(255,255,255,.055); border-radius:12px; background:rgba(5,18,31,.84); }
+.sim-bracket-card>span,.sim-final-card>span { grid-column:1/-1; color:#688094; font-size:7px; letter-spacing:.1em; }
+.sim-bracket-card strong,.sim-final-card strong { font-size:9px; }
+.sim-bracket-card b,.sim-final-card b { grid-row:2/4; grid-column:2; color:#f0cf83; font-size:18px; }
+.sim-bracket-card small,.sim-final-card small { grid-column:1/-1; padding-top:6px; border-top:1px solid rgba(255,255,255,.045); color:#7d92a4; font-size:7px; }
+.sim-final-card { min-height:180px; align-content:center; text-align:center; border-color:rgba(213,168,78,.2); background:radial-gradient(circle at 50% 0,rgba(213,168,78,.13),transparent 42%),rgba(7,20,34,.92); }
+.sim-final-card strong,.sim-final-card b { font-size:15px; }
+
+.simulation-fixture-scroll { max-height:610px; overflow:auto; padding-right:4px; }
+.simulation-fixture-list { display:grid; gap:5px; }
+.simulation-fixture-list>div { display:grid; grid-template-columns:28px 140px minmax(130px,1fr) 54px minmax(130px,1fr) 150px; align-items:center; gap:9px; padding:9px 11px; border:1px solid rgba(255,255,255,.04); border-radius:10px; background:rgba(255,255,255,.015); }
+.simulation-fixture-list>div:hover { border-color:rgba(103,195,239,.17); }
+.simulation-fixture-list span { color:#657d91; font-size:8px; }
+.simulation-fixture-list small { color:#7390a4; font-size:7px; }
+.simulation-fixture-list strong { font-size:9px; }
+.simulation-fixture-list strong:nth-of-type(2) { text-align:right; }
+.simulation-fixture-list b { color:#f0cf83; text-align:center; font-size:13px; }
+.simulation-fixture-list em { color:#72899c; font-size:7px; font-style:normal; text-align:right; }
+
+.simulation-method-grid { display:grid; grid-template-columns:repeat(6,1fr); gap:8px; }
+.simulation-method-grid>div { padding:13px; border:1px solid rgba(255,255,255,.045); border-radius:12px; background:rgba(255,255,255,.017); text-align:center; }
+.simulation-method-grid strong { display:block; color:#f0cf83; font-size:20px; }
+.simulation-method-grid span { display:block; margin-top:5px; color:#7b91a3; font-size:8px; }
+
+.sim-whatif-panel { padding:0; overflow:hidden; }
+.sim-whatif-panel summary { cursor:pointer; list-style:none; display:flex; align-items:center; justify-content:space-between; gap:20px; padding:19px 21px; }
+.sim-whatif-panel summary::-webkit-details-marker { display:none; }
+.sim-whatif-panel summary strong { display:block; margin-top:4px; font-size:13px; }
+.sim-whatif-panel summary small { display:block; margin-top:4px; color:#7b91a3; font-size:8px; }
+.sim-whatif-panel summary>b { color:#f0cf83; font-size:10px; }
+.sim-whatif-content { padding:0 20px 20px; border-top:1px solid rgba(255,255,255,.05); }
+.sim-whatif-content>.segmented-control { margin:15px auto; }
+.sim-whatif-content .grid-2 { margin-top:15px; }
+
+@media (max-width:1280px) {
+  .simulation-kpi-grid { grid-template-columns:repeat(2,1fr); }
+  .simulation-flow-grid { grid-template-columns:1fr 1fr; }
+  .simulation-flow-grid>div:first-child { grid-column:1/-1; }
+  .simulation-method-grid { grid-template-columns:repeat(3,1fr); }
+}
+@media (max-width:900px) {
+  .simulation-hero { align-items:flex-start; }
+  .simulation-orb { width:145px; height:145px; flex-basis:145px; }
+  .simulation-orb strong { font-size:29px; }
+  .simulation-control-strip { grid-template-columns:1fr auto; }
+  .simulation-control-strip>small { grid-column:1/-1; }
+  .simulation-bracket-columns { grid-template-columns:1fr; }
+  .simulation-title-bars>div { grid-template-columns:25px minmax(100px,160px) 1fr 58px; }
+  .simulation-title-bars small { display:none; }
+  .simulation-fixture-list>div { grid-template-columns:25px 105px 1fr 48px 1fr; }
+  .simulation-fixture-list em { grid-column:2/-1; text-align:left; }
+}
+@media (max-width:620px) {
+  .simulation-hero { padding:22px; flex-direction:column; }
+  .simulation-hero h2 { font-size:27px; }
+  .simulation-orb { width:132px; height:132px; flex-basis:132px; align-self:center; }
+  .simulation-kpi-grid,.simulation-flow-grid { grid-template-columns:1fr; }
+  .simulation-flow-grid>div:first-child { grid-column:auto; }
+  .simulation-control-strip { grid-template-columns:1fr; }
+  .simulation-title-bars>div { grid-template-columns:22px minmax(95px,1fr) 52px; }
+  .simulation-title-bars>div>div,.simulation-title-bars small { display:none; }
+  .simulation-method-grid { grid-template-columns:repeat(2,1fr); }
+  .simulation-fixture-list>div { grid-template-columns:24px 1fr 44px 1fr; }
+  .simulation-fixture-list small { grid-column:2/-1; }
+  .simulation-fixture-list em { grid-column:2/-1; }
+  .sim-whatif-content { padding:0 12px 14px; }
 }
