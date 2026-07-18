@@ -1,0 +1,26 @@
+FIFA 9 CHAT v16 — OYUNCU SEÇİMİ DÜZELTMESİ
+
+Düzeltilen sorun:
+- Sohbet giriş ekranında oyuncu seçildikten sonra sayfa yeniden çizildiğinde seçim "Oyuncunu seç / Select your player" değerine dönüyordu.
+- Aynı yeniden çizim sırasında PIN alanı ve klavye odağı da kaybolabiliyordu.
+
+Yeni davranış:
+- Seçilen oyuncu chat ekranı yenilense bile korunur.
+- PIN değeri aynı sayfa oturumundaki yeniden çizimlerde korunur.
+- Oyuncu seçimi sekme açık olduğu sürece sessionStorage içinde tutulur.
+- Form odağı ve PIN imleç konumu yeniden çizimden sonra geri yüklenir.
+- Başarılı girişten sonra geçici seçim ve PIN temizlenir.
+- PIN alanına yalnızca 4–8 rakam kabul edilir.
+
+KURULUM
+1. Bu paketteki chat.js ve service-worker.js dosyalarını GitHub repository ana dizinine yükleyin.
+2. Mevcut dosyaların değiştirilmesini onaylayın.
+3. Commit mesajı önerisi:
+   Fix chat player selection reset v16
+4. Vercel deployment tamamlandıktan sonra bilgisayarda Ctrl+F5 yapın.
+5. Telefonda eski sürüm görünürse site verisini/önbelleği temizleyin veya gizli sekmede test edin.
+
+SUPABASE
+- Yeni SQL çalıştırılması gerekmez.
+- Mevcut chat hesapları ve mesajlar korunur.
+- cloud-config.js dosyasına dokunmayın.

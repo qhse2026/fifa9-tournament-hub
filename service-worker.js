@@ -1,4 +1,4 @@
-const CACHE = "fifa9-hub-live-v15-intelligence-suite";
+const CACHE = "fifa9-hub-live-v16-chat-player-selection-fix";
 const APP_SHELL = [
   "./",
   "./index.html",

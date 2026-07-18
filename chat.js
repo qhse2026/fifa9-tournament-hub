@@ -6,6 +6,7 @@
   const READ_KEY = "fifa9-chat-last-read-v12";
   const CHANNEL_KEY = "fifa9-chat-channel";
   const DRAFT_KEY = "fifa9-chat-draft-v13";
+  const REG_PLAYER_KEY = "fifa9-chat-selected-player-v16";
   const MAX_MESSAGES = 150;
   const POLL_INTERVAL = 3500;
 
@@ -19,6 +20,49 @@
   let unreadCount = 0;
   let lastError = "";
   let lastMessageStamp = "";
+  let registrationState = {
+    playerId: sessionStorage.getItem(REG_PLAYER_KEY) || "",
+    pin: "",
+    focusedField: "",
+    cursor: null
+  };
+
+  function saveSelectedRegistrationPlayer(playerId) {
+    const clean = String(playerId || "");
+    registrationState.playerId = clean;
+    if (clean) sessionStorage.setItem(REG_PLAYER_KEY, clean);
+    else sessionStorage.removeItem(REG_PLAYER_KEY);
+  }
+
+  function captureRegistrationState() {
+    const form = document.querySelector("#chatRegistrationForm");
+    if (!form) return { ...registrationState };
+
+    const playerSelect = form.elements?.playerId;
+    const pinInput = form.elements?.pin;
+    saveSelectedRegistrationPlayer(playerSelect?.value || registrationState.playerId);
+    registrationState.pin = String(pinInput?.value ?? registrationState.pin ?? "")
+      .replace(/\D/g, "")
+      .slice(0, 8);
+
+    const active = document.activeElement;
+    registrationState.focusedField = active && form.contains(active) ? String(active.name || "") : "";
+    registrationState.cursor = registrationState.focusedField === "pin" && Number.isInteger(pinInput?.selectionStart)
+      ? pinInput.selectionStart
+      : null;
+
+    return { ...registrationState };
+  }
+
+  function updateRegistrationStateFromField(field) {
+    if (!field?.closest?.("#chatRegistrationForm")) return;
+    if (field.name === "playerId") saveSelectedRegistrationPlayer(field.value);
+    if (field.name === "pin") {
+      const clean = String(field.value || "").replace(/\D/g, "").slice(0, 8);
+      if (field.value !== clean) field.value = clean;
+      registrationState.pin = clean;
+    }
+  }
 
   function draftKey(channel = activeChannel) {
     const identity = profile?.player_id || "guest";
@@ -239,6 +283,8 @@
       const row = Array.isArray(data) ? data[0] || null : data || null;
       if (!row?.session_token) throw new Error(t("Sohbet oturumu oluşturulamadı.", "Chat session could not be created."));
       localStorage.setItem(TOKEN_KEY, row.session_token);
+      registrationState = { playerId: "", pin: "", focusedField: "", cursor: null };
+      sessionStorage.removeItem(REG_PLAYER_KEY);
       profile = {
         profile_id: row.profile_id,
         tournament_id: row.tournament_id,
@@ -362,8 +408,12 @@
     }
   }
 
-  function renderRegistration() {
+  function renderRegistration(snapshot = registrationState) {
     const roster = participants();
+    const rosterIds = new Set(roster.map(player => String(player.id)));
+    const selectedPlayerId = rosterIds.has(String(snapshot.playerId || "")) ? String(snapshot.playerId) : "";
+    if (snapshot.playerId && !selectedPlayerId) saveSelectedRegistrationPlayer("");
+    const pinValue = String(snapshot.pin || "").replace(/\D/g, "").slice(0, 8);
     const claimed = new Set(rosterProfiles.map(item => item.player_id));
     return `
       <div class="chat-onboarding-grid">
@@ -378,11 +428,11 @@
               <label class="field"><span>${t("Kayıtlı Oyuncu", "Registered Player")}</span>
                 <select name="playerId" required>
                   <option value="">${t("Oyuncunu seç", "Select your player")}</option>
-                  ${roster.map(player => `<option value="${escapeHTML(player.id)}">${escapeHTML(player.name)}${claimed.has(player.id) ? ` · ${t("kayıtlı", "registered")}` : ""}</option>`).join("")}
+                  ${roster.map(player => `<option value="${escapeHTML(player.id)}" ${String(player.id) === selectedPlayerId ? "selected" : ""}>${escapeHTML(player.name)}${claimed.has(player.id) ? ` · ${t("kayıtlı", "registered")}` : ""}</option>`).join("")}
                 </select>
               </label>
               <label class="field"><span>${t("4–8 Haneli PIN", "4–8 Digit PIN")}</span>
-                <input name="pin" type="password" inputmode="numeric" pattern="[0-9]{4,8}" minlength="4" maxlength="8" autocomplete="new-password" placeholder="••••••" required>
+                <input name="pin" type="password" inputmode="numeric" pattern="[0-9]{4,8}" minlength="4" maxlength="8" autocomplete="new-password" placeholder="••••••" value="${escapeHTML(pinValue)}" required>
               </label>
               <button class="btn btn-gold btn-wide" type="submit" ${loading ? "disabled" : ""}>${loading ? t("Hazırlanıyor...", "Preparing...") : t("Sohbete Katıl", "Join Chat")}</button>
             </form>` : `<div class="info-box warning-box">${t("Önce turnuva oyuncuları kaydedilmelidir.", "Tournament players must be registered first.")}</div>`}
@@ -436,6 +486,7 @@
   function render(root) {
     if (!root) return;
     const composerState = captureComposerDraft();
+    const registrationSnapshot = captureRegistrationState();
     const configured = Boolean(cloud()?.isConfigured?.());
     if (!configured) {
       root.innerHTML = `<div class="group-banner silver"><div><div class="eyebrow">COMMUNITY</div><h2>${t("Turnuva Sohbeti", "Tournament Chat")}</h2><p>${t("Sohbet özelliği için canlı Supabase bağlantısı gereklidir.", "A live Supabase connection is required for chat.")}</p></div><div class="group-emblem">✦</div></div>`;
@@ -451,7 +502,7 @@
         <div><div class="eyebrow">FIFA 9 COMMUNITY</div><h2>${t("Turnuva Sohbeti", "Tournament Chat")}</h2><p>${t("Kayıtlı oyuncular için PIN tabanlı genel sohbet ve canlı maç odası.", "PIN-based general chat and live-match room for registered players.")}</p></div>
         <div class="group-emblem">✦</div>
       </div>
-      ${!profile ? `${renderRegistration()}${renderAdminProfiles()}` : `
+      ${!profile ? `${renderRegistration(registrationSnapshot)}${renderAdminProfiles()}` : `
         <div class="chat-layout">
           <section class="panel chat-main-panel">
             <div class="chat-topline">
@@ -490,6 +541,17 @@
         const cursor = Math.min(composerState.cursor ?? input.value.length, input.value.length);
         try { input.setSelectionRange(cursor, cursor); } catch (_) {}
       }
+
+      if (!profile && registrationSnapshot.focusedField) {
+        const field = document.querySelector(`#chatRegistrationForm [name="${registrationSnapshot.focusedField}"]`);
+        if (field) {
+          field.focus({ preventScroll: true });
+          if (registrationSnapshot.focusedField === "pin" && Number.isInteger(registrationSnapshot.cursor)) {
+            const cursor = Math.min(registrationSnapshot.cursor, field.value.length);
+            try { field.setSelectionRange(cursor, cursor); } catch (_) {}
+          }
+        }
+      }
     }, 30);
   }
 
@@ -524,7 +586,15 @@
     if (event.target.id === "chatRegistrationForm") {
       event.preventDefault();
       const data = new FormData(event.target);
-      claimProfile(String(data.get("playerId") || ""), String(data.get("pin") || ""));
+      const playerId = String(data.get("playerId") || "");
+      const pin = String(data.get("pin") || "").replace(/\D/g, "").slice(0, 8);
+      saveSelectedRegistrationPlayer(playerId);
+      registrationState.pin = pin;
+      if (!playerId) {
+        toast(t("Lütfen kayıtlı oyuncu adını seç.", "Please select your registered player name."), "error");
+        return true;
+      }
+      claimProfile(playerId, pin);
       return true;
     }
     if (event.target.id === "chatMessageForm") {
@@ -537,9 +607,14 @@
   }
 
   document.addEventListener("input", event => {
+    updateRegistrationStateFromField(event.target);
     const input = event.target.closest?.("#chatMessageInput");
     if (!input) return;
     setDraft(input.value);
+  });
+
+  document.addEventListener("change", event => {
+    updateRegistrationStateFromField(event.target);
   });
 
   document.addEventListener("keydown", event => {
