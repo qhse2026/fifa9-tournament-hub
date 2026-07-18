@@ -185,3 +185,17 @@ The v19 release adds five connected real-time intelligence modules inside the In
 - **AI Tournament Director:** Generates a data-driven tournament briefing from current results, Elo movement, active streaks, live matches and simulation signals. Four narrative voices are included, with WhatsApp sharing.
 
 All five modules recalculate from the existing tournament state. No new Supabase SQL or database table is required for v19.
+
+## Live Match Studio v21 — Broadcast Experience
+
+The v21 release upgrades the live match experience with a presentation-grade broadcast layer:
+
+- Fullscreen Broadcast Mode
+- TV / projector presentation mode
+- Live xT attack-threat indicators derived from form, match events and pressure
+- Player heat and pressure badges
+- Dangerous attack and big-chance quick event inputs
+- Automatic animated goal announcement overlay
+- Viewer-focused layouts that hide administrative controls during presentation
+
+No new Supabase SQL or database table is required. The new event types are stored inside the existing live match state.

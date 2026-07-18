@@ -1,0 +1,40 @@
+FIFA 9 Live Match Studio v21 — Broadcast Experience
+
+Bu güncelleme v20 Canlı Maç Stüdyosu üzerine aşağıdaki özellikleri ekler:
+
+- Tam ekran Broadcast Mode
+- TV / projektör görünümü
+- Canlı xT atak tehdidi göstergesi
+- Oyuncu bazlı Live Heat / baskı rozetleri
+- Tehlikeli atak ve büyük şans hızlı giriş düğmeleri
+- Gol sonrası otomatik sinematik anons kutusu
+- Yayın modunda yönetici panellerini gizleyen izleyici odaklı görünüm
+
+PATCH ONLY KURULUMU
+
+1. FIFA_9_Live_Match_Studio_v21_Broadcast_PATCH_ONLY.zip dosyasını ayıkla.
+2. GitHub repository ana dizininde aşağıdaki dosyaları değiştir:
+   - index.html
+   - app.js
+   - styles.css
+   - service-worker.js
+3. Commit mesajı önerisi:
+   Add Live Match Studio v21 Broadcast Experience
+4. Vercel deployment tamamlandıktan sonra bilgisayarda Ctrl + F5 yap.
+5. Telefonda eski sürüm görünürse tarayıcı site verisini / önbelleğini temizle.
+
+KULLANIM
+
+- Canlı Maç Merkezi'nden bir maçı başlat.
+- Üstteki Broadcast Mode veya TV / Projektör düğmesine bas.
+- Yönetici olarak Tehlikeli Atak ve Büyük Şans hızlı düğmelerini kullan.
+- Bu olaylar xT, momentum, baskı ve oyuncu ısı rozetlerini canlı günceller.
+- Gol girildiğinde tüm açık cihazlarda otomatik gol anonsu gösterilir.
+- ESC tuşu veya Standart Görünüme Dön düğmesiyle yayın modundan çıkılır.
+
+NOTLAR
+
+- Supabase SQL çalıştırılmaz.
+- cloud-config.js dosyasına dokunma.
+- Mevcut sonuçlar, oyuncular, sohbet, simülasyon ve Intelligence Centre korunur.
+- xT göstergesi gerçek xG değildir; turnuva içi istatistiksel atak tehdidi modelidir.

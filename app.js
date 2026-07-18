@@ -67,6 +67,8 @@
   let tournamentSimulationNonce = 0;
   const tournamentSimulationCache = { key: "", data: null };
   const predictionCache = { rows: [], loading: false, error: "", loadedAt: 0 };
+  let livePresentationMode = sessionStorage.getItem("fifa9-live-presentation-mode") || "standard";
+  let liveGoalAnnouncementTimer = null;
 
   function defaultState() {
     return {
@@ -531,6 +533,7 @@
   }
 
   function navTo(target) {
+    if (target !== "livematch" && livePresentationMode !== "standard") exitLivePresentation(false);
     activeView = target;
     pageTitle.textContent = titleMap[target] || "FIFA 9";
     $$(".nav-item").forEach(item => item.classList.toggle("active", item.dataset.nav === target));
@@ -735,6 +738,84 @@
   }
 
 
+
+  function liveHeatProfile(value) {
+    const heat = Math.round(intelligenceClamp(Number(value) || 0, 0, 100));
+    if (heat >= 88) return { value: heat, key: "red-zone", label: intelligenceCopy("KIRMIZI BÖLGE", "RED ZONE") };
+    if (heat >= 74) return { value: heat, key: "on-fire", label: intelligenceCopy("ALEV ALDI", "ON FIRE") };
+    if (heat >= 58) return { value: heat, key: "hot", label: intelligenceCopy("ÇOK SICAK", "VERY HOT") };
+    if (heat >= 40) return { value: heat, key: "warm", label: intelligenceCopy("ISINIYOR", "WARMING UP") };
+    return { value: heat, key: "cool", label: intelligenceCopy("SAKİN", "COOL") };
+  }
+
+  function liveEventThreatValue(event) {
+    const weights = { goal: .72, bigchance: .42, attack: .15, note: .07, yellow: .03, red: .09 };
+    return weights[event?.type] || 0;
+  }
+
+  function renderLiveHeatBadge(profile, name) {
+    return `<div class="live-heat-badge heat-${profile.key}" title="${escapeHTML(name)} live heat"><span class="heat-flame">◆</span><div><small>${intelligenceCopy("LIVE HEAT", "LIVE HEAT")}</small><strong>${escapeHTML(profile.label)}</strong></div><b>${profile.value}</b></div>`;
+  }
+
+  function renderLivePresentationControls() {
+    const standard = livePresentationMode === "standard";
+    return `<div class="live-presentation-controls ${standard ? "standard" : "active"}">
+      ${standard ? `<div><span>${intelligenceCopy("YAYIN GÖRÜNÜMÜ", "BROADCAST VIEW")}</span><strong>${intelligenceCopy("İzleyici ekranını büyüt", "Enlarge the viewer experience")}</strong></div><div class="live-presentation-buttons"><button class="btn btn-ghost" data-action="enter-broadcast-mode">${intelligenceCopy("Broadcast Mode", "Broadcast Mode")}</button><button class="btn btn-gold" data-action="enter-tv-mode">${intelligenceCopy("TV / Projektör", "TV / Projector")}</button></div>` : `<div class="presentation-live-label"><span class="live-pulse-dot"></span><strong>${livePresentationMode === "tv" ? "TV / PROJECTOR MODE" : "BROADCAST MODE"}</strong></div><button class="btn btn-gold" data-action="exit-live-presentation">${intelligenceCopy("Standart Görünüme Dön", "Exit Presentation")}</button>`}
+    </div>`;
+  }
+
+  function applyLivePresentationMode() {
+    document.body.classList.toggle("live-broadcast-mode", livePresentationMode === "broadcast");
+    document.body.classList.toggle("live-tv-mode", livePresentationMode === "tv");
+    document.body.classList.toggle("live-presentation-active", livePresentationMode !== "standard");
+  }
+
+  async function enterLivePresentation(mode) {
+    if (!getActiveLive()) { toast(intelligenceCopy("Önce canlı maç başlatılmalı.", "A live match must be started first."), "error"); return; }
+    livePresentationMode = mode === "tv" ? "tv" : "broadcast";
+    sessionStorage.setItem("fifa9-live-presentation-mode", livePresentationMode);
+    applyLivePresentationMode();
+    renderLiveMatchCentre();
+    try {
+      if (!document.fullscreenElement && document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen();
+    } catch (_) {}
+  }
+
+  async function exitLivePresentation(exitFullscreen = true) {
+    livePresentationMode = "standard";
+    sessionStorage.removeItem("fifa9-live-presentation-mode");
+    applyLivePresentationMode();
+    if (exitFullscreen && document.fullscreenElement && document.exitFullscreen) {
+      try { await document.exitFullscreen(); } catch (_) {}
+    }
+    if (activeView === "livematch") renderLiveMatchCentre();
+  }
+
+  function maybeShowGoalAnnouncement(live, match) {
+    const goals = [...(live?.events || [])].filter(event => event.type === "goal").sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+    const goal = goals[0];
+    if (!goal?.id) return;
+    const key = `fifa9-goal-seen-${match.id}`;
+    if (sessionStorage.getItem(key) === goal.id) return;
+    const age = Date.now() - new Date(goal.createdAt || 0).getTime();
+    if (Number.isFinite(age) && age > 18000 && !sessionStorage.getItem(key)) {
+      sessionStorage.setItem(key, goal.id);
+      return;
+    }
+    sessionStorage.setItem(key, goal.id);
+    const sideName = goal.side === "home" ? playerName(match.homeId) : playerName(match.awayId);
+    const teamName = goal.side === "home" ? (live.homeTeam || match.homeTeam || "") : (live.awayTeam || match.awayTeam || "");
+    const minute = `${Number(goal.minute) || 0}${Number(goal.addedTime) ? `+${Number(goal.addedTime)}` : ""}'`;
+    document.querySelector(".live-goal-announcement")?.remove();
+    const node = document.createElement("div");
+    node.className = `live-goal-announcement side-${goal.side}`;
+    node.innerHTML = `<div class="goal-announcement-core"><span class="goal-announcement-kicker">${intelligenceCopy("CANLI ANONS", "LIVE ANNOUNCEMENT")}</span><div class="goal-announcement-word">GOOOOL!</div><strong>${escapeHTML(sideName)}</strong><small>${escapeHTML(teamName)} · ${minute}</small><div class="goal-announcement-score">${live.homeScore}<i>–</i>${live.awayScore}</div></div>`;
+    document.body.appendChild(node);
+    requestAnimationFrame(() => node.classList.add("show"));
+    clearTimeout(liveGoalAnnouncementTimer);
+    liveGoalAnnouncementTimer = setTimeout(() => { node.classList.remove("show"); setTimeout(() => node.remove(), 500); }, 4800);
+  }
+
   function buildLiveStudioData() {
     const pulse = buildLiveMatchPulse();
     if (!pulse) return null;
@@ -761,9 +842,11 @@
       const idx = Math.min(binCount - 1, Math.floor(minute / binSize));
       let delta = 0;
       if (event.type === 'goal') delta = event.side === 'home' ? 28 : event.side === 'away' ? -28 : 0;
+      else if (event.type === 'bigchance') delta = event.side === 'home' ? 20 : event.side === 'away' ? -20 : 0;
+      else if (event.type === 'attack') delta = event.side === 'home' ? 10 : event.side === 'away' ? -10 : 0;
       else if (event.type === 'yellow') delta = event.side === 'home' ? -6 : event.side === 'away' ? 6 : 0;
       else if (event.type === 'red') delta = event.side === 'home' ? -18 : event.side === 'away' ? 18 : 0;
-      else if (event.type === 'note') delta = event.side === 'home' ? 10 : event.side === 'away' ? -10 : 0;
+      else if (event.type === 'note') delta = event.side === 'home' ? 8 : event.side === 'away' ? -8 : 0;
       bins[idx].swing += delta;
       bins[idx].eventCount += 1;
       bins[idx].events.push(event);
@@ -811,6 +894,21 @@
     const topWave = [...points].sort((a, b) => (b.homePressure + b.awayPressure) - (a.homePressure + a.awayPressure))[0] || currentSegment;
     const momentumOwner = currentSegment.value > 10 ? homeName : currentSegment.value < -10 ? awayName : intelligenceCopy('denge', 'balance');
     const controlOwner = pulse.leaderSide === 'home' ? homeName : pulse.leaderSide === 'away' ? awayName : intelligenceCopy('Denge', 'Balanced');
+    const phaseProgress = Math.max(.08, Math.min(1.15, minuteNow / 90));
+    const homeEventThreat = events.filter(event => event.side === 'home').reduce((sum, event) => sum + liveEventThreatValue(event), 0);
+    const awayEventThreat = events.filter(event => event.side === 'away').reduce((sum, event) => sum + liveEventThreatValue(event), 0);
+    const expectedHome = intelligenceClamp(((pulse.base.home.avgGoals + pulse.base.away.gaPerGame) / 2) * (.24 + phaseProgress * .58), .05, 4.4);
+    const expectedAway = intelligenceClamp(((pulse.base.away.avgGoals + pulse.base.home.gaPerGame) / 2) * (.24 + phaseProgress * .58), .05, 4.4);
+    const homeThreat = Number(intelligenceClamp(expectedHome + homeEventThreat + currentSegment.homePressure / 260, .05, 6.5).toFixed(2));
+    const awayThreat = Number(intelligenceClamp(expectedAway + awayEventThreat + currentSegment.awayPressure / 260, .05, 6.5).toFixed(2));
+    const threatTotal = homeThreat + awayThreat || 1;
+    const homeThreatShare = Math.round(homeThreat / threatTotal * 100);
+    const awayThreatShare = 100 - homeThreatShare;
+    const recentWindow = events.filter(event => minuteNow - (Number(event.minute) || 0) <= 12);
+    const homeRecentHeat = recentWindow.filter(event => event.side === 'home').reduce((sum, event) => sum + liveEventThreatValue(event) * 24, 0);
+    const awayRecentHeat = recentWindow.filter(event => event.side === 'away').reduce((sum, event) => sum + liveEventThreatValue(event) * 24, 0);
+    const homeHeat = liveHeatProfile(currentSegment.homePressure * .72 + homeRecentHeat + (pulse.momentum.side === 'home' ? 12 : 0));
+    const awayHeat = liveHeatProfile(currentSegment.awayPressure * .72 + awayRecentHeat + (pulse.momentum.side === 'away' ? 12 : 0));
     return {
       ...pulse,
       homeName,
@@ -822,6 +920,12 @@
       topWave,
       momentumOwner,
       controlOwner,
+      homeThreat,
+      awayThreat,
+      homeThreatShare,
+      awayThreatShare,
+      homeHeat,
+      awayHeat,
       scoreboardLabel: scoreDiff === 0 ? intelligenceCopy('Her şey açık', 'Everything is open') : scoreDiff > 0 ? `${homeName} ${intelligenceCopy('öne geçti', 'in front')}` : `${awayName} ${intelligenceCopy('öne geçti', 'in front')}`
     };
   }
@@ -837,6 +941,19 @@
       <article class="live-studio-metric"><span>${intelligenceCopy('Sonraki Gol', 'Next Goal')}</span><strong>${escapeHTML(nextGoalName)}</strong><small>${intelligenceCopy('Model sinyali', 'Model signal')}</small></article>
       <article class="live-studio-metric accent"><span>${intelligenceCopy('Maç Nabzı', 'Match Pulse')}</span><strong>${data.pulse} BPM</strong><small>${escapeHTML(data.scoreboardLabel)}</small></article>
       <article class="live-studio-metric"><span>${intelligenceCopy('En Sıcak Dilim', 'Hottest Wave')}</span><strong>${data.topWave.start}–${data.topWave.end}'</strong><small>${intelligenceCopy('En yüksek baskı bloğu', 'Highest pressure block')}</small></article>
+    </div>`;
+  }
+
+
+  function renderLiveStudioThreatPanel(data) {
+    return `<div class="live-studio-panel-stack">
+      <div class="panel-header compact"><div><h3 class="panel-title">${intelligenceCopy('Atak Tehdidi ve Oyuncu Isısı', 'Attack Threat & Player Heat')}</h3><div class="panel-subtitle">${intelligenceCopy('Gerçek xG değildir; oyuncu geçmişi, gol, büyük şans, tehlikeli atak ve anlık baskıdan üretilen canlı xT göstergesidir.', 'This is not official xG; it is a live xT indicator generated from player history, goals, big chances, dangerous attacks and current pressure.')}</div></div><span class="badge badge-gold">LIVE xT</span></div>
+      <div class="live-threat-duel">
+        <article class="live-threat-card home"><div class="live-threat-head"><span>${escapeHTML(data.homeName)}</span>${renderLiveHeatBadge(data.homeHeat, data.homeName)}</div><div class="live-threat-value"><small>xT</small><strong>${data.homeThreat.toFixed(2)}</strong></div><div class="live-threat-track"><i style="width:${data.homeThreatShare}%"></i></div><footer><span>${data.homeThreatShare}% ${intelligenceCopy('tehdit payı', 'threat share')}</span><b>${data.currentSegment.homePressure}/100 ${intelligenceCopy('baskı', 'pressure')}</b></footer></article>
+        <div class="live-threat-centre"><span>VS</span><strong>${Math.abs(data.homeThreat - data.awayThreat).toFixed(2)}</strong><small>${intelligenceCopy('tehdit farkı', 'threat gap')}</small></div>
+        <article class="live-threat-card away"><div class="live-threat-head"><span>${escapeHTML(data.awayName)}</span>${renderLiveHeatBadge(data.awayHeat, data.awayName)}</div><div class="live-threat-value"><small>xT</small><strong>${data.awayThreat.toFixed(2)}</strong></div><div class="live-threat-track"><i style="width:${data.awayThreatShare}%"></i></div><footer><span>${data.awayThreatShare}% ${intelligenceCopy('tehdit payı', 'threat share')}</span><b>${data.currentSegment.awayPressure}/100 ${intelligenceCopy('baskı', 'pressure')}</b></footer></article>
+      </div>
+      <div class="live-threat-note"><strong>${intelligenceCopy('Nasıl okunur?', 'How to read it?')}</strong> ${intelligenceCopy('xT yükseldikçe oyuncunun gol üretme tehdidi büyür. Büyük şans ve tehlikeli atak girişleri modeli doğrudan etkiler.', 'A higher xT means a stronger scoring threat. Big-chance and dangerous-attack entries directly affect the model.')}</div>
     </div>`;
   }
 
@@ -867,8 +984,9 @@
           ${coords.map(point => `<circle cx="${point.x.toFixed(1)}" cy="${point.y.toFixed(1)}" r="4.5" class="studio-point ${point.value >= 0 ? 'home' : 'away'}"></circle>`).join('')}
           ${coords.flatMap(point => (point.events || []).map(event => {
             const markerY = event.side === 'home' ? baseline - 112 : event.side === 'away' ? baseline + 112 : baseline;
-            const markerClass = event.type === 'goal' ? 'goal' : event.type === 'red' ? 'red' : event.type === 'yellow' ? 'yellow' : 'note';
-            return `<g class="studio-event-marker ${markerClass}"><circle cx="${point.x.toFixed(1)}" cy="${markerY.toFixed(1)}" r="8"></circle><text x="${point.x.toFixed(1)}" y="${(markerY + 3).toFixed(1)}" text-anchor="middle">${event.type === 'goal' ? 'G' : event.type === 'red' ? 'R' : event.type === 'yellow' ? 'Y' : '•'}</text></g>`;
+            const markerClass = event.type === 'goal' ? 'goal' : event.type === 'bigchance' ? 'bigchance' : event.type === 'attack' ? 'attack' : event.type === 'red' ? 'red' : event.type === 'yellow' ? 'yellow' : 'note';
+            const markerText = event.type === 'goal' ? 'G' : event.type === 'bigchance' ? '!' : event.type === 'attack' ? 'A' : event.type === 'red' ? 'R' : event.type === 'yellow' ? 'Y' : '•';
+            return `<g class="studio-event-marker ${markerClass}"><circle cx="${point.x.toFixed(1)}" cy="${markerY.toFixed(1)}" r="8"></circle><text x="${point.x.toFixed(1)}" y="${(markerY + 3).toFixed(1)}" text-anchor="middle">${markerText}</text></g>`;
           })).join('')}
         </svg>
       </div>
@@ -879,7 +997,7 @@
   function renderLiveStudioPressurePanel(data) {
     return `<div class="live-studio-panel-stack">
       <div class="panel-header compact"><div><h3 class="panel-title">${intelligenceCopy('Dakika Bazlı Baskı Dalgası', 'Minute-by-Minute Pressure Wave')}</h3><div class="panel-subtitle">${intelligenceCopy('Her 5 dakikalık blokta baskı şiddeti ve yön değişimi.', 'Pressure intensity and direction in every 5-minute block.')}</div></div><span class="badge badge-blue">${data.points.length} BLOCKS</span></div>
-      <div class="live-pressure-wave-list">${data.points.map(point => `<div class="live-pressure-wave ${point.active ? 'active' : ''}"><div class="live-pressure-minute">${point.start}–${point.end}'</div><div class="live-pressure-bars"><span class="home" style="width:${point.homePressure}%"></span><span class="away" style="width:${point.awayPressure}%"></span></div><div class="live-pressure-meta"><strong>${point.pressure}</strong><small>${point.events.length ? point.events.map(event => event.type === 'goal' ? '⚽' : event.type === 'red' ? '🟥' : event.type === 'yellow' ? '🟨' : '◆').join(' ') : '—'}</small></div></div>`).join('')}</div>
+      <div class="live-pressure-wave-list">${data.points.map(point => `<div class="live-pressure-wave ${point.active ? 'active' : ''}"><div class="live-pressure-minute">${point.start}–${point.end}'</div><div class="live-pressure-bars"><span class="home" style="width:${point.homePressure}%"></span><span class="away" style="width:${point.awayPressure}%"></span></div><div class="live-pressure-meta"><strong>${point.pressure}</strong><small>${point.events.length ? point.events.map(event => event.type === 'goal' ? '⚽' : event.type === 'bigchance' ? '◎' : event.type === 'attack' ? '↗' : event.type === 'red' ? '🟥' : event.type === 'yellow' ? '🟨' : '◆').join(' ') : '—'}</small></div></div>`).join('')}</div>
       <div class="live-pressure-footnote">${intelligenceCopy('Mavi bloklar ev sahibi baskısını, kırmızı bloklar deplasman baskısını gösterir. Sarı parlama, şu anda canlı oynanan zaman aralığını işaretler.', 'Blue bars show home pressure, red bars show away pressure. The gold glow marks the currently active live time block.')}</div>
     </div>`;
   }
@@ -912,9 +1030,14 @@
     const archive = Object.values(getLiveState().archive || {}).sort((a, b) => String(b.finishedAt || '').localeCompare(String(a.finishedAt || ''))).slice(0, 6);
 
     if (!active) {
+      if (livePresentationMode !== "standard") {
+        livePresentationMode = "standard";
+        sessionStorage.removeItem("fifa9-live-presentation-mode");
+        applyLivePresentationMode();
+      }
       view.innerHTML = `
         <div class="group-banner live-match-banner">
-          <div><div class="eyebrow">LIVE MATCH STUDIO v20</div><h2>Canlı Maç Merkezi</h2><p>Yönetici için güçlü kontrol masası, izleyici için ise yayın kalitesinde skor, grafik ve maç akışı. Sofascore / maçkolik hissini turnuva ekranına taşıyan zengin canlı merkez.</p></div>
+          <div><div class="eyebrow">LIVE MATCH STUDIO v21</div><h2>Canlı Maç Merkezi</h2><p>Yönetici için güçlü kontrol masası, izleyici için ise yayın kalitesinde skor, grafik ve maç akışı. Tam ekran yayın, TV/projektör modu, canlı xT atak tehdidi, oyuncu ısı rozetleri ve otomatik gol anonslarıyla zenginleştirilmiş yayın merkezi.</p></div>
           <div class="group-emblem live-ball">●</div>
         </div>
         <div class="live-match-empty-strip"><span class="live-offline-dot"></span><strong>Şu anda canlı maç yok</strong><span>${eligible.length} oynanmamış fikstür canlı yayına hazır.</span></div>
@@ -943,28 +1066,30 @@
     const events = [...(live.events || [])].sort((a, b) => (Number(b.minute) || 0) - (Number(a.minute) || 0) || String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
     view.innerHTML = `
       <div class="group-banner live-match-banner active-live-banner studio-banner">
-        <div><div class="eyebrow"><span class="live-pulse-dot"></span> LIVE MATCH STUDIO v20</div><h2>${displayName(match.homeId)} vs ${displayName(match.awayId)}</h2><p>${escapeHTML(liveStageLabel(match))} · Son güncelleme ${escapeHTML(formatLiveUpdatedAt(live.updatedAt))} · ${escapeHTML(studio.importance.note || '')}</p></div>
+        <div><div class="eyebrow"><span class="live-pulse-dot"></span> LIVE MATCH STUDIO v21</div><h2>${displayName(match.homeId)} vs ${displayName(match.awayId)}</h2><p>${escapeHTML(liveStageLabel(match))} · Son güncelleme ${escapeHTML(formatLiveUpdatedAt(live.updatedAt))} · ${escapeHTML(studio.importance.note || '')}</p></div>
         <div class="live-progress-orb"><strong>${liveMinuteText(live)}</strong><span>${liveStatusText(live)}</span></div>
       </div>
+      ${renderLivePresentationControls()}
 
       <section class="live-studio-scoreboard">
-        <div class="studio-team-card home"><span class="studio-side-tag">EV SAHİBİ</span><strong>${displayName(match.homeId)}</strong><small>${escapeHTML(live.homeTeam || match.homeTeam || 'Takım bekleniyor')}</small>${canEdit() ? `<div class="live-score-controls"><button data-action="live-score-minus" data-side="home">−</button><strong>${live.homeScore}</strong><button data-action="live-goal" data-side="home">+</button></div>` : `<div class="live-view-score">${live.homeScore}</div>`}</div>
+        <div class="studio-team-card home"><span class="studio-side-tag">EV SAHİBİ</span><strong>${displayName(match.homeId)}</strong><small>${escapeHTML(live.homeTeam || match.homeTeam || 'Takım bekleniyor')}</small>${renderLiveHeatBadge(studio.homeHeat, studio.homeName)}${canEdit() ? `<div class="live-score-controls"><button data-action="live-score-minus" data-side="home">−</button><strong>${live.homeScore}</strong><button data-action="live-goal" data-side="home">+</button></div>` : `<div class="live-view-score">${live.homeScore}</div>`}</div>
         <div class="studio-centre-stage"><div class="studio-live-chip"><span class="live-pulse-dot"></span>${liveStatusText(live)}</div><div class="studio-big-score">${live.homeScore}<span>–</span>${live.awayScore}</div><div class="studio-minute-chip">${liveMinuteText(live)}</div><div class="studio-stage-copy">${escapeHTML(studio.scoreboardLabel)}</div><div class="studio-stage-name">${escapeHTML(liveStageLabel(match))}</div></div>
-        <div class="studio-team-card away"><span class="studio-side-tag">DEPLASMAN</span><strong>${displayName(match.awayId)}</strong><small>${escapeHTML(live.awayTeam || match.awayTeam || 'Takım bekleniyor')}</small>${canEdit() ? `<div class="live-score-controls"><button data-action="live-score-minus" data-side="away">−</button><strong>${live.awayScore}</strong><button data-action="live-goal" data-side="away">+</button></div>` : `<div class="live-view-score">${live.awayScore}</div>`}</div>
+        <div class="studio-team-card away"><span class="studio-side-tag">DEPLASMAN</span><strong>${displayName(match.awayId)}</strong><small>${escapeHTML(live.awayTeam || match.awayTeam || 'Takım bekleniyor')}</small>${renderLiveHeatBadge(studio.awayHeat, studio.awayName)}${canEdit() ? `<div class="live-score-controls"><button data-action="live-score-minus" data-side="away">−</button><strong>${live.awayScore}</strong><button data-action="live-goal" data-side="away">+</button></div>` : `<div class="live-view-score">${live.awayScore}</div>`}</div>
       </section>
 
       ${renderLiveStudioMetrics(studio)}
 
-      <div class="grid-2 mt-24">
-        <section class="panel live-studio-panel">${renderLiveStudioMomentumPanel(studio)}</section>
-        <section class="panel live-studio-panel">${renderLiveStudioPressurePanel(studio)}</section>
+      <div class="grid-2 mt-24 live-studio-primary-grid">
+        <section class="panel live-studio-panel live-momentum-panel">${renderLiveStudioMomentumPanel(studio)}</section>
+        <section class="panel live-studio-panel live-pressure-panel">${renderLiveStudioPressurePanel(studio)}</section>
       </div>
-      <div class="grid-2 mt-24">
-        <section class="panel live-studio-panel">${renderLiveStudioProbabilityPanel(studio)}</section>
-        <section class="panel live-studio-panel">${renderLiveStudioStoryPanel(studio)}</section>
+      <div class="grid-2 mt-24 live-studio-secondary-grid">
+        <section class="panel live-studio-panel live-threat-panel">${renderLiveStudioThreatPanel(studio)}</section>
+        <section class="panel live-studio-panel live-probability-panel">${renderLiveStudioProbabilityPanel(studio)}</section>
       </div>
+      <section class="panel live-studio-panel mt-24 live-story-wide">${renderLiveStudioStoryPanel(studio)}</section>
 
-      ${canEdit() ? `<div class="grid-2 mt-24">
+      ${canEdit() ? `<div class="grid-2 mt-24 live-admin-grid">
         <section class="panel live-control-panel">
           <div class="panel-header"><div><h3 class="panel-title">Canlı Kontrol Masası</h3><div class="panel-subtitle">Dakika, maç durumu, takım ve skor yönetimi.</div></div><span class="badge badge-red">YÖNETİCİ</span></div>
           <div class="live-minute-console">
@@ -1003,21 +1128,29 @@
           <div class="panel-header"><div><h3 class="panel-title">Maç Olayı Ekle</h3><div class="panel-subtitle">Gol, kart veya önemli notu dakika bilgisiyle kaydet.</div></div></div>
           <form id="liveEventForm" class="live-event-form">
             <div class="modal-form-grid">
-              <div class="field"><label>Olay</label><select name="type"><option value="goal">Gol</option><option value="yellow">Sarı Kart</option><option value="red">Kırmızı Kart</option><option value="note">Maç Notu</option></select></div>
+              <div class="field"><label>Olay</label><select name="type"><option value="goal">Gol</option><option value="bigchance">Büyük Şans</option><option value="attack">Tehlikeli Atak</option><option value="yellow">Sarı Kart</option><option value="red">Kırmızı Kart</option><option value="note">Maç Notu</option></select></div>
               <div class="field"><label>Taraf</label><select name="side"><option value="home">${displayName(match.homeId)}</option><option value="away">${displayName(match.awayId)}</option><option value="neutral">Genel</option></select></div>
               <div class="field"><label>Dakika</label><input type="number" name="minute" min="0" max="130" value="${Number(live.minute) || 0}"></div>
               <div class="field"><label>Ek Süre</label><input type="number" name="addedTime" min="0" max="20" value="${Number(live.addedTime) || 0}"></div>
             </div>
-            <div class="field mt-16"><label>Açıklama</label><input type="text" name="text" placeholder="Örn. Hızlı hücum sonrası gol / kritik kurtarış"></div>
+            <div class="field mt-16"><label>Açıklama</label><input type="text" name="text" placeholder="Örn. Hızlı hücum / büyük şans / kritik müdahale"></div>
+            <div class="live-quick-event-grid mt-16">
+              <button type="button" data-action="live-quick-event" data-event-type="attack" data-side="home">${displayName(match.homeId)} · + Atak</button>
+              <button type="button" data-action="live-quick-event" data-event-type="attack" data-side="away">${displayName(match.awayId)} · + Atak</button>
+              <button type="button" data-action="live-quick-event" data-event-type="bigchance" data-side="home">${displayName(match.homeId)} · Büyük Şans</button>
+              <button type="button" data-action="live-quick-event" data-event-type="bigchance" data-side="away">${displayName(match.awayId)} · Büyük Şans</button>
+            </div>
             <button class="btn btn-gold btn-wide mt-16" type="submit">Olayı Canlı Yayına Ekle</button>
           </form>
         </section>
       </div>` : `<div class="live-viewer-message mt-24"><span class="live-pulse-dot"></span><div><strong>Canlı yayın aktif</strong><p>Skor, dakika, baskı grafikleri ve maç olayları yönetici tarafından güncellendikçe bu ekran otomatik yenilenir.</p></div><button class="btn btn-ghost" data-action="open-live-pulse">Canlı Nabzı Aç</button></div>`}
 
-      <section class="panel mt-24">
+      <section class="panel mt-24 live-timeline-panel">
         <div class="panel-header"><div><h3 class="panel-title">Canlı Maç Zaman Çizelgesi</h3><div class="panel-subtitle">En yeni olay üstte gösterilir.</div></div><span class="badge badge-gold">${events.length} OLAY</span></div>
         ${events.length ? `<div class="live-event-timeline">${events.map(event => renderLiveEvent(event, match)).join('')}</div>` : `<div class="info-box">Henüz maç olayı eklenmedi. Skor, dakika ve grafikler canlı olarak takip ediliyor.</div>`}
       </section>`;
+    applyLivePresentationMode();
+    maybeShowGoalAnnouncement(live, match);
   }
 
   function renderLiveMatchOption(match) {
@@ -1034,8 +1167,8 @@
   }
 
   function renderLiveEvent(event, match) {
-    const iconMap = { goal: "⚽", yellow: "▰", red: "■", note: "◆" };
-    const labelMap = { goal: "GOL", yellow: "SARI KART", red: "KIRMIZI KART", note: "MAÇ NOTU" };
+    const iconMap = { goal: "⚽", bigchance: "◎", attack: "↗", yellow: "▰", red: "■", note: "◆" };
+    const labelMap = { goal: "GOL", bigchance: "BÜYÜK ŞANS", attack: "TEHLİKELİ ATAK", yellow: "SARI KART", red: "KIRMIZI KART", note: "MAÇ NOTU" };
     const sideName = event.side === "home" ? playerName(match.homeId) : event.side === "away" ? playerName(match.awayId) : "Maç Merkezi";
     const minute = `${Number(event.minute) || 0}${Number(event.addedTime) ? `+${Number(event.addedTime)}` : ""}'`;
     return `<div class="live-event-row type-${escapeHTML(event.type)}"><div class="live-event-minute">${minute}</div><div class="live-event-icon">${iconMap[event.type] || "◆"}</div><div class="live-event-copy"><strong>${labelMap[event.type] || "OLAY"} · ${escapeHTML(sideName)}</strong><span>${escapeHTML(event.text || (event.type === "goal" ? "Skor güncellendi" : "Canlı maç olayı"))}</span></div>${canEdit() ? `<button class="live-event-delete" data-action="delete-live-event" data-event-id="${event.id}" title="Olayı sil">×</button>` : ""}</div>`;
@@ -1142,10 +1275,23 @@
     active.minute = minute;
     active.addedTime = addedTime;
     active.events = Array.isArray(active.events) ? active.events : [];
-    active.events.push({ id: `live-${Date.now()}-${Math.random().toString(36).slice(2,6)}`, type, side, minute, addedTime, text: text || (type === "goal" ? "Gol" : "Canlı maç olayı"), createdAt: new Date().toISOString() });
+    const defaultText = type === "goal" ? "Gol" : type === "bigchance" ? "Büyük gol fırsatı" : type === "attack" ? "Tehlikeli atak" : "Canlı maç olayı";
+    active.events.push({ id: `live-${Date.now()}-${Math.random().toString(36).slice(2,6)}`, type, side, minute, addedTime, text: text || defaultText, createdAt: new Date().toISOString() });
     touchLive();
     render();
     toast("Maç olayı canlı yayına eklendi.", "success");
+  }
+
+  function addLiveQuickEvent(type, side) {
+    if (!canEdit()) return;
+    const active = getLiveState().active;
+    if (!active || !["home", "away"].includes(side) || !["attack", "bigchance"].includes(type)) return;
+    active.events = Array.isArray(active.events) ? active.events : [];
+    const text = type === "bigchance" ? "Büyük gol fırsatı" : "Tehlikeli atak";
+    active.events.push({ id: `live-${Date.now()}-${Math.random().toString(36).slice(2,6)}`, type, side, minute: Number(active.minute) || 0, addedTime: Number(active.addedTime) || 0, text, createdAt: new Date().toISOString() });
+    touchLive();
+    render();
+    toast(type === "bigchance" ? "Büyük şans canlı modele eklendi." : "Tehlikeli atak canlı modele eklendi.", "success");
   }
 
   function deleteLiveEvent(eventId) {
@@ -1205,6 +1351,10 @@
       finishedAt: new Date().toISOString()
     };
     liveState.active = null;
+    livePresentationMode = "standard";
+    sessionStorage.removeItem("fifa9-live-presentation-mode");
+    applyLivePresentationMode();
+    if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {});
     const warning = reconcileAfterStageEdit(match.phase);
     refreshKnockout();
     closeModal();
@@ -1221,6 +1371,10 @@
   function cancelLiveMatch() {
     if (!canEdit()) return;
     getLiveState().active = null;
+    livePresentationMode = "standard";
+    sessionStorage.removeItem("fifa9-live-presentation-mode");
+    applyLivePresentationMode();
+    if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {});
     closeModal();
     saveState(true, true);
     render();
@@ -5482,6 +5636,15 @@ ${shareData.url}`)}`;
     openModal("FIFA 9 Verisini Sıfırla", `<div class="info-box warning-box">Bu işlem güncel turnuvadaki oyuncuları, fikstürleri ve sonuçları siler. FIFA 1–8 arşivi etkilenmez.</div><div class="modal-actions"><button class="btn btn-ghost" data-action="close-modal">Vazgeç</button><button class="btn btn-danger" data-action="reset-current">Evet, Sıfırla</button></div>`, "DANGER ZONE");
   }
 
+  document.addEventListener("fullscreenchange", () => {
+    if (!document.fullscreenElement && livePresentationMode !== "standard") {
+      livePresentationMode = "standard";
+      sessionStorage.removeItem("fifa9-live-presentation-mode");
+      applyLivePresentationMode();
+      if (activeView === "livematch") renderLiveMatchCentre();
+    }
+  });
+
   document.addEventListener("click", event => {
     if (window.FIFA_CHAT_UI?.handleClick?.(event)) return;
     const nav = event.target.closest("[data-nav]");
@@ -5499,6 +5662,9 @@ ${shareData.url}`)}`;
       navTo("intelligence");
       return;
     }
+    if (type === "enter-broadcast-mode") { enterLivePresentation("broadcast"); return; }
+    if (type === "enter-tv-mode") { enterLivePresentation("tv"); return; }
+    if (type === "exit-live-presentation") { exitLivePresentation(true); return; }
     if (type === "open-matchday-analysis") { openMatchdayAnalysis(action.dataset.matchId); return; }
     if (type === "refresh-predictions") { predictionCache.loadedAt = 0; loadPredictionRows(true); return; }
     if (type === "set-simulation-runs") {
@@ -5608,7 +5774,7 @@ ${shareData.url}`)}`;
       if (activeView === "alltime") renderAllTime();
       return;
     }
-    if (["generate-draw","generate-phase2","generate-knockout","edit-match","clear-match","open-name-import","apply-bulk-names","confirm-reset","reset-current","start-live-match","live-goal","live-score-minus","live-minute-change","live-set-status","delete-live-event","open-finish-live","open-cancel-live","cancel-live-match"].includes(type) && !canEdit()) {
+    if (["generate-draw","generate-phase2","generate-knockout","edit-match","clear-match","open-name-import","apply-bulk-names","confirm-reset","reset-current","start-live-match","live-goal","live-score-minus","live-minute-change","live-set-status","live-quick-event","delete-live-event","open-finish-live","open-cancel-live","cancel-live-match"].includes(type) && !canEdit()) {
       toast("Bu işlem yalnızca turnuva yöneticisine açıktır.", "error");
       return;
     }
@@ -5617,6 +5783,7 @@ ${shareData.url}`)}`;
     if (type === "live-score-minus") reduceLiveScore(action.dataset.side);
     if (type === "live-minute-change") changeLiveMinute(action.dataset.delta);
     if (type === "live-set-status") setLiveStatus(action.dataset.status);
+    if (type === "live-quick-event") addLiveQuickEvent(action.dataset.eventType, action.dataset.side);
     if (type === "delete-live-event") deleteLiveEvent(action.dataset.eventId);
     if (type === "open-finish-live") openFinishLiveMatch();
     if (type === "open-cancel-live") openCancelLiveMatch();
