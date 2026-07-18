@@ -161,6 +161,12 @@
     if (raw.includes("Selected player")) return t("Seçilen oyuncu kayıtlı kadroda bulunamadı.", "The selected player is not available in the registered roster.");
     if (raw.includes("Chat session is invalid") || raw.includes("Chat membership required")) return t("Sohbet oturumu geçersiz veya süresi dolmuş. Oyuncu adını ve PIN’ini yeniden gir.", "The chat session is invalid or expired. Re-enter the player name and PIN.");
     if (raw.includes("Please wait before")) return t("Yeni mesaj göndermeden önce birkaç saniye bekle.", "Wait a few seconds before sending another message.");
+    if (raw.includes("profile_id") && raw.includes("ambiguous")) {
+      return t(
+        "Sohbet veritabanı fonksiyonunda ad çakışması var. Yönetici Supabase SQL Editor’da v17 chat hotfix dosyasını çalıştırmalıdır.",
+        "The chat database function has a naming conflict. An administrator must run the v17 chat hotfix in the Supabase SQL Editor."
+      );
+    }
     return raw || t("Bilinmeyen sohbet hatası.", "Unknown chat error.");
   }
 
