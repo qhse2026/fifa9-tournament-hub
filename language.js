@@ -944,6 +944,8 @@
     "KART MODELİ": "CARD MODEL",
     "Elo ve Kariyer Hareketi": "Elo & Career Movement",
     "Premium Kart Koleksiyonu": "Premium Card Collection",
+    "Beş turun 15 maçı, skor alanları ve kümülatif puan tablosu tek sayfada.": "All 15 matches across five rounds, score fields and cumulative standings on one page.",
+    "Tek Sayfa · A4 Yatay": "Single Page · A4 Landscape",
   };
 
   const reverse = Object.fromEntries(Object.entries(dictionary).map(([tr, en]) => [en, tr]));

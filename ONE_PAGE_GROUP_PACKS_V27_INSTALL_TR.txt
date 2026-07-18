@@ -1,0 +1,41 @@
+FIFA 9 Output Center v27 — Tek Sayfalık Grup Paketleri
+
+Bu güncelleme Çıktı Merkezi'ndeki:
+- Altın Grup Maç Paketi
+- Gümüş Grup Maç Paketi
+
+çıktılarını tek sayfalık A4 yatay PDF düzenine dönüştürür.
+
+Her PDF'nin tek sayfasında:
+- 5 turun tamamı
+- 15 maçın tamamı
+- Oyuncu adları
+- Takım yazma alanları
+- Büyük skor kutuları
+- Oynandı / Site / Doğrulandı kontrol kutuları
+- Kümülatif puan tablosu
+- Grup kadrosu
+- Tamamlanan maç sayısı
+- Sonucu yazan, tarih/saat ve kontrol alanları
+
+bulunur.
+
+Altın ve Gümüş Grup paketleri ayrı ayrı tek sayfalık PDF olarak alınır.
+Mevcut Tam Turnuva Paketi içinde de her grup yalnızca bir sayfa kullanır.
+
+PATCH ONLY kurulumu:
+1. ZIP dosyasını ayıkla.
+2. GitHub repository ana dizinine şu dosyaları yükle:
+   - app.js
+   - language.js
+   - service-worker.js
+   - ONE_PAGE_GROUP_PACKS_V27_INSTALL_TR.txt
+3. Mevcut dosyaların değiştirilmesini onayla.
+4. Commit mesajı:
+   Add one-page group match packs v27
+5. Vercel deployment tamamlandıktan sonra Ctrl + F5 yap.
+6. Telefonda eski çıktı görünürse site önbelleğini temizle.
+
+Supabase SQL gerekmez.
+cloud-config.js dosyasına dokunulmaz.
+Mevcut turnuva ve maç verileri korunur.

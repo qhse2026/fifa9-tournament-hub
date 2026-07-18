@@ -1700,8 +1700,8 @@
 
       <h3 class="section-title">İkinci Aşama ve Eleme Çıktıları</h3>
       <div class="print-card-grid">
-        ${printCenterCard("G", "Altın Grup Maç Paketi", "Beş turluk fikstür, skor föyleri ve kümülatif puan tablosu.", "print-gold-pack", goldReady, "A4 · Yatay")}
-        ${printCenterCard("S", "Gümüş Grup Maç Paketi", "Beş turluk fikstür, skor föyleri ve kümülatif puan tablosu.", "print-silver-pack", silverReady, "A4 · Yatay")}
+        ${printCenterCard("G", "Altın Grup Maç Paketi", "Beş turun 15 maçı, skor alanları ve kümülatif puan tablosu tek sayfada.", "print-gold-pack", goldReady, "Tek Sayfa · A4 Yatay")}
+        ${printCenterCard("S", "Gümüş Grup Maç Paketi", "Beş turun 15 maçı, skor alanları ve kümülatif puan tablosu tek sayfada.", "print-silver-pack", silverReady, "Tek Sayfa · A4 Yatay")}
         ${printCenterCard("KO", "Eleme Serileri Panosu", "Üç çeyrek final serisi, iki yarı final ve tek maçlık final için skor kayıt alanları.", "print-knockout-board", knockoutReady, "A3 · Yatay")}
         ${printCenterCard("ALL", "Mevcut Tam Turnuva Paketi", "Şu anda oluşturulmuş bütün aşamaları tek baskı dokümanında birleştirir.", "print-full-pack", leagueReady, "Çok Sayfalı PDF")}
       </div>
@@ -1842,14 +1842,89 @@
     </section>`;
   }
 
-  function buildGroupPackSections(group) {
+
+  function groupOnePageScore(match) {
+    if (!Number.isFinite(match.homeScore) || !Number.isFinite(match.awayScore)) {
+      return `<span class="group-score-box"></span><i>–</i><span class="group-score-box"></span>`;
+    }
+    return `<span class="group-score-box filled">${match.homeScore}</span><i>–</i><span class="group-score-box filled">${match.awayScore}</span>`;
+  }
+
+  function groupOnePageMatchRow(match, matchNumber) {
+    return `<div class="group-one-match">
+      <span class="group-match-no">${matchNumber}</span>
+      <div class="group-match-side home"><strong>${displayName(match.homeId)}</strong><small>${escapeHTML(match.homeTeam || printLabel("Takım", "Team"))}</small></div>
+      <div class="group-one-score">${groupOnePageScore(match)}</div>
+      <div class="group-match-side away"><strong>${displayName(match.awayId)}</strong><small>${escapeHTML(match.awayTeam || printLabel("Takım", "Team"))}</small></div>
+      <div class="group-match-checks"><span>□ ${printLabel("O", "P")}</span><span>□ S</span><span>□ ${printLabel("D", "V")}</span></div>
+    </div>`;
+  }
+
+  function groupOnePageRoundCard(round, globalStart) {
+    return `<article class="group-round-card">
+      <header><span>${printLabel("TUR", "ROUND")} ${round.number}</span><small>${printLabel("3 maç", "3 matches")}</small></header>
+      <div>${(round.matches || []).map((match,index)=>groupOnePageMatchRow(match,globalStart+index)).join("")}</div>
+    </article>`;
+  }
+
+  function buildGroupOnePageSection(group) {
     const isGold = group === "gold";
     const rounds = isGold ? state.current.phase2.goldRounds : state.current.phase2.silverRounds;
     const ids = isGold ? state.current.phase2.goldIds : state.current.phase2.silverIds;
-    const title = printLabel(isGold ? "Altın Grup" : "Gümüş Grup", isGold ? "Gold Group" : "Silver Group");
-    const sections = rounds.map((round, index) => printRoundSection(round, title, index * 3 + 1));
-    sections.push(printStandingsSection(`${title} · ${printLabel("Kümülatif Puan Tablosu", "Cumulative Standings")}`, ids, phase2Standings(group)));
-    return sections;
+    const standingsRows = phase2Standings(group);
+    const title = printLabel(isGold ? "Altın Grup Maç Paketi" : "Gümüş Grup Maç Paketi", isGold ? "Gold Group Match Pack" : "Silver Group Match Pack");
+    const groupLabel = printLabel(isGold ? "Altın Grup" : "Gümüş Grup", isGold ? "Gold Group" : "Silver Group");
+    const completed = allRoundMatches(rounds).filter(matchComplete).length;
+    const total = allRoundMatches(rounds).length;
+    let counter = 1;
+    const roundCards = (rounds || []).map(round => {
+      const card = groupOnePageRoundCard(round,counter);
+      counter += (round.matches || []).length;
+      return card;
+    });
+    const leftRounds = [roundCards[0],roundCards[2],roundCards[4]].filter(Boolean).join("");
+    const rightRounds = [roundCards[1],roundCards[3]].filter(Boolean).join("");
+
+    return `<section class="print-page group-one-page ${isGold ? "group-one-gold" : "group-one-silver"}">
+      ${printDocumentHeader(title, printLabel("5 tur · 15 maç · skor föyü ve kümülatif puan tablosu tek sayfada", "5 rounds · 15 matches · score sheet and cumulative standings on one page"))}
+      <div class="group-one-summary">
+        <div><span>${printLabel("Grup", "Group")}</span><strong>${groupLabel}</strong></div>
+        <div><span>${printLabel("Oyuncu", "Players")}</span><strong>${ids.length}</strong></div>
+        <div><span>${printLabel("Tamamlanan", "Completed")}</span><strong>${completed}/${total}</strong></div>
+        <div><span>${printLabel("Puan Taşıma", "Points Carry")}</span><strong>${printLabel("League Phase dahil", "Includes League Phase")}</strong></div>
+      </div>
+      <div class="group-one-layout">
+        <div class="group-one-fixtures">
+          <div class="group-one-section-title"><strong>${printLabel("Beş Turluk Maç Föyü", "Five-Round Match Sheet")}</strong><span>${printLabel("Skorları kutulara yazın; O / S / D kontrollerini tamamlayın.", "Enter scores in the boxes and complete P / S / V checks.")}</span></div>
+          <div class="group-round-columns">
+            <div class="group-round-column">${leftRounds}</div>
+            <div class="group-round-column">${rightRounds}<article class="group-quick-note"><header>${printLabel("Hızlı Not / Kontrol", "Quick Notes / Checks")}</header><div><p>${printLabel("Eksik skor, takım seçimi veya doğrulama notlarını buraya yazın.", "Record missing scores, team selections or verification notes here.")}</p><span>1. __________________________________________</span><span>2. __________________________________________</span><span>3. __________________________________________</span><small>O/P: ${printLabel("Oynandı", "Played")} · S: Site · D/V: ${printLabel("Doğrulandı", "Verified")}</small></div></article></div>
+          </div>
+        </div>
+        <aside class="group-one-standings">
+          <div class="group-one-section-title"><strong>${printLabel("Kümülatif Puan Tablosu", "Cumulative Standings")}</strong><span>${printLabel("League Phase + grup maçları", "League Phase + group matches")}</span></div>
+          <table class="group-one-standings-table">
+            <thead><tr><th>#</th><th>${printLabel("Oyuncu", "Player")}</th><th>O</th><th>AV</th><th>P</th></tr></thead>
+            <tbody>${standingsRows.map((row,index)=>`<tr><td>${index+1}</td><td>${displayName(row.id)}</td><td>${row.mp || ""}</td><td>${row.gd ? formatGD(row.gd) : "0"}</td><td>${row.pts || "0"}</td></tr>`).join("")}</tbody>
+          </table>
+          <div class="group-one-roster">
+            <strong>${printLabel("Grup Kadrosu", "Group Roster")}</strong>
+            ${ids.map((id,index)=>`<div><span>${index+1}</span><b>${displayName(id)}</b></div>`).join("")}
+          </div>
+          <div class="group-one-ranking-note">${printLabel("Sıralama: Puan · Averaj · Atılan gol · Galibiyet · Alfabetik sıra", "Ranking: Points · Goal difference · Goals scored · Wins · Alphabetical order")}</div>
+        </aside>
+      </div>
+      <div class="group-one-footer">
+        <div>${printLabel("Sonuçları yazan", "Recorded by")}: ____________________</div>
+        <div>${printLabel("Tarih / Saat", "Date / Time")}: ____________________</div>
+        <div>${printLabel("Kontrol eden", "Verified by")}: ____________________</div>
+        <div>${printLabel("Not", "Notes")}: __________________________________________</div>
+      </div>
+    </section>`;
+  }
+
+  function buildGroupPackSections(group) {
+    return [buildGroupOnePageSection(group)];
   }
 
   function seriesPrintBlock(series, title, fallbackA, fallbackB) {
@@ -1898,6 +1973,9 @@
       table{border-collapse:collapse;width:100%}.print-table th,.print-table td{border:1px solid var(--line);padding:2.1mm 1.5mm;text-align:center;height:8mm}.print-table th{background:var(--dark);color:white;font-size:7px;text-transform:uppercase;letter-spacing:.04em}.print-table .print-player{text-align:left;font-weight:800;min-width:28mm}.print-table .print-team-cell{min-width:22mm}.print-table .print-score-cell{min-width:18mm;font-size:14px;font-weight:900}.print-table .check-cell{font-size:15px;width:10mm}.print-table .notes-cell{min-width:25mm;text-align:left}.print-table.compact th,.print-table.compact td{padding:1mm;height:4.6mm;font-size:6.5px}.print-table.compact .print-score-cell{font-size:9px}.print-table.roomy th,.print-table.roomy td{height:15mm;font-size:9px}.print-table.roomy .print-score-cell{font-size:18px}.standings-print th,.standings-print td{height:13mm;font-size:10px}.standings-print .print-player{min-width:55mm}.standings-note{margin-top:4mm;color:var(--muted);font-size:9px}.control-footer{display:grid;grid-template-columns:repeat(3,1fr);gap:8mm;margin-top:7mm;padding-top:4mm;border-top:1px solid var(--line);font-size:9px}
       .a3-layout{display:grid;grid-template-columns:64mm 1fr;gap:6mm}.a3-roster{border:1px solid var(--line);padding:4mm}.a3-roster h3,.a3-round h3{margin:0 0 3mm;color:var(--gold);font-size:12px}.roster-line{display:grid;grid-template-columns:8mm 1fr;gap:2mm;border-bottom:1px solid #d9dee3;padding:2.1mm 0;font-size:9px}.roster-line span{color:var(--gold);font-weight:900}.a3-rounds{display:grid;grid-template-columns:repeat(3,1fr);gap:4mm}.a3-round{border:1px solid var(--line);padding:3mm;break-inside:avoid}.a3-match{display:grid;grid-template-columns:7mm 1fr 23mm 1fr 31mm;align-items:center;gap:2mm;border-top:1px solid #dfe3e7;padding:2.3mm 0;font-size:8px}.a3-no{font-weight:900;color:var(--gold)}.a3-player{font-weight:800}.a3-player.right{text-align:right}.a3-score{text-align:center;border:1px solid #909aa4;border-radius:3px;padding:1.5mm;font-weight:900;font-size:10px}.a3-checks{font-size:7px;color:var(--muted)}
       .ko-print-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5mm}.ko-series-block{border:1px solid var(--line);padding:4mm;break-inside:avoid}.ko-series-title{font-size:13px;font-weight:900;color:var(--gold);text-transform:uppercase}.ko-series-players{display:grid;grid-template-columns:1fr 10mm 1fr;align-items:center;gap:2mm;margin:3mm 0;text-align:center;font-size:10px}.ko-series-players span{color:var(--gold);font-weight:900}.ko-series-table th,.ko-series-table td{border:1px solid var(--line);padding:2mm;text-align:center;height:8mm}.ko-series-table th{background:var(--dark);color:white;font-size:7px}.series-winner-line,.final-score-line{margin-top:4mm;padding-top:3mm;border-top:1px solid var(--line);font-weight:800}.final-print-block{display:flex;flex-direction:column;justify-content:center;background:#fbf7ed;border:2px solid var(--gold)}
+
+      .group-one-page{height:210mm;min-height:210mm;padding:6mm 7mm;page-break-after:always;--group-accent:#a87322}.group-one-page.group-one-silver{--group-accent:#667582}.group-one-page .doc-header{grid-template-columns:1fr 1.35fr .95fr;gap:5mm;padding-bottom:3mm;margin-bottom:3mm;border-color:var(--group-accent)}.group-one-page .doc-mark{width:12mm;height:12mm;font-size:13px}.group-one-page .doc-brand-title{font-size:11px}.group-one-page .doc-brand-sub{font-size:7px}.group-one-page .doc-heading h1{font-size:18px}.group-one-page .doc-heading p{font-size:7.5px;margin-top:1mm}.group-one-page .doc-meta{font-size:6.5px}.group-one-page .doc-meta div{grid-template-columns:18mm 1fr}.group-one-summary{display:grid;grid-template-columns:1.1fr .65fr .8fr 1.45fr;gap:2mm;margin-bottom:3mm}.group-one-summary>div{display:flex;align-items:center;justify-content:space-between;gap:2mm;padding:2mm 2.5mm;border:1px solid #cbd2d9;border-radius:2mm;background:#f7f8fa}.group-one-summary span{font-size:6.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}.group-one-summary strong{font-size:8px;color:var(--group-accent)}.group-one-layout{display:grid;grid-template-columns:minmax(0,2.25fr) minmax(62mm,.85fr);gap:3mm;height:137mm}.group-one-fixtures,.group-one-standings{min-width:0;border:1px solid #c4ccd4;border-radius:2mm;padding:2.5mm;background:#fff}.group-one-section-title{display:flex;align-items:end;justify-content:space-between;gap:3mm;padding-bottom:1.5mm;margin-bottom:2mm;border-bottom:1px solid #d4dae0}.group-one-section-title strong{font-size:9px;color:var(--group-accent)}.group-one-section-title span{font-size:6.5px;color:var(--muted);text-align:right}.group-round-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2mm;height:119mm}.group-round-column{display:flex;flex-direction:column;gap:2mm;min-width:0}.group-round-card{height:37.6mm;flex:0 0 37.6mm;border:1px solid #c8d0d7;border-radius:1.5mm;overflow:hidden;break-inside:avoid;background:#fff}.group-quick-note{height:37.6mm;flex:0 0 37.6mm;border:1px dashed #aeb8c1;border-radius:1.5mm;overflow:hidden;background:#fafbfc}.group-quick-note>header{padding:1.5mm 2mm;background:#eef1f4;color:var(--group-accent);font-size:7px;font-weight:900;letter-spacing:.06em}.group-quick-note>div{padding:1.5mm 2mm}.group-quick-note p{margin:0 0 1.2mm;color:#697580;font-size:6px}.group-quick-note span{display:block;padding:1mm 0;border-bottom:1px dotted #aeb7c0;font-size:6px}.group-quick-note small{display:block;margin-top:1.4mm;color:#697580;font-size:5.8px}.group-round-card>header{display:flex;align-items:center;justify-content:space-between;padding:1.5mm 2mm;background:var(--dark);color:#fff}.group-round-card>header span{font-size:7px;font-weight:900;letter-spacing:.08em}.group-round-card>header small{font-size:6px;color:#d8e0e6}.group-one-match{display:grid;grid-template-columns:4.5mm minmax(21mm,1fr) 22mm minmax(21mm,1fr) 15mm;gap:1mm;align-items:center;min-height:9.8mm;padding:.85mm 1.5mm;border-top:1px solid #e0e4e8}.group-one-match:first-child{border-top:0}.group-match-no{width:4mm;height:4mm;border-radius:50%;display:grid;place-items:center;background:var(--group-accent);color:#fff;font-size:6px;font-weight:900}.group-match-side{min-width:0}.group-match-side.home{text-align:right}.group-match-side.away{text-align:left}.group-match-side strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:7px}.group-match-side small{display:block;margin-top:.6mm;color:#6d7781;font-size:5.8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-bottom:1px dotted #aeb7c0;min-height:2.7mm}.group-one-score{display:flex;align-items:center;justify-content:center;gap:1.2mm}.group-one-score i{font-style:normal;font-weight:900;color:#6c7680}.group-score-box{width:7.5mm;height:6.4mm;border:1.2px solid #6f7983;border-radius:1.4mm;display:grid;place-items:center;background:#fff;font-size:10px;font-weight:900}.group-score-box.filled{background:#f4f0e6;color:#111}.group-match-checks{display:grid;grid-template-columns:repeat(3,1fr);gap:.8mm;color:#606b75;font-size:4.8px}.group-match-checks span{text-align:center;white-space:nowrap}.group-one-standings{display:flex;flex-direction:column}.group-one-standings-table{font-size:7px}.group-one-standings-table th,.group-one-standings-table td{border:1px solid #c5cdd4;padding:1.6mm 1mm;text-align:center;height:7.2mm}.group-one-standings-table th{background:var(--dark);color:white;font-size:6px}.group-one-standings-table td:nth-child(2){text-align:left;font-weight:800;max-width:38mm;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.group-one-standings-table tbody tr:nth-child(-n+4) td:first-child{color:var(--group-accent);font-weight:900}.group-one-roster{margin-top:3mm;padding:2.5mm;border:1px solid #d2d8de;border-radius:1.5mm;background:#f8f9fa}.group-one-roster>strong{display:block;margin-bottom:1.5mm;color:var(--group-accent);font-size:7px;text-transform:uppercase;letter-spacing:.06em}.group-one-roster>div{display:grid;grid-template-columns:6mm 1fr;gap:1.5mm;padding:1.15mm 0;border-top:1px solid #e1e5e9;font-size:6.8px}.group-one-roster>div:first-of-type{border-top:0}.group-one-roster span{color:var(--group-accent);font-weight:900}.group-one-roster b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.group-one-ranking-note{margin-top:auto;padding-top:2mm;color:#697581;font-size:6.2px;line-height:1.45}.group-one-footer{display:grid;grid-template-columns:1fr 1fr 1fr 1.35fr;gap:3mm;margin-top:3mm;padding-top:2.5mm;border-top:1px solid #bfc7ce;font-size:7px}
+
       @media print{body{background:white}.screen-toolbar{display:none}main{margin:0;max-width:none}.print-page{box-shadow:none;margin:0;page-break-after:always}@page{size:${pageSize};margin:0}}
     `;
   }
