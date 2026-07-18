@@ -1,0 +1,48 @@
+FIFA 9 Match Archive & Community Predictions v22 — Kurulum
+
+Bu sürüm v21 üzerine aşağıdaki sistemleri ekler:
+- Yaklaşan her maçın oran kartı altında açık topluluk oylaması
+- Kayıt gerektirmeden cihaz başına bir oy
+- Maç başlayana kadar oy değiştirme
+- Maç başladığında oylamanın otomatik kapanması
+- Maç öncesi 1-X-2 oran snapshot arşivi
+- Model favorisi, model skoru ve gerçek sonuç karşılaştırması
+- Canlı yayınlanan maçların olay zaman çizelgesi ve detay arşivi
+- Model doğruluğu / topluluk doğruluğu / toplam oy göstergeleri
+
+ÖNEMLİ: Önce Supabase SQL dosyasını çalıştır.
+
+1) ZIP içindeki şu dosyayı aç:
+   supabase/match_archive_community_v22.sql
+
+2) Supabase > SQL Editor > New Query yolunu aç.
+
+3) SQL dosyasının tamamını yapıştır ve Run düğmesine bas.
+
+4) Başarılı sonuçta aşağıdaki ifade görünmelidir:
+   "patch": "v22-match-archive-community"
+   "status": "ok"
+
+5) GitHub repository ana dizinine şu dosyaları yükle:
+   - index.html
+   - app.js
+   - styles.css
+   - community.js
+   - service-worker.js
+   - MATCH_ARCHIVE_COMMUNITY_V22_INSTALL_TR.txt
+   - supabase/match_archive_community_v22.sql
+
+6) Commit mesajı önerisi:
+   Add Match Archive and Community Predictions v22
+
+7) Vercel yayını tamamlandıktan sonra bilgisayarda Ctrl + F5 yap.
+   Telefonda eski sürüm görünürse site önbelleğini temizle.
+
+NOTLAR
+- cloud-config.js dosyasına dokunma.
+- Chat tabloları, oyuncular, fikstürler, sonuçlar ve geçmiş veriler silinmez.
+- Toplam katılımcı sayısında sınır yoktur.
+- Bir tarayıcı/cihaz her maç için bir oy kullanır; maç başlamadan önce oy değiştirilebilir.
+- Canlı maç başlatıldığında veya manuel sonuç kaydedildiğinde ilgili oylama kapanır.
+- v22 sonrasında başlayan veya sonucu girilen maçların oranları maç öncesi snapshot olarak korunur.
+- v22'den önce tamamlanmış maçlarda gerçek maç öncesi oran snapshot'ı bulunmadığı için sistem bunu açıkça belirtir; sonradan üretilmiş oranı geçmiş oran gibi göstermez.

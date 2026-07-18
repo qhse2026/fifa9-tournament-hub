@@ -103,7 +103,8 @@
         live: {
           active: null,
           archive: {}
-        }
+        },
+        matchArchive: {}
       }
     };
   }
@@ -120,7 +121,8 @@
         league: { ...fresh.current.league, ...(raw.current?.league || {}) },
         phase2: { ...fresh.current.phase2, ...(raw.current?.phase2 || {}) },
         knockout: { ...fresh.current.knockout, ...(raw.current?.knockout || {}) },
-        live: { ...fresh.current.live, ...(raw.current?.live || {}), archive: { ...fresh.current.live.archive, ...(raw.current?.live?.archive || {}) } }
+        live: { ...fresh.current.live, ...(raw.current?.live || {}), archive: { ...fresh.current.live.archive, ...(raw.current?.live?.archive || {}) } },
+        matchArchive: { ...fresh.current.matchArchive, ...(raw.current?.matchArchive || {}) }
       }
     };
     if (!Array.isArray(merged.current.participants) || merged.current.participants.length !== PLAYER_COUNT) {
@@ -682,6 +684,130 @@
     return state.current.live;
   }
 
+
+  function getMatchArchiveState() {
+    if (!state.current.matchArchive || typeof state.current.matchArchive !== "object") state.current.matchArchive = {};
+    return state.current.matchArchive;
+  }
+
+  function matchArchiveSnapshot(match, source = "pre-match") {
+    if (!match?.id) return null;
+    const existing = getMatchArchiveState()[match.id];
+    if (existing?.odds?.capturedAt) return existing;
+    let item = null;
+    try { item = buildMatchOdds(match, oddsBuildContext()); } catch (error) { console.warn("Odds snapshot could not be built", error); }
+    const snapshot = {
+      matchId: match.id,
+      edition: Number(state.current.edition || 9),
+      phase: match.phase || "league",
+      stage: currentMatchStageLabel(match),
+      homeId: match.homeId,
+      awayId: match.awayId,
+      homeName: playerName(match.homeId),
+      awayName: playerName(match.awayId),
+      homeTeam: match.homeTeam || "",
+      awayTeam: match.awayTeam || "",
+      odds: item ? {
+        homeProbability: item.market.home.probability,
+        drawProbability: item.market.draw.probability,
+        awayProbability: item.market.away.probability,
+        homeOdds: item.market.home.odds,
+        drawOdds: item.market.draw.odds,
+        awayOdds: item.market.away.odds,
+        predictedHome: item.predictedHome,
+        predictedAway: item.predictedAway,
+        favoriteSide: item.favoriteSide,
+        favoriteName: item.favorite?.name || "",
+        confidence: item.confidence,
+        reason: item.reason,
+        capturedAt: new Date().toISOString(),
+        source
+      } : {
+        capturedAt: new Date().toISOString(),
+        source,
+        unavailable: true
+      },
+      result: null,
+      live: null,
+      updatedAt: new Date().toISOString()
+    };
+    getMatchArchiveState()[match.id] = snapshot;
+    Promise.resolve(window.FIFA_V22?.syncSnapshot?.(snapshot)).catch(error => console.warn("Snapshot sync failed", error));
+    return snapshot;
+  }
+
+  function finalizeMatchArchive(match, liveData = null) {
+    if (!match?.id) return null;
+    const archive = getMatchArchiveState();
+    const entry = archive[match.id] || {
+      matchId: match.id,
+      edition: Number(state.current.edition || 9),
+      phase: match.phase || "league",
+      stage: currentMatchStageLabel(match),
+      homeId: match.homeId,
+      awayId: match.awayId,
+      homeName: playerName(match.homeId),
+      awayName: playerName(match.awayId),
+      odds: { capturedAt: null, source: "legacy-result", unavailable: true },
+      result: null,
+      live: null
+    };
+    entry.homeTeam = match.homeTeam || entry.homeTeam || "";
+    entry.awayTeam = match.awayTeam || entry.awayTeam || "";
+    entry.result = {
+      homeScore: Number(match.homeScore),
+      awayScore: Number(match.awayScore),
+      tiebreakWinnerId: match.tiebreakWinnerId || null,
+      winnerId: matchWinnerId(match),
+      winnerName: matchWinnerId(match) ? playerName(matchWinnerId(match)) : "",
+      completedAt: match.updatedAt || new Date().toISOString(),
+      note: match.note || ""
+    };
+    if (liveData) {
+      entry.live = {
+        status: "fulltime",
+        startedAt: liveData.startedAt || null,
+        finishedAt: new Date().toISOString(),
+        events: Array.isArray(liveData.events) ? liveData.events.map(event => ({ ...event })) : [],
+        homeScore: Number(liveData.homeScore) || 0,
+        awayScore: Number(liveData.awayScore) || 0,
+        minute: Number(liveData.minute) || 0,
+        addedTime: Number(liveData.addedTime) || 0
+      };
+    } else if (getLiveState().archive?.[match.id]) {
+      const archived = getLiveState().archive[match.id];
+      entry.live = {
+        status: archived.status || "fulltime",
+        startedAt: archived.startedAt || null,
+        finishedAt: archived.finishedAt || match.updatedAt || null,
+        events: Array.isArray(archived.events) ? archived.events.map(event => ({ ...event })) : [],
+        homeScore: Number(archived.homeScore) || Number(match.homeScore) || 0,
+        awayScore: Number(archived.awayScore) || Number(match.awayScore) || 0,
+        minute: Number(archived.minute) || 0,
+        addedTime: Number(archived.addedTime) || 0
+      };
+    }
+    entry.updatedAt = new Date().toISOString();
+    getMatchArchiveState()[match.id] = entry;
+    Promise.resolve(window.FIFA_V22?.lockPoll?.(match.id)).catch(error => console.warn("Poll lock failed", error));
+    Promise.resolve(window.FIFA_V22?.syncSnapshot?.(entry)).catch(error => console.warn("Archive sync failed", error));
+    return entry;
+  }
+
+  function clearMatchArchiveResult(matchId) {
+    const entry = getMatchArchiveState()[matchId];
+    if (!entry) return;
+    entry.result = null;
+    entry.live = null;
+    entry.updatedAt = new Date().toISOString();
+    Promise.resolve(window.FIFA_V22?.unlockPoll?.(matchId)).catch(error => console.warn("Poll unlock failed", error));
+    Promise.resolve(window.FIFA_V22?.syncSnapshot?.(entry)).catch(error => console.warn("Archive sync failed", error));
+  }
+
+  function hydrateV22Community(root = document) {
+    setTimeout(() => window.FIFA_V22?.hydrate?.(root), 0);
+  }
+
   function getActiveLive() {
     const live = getLiveState().active;
     if (!live?.matchId) return null;
@@ -1062,6 +1188,10 @@
     }
 
     const { live, match } = active;
+    if (canEdit() && !getMatchArchiveState()[match.id]?.odds?.capturedAt) {
+      matchArchiveSnapshot(match, "live-v22-upgrade");
+      saveState(false, true);
+    }
     const studio = buildLiveStudioData();
     const events = [...(live.events || [])].sort((a, b) => (Number(b.minute) || 0) - (Number(a.minute) || 0) || String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
     view.innerHTML = `
@@ -1163,7 +1293,7 @@
   }
 
   function renderLiveArchiveCard(item) {
-    return `<article class="live-archive-card"><div class="live-option-stage">${escapeHTML(item.stage || "FIFA 9")}</div><div class="live-archive-score"><span>${escapeHTML(item.homeName || "–")}</span><strong>${item.homeScore} – ${item.awayScore}</strong><span>${escapeHTML(item.awayName || "–")}</span></div><div class="live-archive-meta">${escapeHTML(item.homeTeam || "")} · ${escapeHTML(item.awayTeam || "")} · ${escapeHTML(formatLiveUpdatedAt(item.finishedAt))}</div></article>`;
+    return `<article class="live-archive-card"><div class="live-option-stage">${escapeHTML(item.stage || "FIFA 9")}</div><div class="live-archive-score"><span>${escapeHTML(item.homeName || "–")}</span><strong>${item.homeScore} – ${item.awayScore}</strong><span>${escapeHTML(item.awayName || "–")}</span></div><div class="live-archive-meta">${escapeHTML(item.homeTeam || "")} · ${escapeHTML(item.awayTeam || "")} · ${escapeHTML(formatLiveUpdatedAt(item.finishedAt))}</div>${item.matchId ? `<button class="btn btn-ghost btn-wide mt-16" data-action="open-match-archive-details" data-match-id="${escapeHTML(item.matchId)}">Canlı Yayın Detayları</button>` : ""}</article>`;
   }
 
   function renderLiveEvent(event, match) {
@@ -1185,6 +1315,8 @@
     if (liveState.active) { toast("Önce aktif canlı maçı bitir veya iptal et.", "error"); return; }
     const match = findMatch(matchId);
     if (!match || matchComplete(match)) { toast("Bu maç canlı yayına uygun değil.", "error"); return; }
+    matchArchiveSnapshot(match, "live-start");
+    Promise.resolve(window.FIFA_V22?.lockPoll?.(match.id)).catch(error => console.warn("Poll lock failed", error));
     liveState.active = {
       matchId,
       status: "live",
@@ -1350,6 +1482,7 @@
       stage: liveStageLabel(match),
       finishedAt: new Date().toISOString()
     };
+    finalizeMatchArchive(match, live);
     liveState.active = null;
     livePresentationMode = "standard";
     sessionStorage.removeItem("fifa9-live-presentation-mode");
@@ -1370,7 +1503,9 @@
 
   function cancelLiveMatch() {
     if (!canEdit()) return;
+    const cancelledMatchId = getLiveState().active?.matchId || "";
     getLiveState().active = null;
+    if (cancelledMatchId) Promise.resolve(window.FIFA_V22?.unlockPoll?.(cancelledMatchId)).catch(error => console.warn("Poll unlock failed", error));
     livePresentationMode = "standard";
     sessionStorage.removeItem("fifa9-live-presentation-mode");
     applyLivePresentationMode();
@@ -3193,6 +3328,94 @@
     return `<div class="odds-market-box ${active ? "favorite" : ""}"><span>${escapeHTML(code)}</span><strong>${item.odds.toFixed(2)}</strong><small>${oddsPercent(item.probability)}</small></div>`;
   }
 
+
+  function renderCommunityPollShell(matchId, homeName, awayName, isOpen = true, compact = false, modelFavorite = "") {
+    return `<section class="community-poll ${compact ? "compact" : ""}" data-community-poll data-match-id="${escapeHTML(matchId)}" data-home-name="${escapeHTML(homeName)}" data-away-name="${escapeHTML(awayName)}" data-open="${isOpen ? "true" : "false"} data-model-favorite="${escapeHTML(modelFavorite)}"">
+      <div class="community-poll-head"><div><span>${isOpen ? "TOPLULUK TAHMİNİ" : "KAPANIŞ OYLAMASI"}</span><strong>${isOpen ? "Sence kim kazanır?" : "Maç öncesi topluluk ne dedi?"}</strong></div><div class="community-vote-total" data-vote-total>0 OY</div></div>
+      <div class="community-vote-buttons">
+        <button type="button" data-community-vote="home" ${isOpen ? "" : "disabled"}><span>1</span><strong>${escapeHTML(homeName)}</strong><small data-vote-pct="home">0%</small></button>
+        <button type="button" data-community-vote="draw" ${isOpen ? "" : "disabled"}><span>X</span><strong>Beraberlik</strong><small data-vote-pct="draw">0%</small></button>
+        <button type="button" data-community-vote="away" ${isOpen ? "" : "disabled"}><span>2</span><strong>${escapeHTML(awayName)}</strong><small data-vote-pct="away">0%</small></button>
+      </div>
+      <div class="community-vote-rail"><i class="home" data-vote-bar="home" style="width:0%"></i><i class="draw" data-vote-bar="draw" style="width:0%"></i><i class="away" data-vote-bar="away" style="width:0%"></i></div>
+      <div class="community-poll-foot"><span data-community-verdict>${isOpen ? "Oylar canlı olarak güncellenir." : "Oylama maç başladığında kapandı."}</span><small data-community-status>${isOpen ? "Cihaz başına bir oy; maç başlayana kadar değiştirilebilir." : "Kapanış dağılımı"}</small></div>
+    </section>`;
+  }
+
+  function archivedMatchRows() {
+    const archive = getMatchArchiveState();
+    return allCurrentMatches().filter(matchComplete).map(match => {
+      const saved = archive[match.id] || null;
+      return {
+        match,
+        saved,
+        homeName: playerName(match.homeId),
+        awayName: playerName(match.awayId),
+        completedAt: saved?.result?.completedAt || match.updatedAt || "",
+        hasOdds: Boolean(saved?.odds?.capturedAt && !saved?.odds?.unavailable),
+        hasLive: Boolean(saved?.live?.events || getLiveState().archive?.[match.id]?.events)
+      };
+    }).sort((a, b) => String(b.completedAt || "").localeCompare(String(a.completedAt || "")));
+  }
+
+  function archivedPredictionOutcome(row) {
+    const { match, saved } = row;
+    if (!saved?.odds || saved.odds.unavailable) return { label: "ORAN SNAPSHOT YOK", className: "missing" };
+    const actual = Number(match.homeScore) > Number(match.awayScore) ? "home" : Number(match.awayScore) > Number(match.homeScore) ? "away" : "draw";
+    const favorite = saved.odds.favoriteSide || (saved.odds.homeProbability >= saved.odds.awayProbability ? "home" : "away");
+    if (actual === favorite) return { label: "MODEL DOĞRU", className: "correct" };
+    if (actual === "draw") return { label: "BERABERLİK", className: "draw" };
+    return { label: "SÜRPRİZ SONUÇ", className: "upset" };
+  }
+
+  function renderArchivedOddsCard(row) {
+    const { match, saved, homeName, awayName } = row;
+    const outcome = archivedPredictionOutcome(row);
+    const odds = saved?.odds;
+    const liveEvents = saved?.live?.events || getLiveState().archive?.[match.id]?.events || [];
+    const actualOutcome = Number(match.homeScore) > Number(match.awayScore) ? "home" : Number(match.awayScore) > Number(match.homeScore) ? "away" : "draw";
+    const modelOutcome = saved?.odds?.favoriteSide || "";
+    return `<article class="match-archive-card" data-archive-match data-match-id="${escapeHTML(match.id)}" data-actual-outcome="${actualOutcome}" data-model-outcome="${escapeHTML(modelOutcome)}" data-match-label="${escapeHTML(`${homeName} vs ${awayName}`)}">
+      <header><div><span>${escapeHTML(currentMatchStageLabel(match))}</span><small>${row.completedAt ? new Date(row.completedAt).toLocaleString("tr-TR", { dateStyle:"short", timeStyle:"short" }) : ""}</small></div><b class="archive-outcome ${outcome.className}">${outcome.label}</b></header>
+      <div class="archive-result-line"><strong>${escapeHTML(homeName)}</strong><b>${match.homeScore}–${match.awayScore}</b><strong>${escapeHTML(awayName)}</strong></div>
+      ${odds && !odds.unavailable ? `<div class="archive-odds-strip"><div><span>1</span><strong>${Number(odds.homeOdds).toFixed(2)}</strong><small>${oddsPercent(odds.homeProbability)}</small></div><div><span>X</span><strong>${Number(odds.drawOdds).toFixed(2)}</strong><small>${oddsPercent(odds.drawProbability)}</small></div><div><span>2</span><strong>${Number(odds.awayOdds).toFixed(2)}</strong><small>${oddsPercent(odds.awayProbability)}</small></div></div>` : `<div class="archive-missing-odds">Bu maç v22 oran snapshot sistemi devreye alınmadan önce tamamlandı.</div>`}
+      <div class="archive-meta-grid"><div><span>Model skoru</span><strong>${odds && !odds.unavailable ? `${odds.predictedHome}-${odds.predictedAway}` : "—"}</strong></div><div><span>Model favorisi</span><strong>${escapeHTML(odds?.favoriteName || "—")}</strong></div><div><span>Canlı yayın</span><strong>${liveEvents.length ? `${liveEvents.length} olay` : "Yok"}</strong></div></div>
+      ${renderCommunityPollShell(match.id, homeName, awayName, false, true, odds?.favoriteSide || "")}
+      <button class="btn btn-ghost btn-wide" data-action="open-match-archive-details" data-match-id="${escapeHTML(match.id)}">Maç Detaylarını Aç</button>
+    </article>`;
+  }
+
+  function renderMatchArchiveSection() {
+    const rows = archivedMatchRows();
+    if (!rows.length) return `<section class="panel mt-24"><div class="panel-header"><div><h3 class="panel-title">Maç Oranı ve Canlı Yayın Arşivi</h3><div class="panel-subtitle">Tamamlanan maçların oran snapshot'ları ve canlı yayın kayıtları burada tutulur.</div></div><span class="badge">0 MAÇ</span></div><div class="info-box">Henüz tamamlanmış maç bulunmuyor.</div></section>`;
+    const withOdds = rows.filter(row => row.hasOdds).length;
+    const liveCount = rows.filter(row => row.hasLive).length;
+    return `<section class="match-archive-section mt-24">
+      <div class="match-archive-hero"><div><div class="eyebrow">FIFA 9 · MATCH ARCHIVE v22</div><h3>Oran, Topluluk ve Canlı Yayın Arşivi</h3><p>Maç başlamadan önceki oranlar sabitlenir; gerçek sonuç, kapanış oylaması ve canlı yayın zaman çizelgesiyle aynı kayıtta saklanır.</p></div><div class="archive-kpis"><div><strong>${rows.length}</strong><span>Tamamlanan</span></div><div><strong>${withOdds}</strong><span>Oran Snapshot</span></div><div><strong>${liveCount}</strong><span>Canlı Yayın</span></div></div></div>
+      <div class="community-global-summary" data-v22-global-summary><article><span>Toplam Topluluk Oyu</span><strong>—</strong><small>Yükleniyor</small></article><article><span>Model Doğruluğu</span><strong>—</strong><small>Snapshot maçları</small></article><article><span>Topluluk Doğruluğu</span><strong>—</strong><small>Kapanan oylamalar</small></article><article><span>En Çok Oy Alan Maç</span><strong>—</strong><small>Topluluk ilgisi</small></article></div>
+      <div class="match-archive-grid">${rows.slice(0, 24).map(renderArchivedOddsCard).join("")}</div>
+    </section>`;
+  }
+
+  function openMatchArchiveDetails(matchId) {
+    const match = findMatch(matchId);
+    if (!match || !matchComplete(match)) { toast("Maç arşiv kaydı bulunamadı.", "error"); return; }
+    const saved = getMatchArchiveState()[matchId] || null;
+    const archivedLive = saved?.live || getLiveState().archive?.[matchId] || null;
+    const odds = saved?.odds || null;
+    const homeName = playerName(match.homeId), awayName = playerName(match.awayId);
+    const events = [...(archivedLive?.events || [])].sort((a,b)=>(Number(a.minute)||0)-(Number(b.minute)||0)||String(a.createdAt||"").localeCompare(String(b.createdAt||"")));
+    const outcome = archivedPredictionOutcome({ match, saved });
+    openModal(`${homeName} ${match.homeScore}–${match.awayScore} ${awayName}`, `
+      <div class="archive-detail-hero"><div><span>${escapeHTML(currentMatchStageLabel(match))}</span><h3>${escapeHTML(homeName)} <b>${match.homeScore}–${match.awayScore}</b> ${escapeHTML(awayName)}</h3><p>${escapeHTML(match.note || "FIFA 9 resmî maç sonucu")}</p></div><div class="archive-detail-stamp ${outcome.className}"><small>MODEL SONUCU</small><strong>${outcome.label}</strong></div></div>
+      ${odds && !odds.unavailable ? `<section class="archive-detail-market"><div><span>1 · ${escapeHTML(homeName)}</span><strong>${Number(odds.homeOdds).toFixed(2)}</strong><small>${oddsPercent(odds.homeProbability)}</small></div><div><span>X · Beraberlik</span><strong>${Number(odds.drawOdds).toFixed(2)}</strong><small>${oddsPercent(odds.drawProbability)}</small></div><div><span>2 · ${escapeHTML(awayName)}</span><strong>${Number(odds.awayOdds).toFixed(2)}</strong><small>${oddsPercent(odds.awayProbability)}</small></div></section><div class="info-box mt-16"><strong>Maç öncesi model:</strong> ${escapeHTML(odds.favoriteName || "—")} favori · tahmini skor ${odds.predictedHome}-${odds.predictedAway} · snapshot ${odds.capturedAt ? new Date(odds.capturedAt).toLocaleString("tr-TR") : "—"}</div>` : `<div class="info-box warning-box">Bu maç için maç öncesi oran snapshot'ı bulunmuyor. v22 sonrasında başlayan maçlar otomatik arşivlenir.</div>`}
+      <div class="mt-16">${renderCommunityPollShell(match.id, homeName, awayName, false, false, odds?.favoriteSide || "")}</div>
+      <section class="panel mt-24"><div class="panel-header"><div><h3 class="panel-title">Canlı Yayın Zaman Çizelgesi</h3><div class="panel-subtitle">Gol, kart, büyük şans, tehlikeli atak ve yayın notları.</div></div><span class="badge badge-gold">${events.length} OLAY</span></div>${events.length ? `<div class="live-event-timeline archive-timeline">${events.map(event => renderLiveEvent(event, match).replace(/<button class="live-event-delete"[\s\S]*?<\/button>/, "")).join("")}</div>` : `<div class="info-box">Bu maç canlı yayınlanmadı veya olay kaydı bulunmuyor.</div>`}</section>
+      <div class="modal-actions"><button class="btn btn-gold" data-action="close-modal">Kapat</button></div>
+    `, "MATCH ARCHIVE v22");
+    hydrateV22Community(modalBody);
+  }
+
   function renderOddsCard(item) {
     const favoriteName = item.favorite.name;
     const flag = item.isLive ? `<span class="odds-live-badge"><i></i> CANLI</span>` : item.strongFavorite ? `<span class="odds-signal strong">NET FAVORİ</span>` : item.isBalanced ? `<span class="odds-signal balanced">DENGE MAÇI</span>` : item.surprisePotential ? `<span class="odds-signal upset">SÜRPRİZ ADAYI</span>` : `<span class="odds-signal">MODEL AÇIK</span>`;
@@ -3211,6 +3434,7 @@
       <div class="odds-probability-rail" aria-label="Olasılık dağılımı"><i class="home" style="width:${item.market.home.probability * 100}%"></i><i class="draw" style="width:${item.market.draw.probability * 100}%"></i><i class="away" style="width:${item.market.away.probability * 100}%"></i></div>
       <div class="odds-card-insight"><div><span>Model favorisi</span><strong>${escapeHTML(favoriteName)} · ${oddsPercent(item.favoriteProbability)}</strong></div><div><span>İkili rekabet</span><strong>${item.h2h.meetings ? `${item.h2h.winsA}-${item.h2h.draws}-${item.h2h.winsB} · ${item.h2h.meetings} maç` : "İlk karşılaşma"}</strong></div><div><span>Güven</span><strong>${item.confidence}%</strong></div></div>
       <p class="odds-reason">${escapeHTML(item.reason)}</p>
+      ${renderCommunityPollShell(item.id, item.home.name, item.away.name, !item.isLive, false, item.favoriteSide)}
     </article>`;
   }
 
@@ -3260,6 +3484,8 @@
 
       ${filtered.length ? `<div class="odds-card-grid">${filtered.map(renderOddsCard).join("")}</div>` : `<div class="info-box mt-24">${escapeHTML(filterLabels[oddsPhaseFilter])} için oynanmamış fikstür bulunmuyor.</div>`}
 
+      ${renderMatchArchiveSection()}
+
       <section class="panel mt-24 odds-method-panel">
         <div class="panel-header"><div><h3 class="panel-title">Oran Motoru Nasıl Çalışır?</h3><div class="panel-subtitle">Model şeffaf, deterministik ve her cihazda aynı sonucu üretir.</div></div><span class="badge badge-blue">MODEL v14</span></div>
         <div class="odds-weight-grid">
@@ -3277,6 +3503,7 @@
           <div><span>Eleme maçlarında X</span><strong>Normal süre beraberlik olasılığını ifade eder</strong></div>
         </div>
       </section>`;
+    hydrateV22Community(view);
   }
 
   function openOddsAnalysis(matchId) {
@@ -5448,6 +5675,7 @@
     if (!match.allowDraw && homeScore === awayScore && ![match.homeId, match.awayId].includes(tieWinner)) {
       toast("Eleme maçında eşitlik varsa uzatma/penaltı galibini seç.", "error"); return;
     }
+    if (!matchComplete(match)) matchArchiveSnapshot(match, "manual-entry");
     match.homeScore = homeScore;
     match.awayScore = awayScore;
     match.homeTeam = String(data.get("homeTeam") || "").trim();
@@ -5455,6 +5683,7 @@
     match.tiebreakWinnerId = homeScore === awayScore ? tieWinner : null;
     match.note = String(data.get("note") || "").trim();
     match.updatedAt = new Date().toISOString();
+    finalizeMatchArchive(match);
     const warning = reconcileAfterStageEdit(match.phase);
     refreshKnockout();
     saveState();
@@ -5468,6 +5697,7 @@
     const match = findMatch(matchId);
     if (!match) return;
     match.homeScore = null; match.awayScore = null; match.tiebreakWinnerId = null; match.note = ""; match.updatedAt = null;
+    clearMatchArchiveResult(matchId);
     const warning = reconcileAfterStageEdit(match.phase);
     refreshKnockout();
     saveState(); closeModal(); render();
@@ -5729,6 +5959,7 @@ ${shareData.url}`)}`;
       return;
     }
     if (type === "open-odds-analysis") { openOddsAnalysis(action.dataset.matchId); return; }
+    if (type === "open-match-archive-details") { openMatchArchiveDetails(action.dataset.matchId); return; }
     if (type === "share-odds") { shareOdds(); return; }
     if (type === "share-single-odds") { shareOdds(action.dataset.matchId); return; }
     if (type === "set-form-window") {
@@ -5970,6 +6201,7 @@ ${shareData.url}`)}`;
     updateAuthUI();
     render();
     window.FIFA_CHAT_UI?.onCloudReady?.();
+    window.dispatchEvent(new Event("fifa-cloud-ready"));
   }
 
   initializeCloud();

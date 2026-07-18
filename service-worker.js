@@ -1,4 +1,4 @@
-const CACHE = "fifa9-hub-live-v21-broadcast-experience";
+const CACHE = "fifa9-hub-live-v22-match-archive-community";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -7,6 +7,7 @@ const APP_SHELL = [
   "./language.js",
   "./cloud.js",
   "./chat.js",
+  "./community.js",
   "./data/historical-data.js",
   "./assets/f9-mark.svg",
   "./manifest.webmanifest"

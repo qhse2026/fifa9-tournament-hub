@@ -199,3 +199,16 @@ The v21 release upgrades the live match experience with a presentation-grade bro
 - Viewer-focused layouts that hide administrative controls during presentation
 
 No new Supabase SQL or database table is required. The new event types are stored inside the existing live match state.
+
+## v22 — Match Archive & Community Predictions
+
+- Community 1-X-2 voting under every upcoming match
+- Unlimited participants with one browser/device vote per match
+- Vote changes allowed until kick-off
+- Poll locking when the live broadcast starts or a result is saved
+- Pre-match odds snapshots stored with the tournament state and mirrored to Supabase
+- Completed-match odds, model outcome and community closing-vote archive
+- Detailed live-broadcast event archive
+- Model accuracy and crowd accuracy indicators
+
+Run `supabase/match_archive_community_v22.sql` before deploying the v22 frontend files.
