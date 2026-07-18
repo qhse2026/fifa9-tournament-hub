@@ -1,0 +1,29 @@
+FIFA 9 Community Vote Click Hotfix v23
+
+Düzeltilen sorun:
+- Yaklaşan maçlarda 1 / X / 2 butonuna basıldığında hiçbir şey olmaması.
+- Açık oylamanın istemci tarafında yanlışlıkla kapalı algılanması.
+- Kullanıcıya kayıt sırasında görünür geri bildirim verilmemesi.
+
+Yapılan düzeltmeler:
+- Oylama açık/kapalı durumu daha güvenli bir veri alanına taşındı.
+- Eski v22 data-open işaretlemesi için geriye dönük uyumluluk eklendi.
+- Oy tıklaması capture event ile garanti altına alındı.
+- Oyun kaydediliyor / kaydedildi / sunucu kapalı hata mesajları eklendi.
+- Supabase poll durumu artık ayrıca okunuyor.
+- Oy seçimi sırasında görsel pending ve success efekti eklendi.
+- Service Worker cache v23'e yükseltildi.
+
+Kurulum:
+1. ZIP dosyasını çıkar.
+2. GitHub repository ana dizininde şu dosyaları değiştir:
+   app.js
+   community.js
+   styles.css
+   service-worker.js
+3. Commit mesajı:
+   Fix community vote click and poll state v23
+4. Vercel deploy tamamlanınca Ctrl + F5 yap.
+5. Telefonda eski sürüm kalırsa site verisini/önbelleği temizle.
+
+Supabase SQL gerekmiyor. Mevcut oylar ve maç verileri korunur.

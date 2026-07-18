@@ -3330,7 +3330,7 @@
 
 
   function renderCommunityPollShell(matchId, homeName, awayName, isOpen = true, compact = false, modelFavorite = "") {
-    return `<section class="community-poll ${compact ? "compact" : ""}" data-community-poll data-match-id="${escapeHTML(matchId)}" data-home-name="${escapeHTML(homeName)}" data-away-name="${escapeHTML(awayName)}" data-open="${isOpen ? "true" : "false"} data-model-favorite="${escapeHTML(modelFavorite)}"">
+    return `<section class="community-poll ${compact ? "compact" : ""}" data-community-poll data-match-id="${escapeHTML(matchId)}" data-home-name="${escapeHTML(homeName)}" data-away-name="${escapeHTML(awayName)}" data-community-open="${isOpen ? "true" : "false"}" data-model-favorite="${escapeHTML(modelFavorite)}">
       <div class="community-poll-head"><div><span>${isOpen ? "TOPLULUK TAHMİNİ" : "KAPANIŞ OYLAMASI"}</span><strong>${isOpen ? "Sence kim kazanır?" : "Maç öncesi topluluk ne dedi?"}</strong></div><div class="community-vote-total" data-vote-total>0 OY</div></div>
       <div class="community-vote-buttons">
         <button type="button" data-community-vote="home" ${isOpen ? "" : "disabled"}><span>1</span><strong>${escapeHTML(homeName)}</strong><small data-vote-pct="home">0%</small></button>

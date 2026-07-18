@@ -2450,3 +2450,18 @@ html[data-language="en"] .brand-subtitle { letter-spacing: .095em; }
   .archive-result-line { grid-template-columns:1fr; }
   .archive-result-line b { font-size:29px; }
 }
+
+/* Community voting click feedback hotfix v23 */
+.community-vote-buttons button.vote-pending {
+  border-color:#e9c665;
+  box-shadow:0 0 0 1px rgba(233,198,101,.2),0 0 24px rgba(233,198,101,.16);
+  animation:communityVotePulse .75s ease-in-out infinite alternate;
+}
+.community-poll.vote-success {
+  border-color:rgba(83,214,150,.55);
+  box-shadow:0 0 0 1px rgba(83,214,150,.14),0 14px 34px rgba(83,214,150,.08);
+}
+@keyframes communityVotePulse {
+  from { transform:translateY(0); filter:brightness(1); }
+  to { transform:translateY(-2px); filter:brightness(1.16); }
+}
