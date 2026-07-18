@@ -4031,70 +4031,291 @@
     }
   }
 
+
+  function achievementPrestigeLevels() {
+    return [
+      { key:"rookie", name:"ROOKIE", min:0, icon:"Ⅰ", model:"Bronze Core" },
+      { key:"competitor", name:"COMPETITOR", min:250, icon:"Ⅱ", model:"Steel Edge" },
+      { key:"challenger", name:"CHALLENGER", min:750, icon:"Ⅲ", model:"Sapphire Drive" },
+      { key:"contender", name:"CONTENDER", min:1500, icon:"Ⅳ", model:"Crimson Force" },
+      { key:"elite", name:"ELITE", min:3000, icon:"Ⅴ", model:"Platinum Pulse" },
+      { key:"master", name:"MASTER", min:5000, icon:"Ⅵ", model:"Royal Amethyst" },
+      { key:"legend", name:"LEGEND", min:8000, icon:"Ⅶ", model:"Cosmic Gold" },
+      { key:"icon", name:"ICON", min:12000, icon:"Ⅷ", model:"Obsidian Prism" },
+      { key:"immortal", name:"IMMORTAL", min:18000, icon:"∞", model:"Aurora Diamond" }
+    ];
+  }
+
+  function achievementPrestigeLevel(xp) {
+    const levels = achievementPrestigeLevels();
+    let current = levels[0];
+    for (const level of levels) if (Number(xp) >= level.min) current = level;
+    const index = levels.findIndex(level => level.key === current.key);
+    const next = levels[index + 1] || null;
+    const span = next ? Math.max(1, next.min - current.min) : 1;
+    const progress = next ? intelligenceClamp((Number(xp) - current.min) / span * 100, 0, 100) : 100;
+    return { ...current, next, progress };
+  }
+
+  function achievementRarityMeta(key) {
+    const map = {
+      starter:{ key:"starter", label:"Başlangıç", difficulty:1, xp:100, symbol:"B", tone:"bronze" },
+      advanced:{ key:"advanced", label:"Gelişmiş", difficulty:2, xp:225, symbol:"G", tone:"silver" },
+      rare:{ key:"rare", label:"Nadir", difficulty:3, xp:450, symbol:"N", tone:"gold" },
+      elite:{ key:"elite", label:"Elite", difficulty:4, xp:850, symbol:"E", tone:"platinum" },
+      legendary:{ key:"legendary", label:"Efsanevi", difficulty:5, xp:1450, symbol:"L", tone:"legendary" },
+      mythic:{ key:"mythic", label:"Mitik", difficulty:6, xp:2600, symbol:"M", tone:"mythic" },
+      secret:{ key:"secret", label:"Gizli Mitik", difficulty:7, xp:3800, symbol:"?", tone:"secret" }
+    };
+    return map[key] || map.starter;
+  }
+
+  function achievementPlayerCareer(matches, name) {
+    const list = matches.filter(match => match.homeName === name || match.awayName === name);
+    let currentWins = 0, currentUnbeaten = 0, maxWins = 0, maxUnbeaten = 0;
+    let totalWins = 0, totalDraws = 0, totalLosses = 0, goals = 0, conceded = 0;
+    let maxGoals = 0, maxMargin = 0, closeWins = 0, differentOpponents = new Set();
+    const teams = new Map();
+    const teamWins = new Map();
+    const results = [];
+    for (const match of list) {
+      const isHome = match.homeName === name;
+      const gf = Number(isHome ? match.homeScore : match.awayScore) || 0;
+      const ga = Number(isHome ? match.awayScore : match.homeScore) || 0;
+      const opponent = isHome ? match.awayName : match.homeName;
+      const team = normalizeTeamName(isHome ? match.homeTeam : match.awayTeam);
+      const winner = match.winnerName || (match.homeScore > match.awayScore ? match.homeName : match.awayScore > match.homeScore ? match.awayName : "");
+      const result = !winner ? "D" : winner === name ? "W" : "L";
+      results.push({ result, gf, ga, opponent, team, match });
+      goals += gf; conceded += ga; maxGoals = Math.max(maxGoals, gf); maxMargin = Math.max(maxMargin, gf - ga);
+      if (opponent) differentOpponents.add(opponent);
+      if (team) teams.set(team, (teams.get(team) || 0) + 1);
+      if (result === "W") {
+        totalWins += 1;
+        currentWins += 1;
+        currentUnbeaten += 1;
+        maxWins = Math.max(maxWins, currentWins);
+        maxUnbeaten = Math.max(maxUnbeaten, currentUnbeaten);
+        if (team) teamWins.set(team, (teamWins.get(team) || 0) + 1);
+        if (Math.abs(gf - ga) <= 1) closeWins += 1;
+      } else if (result === "D") {
+        totalDraws += 1;
+        currentWins = 0;
+        currentUnbeaten += 1;
+        maxUnbeaten = Math.max(maxUnbeaten, currentUnbeaten);
+      } else {
+        totalLosses += 1;
+        currentWins = 0;
+        currentUnbeaten = 0;
+      }
+    }
+    const uniqueWinningTeams = [...teamWins.values()].filter(value => value > 0).length;
+    const bestTeamWins = [...teamWins.entries()].sort((a,b)=>b[1]-a[1] || a[0].localeCompare(b[0],"tr"))[0] || ["",0];
+    return {
+      games:list.length, wins:totalWins, draws:totalDraws, losses:totalLosses, goals, conceded,
+      currentWins, currentUnbeaten, maxWins, maxUnbeaten, maxGoals, maxMargin, closeWins,
+      opponents:differentOpponents.size, teams:teams.size, winningTeams:uniqueWinningTeams,
+      bestTeam:bestTeamWins[0], bestTeamWins:bestTeamWins[1], results
+    };
+  }
+
   function buildAchievements() {
     const names = intelligenceNames();
-    const form = buildFormAnalytics(20, "all");
-    const allTime = buildAllTimeAnalytics();
-    const elo = buildEloAnalytics();
     const matches = buildUnifiedAllTimeMatches();
-    const liveArchive = state.current.live?.archive || {};
+    const allTime = buildAllTimeAnalytics();
+    const form = buildFormAnalytics(20,"all");
+    const elo = buildEloAnalytics();
+    const pressure = buildPressureChamber();
     const teamAnalytics = buildTeamAnalytics();
-    const badges = new Map(names.map(name => [name, []]));
-    const add = (name, badge) => { if (badges.has(name) && !badges.get(name).some(item => item.key === badge.key)) badges.get(name).push(badge); };
-    const badge = (key, title, icon, note, level = "standard") => ({ key, title, icon, note, level });
-
-    form.players.forEach(row => {
-      if (row.currentWinStreak >= 3) add(row.name, badge("hat-trick", "Hat-Trick Hunter", "③", `${row.currentWinStreak} maçlık galibiyet serisi`, "gold"));
-      if (row.currentUnbeatenStreak >= 5) add(row.name, badge("unbeaten", "Unbeaten Run", "∞", `${row.currentUnbeatenStreak} maç yenilmez`, "elite"));
-      if (row.avgGoals >= 5 && row.games >= 5) add(row.name, badge("goal-machine", "Goal Machine", "⚡", `${row.avgGoals.toFixed(2)} gol/maç`, "red"));
-      if (row.gaPerGame <= 2.5 && row.games >= 5) add(row.name, badge("iron-defence", "Iron Defence", "◆", `${row.gaPerGame.toFixed(2)} yenilen gol/maç`, "blue"));
-      if (row.momentum >= 5) add(row.name, badge("momentum", "Momentum Hunter", "↗", `Momentum +${row.momentum}`, "green"));
+    const currentCompleted = allCurrentMatches().filter(matchComplete);
+    const currentChampionId = state.current.knockout?.final && matchComplete(state.current.knockout.final) ? matchWinnerId(state.current.knockout.final) : null;
+    const currentChampionName = currentChampionId ? playerName(currentChampionId) : "";
+    const currentResultsByName = new Map(names.map(name => [name, { games:0,wins:0,draws:0,losses:0 }]));
+    currentCompleted.forEach(match => {
+      const winnerId = matchWinnerId(match);
+      for (const side of ["home","away"]) {
+        const id = side === "home" ? match.homeId : match.awayId;
+        const name = playerName(id);
+        if (!currentResultsByName.has(name)) currentResultsByName.set(name,{games:0,wins:0,draws:0,losses:0});
+        const row = currentResultsByName.get(name);
+        row.games += 1;
+        if (!winnerId) row.draws += 1;
+        else if (winnerId === id) row.wins += 1;
+        else row.losses += 1;
+      }
     });
 
-    matches.forEach(match => {
-      const winner = match.winnerName || (match.homeScore > match.awayScore ? match.homeName : match.awayScore > match.homeScore ? match.awayName : "");
-      if (!winner) return;
-      const scored = winner === match.homeName ? match.homeScore : match.awayScore;
-      if (Number(scored) >= 7) add(winner, badge("seven-plus", "Seven Goal Club", "7+", `${match.editionLabel} · ${scored} gol`, "red"));
-    });
+    const definitions = [
+      { key:"first-blood", title:"First Blood", icon:"Ⅰ", rarity:"starter", target:1, metric:"wins", desc:"Kariyerindeki ilk resmî galibiyetini al." },
+      { key:"goal-hunter", title:"Goal Hunter", icon:"4", rarity:"starter", target:4, metric:"maxGoals", desc:"Tek maçta en az 4 gol at." },
+      { key:"five-star-fury", title:"Five-Star Fury", icon:"5★", rarity:"advanced", target:5, metric:"maxGoals", desc:"Tek maçta en az 5 gol at." },
+      { key:"seven-heaven", title:"Seven Heaven", icon:"7H", rarity:"rare", target:7, metric:"maxGoals", desc:"Tek maçta en az 7 gol at." },
+      { key:"ten-heaven", title:"Ten Heaven", icon:"10H", rarity:"legendary", target:10, metric:"maxGoals", desc:"Tek maçta en az 10 gol at." },
+      { key:"beyond-heaven", title:"Beyond Heaven", icon:"∞H", rarity:"secret", target:12, metric:"maxGoals", desc:"Gol sınırlarının ötesine geç: bir maçta 12+ gol.", hidden:true },
+      { key:"winning-habit", title:"Winning Habit", icon:"W3", rarity:"advanced", target:3, metric:"maxWins", desc:"Üst üste 3 resmî maç kazan." },
+      { key:"hot-streak", title:"Hot Streak", icon:"W5", rarity:"rare", target:5, metric:"maxWins", desc:"Üst üste 5 resmî maç kazan." },
+      { key:"royal-run", title:"Royal Run", icon:"W7", rarity:"elite", target:7, metric:"maxWins", desc:"Üst üste 7 resmî maç kazan." },
+      { key:"winning-king", title:"Winning King", icon:"♛", rarity:"legendary", target:10, metric:"maxWins", desc:"Üst üste 10 resmî maç kazan ve galibiyet tahtını ele geçir.", titleUnlock:"WINNING KING" },
+      { key:"eternal-crown", title:"Eternal Crown", icon:"♛15", rarity:"mythic", target:15, metric:"maxWins", desc:"Üst üste 15 maç kazanarak seriyi bir hanedana dönüştür.", titleUnlock:"ETERNAL CROWN" },
+      { key:"still-standing", title:"Still Standing", icon:"U5", rarity:"advanced", target:5, metric:"maxUnbeaten", desc:"5 maç boyunca mağlup olma." },
+      { key:"unbroken-ten", title:"Unbroken Ten", icon:"U10", rarity:"rare", target:10, metric:"maxUnbeaten", desc:"10 maçlık yenilmezlik serisi yakala." },
+      { key:"iron-reign", title:"Iron Reign", icon:"U15", rarity:"legendary", target:15, metric:"maxUnbeaten", desc:"15 maç boyunca yenilmeden hükmet." },
+      { key:"untouchable", title:"The Untouchable", icon:"U20", rarity:"mythic", target:20, metric:"maxUnbeaten", desc:"20 maç boyunca mağlubiyet yüzü görme.", titleUnlock:"THE UNTOUCHABLE" },
+      { key:"immortal-run", title:"Immortal Run", icon:"U25", rarity:"secret", target:25, metric:"maxUnbeaten", desc:"25 maçlık tarihî yenilmezlik serisi.", hidden:true, titleUnlock:"IMMORTAL RUN" },
+      { key:"giant-killer", title:"Giant Killer", icon:"♜", rarity:"rare", target:1, metric:"giantWins", desc:"Elo modelinde senden güçlü bir rakibi sürpriz şekilde mağlup et." },
+      { key:"king-slayer", title:"King Slayer", icon:"⚔", rarity:"elite", target:1, metric:"majorUpsets", desc:"Maç öncesinde en az 150 Elo geride olduğun rakibi mağlup et." },
+      { key:"elo-emperor", title:"Elo Emperor", icon:"1800", rarity:"legendary", target:1800, metric:"eloPeak", desc:"Kariyer Elo zirveni 1800 seviyesine çıkar.", titleUnlock:"ELO EMPEROR" },
+      { key:"comeback-king", title:"Comeback King", icon:"↺2", rarity:"rare", target:1, metric:"comeback2", desc:"En az iki fark geriden gelerek maçı kazan." },
+      { key:"phoenix-rising", title:"Phoenix Rising", icon:"↺3", rarity:"legendary", target:1, metric:"comeback3", desc:"Üç veya daha fazla farktan geri dönerek kazan.", titleUnlock:"PHOENIX RISING" },
+      { key:"last-minute-hero", title:"Last-Minute Hero", icon:"90+", rarity:"elite", target:1, metric:"lateWins", desc:"85. dakikadan sonra gelen golle maçı kazan." },
+      { key:"pressure-king", title:"Pressure King", icon:"P85", rarity:"legendary", target:85, metric:"mentalIndex", desc:"En az 10 yüksek baskı maçıyla Mental Index değerini 85 üzerine çıkar.", condition:metric=>metric.highPressureGames>=10, titleUnlock:"PRESSURE KING" },
+      { key:"final-boss", title:"Final Boss", icon:"FB", rarity:"mythic", target:2, metric:"titles", desc:"En az iki şampiyonluk ve 85+ Mental Index ile büyük maçların son patronu ol.", condition:metric=>metric.mentalIndex>=85, titleUnlock:"THE FINAL BOSS" },
+      { key:"team-explorer", title:"Team Explorer", icon:"T5", rarity:"advanced", target:5, metric:"teams", desc:"Kariyerinde 5 farklı takımla oyna." },
+      { key:"world-traveller", title:"World Traveller", icon:"T10", rarity:"rare", target:10, metric:"teams", desc:"10 farklı takımla sahaya çık." },
+      { key:"ultimate-chameleon", title:"Ultimate Chameleon", icon:"T15", rarity:"legendary", target:15, metric:"winningTeams", desc:"15 farklı takımla en az bir galibiyet al." },
+      { key:"team-specialist", title:"Team Specialist", icon:"TS5", rarity:"advanced", target:5, metric:"bestTeamWins", desc:"Aynı takımla 5 galibiyet al." },
+      { key:"club-legend", title:"Club Legend", icon:"CL10", rarity:"elite", target:10, metric:"bestTeamWins", desc:"Aynı takımla 10 galibiyete ulaş." },
+      { key:"iron-veteran", title:"Iron Veteran", icon:"40", rarity:"advanced", target:40, metric:"games", desc:"40 resmî karşılaşmaya çık." },
+      { key:"century-club", title:"Century Club", icon:"100", rarity:"legendary", target:100, metric:"games", desc:"100 resmî maçlık kariyer barajını aş." },
+      { key:"dynasty", title:"Dynasty", icon:"♛2", rarity:"legendary", target:2, metric:"titles", desc:"En az iki FIFA turnuvasında şampiyon ol.", titleUnlock:"DYNASTY" },
+      { key:"triple-crown", title:"Triple Crown", icon:"♛3", rarity:"mythic", target:3, metric:"titles", desc:"Üç farklı turnuvada şampiyonluk kupasını kaldır.", titleUnlock:"TRIPLE CROWN" },
+      { key:"perfect-campaign", title:"Perfect Campaign", icon:"100%", rarity:"mythic", target:1, metric:"perfectCurrent", desc:"Aktif turnuvayı oynadığın bütün maçları kazanarak tamamla." },
+      { key:"invincible-champion", title:"Invincible Champion", icon:"∞♛", rarity:"mythic", target:1, metric:"invincibleChampion", desc:"Turnuvayı yenilgisiz şampiyon tamamla.", titleUnlock:"INVINCIBLE CHAMPION" },
+      { key:"heavens-chosen", title:"Heaven's Chosen", icon:"HC", rarity:"mythic", target:1, metric:"heavensChosen", desc:"Seven Heaven, Ten Heaven, Winning King ve şampiyonluğu aynı kariyerde birleştir.", titleUnlock:"HEAVEN'S CHOSEN" },
+      { key:"immortal-king", title:"Immortal King", icon:"IK", rarity:"secret", target:1, metric:"immortalKing", desc:"Winning King, The Untouchable, şampiyonluk ve 90+ Mental Index birleşimi.", hidden:true, titleUnlock:"IMMORTAL KING" }
+    ];
 
-    elo.records.forEach(record => {
-      if (record.surprise && record.winner) add(record.winner, badge("giant-killer", "Giant Killer", "♜", `Elo favorisini devirdi`, "purple"));
-    });
+    const playerRows = names.map(name => {
+      const career = achievementPlayerCareer(matches, name);
+      const allTimeRow = allTime.playerMap.get(name) || {};
+      const eloRow = elo.playerMap.get(name) || {};
+      const pressureRow = pressure.playerMap.get(name) || {};
+      const currentRow = currentResultsByName.get(name) || {games:0,wins:0,draws:0,losses:0};
+      const eloRecords = elo.records.filter(record => record.winner === name);
+      const giantWins = eloRecords.filter(record => record.surprise).length;
+      const majorUpsets = eloRecords.filter(record => {
+        if (record.winner !== name) return false;
+        return record.home === name ? record.beforeAway-record.beforeHome >= 150 : record.beforeHome-record.beforeAway >= 150;
+      }).length;
+      let comeback2 = 0, comeback3 = 0, lateWins = 0;
+      currentCompleted.forEach(match => {
+        if (playerName(matchWinnerId(match)) !== name) return;
+        const insight = analyzeLiveArchive(match);
+        if (insight.comeback && insight.maxDeficit >= 2) comeback2 += 1;
+        if (insight.comeback && insight.maxDeficit >= 3) comeback3 += 1;
+        if (insight.lateWinner) lateWins += 1;
+      });
+      const currentComplete = Boolean(currentChampionName);
+      const perfectCurrent = currentComplete && currentChampionName === name && currentRow.games > 0 && currentRow.wins === currentRow.games ? 1 : 0;
+      const invincibleChampion = currentComplete && currentChampionName === name && currentRow.losses === 0 ? 1 : 0;
+      const baseMetric = {
+        ...career,
+        giantWins, majorUpsets, comeback2, comeback3, lateWins,
+        eloPeak:Number(eloRow.peak)||1500,
+        elo:Number(eloRow.rating)||1500,
+        titles:Number(allTimeRow.titles)||0,
+        finals:Number(allTimeRow.finals)||0,
+        mentalIndex:Number(pressureRow.mentalIndex)||50,
+        highPressureGames:Number(pressureRow.highPressureGames)||0,
+        perfectCurrent, invincibleChampion
+      };
+      baseMetric.heavensChosen = career.maxGoals>=10 && career.maxWins>=10 && baseMetric.titles>=1 ? 1 : 0;
+      baseMetric.immortalKing = career.maxWins>=10 && career.maxUnbeaten>=20 && baseMetric.titles>=1 && baseMetric.mentalIndex>=90 ? 1 : 0;
 
-    allCurrentMatches().filter(matchComplete).forEach(match => {
-      const insight = analyzeLiveArchive(match);
-      const winner = matchWinnerId(match) ? playerName(matchWinnerId(match)) : "";
-      if (winner && insight.comeback) add(winner, badge("comeback", "Comeback King", "↺", `${insight.maxDeficit} farklı geriden dönüş`, "gold"));
-      if (winner && insight.lateWinner) add(winner, badge("late-hero", "Last-Minute Hero", "90+", "85. dakikadan sonra kazandıran gol", "purple"));
-    });
+      const achievements = definitions.map(def => {
+        const current = Number(baseMetric[def.metric]) || 0;
+        const conditionOk = typeof def.condition === "function" ? Boolean(def.condition(baseMetric)) : true;
+        const unlocked = current >= def.target && conditionOk;
+        const rarity = achievementRarityMeta(def.rarity);
+        return {
+          ...def, current, unlocked, rarity,
+          xp: unlocked ? rarity.xp : 0,
+          progress: intelligenceClamp(current / Math.max(1,def.target) * 100, 0, 100),
+          progressLabel:def.metric==="eloPeak" ? `${Math.round(current)} / ${def.target}` : `${Math.min(current,def.target)} / ${def.target}`
+        };
+      });
+      const unlocked = achievements.filter(item=>item.unlocked);
+      const xp = unlocked.reduce((sum,item)=>sum+item.xp,0);
+      const prestige = achievementPrestigeLevel(xp);
+      const activeTitle = unlocked.filter(item=>item.titleUnlock).sort((a,b)=>b.rarity.difficulty-a.rarity.difficulty || b.xp-a.xp)[0]?.titleUnlock || prestige.name;
+      const rarityCounts = unlocked.reduce((map,item)=>{ map[item.rarity.key]=(map[item.rarity.key]||0)+1; return map; },{});
+      const closest = achievements.filter(item=>!item.unlocked && !item.hidden).sort((a,b)=>b.progress-a.progress || a.rarity.difficulty-b.rarity.difficulty).slice(0,3);
+      const rarest = [...unlocked].sort((a,b)=>b.rarity.difficulty-a.rarity.difficulty || b.xp-a.xp).slice(0,4);
+      return {
+        name, metrics:baseMetric, achievements, unlocked, badges:unlocked, xp, prestige, activeTitle, rarityCounts, closest, rarest,
+        elo:baseMetric.elo, form:form.playerMap.get(name)?.formIndex || 50
+      };
+    }).sort((a,b)=>b.xp-a.xp || b.unlocked.length-a.unlocked.length || b.elo-a.elo || a.name.localeCompare(b.name,"tr"))
+      .map((row,index)=>({...row,rank:index+1}));
 
-    (teamAnalytics.players || []).forEach(player => {
-      const specialty = player.teams?.filter(team => team.games >= 4).sort((a,b)=>b.winRate-a.winRate || b.games-a.games)[0];
-      if (specialty && specialty.winRate >= 60) add(player.name, badge("specialist", "Team Specialist", "◉", `${specialty.team} · %${specialty.winRate.toFixed(0)} başarı`, "blue"));
-    });
+    const catalog = definitions.map(def=>({
+      ...def,
+      rarity:achievementRarityMeta(def.rarity),
+      unlockedCount:playerRows.filter(row=>row.achievements.find(item=>item.key===def.key)?.unlocked).length
+    }));
+    return {
+      players:playerRows,
+      playerMap:new Map(playerRows.map(row=>[row.name,row])),
+      catalog,
+      totalUnlocked:playerRows.reduce((sum,row)=>sum+row.unlocked.length,0),
+      totalXP:playerRows.reduce((sum,row)=>sum+row.xp,0),
+      leader:playerRows[0]||null,
+      rarestUnlocked:[...catalog].filter(item=>item.unlockedCount>0).sort((a,b)=>a.unlockedCount-b.unlockedCount || b.rarity.difficulty-a.rarity.difficulty)[0]||null
+    };
+  }
 
-    allTime.players.forEach(player => {
-      if (player.titles >= 2) add(player.name, badge("dynasty", "Dynasty", "♛", `${player.titles} şampiyonluk`, "elite"));
-      if (player.games >= 40) add(player.name, badge("veteran", "Iron Veteran", "★", `${player.games} kayıtlı maç`, "standard"));
-    });
+  function renderAchievementProgress(item) {
+    const hiddenLocked = item.hidden && !item.unlocked;
+    return `<article class="achievement-universe-badge rarity-${item.rarity.key} ${item.unlocked?"unlocked":"locked"} ${hiddenLocked?"hidden-achievement":""}">
+      <div class="achievement-badge-top"><span class="achievement-badge-icon">${hiddenLocked?"?":escapeHTML(item.icon)}</span><div><small>${item.rarity.label} · ${"◆".repeat(Math.min(6,item.rarity.difficulty))}</small><strong>${hiddenLocked?"Gizli Başarım":escapeHTML(item.title)}</strong></div><b>${item.unlocked?`+${item.xp} XP`:"KİLİTLİ"}</b></div>
+      <p>${hiddenLocked?"Koşul keşfedilene kadar gizli kalır.":escapeHTML(item.desc)}</p>
+      <div class="achievement-progress-track"><i style="width:${item.progress}%"></i></div>
+      <footer><span>${item.unlocked?"TAMAMLANDI":escapeHTML(item.progressLabel)}</span><em>Zorluk ${item.rarity.difficulty}/7</em></footer>
+    </article>`;
+  }
 
-    const players = names.map(name => ({
-      name,
-      badges: badges.get(name) || [],
-      elo: elo.playerMap.get(name)?.rating || 1500,
-      form: form.playerMap.get(name)?.formIndex || 50
-    })).sort((a,b)=>b.badges.length-a.badges.length || b.elo-a.elo || a.name.localeCompare(b.name,"tr"));
-    return { players, badgeCount: players.reduce((sum,row)=>sum+row.badges.length,0), leader: players[0] || null };
+  function renderPrestigeCard(player, compact=false) {
+    const level = player.prestige;
+    const nextText = level.next ? `${level.next.name} için ${Math.max(0,level.next.min-player.xp)} XP` : "Maksimum prestij seviyesi";
+    return `<article class="prestige-card prestige-${level.key} ${compact?"compact":""}">
+      <div class="prestige-card-orbit"><span>${escapeHTML(level.icon)}</span><i></i><b></b></div>
+      <div class="prestige-card-copy"><small>${escapeHTML(level.model)}</small><h3>${escapeHTML(player.name)}</h3><strong>${escapeHTML(player.activeTitle)}</strong><div class="prestige-rank-line"><span>#${player.rank}</span><b>${level.name}</b><em>${player.xp.toLocaleString("tr-TR")} XP</em></div><div class="prestige-progress"><i style="width:${level.progress}%"></i></div><p>${escapeHTML(nextText)} · ${player.unlocked.length}/${player.achievements.length} rozet</p></div>
+    </article>`;
   }
 
   function renderAchievementsSection() {
     const data = buildAchievements();
-    return `<div class="intel-section-stack"><section class="intel-achievement-hero"><div><div class="eyebrow">ACHIEVEMENT ENGINE</div><h2>Başarımlar & Rozetler</h2><p>Sonuçlar, canlı maç olayları, seriler, Elo sürprizleri ve takım uzmanlığından otomatik kazanılan dijital başarımlar.</p></div><div><strong>${data.badgeCount}</strong><span>AKTİF ROZET</span><small>${escapeHTML(data.leader?.name || "Lider bekleniyor")}</small></div></section>
-      <section class="panel"><div class="panel-header"><div><h3 class="panel-title">Oyuncu Rozet Vitrini</h3><div class="panel-subtitle">Her yeni skor ve canlı maç kaydında otomatik yeniden değerlendirilir.</div></div><span class="badge badge-gold">AUTO UNLOCK</span></div><div class="intel-achievement-grid">${data.players.map(player => `<article class="intel-achievement-player"><div class="intel-achievement-head"><span>${escapeHTML(player.name.charAt(0).toUpperCase())}</span><div><h4>${escapeHTML(player.name)}</h4><small>${player.elo} Elo · Form ${player.form}/100</small></div><strong>${player.badges.length}</strong></div>${player.badges.length ? `<div class="intel-badge-list">${player.badges.map(item => `<div class="badge-${item.level}" title="${escapeHTML(item.note)}"><span>${item.icon}</span><strong>${escapeHTML(item.title)}</strong><small>${escapeHTML(item.note)}</small></div>`).join("")}</div>` : `<div class="intel-no-badge">İlk rozet için performans bekleniyor.</div>`}</article>`).join("")}</div></section>
-      <section class="panel"><div class="panel-header"><div><h3 class="panel-title">Rozet Kataloğu</h3><div class="panel-subtitle">Sistemin izlediği ana başarımlar.</div></div></div><div class="intel-catalog-grid">${[
-        ["↺","Comeback King","İki veya daha fazla farktan geri dönüp kazan"],["♜","Giant Killer","Elo favorisini mağlup et"],["③","Hat-Trick Hunter","Üst üste üç maç kazan"],["∞","Unbeaten Run","Beş maç yenilmez kal"],["⚡","Goal Machine","Yüksek gol ortalaması üret"],["◆","Iron Defence","Savunma ortalamasında elit seviyeye çık"],["90+","Last-Minute Hero","Geç dakikada kazandıran gol"],["◉","Team Specialist","Bir takımla sürdürülebilir yüksek başarı"]
-      ].map(item => `<div><span>${item[0]}</span><strong>${item[1]}</strong><small>${item[2]}</small></div>`).join("")}</div></section>
+    const rarityOrder = ["starter","advanced","rare","elite","legendary","mythic","secret"];
+    const levels = achievementPrestigeLevels();
+    return `<div class="intel-section-stack">
+      <section class="achievement-universe-hero"><div><div class="eyebrow">FIFA 9 · ACHIEVEMENT UNIVERSE v24</div><h2>Rozetler, Ünvanlar & Prestige</h2><p>Kolay başlangıç başarılarından tarihî Mitik ünvanlara uzanan, zorluk derecesi ve nadirliğe göre sınıflandırılmış yaşayan kariyer sistemi.</p><div class="achievement-hero-actions"><span>${data.totalUnlocked} AÇILAN ROZET</span><span>${data.totalXP.toLocaleString("tr-TR")} TOPLAM XP</span><span>${data.catalog.length} KARİYER HEDEFİ</span></div></div><div class="achievement-hero-crown"><span>PRESTIGE LEADER</span><strong>${escapeHTML(data.leader?.name||"—")}</strong><b>${data.leader?.xp.toLocaleString("tr-TR")||0} XP</b><small>${escapeHTML(data.leader?.activeTitle||"")}</small></div></section>
+
+      <section class="panel"><div class="panel-header"><div><h3 class="panel-title">Prestige Level Kartları</h3><div class="panel-subtitle">Her seviye ayrı renk, ışık modeli ve kart kimliği kullanır.</div></div><span class="badge badge-gold">9 LEVELS</span></div>
+        <div class="prestige-level-legend">${levels.map(level=>`<div class="prestige-level-chip prestige-${level.key}"><span>${escapeHTML(level.icon)}</span><div><strong>${level.name}</strong><small>${level.model} · ${level.min.toLocaleString("tr-TR")} XP</small></div></div>`).join("")}</div>
+      </section>
+
+      <section class="panel"><div class="panel-header"><div><h3 class="panel-title">Kariyer Prestige Sıralaması</h3><div class="panel-subtitle">Elo güncel gücü, Prestige ise kariyer mirası ve başarı çeşitliliğini temsil eder.</div></div><span class="badge badge-blue">LIVE CAREER</span></div>
+        <div class="prestige-card-grid">${data.players.map(player=>renderPrestigeCard(player,true)).join("")}</div>
+      </section>
+
+      <section class="panel"><div class="panel-header"><div><h3 class="panel-title">Oyuncu Rozet Vitrinleri</h3><div class="panel-subtitle">En nadir başarımlar, aktif ünvan ve bir sonraki hedefler.</div></div><span class="badge badge-gold">AUTO UNLOCK</span></div>
+        <div class="achievement-player-showcase">${data.players.map(player=>`<article class="achievement-player-cabinet">
+          <header><div class="achievement-avatar prestige-${player.prestige.key}">${escapeHTML(player.name.charAt(0).toUpperCase())}</div><div><span>#${player.rank} · ${player.prestige.name}</span><h3>${escapeHTML(player.name)}</h3><strong>${escapeHTML(player.activeTitle)}</strong></div><b>${player.xp.toLocaleString("tr-TR")} XP</b></header>
+          <div class="achievement-cabinet-rarest">${player.rarest.length?player.rarest.map(item=>`<div class="mini-achievement rarity-${item.rarity.key}"><span>${escapeHTML(item.icon)}</span><strong>${escapeHTML(item.title)}</strong><small>${item.rarity.label}</small></div>`).join(""):`<div class="intel-no-badge">İlk rozet için mücadele devam ediyor.</div>`}</div>
+          <div class="achievement-next-goals"><span>SONRAKİ HEDEFLER</span>${player.closest.length?player.closest.map(item=>`<div><strong>${escapeHTML(item.title)}</strong><i><b style="width:${item.progress}%"></b></i><small>${escapeHTML(item.progressLabel)}</small></div>`).join(""):`<p>Bütün açık hedefler tamamlandı.</p>`}</div>
+          <footer><span>${player.unlocked.length}/${player.achievements.length} tamamlandı</span><span>En yüksek seri: ${player.metrics.maxWins}W · ${player.metrics.maxUnbeaten}U</span></footer>
+        </article>`).join("")}</div>
+      </section>
+
+      ${rarityOrder.map(rarityKey=>{
+        const meta=achievementRarityMeta(rarityKey);
+        const items=data.catalog.filter(item=>item.rarity.key===rarityKey);
+        return `<section class="panel achievement-rarity-section rarity-${rarityKey}"><div class="panel-header"><div><h3 class="panel-title">${meta.label} Başarımlar</h3><div class="panel-subtitle">Zorluk ${meta.difficulty}/7 · Temel ödül ${meta.xp.toLocaleString("tr-TR")} Prestige XP</div></div><span class="badge">${items.length} ROZET</span></div><div class="achievement-catalog-v24">${items.map(item=>`<article class="${item.hidden?"hidden-catalog":""}"><span>${item.hidden?"?":escapeHTML(item.icon)}</span><div><small>${item.rarity.label} · ${item.unlockedCount}/${data.players.length} oyuncu</small><strong>${item.hidden?"Gizli Mitik Başarım":escapeHTML(item.title)}</strong><p>${item.hidden?"Koşulu açılana kadar görünmez.":escapeHTML(item.desc)}</p></div><b>+${item.rarity.xp} XP</b></article>`).join("")}</div></section>`;
+      }).join("")}
+
+      <section class="panel"><div class="panel-header"><div><h3 class="panel-title">Canlı İlerleme Merkezi</h3><div class="panel-subtitle">Her oyuncunun tamamlanmış ve kilitli rozetleri gerçek zamanlı ilerleme ile izlenir.</div></div><span class="badge badge-blue">PROGRESS TRACKING</span></div>
+        <div class="achievement-progress-player-tabs">${data.players.map(player=>`<details ${player.rank===1?"open":""}><summary><span>#${player.rank}</span><strong>${escapeHTML(player.name)}</strong><b>${player.unlocked.length} rozet · ${player.xp.toLocaleString("tr-TR")} XP</b></summary><div class="achievement-progress-grid">${player.achievements.map(renderAchievementProgress).join("")}</div></details>`).join("")}</div>
+      </section>
     </div>`;
   }
 

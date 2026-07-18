@@ -1,0 +1,32 @@
+FIFA 9 Achievement Universe v24 — Kurulum Notu
+
+Bu güncelleme mevcut rozet sistemini kaldırmadan; zorluk derecesi, nadirlik, Prestige XP, kariyer seviyesi, aktif ünvan, gelişen rozet zincirleri ve canlı ilerleme takibiyle genişletir.
+
+Başlıca özellikler:
+- Seven Heaven ve Ten Heaven
+- Winning King: 10 maç üst üste galibiyet
+- The Untouchable: 20 maç yenilmezlik
+- Eternal Crown, Immortal Run, Final Boss, Pressure King
+- Başlangıç / Gelişmiş / Nadir / Elite / Efsanevi / Mitik / Gizli Mitik sınıfları
+- 9 ayrı Prestige Level kartı ve birbirinden farklı renk / model kimliği
+- Her oyuncu için aktif ünvan
+- Rozet XP ve canlı ilerleme göstergeleri
+- Gizli başarımlar
+- Kariyer Prestige sıralaması
+- Rozet vitrini ve en yakın hedefler
+
+PATCH ONLY kurulumu:
+1. ZIP dosyasını ayıkla.
+2. Aşağıdaki dosyaları GitHub repository ana dizinine yükle:
+   - app.js
+   - styles.css
+   - service-worker.js
+   - ACHIEVEMENT_UNIVERSE_V24_INSTALL_TR.txt
+3. Commit mesajı:
+   Add Achievement Universe v24
+4. Vercel deployment tamamlandıktan sonra Ctrl + F5 yap.
+5. Telefonda eski sürüm görünürse site önbelleğini temizle.
+
+Supabase SQL gerekmez.
+cloud-config.js dosyasına dokunma.
+Mevcut maç, sohbet, topluluk oylaması ve canlı yayın verileri korunur.
