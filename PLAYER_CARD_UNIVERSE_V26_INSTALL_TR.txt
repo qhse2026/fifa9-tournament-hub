@@ -1,0 +1,44 @@
+FIFA 9 Player Card Universe v26 — Kurulum Notu
+
+Bu güncelleme v25 Advanced Score Engine ve önceki bütün özellikleri korur.
+
+V26 ile eklenenler:
+- Baştan tasarlanmış premium oyuncu kartları
+- Prestige seviyesine göre 9 ayrı kart modeli:
+  Rookie, Competitor, Challenger, Contender, Elite, Master, Legend, Icon, Immortal
+- Oyuncunun oyun arketipine göre farklı kart enerjisi ve grafik kimliği
+- 12 performans metriği:
+  Hücum, Savunma, Form, Mental, İstikrar, Miras,
+  Kritik An, Geri Dönüş, Baskı Direnci, Rekabet Gücü,
+  Takım Uyumu ve Gol Tehdidi
+- Radar grafik
+- Power Exchange, Elo, şampiyonluk ihtimali ve aktif seri bilgileri
+- Son 10 maç form şeridi
+- Aktif ünvan ve en nadir rozetler
+- Prestige XP ilerleme göstergesi
+- Elo ve kariyer hareket grafiği
+- Premium kart koleksiyonu
+- Kart Overall değerinin güçlü yön ve gelişim alanı açıklaması
+- Achievement Universe ve Advanced Score Engine bölümlerinde
+  eksik İngilizce metinlerin tamamlanması
+- Türkçe / İngilizce yeni Player Card Universe arayüzü
+
+PATCH ONLY kurulumu:
+1. ZIP dosyasını ayıkla.
+2. GitHub repository ana dizinine şu dosyaları yükle:
+   - app.js
+   - styles.css
+   - language.js
+   - service-worker.js
+   - PLAYER_CARD_UNIVERSE_V26_INSTALL_TR.txt
+3. Aynı isimli mevcut dosyaların değiştirilmesini onayla.
+4. Commit mesajı:
+   Add Player Card Universe v26
+5. Vercel deployment tamamlandıktan sonra Ctrl + F5 yap.
+6. Telefonda eski sürüm görünürse site önbelleğini temizle.
+
+Önemli:
+- Supabase SQL çalıştırılmaz.
+- cloud-config.js dosyasına dokunulmaz.
+- Maçlar, canlı yayınlar, sohbet, topluluk oyları,
+  rozetler ve diğer turnuva verileri korunur.

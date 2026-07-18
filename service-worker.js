@@ -1,4 +1,4 @@
-const CACHE = "fifa9-hub-live-v25-advanced-score-engine";
+const CACHE = "fifa9-hub-live-v26-player-card-universe";
 const APP_SHELL = [
   "./",
   "./index.html",

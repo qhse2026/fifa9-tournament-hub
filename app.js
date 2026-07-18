@@ -3291,7 +3291,7 @@
     const observedVarianceRatio = env.varianceTotal / Math.max(1,env.meanTotal);
     const styleSpread = Math.abs((home.avgGoals+home.gaPerGame)-(away.avgGoals+away.gaPerGame));
     const dispersion = oddsClamp(5.5-observedVarianceRatio*.72-styleSpread*.10+(home.sampleScore+away.sampleScore)*.7,1.65,6.2);
-    const tempoLabel = targetTotal >= 8.3 ? 'Gol Fırtınası' : targetTotal >= 6.7 ? 'Açık Oyun' : targetTotal <= 4.4 ? 'Taktik Savaş' : 'Dengeli Tempo';
+    const tempoLabel = targetTotal >= 8.3 ? intelligenceCopy('Gol Fırtınası','Goal Storm') : targetTotal >= 6.7 ? intelligenceCopy('Açık Oyun','Open Game') : targetTotal <= 4.4 ? intelligenceCopy('Taktik Savaş','Tactical Battle') : intelligenceCopy('Dengeli Tempo','Balanced Tempo');
     const volatility = oddsClamp((1/dispersion)*100+Math.abs(home.form?.momentum||0)*1.3+Math.abs(away.form?.momentum||0)*1.3,18,88);
     return { expectedHome, expectedAway, expectedTotal:expectedHome+expectedAway, dispersion, tempoLabel, volatility, environment:env, homeAttack,awayAttack,homeWeakness,awayWeakness };
   }
@@ -4207,15 +4207,58 @@
 
   function achievementRarityMeta(key) {
     const map = {
-      starter:{ key:"starter", label:"Başlangıç", difficulty:1, xp:100, symbol:"B", tone:"bronze" },
-      advanced:{ key:"advanced", label:"Gelişmiş", difficulty:2, xp:225, symbol:"G", tone:"silver" },
-      rare:{ key:"rare", label:"Nadir", difficulty:3, xp:450, symbol:"N", tone:"gold" },
+      starter:{ key:"starter", label:intelligenceCopy("Başlangıç","Starter"), difficulty:1, xp:100, symbol:"B", tone:"bronze" },
+      advanced:{ key:"advanced", label:intelligenceCopy("Gelişmiş","Advanced"), difficulty:2, xp:225, symbol:"G", tone:"silver" },
+      rare:{ key:"rare", label:intelligenceCopy("Nadir","Rare"), difficulty:3, xp:450, symbol:"N", tone:"gold" },
       elite:{ key:"elite", label:"Elite", difficulty:4, xp:850, symbol:"E", tone:"platinum" },
-      legendary:{ key:"legendary", label:"Efsanevi", difficulty:5, xp:1450, symbol:"L", tone:"legendary" },
-      mythic:{ key:"mythic", label:"Mitik", difficulty:6, xp:2600, symbol:"M", tone:"mythic" },
-      secret:{ key:"secret", label:"Gizli Mitik", difficulty:7, xp:3800, symbol:"?", tone:"secret" }
+      legendary:{ key:"legendary", label:intelligenceCopy("Efsanevi","Legendary"), difficulty:5, xp:1450, symbol:"L", tone:"legendary" },
+      mythic:{ key:"mythic", label:intelligenceCopy("Mitik","Mythic"), difficulty:6, xp:2600, symbol:"M", tone:"mythic" },
+      secret:{ key:"secret", label:intelligenceCopy("Gizli Mitik","Secret Mythic"), difficulty:7, xp:3800, symbol:"?", tone:"secret" }
     };
     return map[key] || map.starter;
+  }
+
+  function achievementLocalizedDescription(key, fallback) {
+    const en = {
+      "first-blood":"Record the first official win of your career.",
+      "goal-hunter":"Score at least 4 goals in a single match.",
+      "five-star-fury":"Score at least 5 goals in a single match.",
+      "seven-heaven":"Score at least 7 goals in a single match.",
+      "ten-heaven":"Score at least 10 goals in a single match.",
+      "beyond-heaven":"Go beyond normal scoring limits with 12+ goals in one match.",
+      "winning-habit":"Win 3 official matches in a row.",
+      "hot-streak":"Win 5 official matches in a row.",
+      "royal-run":"Win 7 official matches in a row.",
+      "winning-king":"Win 10 official matches in a row and claim the winning throne.",
+      "eternal-crown":"Turn the streak into a dynasty with 15 consecutive wins.",
+      "still-standing":"Remain unbeaten for 5 matches.",
+      "unbroken-ten":"Build a 10-match unbeaten run.",
+      "iron-reign":"Rule without defeat for 15 matches.",
+      "untouchable":"Go 20 matches without a defeat.",
+      "immortal-run":"Build a historic 25-match unbeaten run.",
+      "giant-killer":"Defeat an opponent rated stronger by the Elo model.",
+      "king-slayer":"Beat an opponent while starting at least 150 Elo points behind.",
+      "elo-emperor":"Raise your career peak Elo to 1800.",
+      "comeback-king":"Come from at least two goals behind and win.",
+      "phoenix-rising":"Come from three or more goals behind and win.",
+      "last-minute-hero":"Score the winning goal after the 85th minute.",
+      "pressure-king":"Reach a Mental Index above 85 across at least 10 high-pressure matches.",
+      "final-boss":"Combine at least two titles with an 85+ Mental Index.",
+      "team-explorer":"Play with 5 different teams during your career.",
+      "world-traveller":"Take the field with 10 different teams.",
+      "ultimate-chameleon":"Win at least once with 15 different teams.",
+      "team-specialist":"Record 5 wins with the same team.",
+      "club-legend":"Reach 10 wins with the same team.",
+      "iron-veteran":"Play 40 official matches.",
+      "century-club":"Cross the 100-match career milestone.",
+      "dynasty":"Win at least two FIFA tournament titles.",
+      "triple-crown":"Lift the trophy in three different tournaments.",
+      "perfect-campaign":"Complete the active tournament by winning every match you play.",
+      "invincible-champion":"Win the tournament without losing a match.",
+      "heavens-chosen":"Combine Seven Heaven, Ten Heaven, Winning King and a title in one career.",
+      "immortal-king":"Combine Winning King, The Untouchable, a title and a 90+ Mental Index."
+    };
+    return intelligenceLanguage()==="en" ? (en[key] || fallback) : fallback;
   }
 
   function achievementPlayerCareer(matches, name) {
@@ -4412,22 +4455,31 @@
     };
   }
 
+
   function renderAchievementProgress(item) {
     const hiddenLocked = item.hidden && !item.unlocked;
+    const title = hiddenLocked ? intelligenceCopy("Gizli Başarım","Hidden Achievement") : item.title;
+    const description = hiddenLocked
+      ? intelligenceCopy("Koşul keşfedilene kadar gizli kalır.","The condition remains hidden until it is discovered.")
+      : achievementLocalizedDescription(item.key,item.desc);
+    const status = item.unlocked ? intelligenceCopy("TAMAMLANDI","COMPLETED") : item.progressLabel;
     return `<article class="achievement-universe-badge rarity-${item.rarity.key} ${item.unlocked?"unlocked":"locked"} ${hiddenLocked?"hidden-achievement":""}">
-      <div class="achievement-badge-top"><span class="achievement-badge-icon">${hiddenLocked?"?":escapeHTML(item.icon)}</span><div><small>${item.rarity.label} · ${"◆".repeat(Math.min(6,item.rarity.difficulty))}</small><strong>${hiddenLocked?"Gizli Başarım":escapeHTML(item.title)}</strong></div><b>${item.unlocked?`+${item.xp} XP`:"KİLİTLİ"}</b></div>
-      <p>${hiddenLocked?"Koşul keşfedilene kadar gizli kalır.":escapeHTML(item.desc)}</p>
+      <div class="achievement-badge-top"><span class="achievement-badge-icon">${hiddenLocked?"?":escapeHTML(item.icon)}</span><div><small>${item.rarity.label} · ${"◆".repeat(Math.min(6,item.rarity.difficulty))}</small><strong>${escapeHTML(title)}</strong></div><b>${item.unlocked?`+${item.xp} XP`:intelligenceCopy("KİLİTLİ","LOCKED")}</b></div>
+      <p>${escapeHTML(description)}</p>
       <div class="achievement-progress-track"><i style="width:${item.progress}%"></i></div>
-      <footer><span>${item.unlocked?"TAMAMLANDI":escapeHTML(item.progressLabel)}</span><em>Zorluk ${item.rarity.difficulty}/7</em></footer>
+      <footer><span>${escapeHTML(status)}</span><em>${intelligenceCopy("Zorluk","Difficulty")} ${item.rarity.difficulty}/7</em></footer>
     </article>`;
   }
 
   function renderPrestigeCard(player, compact=false) {
     const level = player.prestige;
-    const nextText = level.next ? `${level.next.name} için ${Math.max(0,level.next.min-player.xp)} XP` : "Maksimum prestij seviyesi";
+    const locale = intelligenceLanguage()==="en" ? "en-GB" : "tr-TR";
+    const nextText = level.next
+      ? intelligenceCopy(`${level.next.name} için ${Math.max(0,level.next.min-player.xp)} XP`,`${Math.max(0,level.next.min-player.xp)} XP to ${level.next.name}`)
+      : intelligenceCopy("Maksimum Prestige seviyesi","Maximum Prestige level");
     return `<article class="prestige-card prestige-${level.key} ${compact?"compact":""}">
       <div class="prestige-card-orbit"><span>${escapeHTML(level.icon)}</span><i></i><b></b></div>
-      <div class="prestige-card-copy"><small>${escapeHTML(level.model)}</small><h3>${escapeHTML(player.name)}</h3><strong>${escapeHTML(player.activeTitle)}</strong><div class="prestige-rank-line"><span>#${player.rank}</span><b>${level.name}</b><em>${player.xp.toLocaleString("tr-TR")} XP</em></div><div class="prestige-progress"><i style="width:${level.progress}%"></i></div><p>${escapeHTML(nextText)} · ${player.unlocked.length}/${player.achievements.length} rozet</p></div>
+      <div class="prestige-card-copy"><small>${escapeHTML(level.model)}</small><h3>${escapeHTML(player.name)}</h3><strong>${escapeHTML(player.activeTitle)}</strong><div class="prestige-rank-line"><span>#${player.rank}</span><b>${level.name}</b><em>${player.xp.toLocaleString(locale)} XP</em></div><div class="prestige-progress"><i style="width:${level.progress}%"></i></div><p>${escapeHTML(nextText)} · ${player.unlocked.length}/${player.achievements.length} ${intelligenceCopy("rozet","badges")}</p></div>
     </article>`;
   }
 
@@ -4435,37 +4487,39 @@
     const data = buildAchievements();
     const rarityOrder = ["starter","advanced","rare","elite","legendary","mythic","secret"];
     const levels = achievementPrestigeLevels();
+    const locale = intelligenceLanguage()==="en" ? "en-GB" : "tr-TR";
     return `<div class="intel-section-stack">
-      <section class="achievement-universe-hero"><div><div class="eyebrow">FIFA 9 · ACHIEVEMENT UNIVERSE v24</div><h2>Rozetler, Ünvanlar & Prestige</h2><p>Kolay başlangıç başarılarından tarihî Mitik ünvanlara uzanan, zorluk derecesi ve nadirliğe göre sınıflandırılmış yaşayan kariyer sistemi.</p><div class="achievement-hero-actions"><span>${data.totalUnlocked} AÇILAN ROZET</span><span>${data.totalXP.toLocaleString("tr-TR")} TOPLAM XP</span><span>${data.catalog.length} KARİYER HEDEFİ</span></div></div><div class="achievement-hero-crown"><span>PRESTIGE LEADER</span><strong>${escapeHTML(data.leader?.name||"—")}</strong><b>${data.leader?.xp.toLocaleString("tr-TR")||0} XP</b><small>${escapeHTML(data.leader?.activeTitle||"")}</small></div></section>
+      <section class="achievement-universe-hero"><div><div class="eyebrow">FIFA 9 · ACHIEVEMENT UNIVERSE v24</div><h2>${intelligenceCopy("Rozetler, Ünvanlar & Prestige","Badges, Titles & Prestige")}</h2><p>${intelligenceCopy("Kolay başlangıç başarılarından tarihî Mitik ünvanlara uzanan, zorluk derecesi ve nadirliğe göre sınıflandırılmış yaşayan kariyer sistemi.","A living career system ranging from accessible starter achievements to historic Mythic titles, classified by difficulty and rarity.")}</p><div class="achievement-hero-actions"><span>${data.totalUnlocked} ${intelligenceCopy("AÇILAN ROZET","BADGES UNLOCKED")}</span><span>${data.totalXP.toLocaleString(locale)} ${intelligenceCopy("TOPLAM XP","TOTAL XP")}</span><span>${data.catalog.length} ${intelligenceCopy("KARİYER HEDEFİ","CAREER TARGETS")}</span></div></div><div class="achievement-hero-crown"><span>PRESTIGE LEADER</span><strong>${escapeHTML(data.leader?.name||"—")}</strong><b>${data.leader?.xp.toLocaleString(locale)||0} XP</b><small>${escapeHTML(data.leader?.activeTitle||"")}</small></div></section>
 
-      <section class="panel"><div class="panel-header"><div><h3 class="panel-title">Prestige Level Kartları</h3><div class="panel-subtitle">Her seviye ayrı renk, ışık modeli ve kart kimliği kullanır.</div></div><span class="badge badge-gold">9 LEVELS</span></div>
-        <div class="prestige-level-legend">${levels.map(level=>`<div class="prestige-level-chip prestige-${level.key}"><span>${escapeHTML(level.icon)}</span><div><strong>${level.name}</strong><small>${level.model} · ${level.min.toLocaleString("tr-TR")} XP</small></div></div>`).join("")}</div>
+      <section class="panel"><div class="panel-header"><div><h3 class="panel-title">${intelligenceCopy("Prestige Level Kartları","Prestige Level Cards")}</h3><div class="panel-subtitle">${intelligenceCopy("Her seviye ayrı renk, ışık modeli ve kart kimliği kullanır.","Every level uses a distinct colour, lighting model and card identity.")}</div></div><span class="badge badge-gold">9 LEVELS</span></div>
+        <div class="prestige-level-legend">${levels.map(level=>`<div class="prestige-level-chip prestige-${level.key}"><span>${escapeHTML(level.icon)}</span><div><strong>${level.name}</strong><small>${level.model} · ${level.min.toLocaleString(locale)} XP</small></div></div>`).join("")}</div>
       </section>
 
-      <section class="panel"><div class="panel-header"><div><h3 class="panel-title">Kariyer Prestige Sıralaması</h3><div class="panel-subtitle">Elo güncel gücü, Prestige ise kariyer mirası ve başarı çeşitliliğini temsil eder.</div></div><span class="badge badge-blue">LIVE CAREER</span></div>
+      <section class="panel"><div class="panel-header"><div><h3 class="panel-title">${intelligenceCopy("Kariyer Prestige Sıralaması","Career Prestige Ranking")}</h3><div class="panel-subtitle">${intelligenceCopy("Elo güncel gücü, Prestige ise kariyer mirası ve başarı çeşitliliğini temsil eder.","Elo represents current strength, while Prestige represents career legacy and achievement diversity.")}</div></div><span class="badge badge-blue">LIVE CAREER</span></div>
         <div class="prestige-card-grid">${data.players.map(player=>renderPrestigeCard(player,true)).join("")}</div>
       </section>
 
-      <section class="panel"><div class="panel-header"><div><h3 class="panel-title">Oyuncu Rozet Vitrinleri</h3><div class="panel-subtitle">En nadir başarımlar, aktif ünvan ve bir sonraki hedefler.</div></div><span class="badge badge-gold">AUTO UNLOCK</span></div>
+      <section class="panel"><div class="panel-header"><div><h3 class="panel-title">${intelligenceCopy("Oyuncu Rozet Vitrinleri","Player Badge Cabinets")}</h3><div class="panel-subtitle">${intelligenceCopy("En nadir başarımlar, aktif ünvan ve bir sonraki hedefler.","The rarest achievements, active title and next targets.")}</div></div><span class="badge badge-gold">AUTO UNLOCK</span></div>
         <div class="achievement-player-showcase">${data.players.map(player=>`<article class="achievement-player-cabinet">
-          <header><div class="achievement-avatar prestige-${player.prestige.key}">${escapeHTML(player.name.charAt(0).toUpperCase())}</div><div><span>#${player.rank} · ${player.prestige.name}</span><h3>${escapeHTML(player.name)}</h3><strong>${escapeHTML(player.activeTitle)}</strong></div><b>${player.xp.toLocaleString("tr-TR")} XP</b></header>
-          <div class="achievement-cabinet-rarest">${player.rarest.length?player.rarest.map(item=>`<div class="mini-achievement rarity-${item.rarity.key}"><span>${escapeHTML(item.icon)}</span><strong>${escapeHTML(item.title)}</strong><small>${item.rarity.label}</small></div>`).join(""):`<div class="intel-no-badge">İlk rozet için mücadele devam ediyor.</div>`}</div>
-          <div class="achievement-next-goals"><span>SONRAKİ HEDEFLER</span>${player.closest.length?player.closest.map(item=>`<div><strong>${escapeHTML(item.title)}</strong><i><b style="width:${item.progress}%"></b></i><small>${escapeHTML(item.progressLabel)}</small></div>`).join(""):`<p>Bütün açık hedefler tamamlandı.</p>`}</div>
-          <footer><span>${player.unlocked.length}/${player.achievements.length} tamamlandı</span><span>En yüksek seri: ${player.metrics.maxWins}W · ${player.metrics.maxUnbeaten}U</span></footer>
+          <header><div class="achievement-avatar prestige-${player.prestige.key}">${escapeHTML(player.name.charAt(0).toUpperCase())}</div><div><span>#${player.rank} · ${player.prestige.name}</span><h3>${escapeHTML(player.name)}</h3><strong>${escapeHTML(player.activeTitle)}</strong></div><b>${player.xp.toLocaleString(locale)} XP</b></header>
+          <div class="achievement-cabinet-rarest">${player.rarest.length?player.rarest.map(item=>`<div class="mini-achievement rarity-${item.rarity.key}"><span>${escapeHTML(item.icon)}</span><strong>${escapeHTML(item.title)}</strong><small>${item.rarity.label}</small></div>`).join(""):`<div class="intel-no-badge">${intelligenceCopy("İlk rozet için mücadele devam ediyor.","The chase for the first badge continues.")}</div>`}</div>
+          <div class="achievement-next-goals"><span>${intelligenceCopy("SONRAKİ HEDEFLER","NEXT TARGETS")}</span>${player.closest.length?player.closest.map(item=>`<div><strong>${escapeHTML(item.title)}</strong><i><b style="width:${item.progress}%"></b></i><small>${escapeHTML(item.progressLabel)}</small></div>`).join(""):`<p>${intelligenceCopy("Bütün açık hedefler tamamlandı.","All visible targets have been completed.")}</p>`}</div>
+          <footer><span>${player.unlocked.length}/${player.achievements.length} ${intelligenceCopy("tamamlandı","completed")}</span><span>${intelligenceCopy("En yüksek seri","Peak runs")}: ${player.metrics.maxWins}W · ${player.metrics.maxUnbeaten}U</span></footer>
         </article>`).join("")}</div>
       </section>
 
       ${rarityOrder.map(rarityKey=>{
         const meta=achievementRarityMeta(rarityKey);
         const items=data.catalog.filter(item=>item.rarity.key===rarityKey);
-        return `<section class="panel achievement-rarity-section rarity-${rarityKey}"><div class="panel-header"><div><h3 class="panel-title">${meta.label} Başarımlar</h3><div class="panel-subtitle">Zorluk ${meta.difficulty}/7 · Temel ödül ${meta.xp.toLocaleString("tr-TR")} Prestige XP</div></div><span class="badge">${items.length} ROZET</span></div><div class="achievement-catalog-v24">${items.map(item=>`<article class="${item.hidden?"hidden-catalog":""}"><span>${item.hidden?"?":escapeHTML(item.icon)}</span><div><small>${item.rarity.label} · ${item.unlockedCount}/${data.players.length} oyuncu</small><strong>${item.hidden?"Gizli Mitik Başarım":escapeHTML(item.title)}</strong><p>${item.hidden?"Koşulu açılana kadar görünmez.":escapeHTML(item.desc)}</p></div><b>+${item.rarity.xp} XP</b></article>`).join("")}</div></section>`;
+        return `<section class="panel achievement-rarity-section rarity-${rarityKey}"><div class="panel-header"><div><h3 class="panel-title">${meta.label} ${intelligenceCopy("Başarımlar","Achievements")}</h3><div class="panel-subtitle">${intelligenceCopy("Zorluk","Difficulty")} ${meta.difficulty}/7 · ${intelligenceCopy("Temel ödül","Base reward")} ${meta.xp.toLocaleString(locale)} Prestige XP</div></div><span class="badge">${items.length} ${intelligenceCopy("ROZET","BADGES")}</span></div><div class="achievement-catalog-v24">${items.map(item=>`<article class="${item.hidden?"hidden-catalog":""}"><span>${item.hidden?"?":escapeHTML(item.icon)}</span><div><small>${item.rarity.label} · ${item.unlockedCount}/${data.players.length} ${intelligenceCopy("oyuncu","players")}</small><strong>${item.hidden?intelligenceCopy("Gizli Mitik Başarım","Secret Mythic Achievement"):escapeHTML(item.title)}</strong><p>${item.hidden?intelligenceCopy("Koşulu açılana kadar görünmez.","The condition remains hidden until unlocked."):escapeHTML(achievementLocalizedDescription(item.key,item.desc))}</p></div><b>+${item.rarity.xp} XP</b></article>`).join("")}</div></section>`;
       }).join("")}
 
-      <section class="panel"><div class="panel-header"><div><h3 class="panel-title">Canlı İlerleme Merkezi</h3><div class="panel-subtitle">Her oyuncunun tamamlanmış ve kilitli rozetleri gerçek zamanlı ilerleme ile izlenir.</div></div><span class="badge badge-blue">PROGRESS TRACKING</span></div>
-        <div class="achievement-progress-player-tabs">${data.players.map(player=>`<details ${player.rank===1?"open":""}><summary><span>#${player.rank}</span><strong>${escapeHTML(player.name)}</strong><b>${player.unlocked.length} rozet · ${player.xp.toLocaleString("tr-TR")} XP</b></summary><div class="achievement-progress-grid">${player.achievements.map(renderAchievementProgress).join("")}</div></details>`).join("")}</div>
+      <section class="panel"><div class="panel-header"><div><h3 class="panel-title">${intelligenceCopy("Canlı İlerleme Merkezi","Live Progress Centre")}</h3><div class="panel-subtitle">${intelligenceCopy("Her oyuncunun tamamlanmış ve kilitli rozetleri gerçek zamanlı ilerleme ile izlenir.","Every player’s completed and locked badges are tracked with real-time progress.")}</div></div><span class="badge badge-blue">PROGRESS TRACKING</span></div>
+        <div class="achievement-progress-player-tabs">${data.players.map(player=>`<details ${player.rank===1?"open":""}><summary><span>#${player.rank}</span><strong>${escapeHTML(player.name)}</strong><b>${player.unlocked.length} ${intelligenceCopy("rozet","badges")} · ${player.xp.toLocaleString(locale)} XP</b></summary><div class="achievement-progress-grid">${player.achievements.map(renderAchievementProgress).join("")}</div></details>`).join("")}</div>
       </section>
     </div>`;
   }
+
 
   function simulatorContext() {
     if (!state.current.league.generated) return { key: "none", label: "Kura bekleniyor", ids: [], baseMatches: [], remaining: [] };
@@ -4634,13 +4688,13 @@
     const margin=Math.abs(score.homeScore-score.awayScore);
     const favoriteOutcome=model.favoriteSide;
     const upset=score.outcome!=="draw" && score.outcome!==favoriteOutcome && model.favoriteProbability>=.54;
-    if(upset) return "Sürpriz Senaryo";
-    if(total>=10) return "Skor Patlaması";
-    if(total>=8&&margin<=2) return "Gol Düellosu";
-    if(margin>=4) return "Dominant Sonuç";
-    if(score.outcome==="draw") return "Denge Senaryosu";
-    if(margin===1) return "İnce Marj";
-    return model.tempoLabel||"Model Senaryosu";
+    if(upset) return intelligenceCopy("Sürpriz Senaryo","Upset Scenario");
+    if(total>=10) return intelligenceCopy("Skor Patlaması","Score Explosion");
+    if(total>=8&&margin<=2) return intelligenceCopy("Gol Düellosu","Goal Duel");
+    if(margin>=4) return intelligenceCopy("Dominant Sonuç","Dominant Result");
+    if(score.outcome==="draw") return intelligenceCopy("Denge Senaryosu","Balanced Scenario");
+    if(margin===1) return intelligenceCopy("İnce Marj","Fine Margin");
+    return model.tempoLabel||intelligenceCopy("Model Senaryosu","Model Scenario");
   }
 
   function buildTournamentSimulationEngine() {
@@ -4883,19 +4937,19 @@
   function simulationPredictionCard(match, index) {
     const model=match.model;
     const homeName=playerName(match.homeId),awayName=playerName(match.awayId);
-    if(!model) return `<article class="advanced-prediction-card actual"><header><span>${index+1}</span><small>${escapeHTML(match.stageLabel)}</small><b>GERÇEK</b></header><div class="advanced-prediction-score"><strong>${escapeHTML(homeName)}</strong><span>${match.homeScore}–${match.awayScore}</span><strong>${escapeHTML(awayName)}</strong></div></article>`;
+    if(!model) return `<article class="advanced-prediction-card actual"><header><span>${index+1}</span><small>${escapeHTML(match.stageLabel)}</small><b>${intelligenceCopy("GERÇEK","ACTUAL")}</b></header><div class="advanced-prediction-score"><strong>${escapeHTML(homeName)}</strong><span>${match.homeScore}–${match.awayScore}</span><strong>${escapeHTML(awayName)}</strong></div></article>`;
     const alternatives=(model.scoreDistribution||[]).filter(row=>!(row.homeScore===match.homeScore&&row.awayScore===match.awayScore)).slice(0,3);
     const scoreProbability=Number(match.scorelineProbability||0);
-    const scenario=match.scenarioLabel||model.tempoLabel||"Model Senaryosu";
+    const scenario=match.scenarioLabel||model.tempoLabel||intelligenceCopy("Model Senaryosu","Model Scenario");
     const outcome=match.homeScore>match.awayScore?"home":match.awayScore>match.homeScore?"away":"draw";
-    const resultLabel=outcome==="home"?homeName:outcome==="away"?awayName:"Beraberlik";
+    const resultLabel=outcome==="home"?homeName:outcome==="away"?awayName:intelligenceCopy("Beraberlik","Draw");
     return `<article class="advanced-prediction-card outcome-${outcome}">
       <header><span>${index+1}</span><small>${escapeHTML(match.stageLabel)}</small><b>${escapeHTML(scenario)}</b></header>
-      <div class="advanced-prediction-main"><div class="advanced-prediction-player home"><strong>${escapeHTML(homeName)}</strong><small>${model.home?.form?.last5Label||"–"}</small></div><div class="advanced-prediction-score"><span>${match.homeScore}<i>–</i>${match.awayScore}</span><small>${escapeHTML(resultLabel)} · temsilî ana yol</small></div><div class="advanced-prediction-player away"><strong>${escapeHTML(awayName)}</strong><small>${model.away?.form?.last5Label||"–"}</small></div></div>
-      <div class="advanced-model-grid"><div><span>xG-benzeri beklenen skor</span><strong>${Number(model.expectedHome||0).toFixed(2)} – ${Number(model.expectedAway||0).toFixed(2)}</strong></div><div><span>Skor olasılığı</span><strong>${(scoreProbability*100).toFixed(1)}%</strong></div><div><span>Model güveni</span><strong>${model.confidence||0}%</strong></div><div><span>Volatilite</span><strong>${Math.round(model.volatility||0)}/100</strong></div></div>
+      <div class="advanced-prediction-main"><div class="advanced-prediction-player home"><strong>${escapeHTML(homeName)}</strong><small>${model.home?.form?.last5Label||"–"}</small></div><div class="advanced-prediction-score"><span>${match.homeScore}<i>–</i>${match.awayScore}</span><small>${escapeHTML(resultLabel)} · ${intelligenceCopy("temsilî ana yol","representative main path")}</small></div><div class="advanced-prediction-player away"><strong>${escapeHTML(awayName)}</strong><small>${model.away?.form?.last5Label||"–"}</small></div></div>
+      <div class="advanced-model-grid"><div><span>${intelligenceCopy("xG-benzeri beklenen skor","xG-like expected score")}</span><strong>${Number(model.expectedHome||0).toFixed(2)} – ${Number(model.expectedAway||0).toFixed(2)}</strong></div><div><span>${intelligenceCopy("Skor olasılığı","Score probability")}</span><strong>${(scoreProbability*100).toFixed(1)}%</strong></div><div><span>${intelligenceCopy("Model güveni","Model confidence")}</span><strong>${model.confidence||0}%</strong></div><div><span>${intelligenceCopy("Volatilite","Volatility")}</span><strong>${Math.round(model.volatility||0)}/100</strong></div></div>
       <div class="advanced-outcome-rail"><i class="home" style="width:${model.market.home.probability*100}%"></i><i class="draw" style="width:${model.market.draw.probability*100}%"></i><i class="away" style="width:${model.market.away.probability*100}%"></i></div>
       <div class="advanced-outcome-labels"><span>1 · ${simulationPct(model.market.home.probability)}</span><span>X · ${simulationPct(model.market.draw.probability)}</span><span>2 · ${simulationPct(model.market.away.probability)}</span></div>
-      <footer><div><span>Alternatif skorlar</span><strong>${alternatives.map(row=>`${row.homeScore}-${row.awayScore} (${(row.probability*100).toFixed(1)}%)`).join(" · ")||"—"}</strong></div><em>${escapeHTML(model.tempoLabel||"Dengeli Tempo")}</em></footer>
+      <footer><div><span>${intelligenceCopy("Alternatif skorlar","Alternative scorelines")}</span><strong>${alternatives.map(row=>`${row.homeScore}-${row.awayScore} (${(row.probability*100).toFixed(1)}%)`).join(" · ")||"—"}</strong></div><em>${escapeHTML(model.tempoLabel||intelligenceCopy("Dengeli Tempo","Balanced Tempo"))}</em></footer>
     </article>`;
   }
 
@@ -4967,14 +5021,99 @@
 
       <section class="panel simulation-bracket"><div class="panel-header"><div><h3 class="panel-title">Simüle Eleme Ağacı</h3><div class="panel-subtitle">Üç maçlık serilerde iki galibiyete ulaşan oyuncu tur atlar; final tek maçtır.</div></div></div><div class="simulation-bracket-columns"><div><h4>Eleme Serileri</h4>${path.qf.map(simulationSeriesCard).join("")}</div><div><h4>Yarı Finaller</h4>${path.semifinals.map(simulationSeriesCard).join("")}</div><div><h4>Büyük Final</h4><article class="sim-final-card"><span>TAHMİNİ FİNAL</span><strong>${escapeHTML(playerName(path.final.homeId))}</strong><b>${path.final.homeScore}–${path.final.awayScore}</b><strong>${escapeHTML(playerName(path.final.awayId))}</strong><small>Şampiyon: ${escapeHTML(playerName(path.championId))}</small></article></div></div></section>
 
-      <section class="panel advanced-prediction-centre"><div class="panel-header"><div><h3 class="panel-title">Kalan Tüm Maçların Gelişmiş Model Tahmini</h3><div class="panel-subtitle">Tekrarlayan yuvarlak skorlar yerine her eşleşmeye özel tempo, xG-benzeri beklenen skor, volatilite ve kalibre edilmiş skor dağılımı.</div></div><span class="badge badge-blue">REALISTIC SCORE ENGINE</span></div>
-        <div class="advanced-prediction-summary"><div><span>Tahmini Maç</span><strong>${allPredictions.length}</strong></div><div><span>Farklı Skor</span><strong>${uniqueScorelines}</strong></div><div><span>Ortalama Gol</span><strong>${averagePredictedGoals.toFixed(2)}</strong></div><div><span>Yakın Maç</span><strong>${closeScenarios}</strong></div><div><span>Sürpriz Yol</span><strong>${upsetScenarios}</strong></div></div>
-        <div class="advanced-prediction-scroll"><div class="advanced-prediction-grid">${allPredictions.map(simulationPredictionCard).join("") || `<div class="info-box">Kalan maç bulunmuyor; turnuva tamamlandı.</div>`}</div></div>
+      <section class="panel advanced-prediction-centre"><div class="panel-header"><div><h3 class="panel-title">${intelligenceCopy("Kalan Tüm Maçların Gelişmiş Model Tahmini","Advanced Model Predictions for All Remaining Matches")}</h3><div class="panel-subtitle">${intelligenceCopy("Tekrarlayan yuvarlak skorlar yerine her eşleşmeye özel tempo, xG-benzeri beklenen skor, volatilite ve kalibre edilmiş skor dağılımı.","Instead of repetitive rounded scores, each matchup receives its own tempo, xG-like expected score, volatility and calibrated score distribution.")}</div></div><span class="badge badge-blue">REALISTIC SCORE ENGINE</span></div>
+        <div class="advanced-prediction-summary"><div><span>${intelligenceCopy("Tahmini Maç","Predicted Matches")}</span><strong>${allPredictions.length}</strong></div><div><span>${intelligenceCopy("Farklı Skor","Unique Scorelines")}</span><strong>${uniqueScorelines}</strong></div><div><span>${intelligenceCopy("Ortalama Gol","Average Goals")}</span><strong>${averagePredictedGoals.toFixed(2)}</strong></div><div><span>${intelligenceCopy("Yakın Maç","Close Matches")}</span><strong>${closeScenarios}</strong></div><div><span>${intelligenceCopy("Sürpriz Yol","Upset Paths")}</span><strong>${upsetScenarios}</strong></div></div>
+        <div class="advanced-prediction-scroll"><div class="advanced-prediction-grid">${allPredictions.map(simulationPredictionCard).join("") || `<div class="info-box">${intelligenceCopy("Kalan maç bulunmuyor; turnuva tamamlandı.","No remaining matches; the tournament is complete.")}</div>`}</div></div>
       </section>
 
-      <section class="panel simulation-method advanced-engine-method"><div class="panel-header"><div><h3 class="panel-title">Advanced Score Engine v25</h3><div class="panel-subtitle">Skoru yalnızca ortalamayı yuvarlayarak değil, bütün olası skorları olasılık matrisi içinde hesaplayarak üretir.</div></div><span class="badge badge-blue">BAYES + NEGATIVE BINOMIAL</span></div><div class="simulation-method-grid"><div><strong>BAYES</strong><span>Az veriyi lig ortalamasına yaklaştıran güvenilirlik düzeltmesi</span></div><div><strong>A/D</strong><span>Oyuncu hücumu × rakip savunma zayıflığı</span></div><div><strong>NB</strong><span>Poisson’dan daha gerçekçi aşırı dağılımlı gol modeli</span></div><div><strong>1-X-2</strong><span>Skor matrisi dinamik oran olasılıklarına kalibre edilir</span></div><div><strong>TEMPO</strong><span>Lig, eleme ve final aşamasına özel maç ritmi</span></div><div><strong>SEEDED</strong><span>Sonuç değişmedikçe sabit, veri değişince tamamen yenilenen ana yol</span></div></div><div class="info-box mt-16"><strong>Neden daha gerçekçi?</strong> Model her maç için 0-0’dan 15-15’e kadar yüzlerce skor ihtimalini değerlendirir; yakın maç, dominant sonuç, beraberlik, sürpriz ve yüksek skorlu düello senaryolarını ayrı ayrı ağırlıklandırır. Yeni resmî sonuç geldiğinde bütün hücum, savunma, tempo ve skor dağılımları yeniden hesaplanır.</div></section>
+      <section class="panel simulation-method advanced-engine-method"><div class="panel-header"><div><h3 class="panel-title">Advanced Score Engine v25</h3><div class="panel-subtitle">${intelligenceCopy("Skoru yalnızca ortalamayı yuvarlayarak değil, bütün olası skorları olasılık matrisi içinde hesaplayarak üretir.","Generates scores by evaluating the full score-probability matrix rather than simply rounding an average.")}</div></div><span class="badge badge-blue">BAYES + NEGATIVE BINOMIAL</span></div><div class="simulation-method-grid"><div><strong>BAYES</strong><span>${intelligenceCopy("Az veriyi lig ortalamasına yaklaştıran güvenilirlik düzeltmesi","Reliability adjustment that shrinks limited data toward the league average")}</span></div><div><strong>A/D</strong><span>${intelligenceCopy("Oyuncu hücumu × rakip savunma zayıflığı","Player attack × opponent defensive vulnerability")}</span></div><div><strong>NB</strong><span>${intelligenceCopy("Poisson’dan daha gerçekçi aşırı dağılımlı gol modeli","Overdispersed goal model that is more realistic than Poisson")}</span></div><div><strong>1-X-2</strong><span>${intelligenceCopy("Skor matrisi dinamik oran olasılıklarına kalibre edilir","The score matrix is calibrated to dynamic 1-X-2 probabilities")}</span></div><div><strong>TEMPO</strong><span>${intelligenceCopy("Lig, eleme ve final aşamasına özel maç ritmi","Stage-specific match rhythm for league, knockout and final rounds")}</span></div><div><strong>SEEDED</strong><span>${intelligenceCopy("Sonuç değişmedikçe sabit, veri değişince tamamen yenilenen ana yol","A stable main path until real data changes, then fully recalculated")}</span></div></div><div class="info-box mt-16"><strong>${intelligenceCopy("Neden daha gerçekçi?","Why is it more realistic?")}</strong> ${intelligenceCopy("Model her maç için 0-0’dan 15-15’e kadar yüzlerce skor ihtimalini değerlendirir; yakın maç, dominant sonuç, beraberlik, sürpriz ve yüksek skorlu düello senaryolarını ayrı ayrı ağırlıklandırır. Yeni resmî sonuç geldiğinde bütün hücum, savunma, tempo ve skor dağılımları yeniden hesaplanır.","For every match, the model evaluates hundreds of scorelines from 0-0 to 15-15, weighting close contests, dominant outcomes, draws, upsets and high-scoring duels separately. Every new official result recalculates attack, defence, tempo and score distributions.")}</div></section>
       ${renderManualQualificationPanel()}
     </div>`;
+  }
+
+
+  function playerCardStyleLabel(key) {
+    const labels = {
+      aggressive:intelligenceCopy("Agresif Kontrolör", "Aggressive Controller"),
+      wall:intelligenceCopy("Taktik Duvar", "Tactical Wall"),
+      momentum:intelligenceCopy("Momentum Avcısı", "Momentum Hunter"),
+      clutch:intelligenceCopy("Kritik An Uzmanı", "Clutch Specialist"),
+      general:intelligenceCopy("Turnuva Generali", "Tournament General"),
+      creator:intelligenceCopy("Skor Mimarı", "Score Architect"),
+      survivor:intelligenceCopy("Kaos Kurtulanı", "Chaos Survivor"),
+      balanced:intelligenceCopy("Dengeli Rakip", "Balanced Competitor")
+    };
+    return labels[key] || labels.balanced;
+  }
+
+  function playerCardModelLabel(prestigeKey) {
+    const models = {
+      rookie:intelligenceCopy("Bronz Çekirdek", "Bronze Core"),
+      competitor:intelligenceCopy("Çelik Hat", "Steel Edge"),
+      challenger:intelligenceCopy("Safir Akış", "Sapphire Drive"),
+      contender:intelligenceCopy("Kızıl Güç", "Crimson Force"),
+      elite:intelligenceCopy("Platin Nabız", "Platinum Pulse"),
+      master:intelligenceCopy("Kraliyet Ametisti", "Royal Amethyst"),
+      legend:intelligenceCopy("Kozmik Altın", "Cosmic Gold"),
+      icon:intelligenceCopy("Obsidyen Prizma", "Obsidian Prism"),
+      immortal:intelligenceCopy("Aurora Elması", "Aurora Diamond")
+    };
+    return models[prestigeKey] || models.rookie;
+  }
+
+  function playerCardMetricLabel(key) {
+    const labels = {
+      attack:intelligenceCopy("Hücum", "Attack"),
+      defense:intelligenceCopy("Savunma", "Defence"),
+      form:intelligenceCopy("Form", "Form"),
+      mental:intelligenceCopy("Mental", "Mentality"),
+      consistency:intelligenceCopy("İstikrar", "Consistency"),
+      legacy:intelligenceCopy("Miras", "Legacy"),
+      clutch:intelligenceCopy("Kritik An", "Clutch"),
+      comeback:intelligenceCopy("Geri Dönüş", "Comeback"),
+      pressure:intelligenceCopy("Baskı Direnci", "Pressure Resistance"),
+      rivalry:intelligenceCopy("Rekabet Gücü", "Rivalry Strength"),
+      adaptability:intelligenceCopy("Takım Uyumu", "Team Adaptability"),
+      threat:intelligenceCopy("Gol Tehdidi", "Goal Threat")
+    };
+    return labels[key] || key;
+  }
+
+  function playerCardRadar(values) {
+    const keys = ["attack","defense","form","mental","clutch","legacy"];
+    const centre = 120;
+    const radius = 84;
+    const points = keys.map((key,index)=>{
+      const angle = -Math.PI/2 + index*(Math.PI*2/keys.length);
+      const value = intelligenceClamp(Number(values[key])||0,0,100)/100;
+      return `${(centre + Math.cos(angle)*radius*value).toFixed(1)},${(centre + Math.sin(angle)*radius*value).toFixed(1)}`;
+    }).join(" ");
+    const grid = [1,.75,.5,.25].map(scale=>{
+      const polygon = keys.map((key,index)=>{
+        const angle = -Math.PI/2 + index*(Math.PI*2/keys.length);
+        return `${(centre + Math.cos(angle)*radius*scale).toFixed(1)},${(centre + Math.sin(angle)*radius*scale).toFixed(1)}`;
+      }).join(" ");
+      return `<polygon points="${polygon}" class="player-card-radar-grid"></polygon>`;
+    }).join("");
+    const axes = keys.map((key,index)=>{
+      const angle = -Math.PI/2 + index*(Math.PI*2/keys.length);
+      const x = centre + Math.cos(angle)*radius;
+      const y = centre + Math.sin(angle)*radius;
+      const lx = centre + Math.cos(angle)*(radius+24);
+      const ly = centre + Math.sin(angle)*(radius+24);
+      return `<line x1="${centre}" y1="${centre}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}"></line><text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle">${escapeHTML(playerCardMetricLabel(key).toUpperCase())}</text>`;
+    }).join("");
+    return `<svg class="player-card-radar" viewBox="0 0 240 240" role="img" aria-label="${escapeHTML(intelligenceCopy("Oyuncu performans radar grafiği", "Player performance radar chart"))}"><g>${grid}${axes}</g><polygon points="${points}" class="player-card-radar-value"></polygon>${keys.map((key,index)=>{
+      const angle=-Math.PI/2+index*(Math.PI*2/keys.length);
+      const value=intelligenceClamp(Number(values[key])||0,0,100)/100;
+      return `<circle cx="${(centre+Math.cos(angle)*radius*value).toFixed(1)}" cy="${(centre+Math.sin(angle)*radius*value).toFixed(1)}" r="4"></circle>`;
+    }).join("")}</svg>`;
+  }
+
+  function playerCardFormRibbon(results) {
+    const list = (results || []).slice(-10);
+    if (!list.length) return `<span class="player-card-form-empty">${intelligenceCopy("Maç bekleniyor", "Awaiting matches")}</span>`;
+    return list.map(item=>`<span class="form-${String(item.result||"D").toLowerCase()}" title="${escapeHTML(item.opponent||"")}">${escapeHTML(item.result||"D")}</span>`).join("");
   }
 
   function buildPlayerIdentityCards() {
@@ -4983,46 +5122,239 @@
     const allTime = buildAllTimeAnalytics();
     const elo = buildEloAnalytics();
     const achievements = buildAchievements();
+    const pressure = buildPressureChamber();
+    const powerExchange = buildPowerExchange();
+    const teamAnalytics = buildTeamAnalytics();
     const achievementMap = new Map(achievements.players.map(row=>[row.name,row]));
+    const pressureMap = pressure.playerMap || new Map();
+    const powerMap = new Map((powerExchange.players || []).map(row=>[row.name,row]));
+    const teamMap = new Map((teamAnalytics.players || []).map(row=>[row.name,row]));
     const matches = buildUnifiedAllTimeMatches();
+
     return names.map(name => {
-      const f = form.playerMap.get(name) || { games:0,avgGoals:0,gaPerGame:0,formIndex:50,winRate:0,results:[],momentum:0,currentUnbeatenStreak:0 };
-      const career = allTime.playerMap.get(name) || { games:0,winRate:0,ppg:0,avgGoals:0,gaPerGame:0,titles:0 };
-      const e = elo.playerMap.get(name) || { rating:1500,tier:intelligenceTier(1500),last5Change:0 };
-      const playerMatches = matches.filter(match=>match.homeName===name||match.awayName===name).slice(-20);
-      const closeMatches = playerMatches.filter(match=>Math.abs(match.homeScore-match.awayScore)<=1);
+      const f = form.playerMap.get(name) || { games:0,avgGoals:0,gaPerGame:0,formIndex:50,winRate:0,results:[],momentum:0,currentUnbeatenStreak:0,currentWinStreak:0 };
+      const career = allTime.playerMap.get(name) || { games:0,wins:0,draws:0,losses:0,winRate:0,ppg:0,avgGoals:0,gaPerGame:0,titles:0,finals:0,podiums:0 };
+      const e = elo.playerMap.get(name) || { rating:1500,peak:1500,tier:intelligenceTier(1500),last5Change:0,timeline:[] };
+      const ach = achievementMap.get(name) || { badges:[],unlocked:[],prestige:achievementPrestigeLevel(0),activeTitle:"ROOKIE",xp:0 };
+      const p = pressureMap.get(name) || { mentalIndex:50,clutchRate:50,pressurePerformance:50,resilience:50,comebackWins:0,lateWins:0,highPressureGames:0 };
+      const exchange = powerMap.get(name) || { powerIndex:100,change:0,volatility:50,championProbability:0,finalProbability:0,valuationLabel:intelligenceCopy("DENGELİ","FAIR VALUE") };
+      const teams = teamMap.get(name) || { teams:[],totalAppearances:0 };
+      const playerMatches = matches.filter(match=>match.homeName===name||match.awayName===name);
+      const recent = playerMatches.slice(-20);
+      const closeMatches = recent.filter(match=>Math.abs(match.homeScore-match.awayScore)<=1);
       const closeWins = closeMatches.filter(match=>match.winnerName===name).length;
-      const mental = intelligenceClamp(45 + (closeMatches.length ? closeWins/closeMatches.length*40 : 20) + Math.min(15,f.currentUnbeatenStreak*2));
-      const attack = intelligenceClamp(35 + (f.avgGoals/7)*45 + (f.winRate/100)*20);
-      const defense = intelligenceClamp(100 - (f.gaPerGame/7)*72 + (f.winRate/100)*12);
+      const playerRivalries = (allTime.rivalries || []).filter(row=>row.playerA===name||row.playerB===name);
+      const rivalryScore = playerRivalries.length ? playerRivalries.reduce((sum,row)=>{
+        const wins = row.playerA===name ? row.winsA : row.winsB;
+        return sum + (row.meetings ? wins/row.meetings*100 : 50);
+      },0)/playerRivalries.length : 50;
+      const uniqueTeams = (teams.teams || []).length;
+      const winningTeams = (teams.teams || []).filter(row=>row.wins>0).length;
+      const teamWinRates = (teams.teams || []).filter(row=>row.games>=2).map(row=>row.winRate);
+      const teamSpread = teamWinRates.length ? Math.max(...teamWinRates)-Math.min(...teamWinRates) : 20;
+
+      const attack = intelligenceClamp(32 + (f.avgGoals/7.2)*48 + (f.winRate/100)*18 + Math.max(0,f.momentum)*1.15);
+      const defense = intelligenceClamp(102 - (f.gaPerGame/7.2)*70 + (f.winRate/100)*12 + Math.min(8,f.currentUnbeatenStreak*1.4));
       const formScore = intelligenceClamp(f.formIndex || 50);
       const consistencyPoints = (f.results||[]).map(item=>item.result==="W"?3:item.result==="D"?1:0);
-      const mean = consistencyPoints.length ? consistencyPoints.reduce((s,v)=>s+v,0)/consistencyPoints.length : 1.5;
-      const variance = consistencyPoints.length ? consistencyPoints.reduce((s,v)=>s+Math.pow(v-mean,2),0)/consistencyPoints.length : 1;
-      const consistency = intelligenceClamp(92 - variance*22 + Math.min(8, f.games));
-      const legacy = intelligenceClamp(35 + (career.ppg/3)*35 + Math.min(18,(career.titles||0)*9) + Math.min(12,(career.games||0)/5));
-      const overall = Math.round(attack*.22 + defense*.18 + formScore*.22 + mental*.15 + consistency*.11 + legacy*.12);
-      let style = "Balanced Competitor";
-      if (attack-defense>=14) style="Aggressive Controller";
-      else if (defense-attack>=14) style="Tactical Wall";
-      else if (formScore>=82) style="Momentum Hunter";
-      else if (mental>=82) style="Clutch Specialist";
-      else if (legacy>=80) style="Tournament General";
-      const tier = overall>=90?{key:"icon",label:"ICON"}:overall>=84?{key:"elite",label:"ELITE"}:overall>=77?{key:"gold",label:"GOLD"}:overall>=68?{key:"silver",label:"SILVER"}:{key:"bronze",label:"BRONZE"};
-      return { name, overall, attack:Math.round(attack), defense:Math.round(defense), form:Math.round(formScore), mental:Math.round(mental), consistency:Math.round(consistency), legacy:Math.round(legacy), style, tier, elo:e.rating, eloTier:e.tier, momentum:f.momentum||0, favoriteTeam:f.favoriteTeam?.name||"–", badges:achievementMap.get(name)?.badges||[], career };
-    }).sort((a,b)=>b.overall-a.overall||b.elo-a.elo||a.name.localeCompare(b.name,"tr"));
+      const mean = consistencyPoints.length ? consistencyPoints.reduce((sum,value)=>sum+value,0)/consistencyPoints.length : 1.5;
+      const variance = consistencyPoints.length ? consistencyPoints.reduce((sum,value)=>sum+Math.pow(value-mean,2),0)/consistencyPoints.length : 1;
+      const consistency = intelligenceClamp(94 - variance*22 + Math.min(8,f.games));
+      const mental = intelligenceClamp(p.mentalIndex || (45 + (closeMatches.length ? closeWins/closeMatches.length*40 : 20)));
+      const legacy = intelligenceClamp(30 + (career.ppg/3)*28 + Math.min(22,(career.titles||0)*9) + Math.min(12,(career.finals||0)*4) + Math.min(12,(career.games||0)/6));
+      const clutch = intelligenceClamp((p.clutchRate||50)*.65 + (p.knockoutRate||50)*.2 + Math.min(15,(p.lateWins||0)*5));
+      const comeback = intelligenceClamp(42 + Math.min(36,(p.comebackWins||0)*12) + (p.resilience||50)*.22);
+      const pressureResistance = intelligenceClamp((p.pressurePerformance||50)*.5 + (p.mentalIndex||50)*.4 + Math.min(10,(p.highPressureGames||0)));
+      const rivalryStrength = intelligenceClamp(rivalryScore*.72 + (career.winRate||0)*.28);
+      const adaptability = intelligenceClamp(42 + Math.min(28,uniqueTeams*4) + Math.min(18,winningTeams*3) + Math.max(0,12-teamSpread*.22));
+      const maxScored = recent.reduce((max,match)=>{
+        const gf = match.homeName===name ? match.homeScore : match.awayScore;
+        return Math.max(max,Number(gf)||0);
+      },0);
+      const goalThreat = intelligenceClamp(attack*.58 + Math.min(24,maxScored*2.5) + Math.min(18,(f.avgGoals||0)*2.4));
+
+      const metricValues = {
+        attack:Math.round(attack), defense:Math.round(defense), form:Math.round(formScore),
+        mental:Math.round(mental), consistency:Math.round(consistency), legacy:Math.round(legacy),
+        clutch:Math.round(clutch), comeback:Math.round(comeback), pressure:Math.round(pressureResistance),
+        rivalry:Math.round(rivalryStrength), adaptability:Math.round(adaptability), threat:Math.round(goalThreat)
+      };
+      const overall = Math.round(
+        attack*.15 + defense*.12 + formScore*.14 + mental*.11 + consistency*.08 + legacy*.10 +
+        clutch*.09 + comeback*.06 + pressureResistance*.07 + rivalryStrength*.03 + adaptability*.025 + goalThreat*.035
+      );
+
+      let styleKey = "balanced";
+      if (goalThreat>=86 && attack-defense>=8) styleKey="aggressive";
+      else if (defense>=84 && defense-attack>=8) styleKey="wall";
+      else if (formScore>=84 && f.momentum>=3) styleKey="momentum";
+      else if (clutch>=84 || pressureResistance>=86) styleKey="clutch";
+      else if (legacy>=82 || (career.titles||0)>=2) styleKey="general";
+      else if (attack>=82 && consistency>=78) styleKey="creator";
+      else if (comeback>=82 || exchange.volatility>=78) styleKey="survivor";
+
+      const topMetrics = Object.entries(metricValues)
+        .sort((a,b)=>b[1]-a[1])
+        .slice(0,3)
+        .map(([key,value])=>({key,label:playerCardMetricLabel(key),value}));
+      const weakMetrics = Object.entries(metricValues)
+        .sort((a,b)=>a[1]-b[1])
+        .slice(0,2)
+        .map(([key,value])=>({key,label:playerCardMetricLabel(key),value}));
+      const prestige = ach.prestige || achievementPrestigeLevel(ach.xp||0);
+      const modelKey = prestige.key || "rookie";
+      const cardTier = overall>=92?"immortal":overall>=88?"icon":overall>=84?"legend":overall>=80?"elite":overall>=75?"gold":overall>=68?"silver":"bronze";
+      const initials = name.split(/\s+/).filter(Boolean).map(part=>part[0]).slice(0,2).join("").toUpperCase();
+      const favoriteTeam = f.favoriteTeam?.name || teams.teams?.[0]?.team || "–";
+      const activeTitle = ach.activeTitle || prestige.name || "ROOKIE";
+      const badgeList = ach.unlocked || ach.badges || [];
+      const nextPrestige = prestige.next ? {
+        name:prestige.next.name,
+        remaining:Math.max(0,prestige.next.min-(ach.xp||0))
+      } : null;
+
+      return {
+        name, initials, overall, cardTier, prestige, modelKey, modelLabel:playerCardModelLabel(modelKey),
+        activeTitle, xp:ach.xp||0, nextPrestige, styleKey, style:playerCardStyleLabel(styleKey),
+        metrics:metricValues, topMetrics, weakMetrics,
+        elo:e.rating, eloPeak:e.peak, eloTier:e.tier, eloChange:e.last5Change||0, eloTimeline:(e.timeline||[]).slice(-18).map(item=>item.rating),
+        powerIndex:exchange.powerIndex, powerChange:exchange.change, volatility:exchange.volatility,
+        championProbability:exchange.championProbability||0, finalProbability:exchange.finalProbability||0,
+        valuationLabel:exchange.valuationLabel,
+        formResults:(f.results||[]).slice(-10), momentum:f.momentum||0,
+        currentWinStreak:f.currentWinStreak||0, currentUnbeatenStreak:f.currentUnbeatenStreak||0,
+        favoriteTeam, badges:badgeList, career,
+        closeMatches:closeMatches.length, closeWins, uniqueTeams, winningTeams
+      };
+    }).sort((a,b)=>b.overall-a.overall||b.xp-a.xp||b.elo-a.elo||a.name.localeCompare(b.name,"tr"));
   }
 
   function renderPlayerCardSection() {
     const cards = buildPlayerIdentityCards();
     const selected = cards.find(row=>row.name===intelligencePlayerCard) || cards[0];
     intelligencePlayerCard = selected?.name || "";
-    if (!selected) return `<div class="info-box">Oyuncu verisi bulunmuyor.</div>`;
-    const stats = [["HÜCUM",selected.attack],["SAVUNMA",selected.defense],["FORM",selected.form],["MENTAL",selected.mental],["İSTİKRAR",selected.consistency],["MİRAS",selected.legacy]];
-    return `<div class="intel-section-stack"><section class="intel-card-hero"><div><div class="eyebrow">DYNAMIC PLAYER IDENTITY</div><h2>Oyuncu Kimlik Kartları</h2><p>Her sonuçtan sonra değişen overall, oyun stili, güçlü yönler, Elo seviyesi, rozetler ve takım uzmanlığı.</p></div><select id="intelPlayerCardSelect">${cards.map(row=>`<option value="${escapeHTML(row.name)}" ${row.name===selected.name?"selected":""}>${escapeHTML(row.name)} · ${row.overall} OVR</option>`).join("")}</select></section>
-      <section class="intel-player-card-stage"><article class="intel-master-card tier-${selected.tier.key}"><div class="intel-card-top"><strong>${selected.overall}</strong><span>${selected.tier.label}</span><b>F9</b></div><div class="intel-card-avatar">${escapeHTML(selected.name.split(" ").map(part=>part[0]).slice(0,2).join("").toUpperCase())}</div><h3>${escapeHTML(selected.name)}</h3><p>${escapeHTML(selected.style)}</p><div class="intel-card-meta"><span>${selected.elo} ELO</span><span>${escapeHTML(selected.favoriteTeam)}</span></div><div class="intel-card-badges">${selected.badges.slice(0,4).map(item=>`<span title="${escapeHTML(item.title)}">${item.icon}</span>`).join("")||"<span>◇</span>"}</div></article>
-      <div class="intel-card-analysis"><div class="panel-header"><div><h3 class="panel-title">Performance DNA</h3><div class="panel-subtitle">Son 20 maç ve tüm zamanlar verisinin birleşik profili.</div></div><span class="badge badge-gold">${selected.overall} OVR</span></div><div class="intel-card-bars">${stats.map(stat=>`<div><span>${stat[0]}</span><div><i style="width:${stat[1]}%"></i></div><strong>${stat[1]}</strong></div>`).join("")}</div><div class="intel-card-insight-grid"><div><span>Oyun Stili</span><strong>${escapeHTML(selected.style)}</strong></div><div><span>Elo Sınıfı</span><strong>${selected.eloTier.label}</strong></div><div><span>Momentum</span><strong>${selected.momentum>=0?"+":""}${selected.momentum}</strong></div><div><span>Rozet</span><strong>${selected.badges.length}</strong></div></div></div></section>
-      <section class="panel"><div class="panel-header"><div><h3 class="panel-title">Kart Koleksiyonu</h3><div class="panel-subtitle">Tüm oyuncular overall değerine göre sıralanır.</div></div><span class="badge badge-blue">${cards.length} CARDS</span></div><div class="intel-mini-card-grid">${cards.map(row=>`<button class="intel-mini-card tier-${row.tier.key} ${row.name===selected.name?"active":""}" data-action="select-player-card" data-player-name="${escapeHTML(row.name)}"><span>${row.overall}</span><strong>${escapeHTML(row.name)}</strong><small>${escapeHTML(row.style)}</small><b>${row.elo} ELO</b></button>`).join("")}</div></section>
+    if (!selected) return `<div class="info-box">${intelligenceCopy("Oyuncu verisi bulunmuyor.","No player data is available.")}</div>`;
+
+    const primaryMetrics = ["attack","defense","form","mental","clutch","legacy"];
+    const secondaryMetrics = ["consistency","comeback","pressure","rivalry","adaptability","threat"];
+    const prestigeProgress = selected.prestige?.progress ?? 100;
+    const nextPrestigeText = selected.nextPrestige
+      ? intelligenceCopy(`${selected.nextPrestige.name} için ${selected.nextPrestige.remaining} XP`, `${selected.nextPrestige.remaining} XP to ${selected.nextPrestige.name}`)
+      : intelligenceCopy("Maksimum Prestige seviyesi","Maximum Prestige level");
+    const titleBadges = selected.badges.slice(0,5);
+    const titleProbability = simulationPct(selected.championProbability,1);
+
+    return `<div class="intel-section-stack player-card-universe">
+      <section class="player-card-universe-hero">
+        <div>
+          <div class="eyebrow">FIFA 9 · PLAYER CARD UNIVERSE v26</div>
+          <h2>${intelligenceCopy("Premium Oyuncu Kimlik Kartları","Premium Player Identity Cards")}</h2>
+          <p>${intelligenceCopy("Prestige seviyesi, oyun karakteri, Elo gücü, Pressure Chamber, Power Exchange ve kariyer mirasını tek bir yaşayan koleksiyon kartında birleştirir.","Combines Prestige level, playing identity, Elo strength, Pressure Chamber, Power Exchange and career legacy in one living collectible card.")}</p>
+          <div class="player-card-hero-tags">
+            <span>${intelligenceCopy("Prestige uyumlu model","Prestige-driven design")}</span>
+            <span>${intelligenceCopy("12 performans metriği","12 performance metrics")}</span>
+            <span>${intelligenceCopy("Canlı kariyer güncellemesi","Live career updates")}</span>
+          </div>
+        </div>
+        <div class="player-card-selector-shell">
+          <span>${intelligenceCopy("OYUNCU SEÇ","SELECT PLAYER")}</span>
+          <select id="intelPlayerCardSelect">${cards.map(row=>`<option value="${escapeHTML(row.name)}" ${row.name===selected.name?"selected":""}>${escapeHTML(row.name)} · ${row.overall} OVR · ${escapeHTML(row.prestige.name)}</option>`).join("")}</select>
+          <small>${cards.length} ${intelligenceCopy("aktif kart","active cards")}</small>
+        </div>
+      </section>
+
+      <section class="player-card-showcase model-${selected.modelKey} archetype-${selected.styleKey}">
+        <article class="player-card-premium prestige-${selected.modelKey} tier-${selected.cardTier}">
+          <div class="player-card-foil"></div><div class="player-card-grid-pattern"></div><div class="player-card-energy"></div>
+          <header class="player-card-premium-top">
+            <div class="player-card-rating"><strong>${selected.overall}</strong><span>OVR</span></div>
+            <div class="player-card-edition"><span>FIFA 9</span><strong>${escapeHTML(selected.modelLabel)}</strong></div>
+            <div class="player-card-prestige-mark"><span>${escapeHTML(selected.prestige.icon||"Ⅰ")}</span><small>${escapeHTML(selected.prestige.name)}</small></div>
+          </header>
+          <div class="player-card-portrait-shell"><div class="player-card-portrait">${escapeHTML(selected.initials)}</div><div class="player-card-portrait-ring"></div></div>
+          <div class="player-card-identity">
+            <span>${escapeHTML(selected.activeTitle)}</span>
+            <h3>${escapeHTML(selected.name)}</h3>
+            <strong>${escapeHTML(selected.style)}</strong>
+          </div>
+          <div class="player-card-live-strip">
+            <div><span>${intelligenceCopy("ELO","ELO")}</span><strong>${selected.elo}</strong></div>
+            <div><span>${intelligenceCopy("POWER","POWER")}</span><strong>${selected.powerIndex.toFixed(1)}</strong></div>
+            <div><span>${intelligenceCopy("MENTAL","MENTAL")}</span><strong>${selected.metrics.mental}</strong></div>
+            <div><span>${intelligenceCopy("ŞAMPİYON","CHAMPION")}</span><strong>${titleProbability}</strong></div>
+          </div>
+          <div class="player-card-form-ribbon"><span>${intelligenceCopy("SON 10","LAST 10")}</span><div>${playerCardFormRibbon(selected.formResults)}</div></div>
+          <div class="player-card-top-badges">${titleBadges.length ? titleBadges.map(item=>`<span class="rarity-${item.rarity?.key||"starter"}" title="${escapeHTML(item.title)}">${escapeHTML(item.icon||"◆")}</span>`).join("") : `<span>◇</span>`}</div>
+          <footer class="player-card-prestige-progress">
+            <div><span>${selected.xp.toLocaleString(intelligenceLanguage()==="en"?"en-GB":"tr-TR")} XP</span><small>${escapeHTML(nextPrestigeText)}</small></div>
+            <i><b style="width:${prestigeProgress}%"></b></i>
+          </footer>
+        </article>
+
+        <div class="player-card-intelligence">
+          <div class="player-card-intelligence-head">
+            <div><div class="eyebrow">CARD INTELLIGENCE</div><h3>${intelligenceCopy("Performans DNA’sı","Performance DNA")}</h3><p>${intelligenceCopy("Kart değeri yalnızca sonuca değil; form, rakip kalitesi, baskı performansı, kariyer mirası ve oyun çeşitliliğine dayanır.","The card rating is based not only on results, but also form, opponent quality, pressure performance, career legacy and playing versatility.")}</p></div>
+            <div class="player-card-overall-chip"><span>${intelligenceCopy("GENEL","OVERALL")}</span><strong>${selected.overall}</strong><small>${escapeHTML(selected.cardTier.toUpperCase())}</small></div>
+          </div>
+
+          <div class="player-card-analysis-grid">
+            <section class="player-card-radar-panel">
+              ${playerCardRadar(selected.metrics)}
+              <div class="player-card-strength-tags">${selected.topMetrics.map(item=>`<span>${escapeHTML(item.label)} <strong>${item.value}</strong></span>`).join("")}</div>
+            </section>
+            <section class="player-card-metric-panel">
+              <div class="player-card-metric-group"><span>${intelligenceCopy("ANA METRİKLER","CORE METRICS")}</span>${primaryMetrics.map(key=>`<div><label>${escapeHTML(playerCardMetricLabel(key))}</label><i><b style="width:${selected.metrics[key]}%"></b></i><strong>${selected.metrics[key]}</strong></div>`).join("")}</div>
+              <div class="player-card-metric-group secondary"><span>${intelligenceCopy("İLERİ METRİKLER","ADVANCED METRICS")}</span>${secondaryMetrics.map(key=>`<div><label>${escapeHTML(playerCardMetricLabel(key))}</label><i><b style="width:${selected.metrics[key]}%"></b></i><strong>${selected.metrics[key]}</strong></div>`).join("")}</div>
+            </section>
+          </div>
+
+          <div class="player-card-live-intelligence-grid">
+            <article><span>POWER EXCHANGE</span><strong>${selected.powerIndex.toFixed(1)}</strong><small class="${selected.powerChange>=0?"positive":"negative"}">${selected.powerChange>=0?"+":""}${selected.powerChange.toFixed(1)} · ${escapeHTML(selected.valuationLabel)}</small></article>
+            <article><span>${intelligenceCopy("ELO GÜCÜ","ELO POWER")}</span><strong>${selected.elo}</strong><small>${intelligenceCopy("Zirve","Peak")} ${selected.eloPeak} · ${selected.eloChange>=0?"+":""}${selected.eloChange}</small></article>
+            <article><span>${intelligenceCopy("ŞAMPİYONLUK YOLU","TITLE PATH")}</span><strong>${titleProbability}</strong><small>${intelligenceCopy("Final","Final")} ${simulationPct(selected.finalProbability,1)}</small></article>
+            <article><span>${intelligenceCopy("AKTİF SERİ","ACTIVE RUN")}</span><strong>${selected.currentWinStreak}W</strong><small>${selected.currentUnbeatenStreak} ${intelligenceCopy("maç yenilmez","matches unbeaten")}</small></article>
+          </div>
+
+          <div class="player-card-career-row">
+            <div><span>${intelligenceCopy("KARİYER MAÇI","CAREER MATCHES")}</span><strong>${selected.career.games||0}</strong></div>
+            <div><span>${intelligenceCopy("GALİBİYET","WINS")}</span><strong>${selected.career.wins||0}</strong></div>
+            <div><span>${intelligenceCopy("ŞAMPİYONLUK","TITLES")}</span><strong>${selected.career.titles||0}</strong></div>
+            <div><span>${intelligenceCopy("FİNAL","FINALS")}</span><strong>${selected.career.finals||0}</strong></div>
+            <div><span>${intelligenceCopy("FAVORİ TAKIM","FAVOURITE TEAM")}</span><strong>${escapeHTML(selected.favoriteTeam)}</strong></div>
+            <div><span>${intelligenceCopy("TAKIM ÇEŞİTLİLİĞİ","TEAM VARIETY")}</span><strong>${selected.uniqueTeams}</strong></div>
+          </div>
+
+          <div class="player-card-explanation-grid">
+            <article><span>${intelligenceCopy("KARTIN EN GÜÇLÜ TARAFI","CARD SIGNATURE")}</span><strong>${escapeHTML(selected.topMetrics[0]?.label||"—")} · ${selected.topMetrics[0]?.value||0}</strong><p>${intelligenceCopy("Overall değerine en büyük pozitif katkıyı sağlayan performans alanı.","The performance area making the strongest positive contribution to the overall rating.")}</p></article>
+            <article><span>${intelligenceCopy("GELİŞİM ALANI","DEVELOPMENT AREA")}</span><strong>${escapeHTML(selected.weakMetrics[0]?.label||"—")} · ${selected.weakMetrics[0]?.value||0}</strong><p>${intelligenceCopy("Kartın bir sonraki seviyeye çıkması için en fazla gelişim potansiyeli bulunan alan.","The area with the greatest development potential for the card’s next level.")}</p></article>
+            <article><span>${intelligenceCopy("KART MODELİ","CARD MODEL")}</span><strong>${escapeHTML(selected.modelLabel)}</strong><p>${intelligenceCopy("Tasarım, oyuncunun Prestige seviyesi ve oyun arketipine göre otomatik seçilir.","The design is selected automatically from the player’s Prestige level and playing archetype.")}</p></article>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel player-card-elo-panel">
+        <div class="panel-header"><div><h3 class="panel-title">${intelligenceCopy("Elo ve Kariyer Hareketi","Elo & Career Movement")}</h3><div class="panel-subtitle">${intelligenceCopy("Son Elo değişimleri, güncel form ve Prestige ilerlemesi aynı çizgide.","Recent Elo movement, current form and Prestige progress on one line.")}</div></div><span class="badge badge-gold">${selected.elo} ELO</span></div>
+        <div class="player-card-history-layout">
+          <div class="player-card-history-chart">${intelligenceSparkline(selected.eloTimeline,"player-card-elo-spark")}</div>
+          <div class="player-card-history-stats">
+            <div><span>${intelligenceCopy("SON 5 ELO","LAST 5 ELO")}</span><strong class="${selected.eloChange>=0?"positive":"negative"}">${selected.eloChange>=0?"+":""}${selected.eloChange}</strong></div>
+            <div><span>${intelligenceCopy("MOMENTUM","MOMENTUM")}</span><strong>${selected.momentum>=0?"+":""}${selected.momentum}</strong></div>
+            <div><span>${intelligenceCopy("VOLATİLİTE","VOLATILITY")}</span><strong>${selected.volatility}/100</strong></div>
+            <div><span>${intelligenceCopy("ROZETLER","BADGES")}</span><strong>${selected.badges.length}</strong></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header"><div><h3 class="panel-title">${intelligenceCopy("Premium Kart Koleksiyonu","Premium Card Collection")}</h3><div class="panel-subtitle">${intelligenceCopy("Bütün oyuncular Overall, Prestige ve Elo değerine göre canlı sıralanır.","All players are ranked live by Overall, Prestige and Elo.")}</div></div><span class="badge badge-blue">${cards.length} CARDS</span></div>
+        <div class="player-card-collection-v26">${cards.map((row,index)=>`<button class="player-card-mini-v26 prestige-${row.modelKey} archetype-${row.styleKey} ${row.name===selected.name?"active":""}" data-action="select-player-card" data-player-name="${escapeHTML(row.name)}">
+          <div class="mini-card-shine"></div><header><strong>${row.overall}</strong><span>${escapeHTML(row.prestige.name)}</span><b>#${index+1}</b></header>
+          <div class="mini-card-avatar">${escapeHTML(row.initials)}</div>
+          <h4>${escapeHTML(row.name)}</h4><p>${escapeHTML(row.activeTitle)}</p>
+          <div class="mini-card-data"><span>${row.elo} ELO</span><span>${row.powerIndex.toFixed(1)} PWR</span></div>
+          <footer><span>${escapeHTML(row.style)}</span><b>${row.xp.toLocaleString(intelligenceLanguage()==="en"?"en-GB":"tr-TR")} XP</b></footer>
+        </button>`).join("")}</div>
+      </section>
     </div>`;
   }
 
