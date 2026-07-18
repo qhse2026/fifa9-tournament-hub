@@ -734,64 +734,234 @@
     </section>`;
   }
 
+
+  function buildLiveStudioData() {
+    const pulse = buildLiveMatchPulse();
+    if (!pulse) return null;
+    const { live, match } = pulse;
+    const homeName = playerName(match.homeId);
+    const awayName = playerName(match.awayId);
+    const minuteNow = Math.max(0, Math.min(120, Number(live.minute) || 0));
+    const scoreDiff = (Number(live.homeScore) || 0) - (Number(live.awayScore) || 0);
+    const binSize = 5;
+    const binCount = 18;
+    const bins = Array.from({ length: binCount }, (_, index) => ({
+      start: index * binSize,
+      end: Math.min(90, (index + 1) * binSize),
+      swing: 0,
+      home: 0,
+      away: 0,
+      eventCount: 0,
+      events: []
+    }));
+    const events = [...(live.events || [])].sort((a, b) => (Number(a.minute) || 0) - (Number(b.minute) || 0) || (Number(a.addedTime) || 0) - (Number(b.addedTime) || 0) || String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
+    let baseMomentum = Math.round(((pulse.base?.market?.home?.probability || .34) - (pulse.base?.market?.away?.probability || .34)) * 54);
+    events.forEach(event => {
+      const minute = Math.max(0, Math.min(89, Number(event.minute) || 0));
+      const idx = Math.min(binCount - 1, Math.floor(minute / binSize));
+      let delta = 0;
+      if (event.type === 'goal') delta = event.side === 'home' ? 28 : event.side === 'away' ? -28 : 0;
+      else if (event.type === 'yellow') delta = event.side === 'home' ? -6 : event.side === 'away' ? 6 : 0;
+      else if (event.type === 'red') delta = event.side === 'home' ? -18 : event.side === 'away' ? 18 : 0;
+      else if (event.type === 'note') delta = event.side === 'home' ? 10 : event.side === 'away' ? -10 : 0;
+      bins[idx].swing += delta;
+      bins[idx].eventCount += 1;
+      bins[idx].events.push(event);
+      if (delta > 0) bins[idx].home += Math.abs(delta) + 8;
+      if (delta < 0) bins[idx].away += Math.abs(delta) + 8;
+    });
+
+    const points = [];
+    let running = baseMomentum;
+    for (let index = 0; index < binCount; index += 1) {
+      const bin = bins[index];
+      const progress = (index + 1) / binCount;
+      const activeWeight = minuteNow >= bin.start ? 1 : .4;
+      const scoreBias = scoreDiff * (8 + progress * 10) * activeWeight;
+      const momentumBias = pulse.momentum.side === 'home' ? 4 : pulse.momentum.side === 'away' ? -4 : 0;
+      running = intelligenceClamp(running * .74 + bin.swing + scoreBias + momentumBias, -100, 100);
+      const closenessBoost = Math.max(0, 24 - Math.abs(scoreDiff) * 7);
+      const urgencyBoost = progress * 34 + (minuteNow >= 75 ? 8 : 0);
+      const importanceBonus = pulse.importance.level === 'legendary' ? 10 : pulse.importance.level === 'critical' ? 7 : pulse.importance.level === 'high' ? 4 : 0;
+      const pressure = Math.round(intelligenceClamp(Math.abs(running) * .4 + closenessBoost + urgencyBoost + bin.eventCount * 10 + importanceBonus, 6, 100));
+      const homePressure = Math.round(intelligenceClamp((running > 0 ? running : 0) * .72 + pressure * .32 + bin.home, 0, 100));
+      const awayPressure = Math.round(intelligenceClamp((running < 0 ? Math.abs(running) : 0) * .72 + pressure * .32 + bin.away, 0, 100));
+      points.push({
+        minute: bin.end,
+        start: bin.start,
+        end: bin.end,
+        value: Math.round(running),
+        pressure,
+        homePressure,
+        awayPressure,
+        events: bin.events,
+        active: minuteNow >= bin.start && minuteNow < bin.end
+      });
+    }
+
+    const currentIndex = Math.min(binCount - 1, Math.floor(Math.min(89, minuteNow) / binSize));
+    const currentSegment = points[currentIndex] || points[0];
+    const maxAbs = Math.max(40, ...points.map(point => Math.abs(point.value)));
+    const eventSummary = [];
+    if (pulse.momentum.side !== 'draw') eventSummary.push(pulse.momentum.label);
+    if (pulse.pressure >= 72) eventSummary.push(intelligenceCopy('baskı seviyesi zirveye çıktı', 'pressure level has reached its peak'));
+    if (pulse.chaos >= 70) eventSummary.push(intelligenceCopy('maç tam bir kaos bölgesine girdi', 'the match has entered a chaos zone'));
+    if (pulse.leadChanges >= 1) eventSummary.push(intelligenceCopy(`${pulse.leadChanges} liderlik değişimi yaşandı`, `${pulse.leadChanges} lead changes have already occurred`));
+    if (scoreDiff === 0) eventSummary.push(intelligenceCopy('bir sonraki gol dengeyi tamamen kırabilir', 'the next goal could completely break the balance'));
+    const topWave = [...points].sort((a, b) => (b.homePressure + b.awayPressure) - (a.homePressure + a.awayPressure))[0] || currentSegment;
+    const momentumOwner = currentSegment.value > 10 ? homeName : currentSegment.value < -10 ? awayName : intelligenceCopy('denge', 'balance');
+    const controlOwner = pulse.leaderSide === 'home' ? homeName : pulse.leaderSide === 'away' ? awayName : intelligenceCopy('Denge', 'Balanced');
+    return {
+      ...pulse,
+      homeName,
+      awayName,
+      currentSegment,
+      points,
+      maxAbs,
+      eventSummary,
+      topWave,
+      momentumOwner,
+      controlOwner,
+      scoreboardLabel: scoreDiff === 0 ? intelligenceCopy('Her şey açık', 'Everything is open') : scoreDiff > 0 ? `${homeName} ${intelligenceCopy('öne geçti', 'in front')}` : `${awayName} ${intelligenceCopy('öne geçti', 'in front')}`
+    };
+  }
+
+  function renderLiveStudioMetrics(data) {
+    const nextGoalName = data.nextGoalSide === 'home' ? data.homeName : data.nextGoalSide === 'away' ? data.awayName : intelligenceCopy('Eşit', 'Even');
+    return `<div class="live-studio-metric-grid">
+      <article class="live-studio-metric emphasis"><span>${intelligenceCopy('Momentum', 'Momentum')}</span><strong>${escapeHTML(data.momentumOwner)}</strong><small>${escapeHTML(data.momentum.label)}</small><div class="metric-bar"><i style="width:${data.momentum.strength}%"></i></div></article>
+      <article class="live-studio-metric"><span>${intelligenceCopy('Maç Kontrolü', 'Match Control')}</span><strong>${escapeHTML(data.controlOwner)}</strong><small>${simulationPct(Math.max(data.probability.home, data.probability.draw, data.probability.away), 1)}</small></article>
+      <article class="live-studio-metric"><span>${intelligenceCopy('Baskı', 'Pressure')}</span><strong>${data.pressure}/100</strong><small>${intelligenceCopy('Canlı yoğunluk seviyesi', 'Live intensity level')}</small><div class="metric-ring" style="--metric:${data.pressure}%"></div></article>
+      <article class="live-studio-metric"><span>${intelligenceCopy('Kaos', 'Chaos')}</span><strong>${data.chaos}/100</strong><small>${intelligenceCopy('Skor ve olay hareketliliği', 'Score and event volatility')}</small></article>
+      <article class="live-studio-metric"><span>${intelligenceCopy('Geri Dönüş Şansı', 'Comeback Chance')}</span><strong>${simulationPct(data.comebackProbability, 1)}</strong><small>${data.trailingSide === 'draw' ? intelligenceCopy('Skor dengede', 'Score level') : escapeHTML(data.trailingSide === 'home' ? data.homeName : data.awayName)}</small></article>
+      <article class="live-studio-metric"><span>${intelligenceCopy('Sonraki Gol', 'Next Goal')}</span><strong>${escapeHTML(nextGoalName)}</strong><small>${intelligenceCopy('Model sinyali', 'Model signal')}</small></article>
+      <article class="live-studio-metric accent"><span>${intelligenceCopy('Maç Nabzı', 'Match Pulse')}</span><strong>${data.pulse} BPM</strong><small>${escapeHTML(data.scoreboardLabel)}</small></article>
+      <article class="live-studio-metric"><span>${intelligenceCopy('En Sıcak Dilim', 'Hottest Wave')}</span><strong>${data.topWave.start}–${data.topWave.end}'</strong><small>${intelligenceCopy('En yüksek baskı bloğu', 'Highest pressure block')}</small></article>
+    </div>`;
+  }
+
+  function renderLiveStudioMomentumPanel(data) {
+    const width = 1000, height = 280, baseline = 140;
+    const coords = data.points.map((point, index) => {
+      const x = 40 + (index / (data.points.length - 1 || 1)) * 920;
+      const y = baseline - (point.value / data.maxAbs) * 96;
+      return { ...point, x, y };
+    });
+    const line = coords.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join(' ');
+    const area = `${line} L ${coords[coords.length - 1].x.toFixed(1)} ${baseline} L ${coords[0].x.toFixed(1)} ${baseline} Z`;
+    const currentMinuteX = 40 + ((Math.min(90, Math.max(0, Number(data.live.minute) || 0)) / 90) * 920);
+    return `<div class="live-studio-panel-stack">
+      <div class="panel-header compact"><div><h3 class="panel-title">${intelligenceCopy('Momentum Akışı', 'Momentum Flow')}</h3><div class="panel-subtitle">${intelligenceCopy('Dakika ilerledikçe hangi taraf oyunu itti, baskı nerede yükseldi?', 'Which side pushed the game and where did the pressure rise as the minutes advanced?')}</div></div><span class="badge badge-gold">${intelligenceCopy('CANLI', 'LIVE')}</span></div>
+      <div class="live-studio-chart-wrap">
+        <svg class="live-studio-chart" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-label="Live momentum chart">
+          <defs>
+            <linearGradient id="liveStudioArea" x1="0" x2="1" y1="0" y2="0"><stop offset="0%" stop-color="rgba(68,160,255,.12)"></stop><stop offset="50%" stop-color="rgba(232,196,92,.26)"></stop><stop offset="100%" stop-color="rgba(255,95,131,.12)"></stop></linearGradient>
+            <linearGradient id="liveStudioLine" x1="0" x2="1" y1="0" y2="0"><stop offset="0%" stop-color="#59b4ff"></stop><stop offset="50%" stop-color="#f0d28a"></stop><stop offset="100%" stop-color="#ff718b"></stop></linearGradient>
+          </defs>
+          ${[0,25,50,75,100].map(level => `<line x1="40" x2="960" y1="${baseline - level / 100 * 96}" y2="${baseline - level / 100 * 96}" class="studio-grid-line"></line><line x1="40" x2="960" y1="${baseline + level / 100 * 96}" y2="${baseline + level / 100 * 96}" class="studio-grid-line"></line>`).join('')}
+          ${[0,15,30,45,60,75,90].map(minute => `<line x1="${40 + minute / 90 * 920}" x2="${40 + minute / 90 * 920}" y1="34" y2="246" class="studio-grid-vertical"></line><text x="${40 + minute / 90 * 920}" y="262" text-anchor="middle" class="studio-minute-label">${minute}'</text>`).join('')}
+          <line x1="40" x2="960" y1="${baseline}" y2="${baseline}" class="studio-baseline"></line>
+          <path d="${area}" fill="url(#liveStudioArea)"></path>
+          <path d="${line}" class="studio-momentum-line"></path>
+          <line x1="${currentMinuteX}" x2="${currentMinuteX}" y1="26" y2="252" class="studio-current-minute"></line>
+          ${coords.map(point => `<circle cx="${point.x.toFixed(1)}" cy="${point.y.toFixed(1)}" r="4.5" class="studio-point ${point.value >= 0 ? 'home' : 'away'}"></circle>`).join('')}
+          ${coords.flatMap(point => (point.events || []).map(event => {
+            const markerY = event.side === 'home' ? baseline - 112 : event.side === 'away' ? baseline + 112 : baseline;
+            const markerClass = event.type === 'goal' ? 'goal' : event.type === 'red' ? 'red' : event.type === 'yellow' ? 'yellow' : 'note';
+            return `<g class="studio-event-marker ${markerClass}"><circle cx="${point.x.toFixed(1)}" cy="${markerY.toFixed(1)}" r="8"></circle><text x="${point.x.toFixed(1)}" y="${(markerY + 3).toFixed(1)}" text-anchor="middle">${event.type === 'goal' ? 'G' : event.type === 'red' ? 'R' : event.type === 'yellow' ? 'Y' : '•'}</text></g>`;
+          })).join('')}
+        </svg>
+      </div>
+      <div class="live-studio-chart-legend"><span class="home">${escapeHTML(data.homeName)} ${intelligenceCopy('baskı üst bölge', 'pressure upper zone')}</span><span class="draw">${intelligenceCopy('denge çizgisi', 'balance line')}</span><span class="away">${escapeHTML(data.awayName)} ${intelligenceCopy('baskı alt bölge', 'pressure lower zone')}</span></div>
+    </div>`;
+  }
+
+  function renderLiveStudioPressurePanel(data) {
+    return `<div class="live-studio-panel-stack">
+      <div class="panel-header compact"><div><h3 class="panel-title">${intelligenceCopy('Dakika Bazlı Baskı Dalgası', 'Minute-by-Minute Pressure Wave')}</h3><div class="panel-subtitle">${intelligenceCopy('Her 5 dakikalık blokta baskı şiddeti ve yön değişimi.', 'Pressure intensity and direction in every 5-minute block.')}</div></div><span class="badge badge-blue">${data.points.length} BLOCKS</span></div>
+      <div class="live-pressure-wave-list">${data.points.map(point => `<div class="live-pressure-wave ${point.active ? 'active' : ''}"><div class="live-pressure-minute">${point.start}–${point.end}'</div><div class="live-pressure-bars"><span class="home" style="width:${point.homePressure}%"></span><span class="away" style="width:${point.awayPressure}%"></span></div><div class="live-pressure-meta"><strong>${point.pressure}</strong><small>${point.events.length ? point.events.map(event => event.type === 'goal' ? '⚽' : event.type === 'red' ? '🟥' : event.type === 'yellow' ? '🟨' : '◆').join(' ') : '—'}</small></div></div>`).join('')}</div>
+      <div class="live-pressure-footnote">${intelligenceCopy('Mavi bloklar ev sahibi baskısını, kırmızı bloklar deplasman baskısını gösterir. Sarı parlama, şu anda canlı oynanan zaman aralığını işaretler.', 'Blue bars show home pressure, red bars show away pressure. The gold glow marks the currently active live time block.')}</div>
+    </div>`;
+  }
+
+  function renderLiveStudioProbabilityPanel(data) {
+    return `<div class="live-studio-panel-stack">
+      <div class="panel-header compact"><div><h3 class="panel-title">${intelligenceCopy('Canlı Olasılık ve Maç Kontrolü', 'Live Probability & Match Control')}</h3><div class="panel-subtitle">${intelligenceCopy('Skor ve dakikaya göre sürekli güncellenen kazanma eğrisi.', 'Continuously updated win curve based on score and minute.')}</div></div><span class="badge badge-gold">1 X 2</span></div>
+      ${renderProbabilityRail(data.probability, { home: data.homeName, away: data.awayName })}
+      <div class="live-studio-probability-cards"><article><span>${escapeHTML(data.homeName)}</span><strong>${simulationPct(data.probability.home, 1)}</strong><small>${intelligenceCopy('kazanma', 'win')}</small></article><article><span>X</span><strong>${simulationPct(data.probability.draw, 1)}</strong><small>${intelligenceCopy('beraberlik', 'draw')}</small></article><article><span>${escapeHTML(data.awayName)}</span><strong>${simulationPct(data.probability.away, 1)}</strong><small>${intelligenceCopy('kazanma', 'win')}</small></article></div>
+      <div class="live-studio-mini-kpis"><div><span>${intelligenceCopy('Kritiklik', 'Importance')}</span><strong>${escapeHTML(data.importance.label)}</strong></div><div><span>${intelligenceCopy('Liderlik Değişimi', 'Lead Changes')}</span><strong>${data.leadChanges}</strong></div><div><span>${intelligenceCopy('Canlı Dakika', 'Live Minute')}</span><strong>${liveMinuteText(data.live)}</strong></div></div>
+    </div>`;
+  }
+
+  function renderLiveStudioStoryPanel(data) {
+    const bulletLines = [
+      `${intelligenceCopy('Baskı merkezi', 'Pressure focus')}: ${data.currentSegment.start}–${data.currentSegment.end}'`,
+      `${intelligenceCopy('Kontrol sinyali', 'Control signal')}: ${data.controlOwner}`,
+      `${intelligenceCopy('Canlı nabız', 'Live pulse')}: ${data.pulse} BPM`,
+      ...data.eventSummary.slice(0, 4)
+    ];
+    return `<div class="live-studio-panel-stack">
+      <div class="panel-header compact"><div><h3 class="panel-title">${intelligenceCopy('Maç Hikâyesi ve AI Yorum', 'Match Story & AI Commentary')}</h3><div class="panel-subtitle">${intelligenceCopy('İzleyicilerin sadece skoru değil, maçın resmini de anlaması için kısa canlı anlatım.', 'A short live narrative so viewers can understand the match picture beyond the scoreline.')}</div></div><span class="badge badge-blue">LIVE AI</span></div>
+      <div class="live-studio-story-box"><p>${data.chaos >= 80 ? intelligenceCopy('Karşınızda tam anlamıyla kontrolden çıkmaya aday bir maç var. Her hücum, bütün olasılık haritasını yeniden yazabilecek güçte.', 'This match is on the verge of spiralling out of control. Every attack has the power to rewrite the probability map.') : data.pressure >= 72 ? intelligenceCopy('Tempoyu belirleyen unsur artık yalnızca skor değil, zaman baskısı. Son bölüm yaklaşırken risk alma seviyesi yükseliyor.', 'The score is no longer the only force shaping the match — time pressure is now taking over. Risk levels are rising as the closing phase approaches.') : data.momentum.side !== 'draw' ? `${escapeHTML(data.momentum.label)}. ${intelligenceCopy('Skor tabelası kadar saha akışı da bu üstünlüğü destekliyor.', 'The flow of the game is supporting that advantage as much as the scoreboard does.')}` : intelligenceCopy('Maç halen dengede. Bir sonraki kırılma anı, kimliğini belirleyecek ilk büyük baskı serisini yaratabilir.', 'The match remains balanced. The next turning point could create the first major pressure sequence that defines it.')}</p><div class="live-story-bullets">${bulletLines.map(line => `<div><span>•</span><small>${escapeHTML(line)}</small></div>`).join('')}</div></div>
+    </div>`;
+  }
+
   function renderLiveMatchCentre() {
     const active = getActiveLive();
     const eligible = liveEligibleMatches();
-    const archive = Object.values(getLiveState().archive || {}).sort((a, b) => String(b.finishedAt || "").localeCompare(String(a.finishedAt || ""))).slice(0, 6);
+    const archive = Object.values(getLiveState().archive || {}).sort((a, b) => String(b.finishedAt || '').localeCompare(String(a.finishedAt || ''))).slice(0, 6);
 
     if (!active) {
       view.innerHTML = `
         <div class="group-banner live-match-banner">
-          <div><div class="eyebrow">LIVE MATCH CENTRE</div><h2>Canlı Maç Merkezi</h2><p>Bir fikstürü canlı yayına al; dakikayı, skoru ve maç olaylarını anlık güncelle. İzleyiciler aynı ekranı Supabase üzerinden eşzamanlı takip eder.</p></div>
+          <div><div class="eyebrow">LIVE MATCH STUDIO v20</div><h2>Canlı Maç Merkezi</h2><p>Yönetici için güçlü kontrol masası, izleyici için ise yayın kalitesinde skor, grafik ve maç akışı. Sofascore / maçkolik hissini turnuva ekranına taşıyan zengin canlı merkez.</p></div>
           <div class="group-emblem live-ball">●</div>
         </div>
         <div class="live-match-empty-strip"><span class="live-offline-dot"></span><strong>Şu anda canlı maç yok</strong><span>${eligible.length} oynanmamış fikstür canlı yayına hazır.</span></div>
         <div class="grid-2 mt-24">
           <section class="panel">
-            <div class="panel-header"><div><h3 class="panel-title">Canlı Yayına Hazır Maçlar</h3><div class="panel-subtitle">Yönetici olarak bir maçı seçip canlı skor takibini başlat.</div></div><span class="badge badge-gold">${eligible.length} MAÇ</span></div>
-            ${eligible.length ? `<div class="live-match-selector">${eligible.slice(0, 24).map(match => renderLiveMatchOption(match)).join("")}</div>` : emptyState("✓", "Bekleyen maç bulunmuyor", "Yeni fikstür oluştuğunda burada görünecek.")}
+            <div class="panel-header"><div><h3 class="panel-title">Canlı Yayına Hazır Maçlar</h3><div class="panel-subtitle">Yönetici olarak bir maçı seçip canlı skoru, baskıyı ve maç hikâyesini başlat.</div></div><span class="badge badge-gold">${eligible.length} MAÇ</span></div>
+            ${eligible.length ? `<div class="live-match-selector">${eligible.slice(0, 24).map(match => renderLiveMatchOption(match)).join('')}</div>` : emptyState('✓', 'Bekleyen maç bulunmuyor', 'Yeni fikstür oluştuğunda burada görünecek.')}
           </section>
           <section class="panel">
-            <div class="panel-header"><div><h3 class="panel-title">Nasıl Çalışır?</h3><div class="panel-subtitle">Canlı maç yönetim akışı.</div></div></div>
+            <div class="panel-header"><div><h3 class="panel-title">Live Match Studio nasıl çalışır?</h3><div class="panel-subtitle">Yeni yayın akışı.</div></div></div>
             <div class="format-list">
-              <div class="format-row"><div class="format-icon">1</div><div><div class="format-title">Maçı seç ve yayını başlat</div><div class="format-desc">Takım adlarını gir; skor 0–0 ve dakika 0 olarak başlar.</div></div></div>
-              <div class="format-row"><div class="format-icon">2</div><div><div class="format-title">Dakika ve skoru güncelle</div><div class="format-desc">+1 / +5 dakika kontrolleri, hızlı gol düğmeleri ve olay zaman çizelgesi.</div></div></div>
-              <div class="format-row"><div class="format-icon">3</div><div><div class="format-title">İzleyiciler canlı takip eder</div><div class="format-desc">Her kayıt Supabase Realtime ile açık telefon ve bilgisayarlara aktarılır.</div></div></div>
-              <div class="format-row"><div class="format-icon">4</div><div><div class="format-title">Maç sonunda fikstüre işle</div><div class="format-desc">Final skor, takımlar ve gerekiyorsa penaltı galibi tek tuşla kaydedilir.</div></div></div>
+              <div class="format-row"><div class="format-icon">1</div><div><div class="format-title">Maçı seç ve canlı yayını başlat</div><div class="format-desc">Takım adlarını gir; skor 0–0, dakika 0 olarak başlar ve yayın paneli aktive olur.</div></div></div>
+              <div class="format-row"><div class="format-icon">2</div><div><div class="format-title">Skor, dakika ve olayları güncelle</div><div class="format-desc">Her gol ve olay; momentum grafiği, baskı dalgası ve olasılık motorunu anında etkiler.</div></div></div>
+              <div class="format-row"><div class="format-icon">3</div><div><div class="format-title">İzleyiciler görsel yayını takip etsin</div><div class="format-desc">Baskı grafiği, canlı olasılıklar ve maç hikâyesi herkes için otomatik güncellenir.</div></div></div>
+              <div class="format-row"><div class="format-icon">4</div><div><div class="format-title">Maç sonunda resmî sonuca işle</div><div class="format-desc">Tek tuşla fikstüre kaydet, puan tablosunu ve bütün merkezleri güncelle.</div></div></div>
             </div>
-            ${!canEdit() ? `<div class="info-box live-viewer-box mt-16">İzleyici modundasın. Canlı yayın başlatma ve skor yönetimi yalnızca turnuva yöneticisine açıktır.</div>` : ""}
+            ${!canEdit() ? `<div class="info-box live-viewer-box mt-16">İzleyici modundasın. Canlı maç başlatma ve yönetim kontrolleri yalnızca turnuva yöneticisine açıktır.</div>` : ''}
           </section>
         </div>
-        ${archive.length ? `<section class="panel mt-24"><div class="panel-header"><div><h3 class="panel-title">Son Canlı Yayınlar</h3><div class="panel-subtitle">Canlı takip üzerinden tamamlanan son maçlar.</div></div></div><div class="live-archive-grid">${archive.map(renderLiveArchiveCard).join("")}</div></section>` : ""}`;
+        ${archive.length ? `<section class="panel mt-24"><div class="panel-header"><div><h3 class="panel-title">Son Canlı Yayınlar</h3><div class="panel-subtitle">Canlı takip üzerinden tamamlanan son maçlar.</div></div></div><div class="live-archive-grid">${archive.map(renderLiveArchiveCard).join('')}</div></section>` : ''}`;
       return;
     }
 
     const { live, match } = active;
-    const events = [...(live.events || [])].sort((a, b) => (Number(b.minute) || 0) - (Number(a.minute) || 0) || String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+    const studio = buildLiveStudioData();
+    const events = [...(live.events || [])].sort((a, b) => (Number(b.minute) || 0) - (Number(a.minute) || 0) || String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
     view.innerHTML = `
-      <div class="group-banner live-match-banner active-live-banner">
-        <div><div class="eyebrow"><span class="live-pulse-dot"></span> LIVE MATCH CENTRE</div><h2>${displayName(match.homeId)} vs ${displayName(match.awayId)}</h2><p>${escapeHTML(liveStageLabel(match))} · Son güncelleme ${escapeHTML(formatLiveUpdatedAt(live.updatedAt))}</p></div>
+      <div class="group-banner live-match-banner active-live-banner studio-banner">
+        <div><div class="eyebrow"><span class="live-pulse-dot"></span> LIVE MATCH STUDIO v20</div><h2>${displayName(match.homeId)} vs ${displayName(match.awayId)}</h2><p>${escapeHTML(liveStageLabel(match))} · Son güncelleme ${escapeHTML(formatLiveUpdatedAt(live.updatedAt))} · ${escapeHTML(studio.importance.note || '')}</p></div>
         <div class="live-progress-orb"><strong>${liveMinuteText(live)}</strong><span>${liveStatusText(live)}</span></div>
       </div>
-      <div class="live-match-broadcast">
-        <div class="live-team-side home">
-          <div class="live-team-label">EV SAHİBİ</div>
-          <h3>${displayName(match.homeId)}</h3>
-          <div class="live-team-name">${escapeHTML(live.homeTeam || match.homeTeam || "Takım bekleniyor")}</div>
-          ${canEdit() ? `<div class="live-score-controls"><button data-action="live-score-minus" data-side="home">−</button><strong>${live.homeScore}</strong><button data-action="live-goal" data-side="home">+</button></div>` : `<div class="live-view-score">${live.homeScore}</div>`}
-        </div>
-        <div class="live-score-centre">
-          <div class="live-status-badge"><span class="live-pulse-dot"></span>${liveStatusText(live)}</div>
-          <div class="live-main-score">${live.homeScore}<span>–</span>${live.awayScore}</div>
-          <div class="live-main-minute">${liveMinuteText(live)}</div>
-          <div class="live-stage-small">${escapeHTML(liveStageLabel(match))}</div>
-        </div>
-        <div class="live-team-side away">
-          <div class="live-team-label">DEPLASMAN</div>
-          <h3>${displayName(match.awayId)}</h3>
-          <div class="live-team-name">${escapeHTML(live.awayTeam || match.awayTeam || "Takım bekleniyor")}</div>
-          ${canEdit() ? `<div class="live-score-controls"><button data-action="live-score-minus" data-side="away">−</button><strong>${live.awayScore}</strong><button data-action="live-goal" data-side="away">+</button></div>` : `<div class="live-view-score">${live.awayScore}</div>`}
-        </div>
+
+      <section class="live-studio-scoreboard">
+        <div class="studio-team-card home"><span class="studio-side-tag">EV SAHİBİ</span><strong>${displayName(match.homeId)}</strong><small>${escapeHTML(live.homeTeam || match.homeTeam || 'Takım bekleniyor')}</small>${canEdit() ? `<div class="live-score-controls"><button data-action="live-score-minus" data-side="home">−</button><strong>${live.homeScore}</strong><button data-action="live-goal" data-side="home">+</button></div>` : `<div class="live-view-score">${live.homeScore}</div>`}</div>
+        <div class="studio-centre-stage"><div class="studio-live-chip"><span class="live-pulse-dot"></span>${liveStatusText(live)}</div><div class="studio-big-score">${live.homeScore}<span>–</span>${live.awayScore}</div><div class="studio-minute-chip">${liveMinuteText(live)}</div><div class="studio-stage-copy">${escapeHTML(studio.scoreboardLabel)}</div><div class="studio-stage-name">${escapeHTML(liveStageLabel(match))}</div></div>
+        <div class="studio-team-card away"><span class="studio-side-tag">DEPLASMAN</span><strong>${displayName(match.awayId)}</strong><small>${escapeHTML(live.awayTeam || match.awayTeam || 'Takım bekleniyor')}</small>${canEdit() ? `<div class="live-score-controls"><button data-action="live-score-minus" data-side="away">−</button><strong>${live.awayScore}</strong><button data-action="live-goal" data-side="away">+</button></div>` : `<div class="live-view-score">${live.awayScore}</div>`}</div>
+      </section>
+
+      ${renderLiveStudioMetrics(studio)}
+
+      <div class="grid-2 mt-24">
+        <section class="panel live-studio-panel">${renderLiveStudioMomentumPanel(studio)}</section>
+        <section class="panel live-studio-panel">${renderLiveStudioPressurePanel(studio)}</section>
+      </div>
+      <div class="grid-2 mt-24">
+        <section class="panel live-studio-panel">${renderLiveStudioProbabilityPanel(studio)}</section>
+        <section class="panel live-studio-panel">${renderLiveStudioStoryPanel(studio)}</section>
       </div>
 
       ${canEdit() ? `<div class="grid-2 mt-24">
@@ -819,8 +989,8 @@
             <button class="btn btn-ghost" data-action="live-set-status" data-status="penalties">Penaltılar</button>
           </div>
           <div class="modal-form-grid mt-16">
-            <div class="field"><label>${displayName(match.homeId)} Takımı</label><input type="text" value="${escapeHTML(live.homeTeam || "")}" data-live-field="homeTeam" placeholder="Takım adı"></div>
-            <div class="field"><label>${displayName(match.awayId)} Takımı</label><input type="text" value="${escapeHTML(live.awayTeam || "")}" data-live-field="awayTeam" placeholder="Takım adı"></div>
+            <div class="field"><label>${displayName(match.homeId)} Takımı</label><input type="text" value="${escapeHTML(live.homeTeam || '')}" data-live-field="homeTeam" placeholder="Takım adı"></div>
+            <div class="field"><label>${displayName(match.awayId)} Takımı</label><input type="text" value="${escapeHTML(live.awayTeam || '')}" data-live-field="awayTeam" placeholder="Takım adı"></div>
           </div>
           <div class="live-admin-actions mt-16">
             <button class="btn btn-blue" data-action="share-live-match">Canlı Skoru Paylaş</button>
@@ -842,11 +1012,11 @@
             <button class="btn btn-gold btn-wide mt-16" type="submit">Olayı Canlı Yayına Ekle</button>
           </form>
         </section>
-      </div>` : `<div class="live-viewer-message mt-24"><span class="live-pulse-dot"></span><div><strong>Canlı yayın aktif</strong><p>Skor, dakika ve maç olayları yönetici tarafından güncellendikçe bu ekran otomatik yenilenir.</p></div><button class="btn btn-ghost" data-action="open-live-pulse">Canlı Nabzı Aç</button></div>`}
+      </div>` : `<div class="live-viewer-message mt-24"><span class="live-pulse-dot"></span><div><strong>Canlı yayın aktif</strong><p>Skor, dakika, baskı grafikleri ve maç olayları yönetici tarafından güncellendikçe bu ekran otomatik yenilenir.</p></div><button class="btn btn-ghost" data-action="open-live-pulse">Canlı Nabzı Aç</button></div>`}
 
       <section class="panel mt-24">
         <div class="panel-header"><div><h3 class="panel-title">Canlı Maç Zaman Çizelgesi</h3><div class="panel-subtitle">En yeni olay üstte gösterilir.</div></div><span class="badge badge-gold">${events.length} OLAY</span></div>
-        ${events.length ? `<div class="live-event-timeline">${events.map(event => renderLiveEvent(event, match)).join("")}</div>` : `<div class="info-box">Henüz maç olayı eklenmedi. Skor ve dakika canlı olarak takip ediliyor.</div>`}
+        ${events.length ? `<div class="live-event-timeline">${events.map(event => renderLiveEvent(event, match)).join('')}</div>` : `<div class="info-box">Henüz maç olayı eklenmedi. Skor, dakika ve grafikler canlı olarak takip ediliyor.</div>`}
       </section>`;
   }
 

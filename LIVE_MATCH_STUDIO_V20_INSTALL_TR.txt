@@ -1,0 +1,28 @@
+FIFA 9 Live Match Studio v20 — Kurulum Notu
+
+Bu güncelleme Canlı Maç Merkezi'ni yayın kalitesinde yeni bir görsel katmanla güçlendirir.
+
+Eklenen ana gelişmeler:
+- Yeni Live Match Studio v20 üst alanı
+- Büyük canlı skor sahnesi
+- Momentum akışı grafiği
+- 5 dakikalık baskı dalgası blokları
+- Canlı olasılık ve maç kontrolü paneli
+- AI destekli maç hikâyesi / canlı yorum kutusu
+- Daha güçlü izleyici deneyimi
+
+PATCH ONLY kurulumu:
+1) ZIP içindeki dosyaları çıkar.
+2) Mevcut GitHub repository ana klasöründe aynı isimli dosyaları değiştir:
+   - app.js
+   - styles.css
+   - service-worker.js
+3) Commit mesajı önerisi:
+   Add Live Match Studio v20
+4) Vercel yeni deployment tamamlandıktan sonra tarayıcıda Ctrl + F5 yap.
+5) Telefonda eski sürüm görünürse site önbelleğini temizle ve tekrar aç.
+
+Notlar:
+- Bu güncelleme için Supabase SQL çalıştırman gerekmez.
+- cloud-config.js dosyasına dokunma.
+- Canlı Maç Merkezi aktif maç başladığında otomatik olarak yeni stüdyo görünümünü açar.
