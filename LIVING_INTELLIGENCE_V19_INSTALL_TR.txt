@@ -1,0 +1,44 @@
+FIFA 9 LIVING INTELLIGENCE PHASE I v19 — KURULUM
+=================================================
+
+Bu güncelleme Zekâ Merkezi'ne beş yeni dinamik modül ekler:
+
+1. FIFA 9 Power Exchange
+2. Pressure Chamber — Baskı ve Mental Güç Merkezi
+3. Destiny Path — Oyuncunun Kader Yolu
+4. Live Match Pulse
+5. AI Tournament Director
+
+GITHUB'A YÜKLENECEK DOSYALAR
+----------------------------
+
+- index.html
+- app.js
+- styles.css
+- language.js
+- service-worker.js
+- README.md
+- LIVING_INTELLIGENCE_V19_INSTALL_TR.txt
+
+Commit mesajı:
+
+Add Living Intelligence Phase I v19
+
+KURULUM NOTLARI
+---------------
+
+- Bu sürüm v18 Dinamik Turnuva Simülasyonu ve v17 sohbet düzeltmelerini korur.
+- Supabase SQL çalıştırılmaz.
+- cloud-config.js dosyasına dokunulmaz.
+- Yeni modüller mevcut maç, geçmiş sonuç, Elo, form, canlı maç ve simülasyon verilerinden hesaplanır.
+- Vercel yayını tamamlandıktan sonra bilgisayarda Ctrl + F5 yapın.
+- Telefonda eski sürüm görünürse site önbelleğini/site verisini temizleyin.
+
+ÖNEMLİ
+------
+
+Power Exchange bir para veya bahis sistemi değildir. Power Index yalnızca turnuva içi rekabet gücünü gösteren eğlence ve istatistik amaçlı bir değerdir.
+
+Pressure Chamber psikolojik veya tıbbi değerlendirme yapmaz; yalnızca turnuva maçlarındaki performans örüntülerini ölçer.
+
+AI Tournament Director dış bir yapay zekâ servisine veri göndermez. Site içindeki kayıtlı verilerle çalışan kurallı ve şeffaf bir anlatım motorudur.

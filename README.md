@@ -153,3 +153,35 @@ The v15 release adds one integrated Tournament Intelligence Centre with seven mo
 Run `supabase/intelligence_feature_v15.sql` once to activate the Prediction League database functions. The other six modules are calculated directly from the existing tournament and historical match data.
 
 See `INTELLIGENCE_SUITE_INSTALL_TR.txt` for installation steps.
+
+---
+
+## Dynamic Tournament Simulator v18
+
+The v18 release upgrades **Intelligence Centre → Simulator** into a complete Monte Carlo tournament engine.
+
+- Locks all recorded official results.
+- Predicts every remaining League Phase match.
+- Builds projected Gold and Silver Groups.
+- Simulates all second-stage fixtures, knockout series, semi-finals and the final.
+- Calculates Gold/Silver qualification, semi-final, final and championship probabilities.
+- Shows the most likely tournament path, projected tables, knockout bracket and every remaining predicted match.
+- Uses Elo, last-20 form, last-five momentum, current FIFA 9 performance, goal profile and head-to-head data.
+- Automatically invalidates and recalculates after every new official result.
+- Supports 1,000, 5,000 and 10,000 simulation runs.
+
+No additional Supabase SQL is required for v18.
+
+---
+
+## Living Intelligence Phase I v19
+
+The v19 release adds five connected real-time intelligence modules inside the Intelligence Centre:
+
+- **FIFA 9 Power Exchange:** A live Power Index combining Elo, last-20 form, momentum, mental strength and championship probability. It identifies market leaders, risers, fallers, hidden value and volatility. The index is an entertainment-only competitive metric, not money or betting value.
+- **Pressure Chamber:** Measures close-match, knockout/final, favourite-protection, underdog and recorded comeback performance to create a Mental Index and player archetypes such as FINAL BOSS, ICE COLD and CLUTCH PLAYER.
+- **Destiny Path:** Uses the current Monte Carlo simulation to show each player's projected League Phase position, probable Gold/Silver route, likely opponents, semi-final/final/title chances and estimated leverage of the next match.
+- **Live Match Pulse:** Activates automatically during a live match and calculates live win probabilities, momentum, match control, pressure, chaos, comeback probability, next-goal signal and a goal-by-goal probability flow.
+- **AI Tournament Director:** Generates a data-driven tournament briefing from current results, Elo movement, active streaks, live matches and simulation signals. Four narrative voices are included, with WhatsApp sharing.
+
+All five modules recalculate from the existing tournament state. No new Supabase SQL or database table is required for v19.

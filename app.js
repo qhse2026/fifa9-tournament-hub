@@ -58,7 +58,10 @@
   let intelligenceRivalA = "";
   let intelligenceRivalB = "";
   let intelligencePlayerCard = "";
+  let intelligenceDestinyPlayer = "";
   let intelligenceSimulatorGroup = "gold";
+  let directorTone = "analyst";
+  let directorNonce = 0;
   let qualificationScenario = {};
   let tournamentSimulationRuns = 1000;
   let tournamentSimulationNonce = 0;
@@ -821,6 +824,7 @@
           </div>
           <div class="live-admin-actions mt-16">
             <button class="btn btn-blue" data-action="share-live-match">Canlı Skoru Paylaş</button>
+            <button class="btn btn-ghost" data-action="open-live-pulse">Canlı Nabzı Aç</button>
             <button class="btn btn-danger" data-action="open-cancel-live">Yayını İptal Et</button>
             <button class="btn btn-gold" data-action="open-finish-live">Maçı Bitir ve Kaydet</button>
           </div>
@@ -838,7 +842,7 @@
             <button class="btn btn-gold btn-wide mt-16" type="submit">Olayı Canlı Yayına Ekle</button>
           </form>
         </section>
-      </div>` : `<div class="live-viewer-message mt-24"><span class="live-pulse-dot"></span><div><strong>Canlı yayın aktif</strong><p>Skor, dakika ve maç olayları yönetici tarafından güncellendikçe bu ekran otomatik yenilenir.</p></div></div>`}
+      </div>` : `<div class="live-viewer-message mt-24"><span class="live-pulse-dot"></span><div><strong>Canlı yayın aktif</strong><p>Skor, dakika ve maç olayları yönetici tarafından güncellendikçe bu ekran otomatik yenilenir.</p></div><button class="btn btn-ghost" data-action="open-live-pulse">Canlı Nabzı Aç</button></div>`}
 
       <section class="panel mt-24">
         <div class="panel-header"><div><h3 class="panel-title">Canlı Maç Zaman Çizelgesi</h3><div class="panel-subtitle">En yeni olay üstte gösterilir.</div></div><span class="badge badge-gold">${events.length} OLAY</span></div>
@@ -4044,16 +4048,507 @@
     </div>`;
   }
 
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // FIFA 9 LIVING INTELLIGENCE · PHASE I · v19
+  // Power Exchange, Pressure Chamber, Destiny Path, Live Match Pulse and
+  // the data-driven AI Tournament Director.
+  // ──────────────────────────────────────────────────────────────────────────
+
+  function intelligenceLanguage() {
+    return window.FIFA_I18N?.language === "en" ? "en" : "tr";
+  }
+
+  function intelligenceCopy(tr, en) {
+    return intelligenceLanguage() === "en" ? en : tr;
+  }
+
+  function intelligenceSigned(value, digits = 1) {
+    const number = Number(value) || 0;
+    return `${number > 0 ? "+" : ""}${number.toFixed(digits)}`;
+  }
+
+  function intelligencePlayerId(name) {
+    return state.current.participants.find(player => player.name.trim() === String(name || "").trim())?.id || "";
+  }
+
+  function intelligenceStageWeight(stage) {
+    const value = String(stage || "").toLocaleLowerCase("tr");
+    if (value.includes("yarı") || value.includes("semi")) return 1.85;
+    if ((value.includes("final") || value.includes("şampiyon")) && !value.includes("yarı") && !value.includes("semi")) return 2.25;
+    if (value.includes("eleme") || value.includes("knockout") || value.includes("quarter") || value.includes("çeyrek")) return 1.65;
+    if (value.includes("altın") || value.includes("gold") || value.includes("gümüş") || value.includes("silver")) return 1.3;
+    return 1;
+  }
+
+  function intelligenceSparkline(values, className = "") {
+    const data = (values || []).map(Number).filter(Number.isFinite);
+    if (data.length < 2) return `<span class="intel-spark-empty">—</span>`;
+    const min = Math.min(...data);
+    const max = Math.max(...data);
+    const range = max - min || 1;
+    const points = data.map((value, index) => {
+      const x = data.length === 1 ? 50 : index / (data.length - 1) * 100;
+      const y = 28 - ((value - min) / range * 24);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(" ");
+    return `<svg class="intel-sparkline ${className}" viewBox="0 0 100 32" preserveAspectRatio="none" aria-hidden="true"><polyline points="${points}"></polyline></svg>`;
+  }
+
+  function buildPressureChamber() {
+    const names = intelligenceNames();
+    const elo = buildEloAnalytics();
+    const form = buildFormAnalytics(20, "all");
+    const currentCompleted = allCurrentMatches().filter(matchComplete);
+
+    const players = names.map(name => {
+      const records = elo.records.filter(record => record.home === name || record.away === name);
+      let weightedResult = 0;
+      let weightedTotal = 0;
+      let clutchGames = 0;
+      let clutchWins = 0;
+      let knockoutGames = 0;
+      let knockoutWins = 0;
+      let favouriteGames = 0;
+      let favouriteWins = 0;
+      let underdogGames = 0;
+      let underdogWins = 0;
+      let highPressureGames = 0;
+      const pressureSequence = [];
+
+      records.forEach(record => {
+        const isHome = record.home === name;
+        const expected = isHome ? record.expectedHome : 1 - record.expectedHome;
+        const actual = !record.winner ? .5 : record.winner === name ? 1 : 0;
+        const margin = Math.abs(Number(record.match.homeScore) - Number(record.match.awayScore));
+        const stageWeight = intelligenceStageWeight(record.match.stage);
+        const closeWeight = margin <= 1 ? .4 : margin === 2 ? .18 : 0;
+        const underdogWeight = expected < .42 ? .35 : 0;
+        const currentWeight = Number(record.match.edition) === Number(state.current.edition || 9) ? .18 : 0;
+        const weight = stageWeight + closeWeight + underdogWeight + currentWeight;
+        weightedResult += actual * weight;
+        weightedTotal += weight;
+        pressureSequence.push({ actual, weight, expected, margin, stageWeight });
+
+        if (margin <= 1) { clutchGames += 1; if (actual === 1) clutchWins += 1; }
+        if (stageWeight >= 1.6) { knockoutGames += 1; if (actual === 1) knockoutWins += 1; }
+        if (expected >= .58) { favouriteGames += 1; if (actual === 1) favouriteWins += 1; }
+        if (expected <= .42) { underdogGames += 1; if (actual === 1) underdogWins += 1; }
+        if (stageWeight >= 1.3 || margin <= 1 || expected <= .42) highPressureGames += 1;
+      });
+
+      const currentPlayerMatches = currentCompleted.filter(match => [match.homeId, match.awayId].includes(intelligencePlayerId(name)));
+      const comebackWins = currentPlayerMatches.filter(match => matchWinnerId(match) && playerName(matchWinnerId(match)) === name && analyzeLiveArchive(match).comeback).length;
+      const lateWins = currentPlayerMatches.filter(match => matchWinnerId(match) && playerName(matchWinnerId(match)) === name && analyzeLiveArchive(match).lateWinner).length;
+      const pressurePerformance = weightedTotal ? weightedResult / weightedTotal * 100 : 50;
+      const clutchRate = clutchGames ? clutchWins / clutchGames * 100 : 50;
+      const knockoutRate = knockoutGames ? knockoutWins / knockoutGames * 100 : 50;
+      const protectionRate = favouriteGames ? favouriteWins / favouriteGames * 100 : 55;
+      const upsetRate = underdogGames ? underdogWins / underdogGames * 100 : 35;
+      const resilience = intelligenceClamp(48 + comebackWins * 11 + lateWins * 8 + (form.playerMap.get(name)?.currentUnbeatenStreak || 0) * 2.5);
+      const mentalIndex = Math.round(intelligenceClamp(
+        pressurePerformance * .34 + clutchRate * .2 + knockoutRate * .16 + protectionRate * .11 + upsetRate * .09 + resilience * .1
+      ));
+      const last5Pressure = pressureSequence.slice(-5);
+      const previous5Pressure = pressureSequence.slice(-10, -5);
+      const weightedRate = list => {
+        const total = list.reduce((sum, item) => sum + item.weight, 0);
+        return total ? list.reduce((sum, item) => sum + item.actual * item.weight, 0) / total * 100 : 50;
+      };
+      const trend = weightedRate(last5Pressure) - weightedRate(previous5Pressure);
+      let archetype = "pressure-ready";
+      let archetypeLabel = intelligenceCopy("Baskıya Hazır", "Pressure Ready");
+      if (mentalIndex >= 88) { archetype = "final-boss"; archetypeLabel = "FINAL BOSS"; }
+      else if (mentalIndex >= 80) { archetype = "ice-cold"; archetypeLabel = "ICE COLD"; }
+      else if (mentalIndex >= 72) { archetype = "clutch"; archetypeLabel = "CLUTCH PLAYER"; }
+      else if (mentalIndex < 52) { archetype = "volatile"; archetypeLabel = intelligenceCopy("Kırılgan Baskı", "Pressure Fragile"); }
+
+      return {
+        name,
+        mentalIndex,
+        pressurePerformance,
+        clutchRate,
+        knockoutRate,
+        protectionRate,
+        upsetRate,
+        resilience,
+        clutchGames,
+        knockoutGames,
+        favouriteGames,
+        underdogGames,
+        underdogWins,
+        comebackWins,
+        lateWins,
+        highPressureGames,
+        trend,
+        archetype,
+        archetypeLabel,
+        confidence: intelligenceClamp(25 + Math.min(75, highPressureGames * 4.2)),
+        elo: elo.playerMap.get(name)?.rating || 1500
+      };
+    }).sort((a, b) => b.mentalIndex - a.mentalIndex || b.pressurePerformance - a.pressurePerformance || b.elo - a.elo || a.name.localeCompare(b.name, "tr"))
+      .map((row, index) => ({ ...row, rank: index + 1 }));
+
+    return {
+      players,
+      playerMap: new Map(players.map(row => [row.name, row])),
+      leader: players[0] || null,
+      clutchLeader: [...players].sort((a, b) => b.clutchRate - a.clutchRate || b.clutchGames - a.clutchGames)[0] || null,
+      giantKiller: [...players].sort((a, b) => b.underdogWins - a.underdogWins || b.upsetRate - a.upsetRate)[0] || null,
+      riser: [...players].sort((a, b) => b.trend - a.trend)[0] || null
+    };
+  }
+
+  function renderPressureChamberSection() {
+    const data = buildPressureChamber();
+    if (!data.players.length) return `<div class="info-box">${intelligenceCopy("Baskı analizi için maç verisi bekleniyor.", "Match data is required for pressure analysis.")}</div>`;
+    return `<div class="intel-section-stack">
+      <section class="pressure-hero"><div><div class="eyebrow">PRESSURE CHAMBER</div><h2>${intelligenceCopy("Baskı ve Mental Güç Merkezi", "Pressure & Mental Strength Centre")}</h2><p>${intelligenceCopy("Oyuncuların yakın maç, eleme, final, favori koruma ve sürpriz performanslarını tek bir mental güç modelinde birleştirir.", "Combines close-match, knockout, final, favourite-protection and upset performance in one mental-strength model.")}</p></div><div class="pressure-crown"><span>#1 MENTAL</span><strong>${escapeHTML(data.leader?.name || "—")}</strong><b>${data.leader?.mentalIndex || 0}</b><small>${escapeHTML(data.leader?.archetypeLabel || "")}</small></div></section>
+      <div class="intel-record-grid pressure-records">
+        ${kpiCard(intelligenceCopy("Mental Lider", "Mental Leader"), data.leader?.name || "—", data.leader ? `${data.leader.mentalIndex}/100 · ${data.leader.archetypeLabel}` : "—")}
+        ${kpiCard(intelligenceCopy("Clutch Lideri", "Clutch Leader"), data.clutchLeader?.name || "—", data.clutchLeader ? `${data.clutchLeader.clutchRate.toFixed(0)}% · ${data.clutchLeader.clutchGames} ${intelligenceCopy("yakın maç", "close matches")}` : "—")}
+        ${kpiCard(intelligenceCopy("Dev Avcısı", "Giant Killer"), data.giantKiller?.name || "—", data.giantKiller ? `${data.giantKiller.underdogWins} ${intelligenceCopy("sürpriz galibiyet", "upset wins")}` : "—")}
+        ${kpiCard(intelligenceCopy("Baskıda Yükselen", "Pressure Riser"), data.riser?.name || "—", data.riser ? `${intelligenceSigned(data.riser.trend)} ${intelligenceCopy("trend", "trend")}` : "—")}
+      </div>
+      <section class="panel"><div class="panel-header"><div><h3 class="panel-title">${intelligenceCopy("Mental Güç Sıralaması", "Mental Strength Ranking")}</h3><div class="panel-subtitle">${intelligenceCopy("Her sonuçtan sonra baskı profili otomatik yeniden hesaplanır.", "The pressure profile is recalculated automatically after every result.")}</div></div><span class="badge badge-gold">LIVE MENTAL INDEX</span></div>
+        <div class="pressure-table"><div class="head"><span>#</span><span>${intelligenceCopy("Oyuncu", "Player")}</span><span>MENTAL</span><span>CLUTCH</span><span>${intelligenceCopy("ELEME", "KNOCKOUT")}</span><span>${intelligenceCopy("FAVORİ KORUMA", "FAVOURITE HOLD")}</span><span>${intelligenceCopy("DİRENÇ", "RESILIENCE")}</span><span>${intelligenceCopy("KİMLİK", "IDENTITY")}</span></div>${data.players.map(row => `<div class="pressure-row archetype-${row.archetype}"><span>${row.rank}</span><strong>${escapeHTML(row.name)}</strong><b>${row.mentalIndex}</b><span>${row.clutchRate.toFixed(0)}%</span><span>${row.knockoutRate.toFixed(0)}%</span><span>${row.protectionRate.toFixed(0)}%</span><span>${row.resilience.toFixed(0)}</span><small>${escapeHTML(row.archetypeLabel)}</small></div>`).join("")}</div>
+      </section>
+      <section class="pressure-card-grid">${data.players.slice(0, 6).map(row => `<article class="pressure-player-card archetype-${row.archetype}"><div class="pressure-player-head"><span>${row.rank}</span><div><strong>${escapeHTML(row.name)}</strong><small>${row.elo} Elo · ${row.highPressureGames} ${intelligenceCopy("baskı maçı", "pressure matches")}</small></div><b>${row.mentalIndex}</b></div><div class="pressure-radar-bars"><div><span>CLUTCH</span><i style="width:${row.clutchRate}%"></i><strong>${row.clutchRate.toFixed(0)}</strong></div><div><span>KNOCKOUT</span><i style="width:${row.knockoutRate}%"></i><strong>${row.knockoutRate.toFixed(0)}</strong></div><div><span>RESILIENCE</span><i style="width:${row.resilience}%"></i><strong>${row.resilience.toFixed(0)}</strong></div></div><footer><span>${escapeHTML(row.archetypeLabel)}</span><em class="${row.trend >= 0 ? "positive" : "negative"}">${intelligenceSigned(row.trend)}</em></footer></article>`).join("")}</section>
+      <div class="info-box"><strong>${intelligenceCopy("Model notu:", "Model note:")}</strong> ${intelligenceCopy("Mental puan; yakın maç başarısı, eleme/final performansı, favoriyken skor koruma, güçlü rakibe karşı sürpriz ve canlı kayıtlardaki geri dönüşlerden hesaplanır. Bu bir psikolojik teşhis değil, turnuva içi performans göstergesidir.", "The mental score is calculated from close-match success, knockout/final performance, favourite protection, upsets against stronger opponents and comebacks recorded live. It is a tournament performance indicator, not a psychological diagnosis.")}</div>
+    </div>`;
+  }
+
+  function buildPowerExchange() {
+    const elo = buildEloAnalytics();
+    const form = buildFormAnalytics(20, "all");
+    const pressure = buildPressureChamber();
+    const simulation = buildTournamentSimulation();
+    const simMap = new Map((simulation?.rows || []).map(row => [row.name, row]));
+    const formRank = new Map(form.players.map((row, index) => [row.name, index + 1]));
+    const simRank = new Map((simulation?.rows || []).map((row, index) => [row.name, index + 1]));
+
+    const players = intelligenceNames().map(name => {
+      const e = elo.playerMap.get(name) || { rating:1500, rank:99, last5Change:0, timeline:[] };
+      const f = form.playerMap.get(name) || { formIndex:50, momentum:0, results:[], last5Points:0, previous5Points:0, games:0 };
+      const p = pressure.playerMap.get(name) || { mentalIndex:50 };
+      const s = simMap.get(name) || { championProbability:0, finalProbability:0 };
+      const titleSignal = Math.sqrt(Math.max(0, s.championProbability || 0)) * 100;
+      const raw = 100 + (e.rating - 1500) * .23 + (f.formIndex - 50) * .46 + f.momentum * 1.45 + (p.mentalIndex - 50) * .2 + titleSignal * .22;
+      const powerIndex = Math.round(Math.max(55, Math.min(235, raw)) * 10) / 10;
+      const change = e.last5Change * .12 + f.momentum * 1.35 + (f.last5Points - f.previous5Points) * .38;
+      const points = (f.results || []).slice(-10).map(item => item.result === "W" ? 3 : item.result === "D" ? 1 : 0);
+      const mean = points.length ? points.reduce((sum, value) => sum + value, 0) / points.length : 1.5;
+      const variance = points.length ? points.reduce((sum, value) => sum + Math.pow(value - mean, 2), 0) / points.length : 0;
+      const goalDiffs = (f.results || []).slice(-10).map(item => item.gf - item.ga);
+      const gdMean = goalDiffs.length ? goalDiffs.reduce((sum, value) => sum + value, 0) / goalDiffs.length : 0;
+      const gdVariance = goalDiffs.length ? goalDiffs.reduce((sum, value) => sum + Math.pow(value - gdMean, 2), 0) / goalDiffs.length : 0;
+      const volatility = Math.round(intelligenceClamp(18 + Math.sqrt(variance) * 24 + Math.sqrt(gdVariance) * 8 + Math.abs(f.momentum) * 2));
+      const fRank = formRank.get(name) || 99;
+      const sRank = simRank.get(name) || 99;
+      let valuation = "fair";
+      let valuationLabel = intelligenceCopy("DENGELİ", "FAIR VALUE");
+      if ((fRank + 3 <= e.rank || sRank + 4 <= e.rank) && change >= 0) { valuation = "undervalued"; valuationLabel = intelligenceCopy("GİZLİ DEĞER", "UNDERVALUED"); }
+      else if (e.rank + 4 <= fRank && change < 0) { valuation = "overheated"; valuationLabel = intelligenceCopy("AŞIRI ISINMIŞ", "OVERHEATED"); }
+      else if (change >= 5) { valuation = "rally"; valuationLabel = intelligenceCopy("GÜÇLÜ RALLİ", "STRONG RALLY"); }
+      else if (change <= -5) { valuation = "selloff"; valuationLabel = intelligenceCopy("SERT DÜŞÜŞ", "SELL-OFF"); }
+      return {
+        name,
+        powerIndex,
+        change,
+        volatility,
+        valuation,
+        valuationLabel,
+        elo:e.rating,
+        eloRank:e.rank || 99,
+        form:f.formIndex || 50,
+        formRank:fRank,
+        mental:p.mentalIndex || 50,
+        championProbability:s.championProbability || 0,
+        finalProbability:s.finalProbability || 0,
+        spark:(e.timeline || []).slice(-14).map(item => item.rating)
+      };
+    }).sort((a, b) => b.powerIndex - a.powerIndex || b.elo - a.elo || a.name.localeCompare(b.name, "tr"))
+      .map((row, index) => ({ ...row, rank:index + 1 }));
+
+    return {
+      players,
+      leader:players[0] || null,
+      riser:[...players].sort((a,b)=>b.change-a.change)[0] || null,
+      faller:[...players].sort((a,b)=>a.change-b.change)[0] || null,
+      hidden:[...players].filter(row=>row.valuation==="undervalued").sort((a,b)=>b.change-a.change||b.powerIndex-a.powerIndex)[0] || null,
+      volatile:[...players].sort((a,b)=>b.volatility-a.volatility)[0] || null
+    };
+  }
+
+  function renderPowerExchangeSection() {
+    const data = buildPowerExchange();
+    if (!data.players.length) return `<div class="info-box">${intelligenceCopy("Power Exchange için oyuncu verisi bekleniyor.", "Player data is required for Power Exchange.")}</div>`;
+    return `<div class="intel-section-stack">
+      <section class="exchange-hero"><div><div class="eyebrow">FIFA 9 POWER EXCHANGE</div><h2>${intelligenceCopy("Turnuva Güç Piyasası", "Tournament Power Market")}</h2><p>${intelligenceCopy("Elo, güncel form, mental güç ve şampiyonluk ihtimalini tek bir canlı Power Index içinde birleştirir. Her resmî sonuçtan sonra piyasa yeniden fiyatlanır.", "Combines Elo, current form, mental strength and title probability into one live Power Index. The market is repriced after every official result.")}</p></div><div class="exchange-ticker"><span>F9PX</span><strong>${data.leader?.powerIndex.toFixed(1) || "—"}</strong><b class="${(data.leader?.change || 0) >= 0 ? "positive" : "negative"}">${intelligenceSigned(data.leader?.change || 0)}</b><small>${escapeHTML(data.leader?.name || "")}</small></div></section>
+      <div class="exchange-summary-grid">
+        <article><span>${intelligenceCopy("Piyasa Lideri", "Market Leader")}</span><strong>${escapeHTML(data.leader?.name || "—")}</strong><b>${data.leader?.powerIndex.toFixed(1) || "—"}</b></article>
+        <article><span>${intelligenceCopy("En Güçlü Yükseliş", "Top Gainer")}</span><strong>${escapeHTML(data.riser?.name || "—")}</strong><b class="positive">${intelligenceSigned(data.riser?.change || 0)}</b></article>
+        <article><span>${intelligenceCopy("En Sert Düşüş", "Top Decliner")}</span><strong>${escapeHTML(data.faller?.name || "—")}</strong><b class="negative">${intelligenceSigned(data.faller?.change || 0)}</b></article>
+        <article><span>${intelligenceCopy("Gizli Değer", "Hidden Value")}</span><strong>${escapeHTML(data.hidden?.name || "—")}</strong><b>${data.hidden?.valuationLabel || intelligenceCopy("Veri bekleniyor", "Waiting for data")}</b></article>
+        <article><span>${intelligenceCopy("En Volatil", "Most Volatile")}</span><strong>${escapeHTML(data.volatile?.name || "—")}</strong><b>${data.volatile?.volatility || 0}/100</b></article>
+      </div>
+      <section class="panel"><div class="panel-header"><div><h3 class="panel-title">Power Exchange Board</h3><div class="panel-subtitle">${intelligenceCopy("Endeks değeri para veya bahis değeri değildir; oyuncunun turnuva içindeki birleşik rekabet gücünü temsil eder.", "The index is not money or a betting value; it represents the player's combined competitive strength within the tournament.")}</div></div><span class="badge badge-gold">AUTO REPRICE</span></div>
+        <div class="exchange-board"><div class="head"><span>#</span><span>${intelligenceCopy("Oyuncu", "Player")}</span><span>POWER INDEX</span><span>${intelligenceCopy("DEĞİŞİM", "CHANGE")}</span><span>${intelligenceCopy("TREND", "TREND")}</span><span>ELO</span><span>FORM</span><span>MENTAL</span><span>${intelligenceCopy("ŞAMPİYON", "CHAMPION")}</span><span>${intelligenceCopy("SİNYAL", "SIGNAL")}</span></div>${data.players.map(row => `<div class="exchange-row value-${row.valuation}"><span>${row.rank}</span><strong>${escapeHTML(row.name)}</strong><b>${row.powerIndex.toFixed(1)}</b><em class="${row.change >= 0 ? "positive" : "negative"}">${intelligenceSigned(row.change)}</em><span>${intelligenceSparkline(row.spark, row.change >= 0 ? "up" : "down")}</span><span>${row.elo}</span><span>${row.form}</span><span>${row.mental}</span><span>${simulationPct(row.championProbability,1)}</span><small>${escapeHTML(row.valuationLabel)}</small></div>`).join("")}</div>
+      </section>
+      <section class="exchange-card-grid">${data.players.slice(0,8).map(row => `<article class="exchange-player-card value-${row.valuation}"><header><span>#${row.rank}</span><small>${escapeHTML(row.valuationLabel)}</small></header><h3>${escapeHTML(row.name)}</h3><div class="exchange-index"><strong>${row.powerIndex.toFixed(1)}</strong><em class="${row.change >= 0 ? "positive" : "negative"}">${intelligenceSigned(row.change)}</em></div>${intelligenceSparkline(row.spark, row.change >= 0 ? "up" : "down")}<footer><span>${row.elo} ELO</span><span>${row.volatility} VOL</span><span>${simulationPct(row.championProbability,1)} TITLE</span></footer></article>`).join("")}</section>
+    </div>`;
+  }
+
+  function buildDestinyPath(name) {
+    const simulation = buildTournamentSimulation();
+    if (!simulation) return null;
+    const selected = simulation.rows.find(row => row.name === name) || simulation.rows[0];
+    if (!selected) return null;
+    const id = intelligencePlayerId(selected.name);
+    const nextMatch = liveEligibleMatches().find(match => [match.homeId, match.awayId].includes(id)) || null;
+    const odds = nextMatch ? buildMatchOdds(nextMatch, oddsBuildContext()) : null;
+    const playerSide = nextMatch?.homeId === id ? "home" : "away";
+    const winProbability = odds ? odds.market[playerSide].probability : 0;
+    const stageFactors = { league:8, gold:11, silver:11, knockout:15, final:18 };
+    const leverage = nextMatch ? stageFactors[nextMatch.phase] || 8 : 0;
+    const winSwing = nextMatch ? Math.min(18, (1 - winProbability) * leverage) : 0;
+    const lossSwing = nextMatch ? Math.min(18, winProbability * leverage) : 0;
+    const deterministic = simulation.mostLikely;
+    const projectedLeague = deterministic.leagueTable.find(row => row.id === id);
+    const projectedGroup = deterministic.goldIds.includes(id) ? "gold" : deterministic.silverIds.includes(id) ? "silver" : "out";
+    const projectedGroupRow = projectedGroup === "gold" ? deterministic.goldTable.find(row=>row.id===id) : projectedGroup === "silver" ? deterministic.silverTable.find(row=>row.id===id) : null;
+    const series = [...(deterministic.qf || []), ...(deterministic.semifinals || [])].filter(item => [item.playerAId,item.playerBId].includes(id));
+    const finalInvolvement = [deterministic.final?.homeId, deterministic.final?.awayId].includes(id) ? deterministic.final : null;
+    const routeOpponents = series.map(item => playerName(item.playerAId === id ? item.playerBId : item.playerAId));
+    if (finalInvolvement) routeOpponents.push(playerName(finalInvolvement.homeId === id ? finalInvolvement.awayId : finalInvolvement.homeId));
+    const groupProbability = projectedGroup === "gold" ? selected.goldProbability : projectedGroup === "silver" ? selected.silverProbability : selected.eliminatedProbability;
+    const currentLeague = leagueStandings().find(row=>row.id===id);
+    const actualGroup = state.current.phase2.generated ? (state.current.phase2.goldIds.includes(id) ? "gold" : state.current.phase2.silverIds.includes(id) ? "silver" : "out") : "";
+    return {
+      selected,
+      id,
+      simulation,
+      nextMatch,
+      odds,
+      winProbability,
+      winSwing,
+      lossSwing,
+      projectedLeague,
+      projectedGroup,
+      projectedGroupRow,
+      groupProbability,
+      routeOpponents,
+      currentLeague,
+      actualGroup,
+      nodes:[
+        { key:"league", label:intelligenceCopy("League Phase", "League Phase"), value:projectedLeague ? `${projectedLeague.rank}. · ${projectedLeague.pts} P` : "—", probability:1 },
+        { key:projectedGroup, label:projectedGroup === "gold" ? intelligenceCopy("Altın Grup", "Gold Group") : projectedGroup === "silver" ? intelligenceCopy("Gümüş Grup", "Silver Group") : intelligenceCopy("Elenme Hattı", "Elimination Line"), value:simulationPct(groupProbability,1), probability:groupProbability },
+        { key:"semi", label:intelligenceCopy("Yarı Final", "Semi-final"), value:simulationPct(selected.semiProbability,1), probability:selected.semiProbability },
+        { key:"final", label:intelligenceCopy("Final", "Final"), value:simulationPct(selected.finalProbability,1), probability:selected.finalProbability },
+        { key:"champion", label:intelligenceCopy("Şampiyon", "Champion"), value:simulationPct(selected.championProbability,1), probability:selected.championProbability }
+      ]
+    };
+  }
+
+  function renderDestinyPathSection() {
+    const simulation = buildTournamentSimulation();
+    if (!simulation) return emptyState("◇", intelligenceCopy("Kader Yolu Kura Sonrası Açılır", "Destiny Path Opens After the Draw"), intelligenceCopy("League Phase fikstürü oluşturulduğunda her oyuncunun olası turnuva rotası canlı simülasyondan hesaplanır.", "Once the League Phase schedule is generated, every player's possible tournament route is calculated from the live simulation."));
+    if (!intelligenceDestinyPlayer || !simulation.rows.some(row=>row.name===intelligenceDestinyPlayer)) intelligenceDestinyPlayer = simulation.rows[0]?.name || "";
+    const data = buildDestinyPath(intelligenceDestinyPlayer);
+    if (!data) return `<div class="info-box">${intelligenceCopy("Kader yolu oluşturulamadı.", "The destiny path could not be generated.")}</div>`;
+    const row = data.selected;
+    const nextOpponent = data.nextMatch ? playerName(data.nextMatch.homeId === data.id ? data.nextMatch.awayId : data.nextMatch.homeId) : "—";
+    return `<div class="intel-section-stack">
+      <section class="destiny-hero"><div><div class="eyebrow">DESTINY PATH</div><h2>${intelligenceCopy("Oyuncunun Kader Yolu", "Player Destiny Path")}</h2><p>${intelligenceCopy("Monte Carlo simülasyonu, güncel Elo ve kalan fikstürü kullanarak her oyuncunun kupaya giden olası rotasını sürekli yeniden çizer.", "Monte Carlo simulation continuously redraws every player's possible route to the trophy using current Elo and the remaining schedule.")}</p></div><select id="intelDestinyPlayerSelect">${simulation.rows.map(item=>`<option value="${escapeHTML(item.name)}" ${item.name===row.name?"selected":""}>${escapeHTML(item.name)} · ${simulationPct(item.championProbability,1)}</option>`).join("")}</select></section>
+      <section class="destiny-profile"><div class="destiny-player"><span>${escapeHTML(row.name.split(" ").map(part=>part[0]).slice(0,2).join("").toUpperCase())}</span><div><h3>${escapeHTML(row.name)}</h3><p>${row.elo} Elo · ${row.eloTier?.label || ""}</p></div><strong>${simulationPct(row.championProbability,1)}<small>${intelligenceCopy("ŞAMPİYONLUK", "TITLE")}</small></strong></div><div class="destiny-current-grid"><div><span>${intelligenceCopy("Tahmini Lig Sırası", "Projected League Rank")}</span><strong>${row.expectedLeagueRank.toFixed(1)}.</strong></div><div><span>${intelligenceCopy("Tahmini Puan", "Projected Points")}</span><strong>${row.expectedLeaguePoints.toFixed(1)}</strong></div><div><span>${intelligenceCopy("Yarı Final", "Semi-final")}</span><strong>${simulationPct(row.semiProbability,1)}</strong></div><div><span>${intelligenceCopy("Final", "Final")}</span><strong>${simulationPct(row.finalProbability,1)}</strong></div></div></section>
+      <section class="destiny-path-track">${data.nodes.map((node,index)=>`<article class="destiny-node node-${node.key}"><div class="destiny-node-ring" style="--destiny:${Math.round(node.probability*360)}deg"><span>${index+1}</span></div><strong>${escapeHTML(node.label)}</strong><b>${escapeHTML(node.value)}</b>${index<data.nodes.length-1?`<i>→</i>`:""}</article>`).join("")}</section>
+      <div class="grid-2 destiny-grids"><section class="panel"><div class="panel-header"><div><h3 class="panel-title">${intelligenceCopy("Sıradaki Kader Maçı", "Next Destiny Match")}</h3><div class="panel-subtitle">${intelligenceCopy("Bir sonraki resmî maçın model üzerindeki tahmini etkisi.", "Estimated model impact of the next official match.")}</div></div><span class="badge badge-gold">LEVERAGE</span></div>${data.nextMatch ? `<div class="destiny-next-match"><span>${escapeHTML(currentMatchStageLabel(data.nextMatch))}</span><div><strong>${escapeHTML(row.name)}</strong><b>VS</b><strong>${escapeHTML(nextOpponent)}</strong></div><p>${intelligenceCopy("Kazanma ihtimali", "Win probability")}: <b>${simulationPct(data.winProbability,1)}</b></p><div class="destiny-swing"><div class="win"><span>${intelligenceCopy("Kazanırsa tahmini sıçrama", "Estimated upside with a win")}</span><strong>+${data.winSwing.toFixed(1)} pp</strong></div><div class="loss"><span>${intelligenceCopy("Kaybederse tahmini risk", "Estimated downside with a loss")}</span><strong>−${data.lossSwing.toFixed(1)} pp</strong></div></div></div>` : `<div class="info-box">${intelligenceCopy("Bekleyen maç bulunmuyor; kader yolu tamamlandı.", "No pending match remains; the destiny path is complete.")}</div>`}</section>
+      <section class="panel"><div class="panel-header"><div><h3 class="panel-title">${intelligenceCopy("En Olası Yolculuk", "Most Likely Journey")}</h3><div class="panel-subtitle">${intelligenceCopy("Ana simülasyon senaryosundaki rakip ve aşamalar.", "Opponents and stages in the primary simulation scenario.")}</div></div><span class="badge badge-blue">PATH MAP</span></div><div class="destiny-route-list"><div><span>${intelligenceCopy("League Phase", "League Phase")}</span><strong>${data.projectedLeague ? `${data.projectedLeague.rank}. ${intelligenceCopy("sıra", "place")} · ${data.projectedLeague.pts} P` : "—"}</strong></div><div><span>${intelligenceCopy("İkinci Aşama", "Second Stage")}</span><strong>${data.projectedGroup === "gold" ? intelligenceCopy("Altın Grup", "Gold Group") : data.projectedGroup === "silver" ? intelligenceCopy("Gümüş Grup", "Silver Group") : intelligenceCopy("Elendi", "Eliminated")}${data.projectedGroupRow ? ` · ${data.projectedGroupRow.rank}.` : ""}</strong></div><div><span>${intelligenceCopy("Olası Rakipler", "Likely Opponents")}</span><strong>${escapeHTML(data.routeOpponents.join(" → ") || intelligenceCopy("Henüz oluşmadı", "Not formed yet"))}</strong></div><div><span>${intelligenceCopy("Model Kararı", "Model Verdict")}</span><strong>${row.championProbability >= .2 ? intelligenceCopy("Kupaya gerçek aday", "Genuine title contender") : row.finalProbability >= .25 ? intelligenceCopy("Final yolu açık", "Final route is open") : row.semiProbability >= .35 ? intelligenceCopy("Tehlikeli yarışmacı", "Dangerous challenger") : intelligenceCopy("Sürpriz yol arıyor", "Seeking an upset route")}</strong></div></div></section></div>
+      <div class="info-box"><strong>${intelligenceCopy("Kader sabit değildir:", "Destiny is not fixed:")}</strong> ${intelligenceCopy("Yeni bir gerçek skor girildiğinde bütün yol, rakip ihtimalleri ve şampiyonluk yüzdesi otomatik yeniden hesaplanır. Sıçrama/risk değerleri modelin yaklaşık kaldıraç tahminidir.", "Whenever a new official score is recorded, the whole route, opponent probabilities and championship percentage are recalculated automatically. Upside/downside values are approximate model leverage estimates.")}</div>
+    </div>`;
+  }
+
+  function buildLiveMatchPulse() {
+    const active = getActiveLive();
+    if (!active) return null;
+    const { live, match } = active;
+    const base = buildMatchOdds(match, oddsBuildContext());
+    const probability = liveProbabilityModel(base, live);
+    const momentum = liveMomentumLabel(live, match);
+    const goals = [...(live.events || [])].filter(event=>event.type==="goal").sort((a,b)=>Number(a.minute)-Number(b.minute)||String(a.createdAt||"").localeCompare(String(b.createdAt||"")));
+    let home = 0, away = 0, previousLeader = "draw", leadChanges = 0;
+    const timeline = goals.map(event => {
+      if (event.side === "home") home += 1;
+      if (event.side === "away") away += 1;
+      const leader = home === away ? "draw" : home > away ? "home" : "away";
+      if (leader !== previousLeader && previousLeader !== "draw") leadChanges += 1;
+      previousLeader = leader;
+      const snapshot = { ...live, minute:Number(event.minute)||0, addedTime:Number(event.addedTime)||0, homeScore:home, awayScore:away };
+      const probs = liveProbabilityModel(base, snapshot);
+      return { minute:Number(event.minute)||0, home, away, probs, side:event.side };
+    });
+    const minute = Math.min(120, Math.max(0, Number(live.minute)||0));
+    const scoreDiff = Math.abs((Number(live.homeScore)||0)-(Number(live.awayScore)||0));
+    const totalGoals = (Number(live.homeScore)||0)+(Number(live.awayScore)||0);
+    const recentGoals = goals.filter(event=>minute-(Number(event.minute)||0)<=15).length;
+    const importance = matchImportance(match);
+    const importanceScore = { standard:8, high:16, critical:24, legendary:30 }[importance.level] || 8;
+    const chaos = Math.round(intelligenceClamp(totalGoals*7 + leadChanges*15 + (scoreDiff<=1?20:5) + recentGoals*8 + importanceScore*.45));
+    const pressure = Math.round(intelligenceClamp(minute/90*35 + (scoreDiff<=1?28:10) + importanceScore + (minute>=80?12:0)));
+    const pulse = Math.round(Math.min(152, 60 + chaos*.52 + pressure*.34));
+    const expectedHome = oddsClamp((base.home.avgGoals + base.away.gaPerGame) / 2 + base.difference / 38, .5, 7.5);
+    const expectedAway = oddsClamp((base.away.avgGoals + base.home.gaPerGame) / 2 - base.difference / 38, .5, 7.5);
+    const homeAttack = expectedHome * (momentum.side === "home" ? 1.16 : momentum.side === "away" ? .91 : 1);
+    const awayAttack = expectedAway * (momentum.side === "away" ? 1.16 : momentum.side === "home" ? .91 : 1);
+    const nextGoalSide = homeAttack === awayAttack ? "draw" : homeAttack > awayAttack ? "home" : "away";
+    const leaderSide = probability.home >= probability.away && probability.home >= probability.draw ? "home" : probability.away >= probability.home && probability.away >= probability.draw ? "away" : "draw";
+    const trailingSide = Number(live.homeScore) < Number(live.awayScore) ? "home" : Number(live.awayScore) < Number(live.homeScore) ? "away" : "draw";
+    const comebackProbability = trailingSide === "home" ? probability.home : trailingSide === "away" ? probability.away : Math.min(probability.home, probability.away);
+    return { live, match, base, probability, momentum, timeline, leadChanges, chaos, pressure, pulse, nextGoalSide, leaderSide, trailingSide, comebackProbability, importance };
+  }
+
+  function renderLiveMatchPulseSection() {
+    const data = buildLiveMatchPulse();
+    if (!data) {
+      const archive = Object.values(getLiveState().archive || {}).sort((a,b)=>String(b.finishedAt||"").localeCompare(String(a.finishedAt||""))).slice(0,4);
+      return `<div class="intel-section-stack"><section class="pulse-hero idle"><div><div class="eyebrow">LIVE MATCH PULSE</div><h2>${intelligenceCopy("Canlı Maç Nabzı", "Live Match Pulse")}</h2><p>${intelligenceCopy("Canlı maç başladığında skor, dakika, gol akışı ve oyuncu gücünden maçın psikolojik ritmini gerçek zamanlı hesaplar.", "When a live match begins, it calculates the psychological rhythm of the match in real time from score, minute, goal flow and player strength.")}</p></div><div class="pulse-idle-orb"><span>—</span><small>OFF AIR</small></div></section><div class="info-box"><strong>${intelligenceCopy("Şu anda canlı maç yok.", "There is no live match right now.")}</strong> ${intelligenceCopy("Canlı Maç Merkezi'nden bir fikstür başlatıldığında bu ekran otomatik aktif olur.", "This screen activates automatically when a fixture is started from Live Match Centre.")}</div>${archive.length?`<section class="panel"><div class="panel-header"><div><h3 class="panel-title">${intelligenceCopy("Son Canlı Yayınlar", "Recent Live Broadcasts")}</h3></div></div><div class="live-archive-grid">${archive.map(renderLiveArchiveCard).join("")}</div></section>`:""}</div>`;
+    }
+    const { live, match } = data;
+    const homeName = playerName(match.homeId), awayName = playerName(match.awayId);
+    const controlName = data.leaderSide === "home" ? homeName : data.leaderSide === "away" ? awayName : intelligenceCopy("Denge", "Balanced");
+    const nextGoalName = data.nextGoalSide === "home" ? homeName : data.nextGoalSide === "away" ? awayName : intelligenceCopy("Eşit", "Even");
+    const timelineValues = data.timeline.length ? data.timeline.map(item=>item.probs.home*100) : [data.base.market.home.probability*100,data.probability.home*100];
+    return `<div class="intel-section-stack">
+      <section class="pulse-hero active"><div><div class="eyebrow"><span class="live-pulse-dot"></span> LIVE MATCH PULSE</div><h2>${escapeHTML(homeName)} <b>${live.homeScore}–${live.awayScore}</b> ${escapeHTML(awayName)}</h2><p>${escapeHTML(currentMatchStageLabel(match))} · ${liveMinuteText(live)} · ${escapeHTML(liveStatusText(live))}</p></div><div class="pulse-orb" style="--pulse-speed:${Math.max(.48,1.35-data.pulse/170).toFixed(2)}s;--pulse-level:${data.pulse}"><strong>${data.pulse}</strong><span>BPM</span><small>${intelligenceCopy("MAÇ NABZI", "MATCH PULSE")}</small></div></section>
+      <section class="pulse-scoreboard"><div class="pulse-player home"><span>${escapeHTML(match.homeTeam||"")}</span><strong>${escapeHTML(homeName)}</strong><b>${simulationPct(data.probability.home,1)}</b><small>${intelligenceCopy("kazanma", "win")}</small></div><div class="pulse-centre"><span>${liveMinuteText(live)}</span><strong>${live.homeScore} – ${live.awayScore}</strong><small>${escapeHTML(data.momentum.label)}</small></div><div class="pulse-player away"><span>${escapeHTML(match.awayTeam||"")}</span><strong>${escapeHTML(awayName)}</strong><b>${simulationPct(data.probability.away,1)}</b><small>${intelligenceCopy("kazanma", "win")}</small></div></section>
+      <div class="pulse-metric-grid"><article><span>${intelligenceCopy("Momentum", "Momentum")}</span><strong>${escapeHTML(data.momentum.label)}</strong><div><i style="width:${data.momentum.strength}%"></i></div></article><article><span>${intelligenceCopy("Maç Kontrolü", "Match Control")}</span><strong>${escapeHTML(controlName)}</strong><b>${simulationPct(Math.max(data.probability.home,data.probability.away,data.probability.draw),1)}</b></article><article><span>${intelligenceCopy("Baskı Seviyesi", "Pressure Level")}</span><strong>${data.pressure}/100</strong><div><i style="width:${data.pressure}%"></i></div></article><article><span>${intelligenceCopy("Kaos Endeksi", "Chaos Index")}</span><strong>${data.chaos}/100</strong><div><i style="width:${data.chaos}%"></i></div></article><article><span>${intelligenceCopy("Geri Dönüş İhtimali", "Comeback Probability")}</span><strong>${simulationPct(data.comebackProbability,1)}</strong><small>${data.trailingSide==="draw"?intelligenceCopy("Skor dengede", "Score is level"):escapeHTML(data.trailingSide==="home"?homeName:awayName)}</small></article><article><span>${intelligenceCopy("Sonraki Gol Sinyali", "Next Goal Signal")}</span><strong>${escapeHTML(nextGoalName)}</strong><small>${intelligenceCopy("Model tahmini", "Model estimate")}</small></article></div>
+      <div class="grid-2"><section class="panel"><div class="panel-header"><div><h3 class="panel-title">${intelligenceCopy("Canlı Olasılık Akışı", "Live Probability Flow")}</h3><div class="panel-subtitle">${intelligenceCopy("Her gol sonrası ev sahibi kazanma ihtimalinin değişimi.", "Change in home win probability after each goal.")}</div></div><span class="badge badge-gold">${data.timeline.length} EVENTS</span></div><div class="pulse-flow-chart">${intelligenceSparkline(timelineValues,"pulse-flow")}</div><div class="pulse-probability-bar"><i class="home" style="width:${data.probability.home*100}%"></i><i class="draw" style="width:${data.probability.draw*100}%"></i><i class="away" style="width:${data.probability.away*100}%"></i></div><div class="pulse-probability-legend"><span>${escapeHTML(homeName)} ${simulationPct(data.probability.home,1)}</span><span>X ${simulationPct(data.probability.draw,1)}</span><span>${escapeHTML(awayName)} ${simulationPct(data.probability.away,1)}</span></div></section>
+      <section class="panel"><div class="panel-header"><div><h3 class="panel-title">${intelligenceCopy("Nabız Yorumu", "Pulse Commentary")}</h3><div class="panel-subtitle">${intelligenceCopy("Skor, dakika ve olay ritminden üretilen anlık maç resmi.", "A live match picture generated from score, minute and event rhythm.")}</div></div><span class="badge badge-blue">LIVE AI</span></div><div class="pulse-commentary"><p>${data.chaos>=75?intelligenceCopy("Maç tam bir kaos bölgesinde; tek gol bütün olasılık haritasını değiştirebilir.","The match is in a full chaos zone; one goal can transform the entire probability map."):data.pressure>=75?intelligenceCopy("Baskı zirvede. Skor farkı dar ve zaman hızla tükeniyor.","Pressure is peaking. The margin is narrow and time is running out quickly."):data.momentum.side!=="draw"?`${escapeHTML(data.momentum.label)}. ${intelligenceCopy("Sonraki beş dakika kritik.","The next five minutes are critical.")}`:intelligenceCopy("Maç dengeli ilerliyor; kontrolü alacak ilk güçlü seri belirleyici olabilir.","The match remains balanced; the first strong sequence to seize control may be decisive.")}</p><div><span>${intelligenceCopy("Kritiklik", "Importance")}</span><strong>${escapeHTML(data.importance.label)}</strong></div><div><span>${intelligenceCopy("Liderlik Değişimi", "Lead Changes")}</span><strong>${data.leadChanges}</strong></div><div><span>${intelligenceCopy("Beraberlik", "Draw")}</span><strong>${simulationPct(data.probability.draw,1)}</strong></div></div></section></div>
+    </div>`;
+  }
+
+  function directorImportanceScore(match) {
+    const level = matchImportance(match).level;
+    return { legendary:4, critical:3, high:2, standard:1 }[level] || 1;
+  }
+
+  function buildTournamentDirectorBriefing() {
+    const lang = intelligenceLanguage();
+    const elo = buildEloAnalytics();
+    const form = buildFormAnalytics(20,"all");
+    const simulation = buildTournamentSimulation();
+    const odds = state.current.league.generated ? buildOddsAnalytics() : { fixtures:[] };
+    const active = getActiveLive();
+    const league = state.current.league.generated ? leagueStandings() : [];
+    const recent = buildLiveTournamentAnalytics().recentMatches?.[0] || null;
+    const next = [...(odds.fixtures || [])].sort((a,b)=>directorImportanceScore(findMatch(b.id))-directorImportanceScore(findMatch(a.id))||b.confidence-a.confidence)[0] || null;
+    const seed = `${simulationFingerprint()}|${directorTone}|${directorNonce}|${lang}`;
+    const rand = seededRandom(seed);
+    const choose = list => list[Math.floor(rand()*list.length)] || list[0] || "";
+    const leaderName = league[0] ? playerName(league[0].id) : elo.summary.leader?.name || "—";
+    const titleFavourite = simulation?.favorite?.name || elo.summary.leader?.name || "—";
+    const titlePct = simulation ? simulationPct(simulation.favorite?.championProbability,1) : "—";
+    const mover = elo.summary.mover?.name || form.records.momentum?.name || "—";
+    const nextLabel = next ? `${next.home.name} – ${next.away.name}` : intelligenceCopy("Fikstür bekleniyor", "Waiting for fixtures");
+    const recentLine = recent ? `${recent.homeName} ${recent.match.homeScore}–${recent.match.awayScore} ${recent.awayName}` : intelligenceCopy("Henüz güncel sonuç yok", "No current result yet");
+
+    const packs = {
+      analyst: {
+        title: lang === "en" ? choose(["The model has recalibrated", "Competitive balance update", "The numbers have moved"]) : choose(["Model yeniden kalibre oldu", "Rekabet dengesi güncellendi", "Rakamlar yeniden hareket etti"]),
+        opening: lang === "en" ? `Current leader: ${leaderName}. The simulation lists ${titleFavourite} as title favourite at ${titlePct}.` : `Güncel lider ${leaderName}. Simülasyon, ${titleFavourite} için şampiyonluk ihtimalini ${titlePct} olarak hesaplıyor.`,
+        verdict: lang === "en" ? `${nextLabel} is the most influential upcoming matchup in the current model.` : `${nextLabel}, mevcut modelde sıradaki en yüksek etkili karşılaşma.`
+      },
+      dramatic: {
+        title: lang === "en" ? choose(["The road to the throne is changing", "A storm is building in FIFA 9", "The tournament has entered a new chapter"]) : choose(["Tahta giden yol değişiyor", "FIFA 9'da fırtına yaklaşıyor", "Turnuva yeni bir bölüme girdi"]),
+        opening: lang === "en" ? `${leaderName} holds the line, but ${titleFavourite} owns the strongest championship signal at ${titlePct}.` : `${leaderName} liderlik çizgisini tutuyor; ancak en güçlü şampiyonluk sinyali ${titlePct} ile ${titleFavourite}'den geliyor.`,
+        verdict: lang === "en" ? `All eyes now turn to ${nextLabel}. One result can rewrite the path.` : `Şimdi bütün gözler ${nextLabel} maçında. Tek bir sonuç bütün yolu yeniden yazabilir.`
+      },
+      ruthless: {
+        title: lang === "en" ? choose(["No reputation survives the data", "The table does not care about excuses", "Only current power matters"]) : choose(["Veri karşısında ünvanların hükmü yok", "Puan tablosu mazeret dinlemez", "Yalnızca güncel güç önemlidir"]),
+        opening: lang === "en" ? `${leaderName} leads. ${titleFavourite} remains the model favourite at ${titlePct}. Everyone else must prove the numbers wrong.` : `${leaderName} lider. Model favorisi ${titlePct} ile ${titleFavourite}. Geri kalan herkes rakamların yanıldığını sahada kanıtlamak zorunda.`,
+        verdict: lang === "en" ? `${nextLabel} is not another fixture; it is a ranking test.` : `${nextLabel} sıradan bir fikstür değil; doğrudan bir güç testi.`
+      },
+      captain: {
+        title: lang === "en" ? choose(["Matchday orders are ready", "Stay sharp, the route is open", "The next mission begins"]) : choose(["Maç günü emirleri hazır", "Hazır olun, rota açık", "Sıradaki görev başlıyor"]),
+        opening: lang === "en" ? `Leader ${leaderName}; title favourite ${titleFavourite} at ${titlePct}. Focus remains on the next ninety minutes.` : `Lider ${leaderName}; şampiyonluk favorisi ${titlePct} ile ${titleFavourite}. Odak yalnızca sıradaki doksan dakikada.`,
+        verdict: lang === "en" ? `Priority fixture: ${nextLabel}. Discipline first, result second.` : `Öncelikli maç: ${nextLabel}. Önce disiplin, sonra sonuç.`
+      }
+    };
+    const voice = packs[directorTone] || packs.analyst;
+    const alerts = [];
+    if (active) alerts.push(lang === "en" ? `LIVE: ${playerName(active.match.homeId)} ${active.live.homeScore}–${active.live.awayScore} ${playerName(active.match.awayId)} at ${liveMinuteText(active.live)}.` : `CANLI: ${playerName(active.match.homeId)} ${active.live.homeScore}–${active.live.awayScore} ${playerName(active.match.awayId)} · ${liveMinuteText(active.live)}.`);
+    if (elo.summary.mover) alerts.push(lang === "en" ? `${mover} is the fastest Elo riser over the latest five matches (${intelligenceSigned(elo.summary.mover.last5Change,0)}).` : `${mover}, son beş maçın en hızlı Elo yükseleni (${intelligenceSigned(elo.summary.mover.last5Change,0)}).`);
+    if (form.records.unbeaten) alerts.push(lang === "en" ? `${form.records.unbeaten.name} owns the longest active unbeaten run: ${form.records.unbeaten.currentUnbeatenStreak} matches.` : `${form.records.unbeaten.name}, ${form.records.unbeaten.currentUnbeatenStreak} maçla en uzun aktif yenilmezlik serisine sahip.`);
+    if (simulation?.surprise) alerts.push(lang === "en" ? `Dark-horse watch: ${simulation.surprise.name} reaches the final in ${simulationPct(simulation.surprise.finalProbability,1)} of simulations.` : `Sürpriz alarmı: ${simulation.surprise.name}, simülasyonların ${simulationPct(simulation.surprise.finalProbability,1)} bölümünde finale çıkıyor.`);
+    alerts.push(lang === "en" ? `Latest official result: ${recentLine}.` : `Son resmî sonuç: ${recentLine}.`);
+    return { ...voice, alerts, leaderName, titleFavourite, titlePct, mover, next, nextLabel, recentLine, tone:directorTone, generatedAt:new Date().toISOString() };
+  }
+
+  function directorToneLabel(tone) {
+    const labels = {
+      analyst:intelligenceCopy("Spor Analisti", "Sports Analyst"),
+      dramatic:intelligenceCopy("Dramatik Spiker", "Dramatic Commentator"),
+      ruthless:intelligenceCopy("Acımasız İstatistikçi", "Ruthless Statistician"),
+      captain:intelligenceCopy("Turnuva Kaptanı", "Tournament Captain")
+    };
+    return labels[tone] || labels.analyst;
+  }
+
+  function renderTournamentDirectorSection() {
+    const briefing = buildTournamentDirectorBriefing();
+    const toneButtons = ["analyst","dramatic","ruthless","captain"];
+    return `<div class="intel-section-stack">
+      <section class="director-hero"><div><div class="eyebrow">AI TOURNAMENT DIRECTOR</div><h2>${intelligenceCopy("Turnuvanın Dijital Sesi", "The Digital Voice of the Tournament")}</h2><p>${intelligenceCopy("Sonuçları, Elo hareketlerini, canlı maçı ve simülasyonu okuyarak otomatik maç günü bülteni, uyarı ve gündem üretir.", "Reads results, Elo movement, the live match and simulation to generate an automatic matchday briefing, alerts and agenda.")}</p><div class="director-actions"><button class="btn btn-gold" data-action="refresh-director-briefing">${intelligenceCopy("Yeni Bülten Oluştur", "Generate New Briefing")}</button><button class="btn btn-ghost" data-action="share-director-briefing">${intelligenceCopy("WhatsApp'ta Paylaş", "Share on WhatsApp")}</button></div></div><div class="director-avatar"><span>AI</span><i>F9</i><b>DIRECTOR</b></div></section>
+      <section class="panel director-console"><div class="panel-header"><div><h3 class="panel-title">${intelligenceCopy("Direktör Sesi", "Director Voice")}</h3><div class="panel-subtitle">${intelligenceCopy("Aynı veriyi farklı anlatım karakterleriyle sunar.", "Presents the same data through different narrative personalities.")}</div></div><span class="badge badge-gold">${escapeHTML(directorToneLabel(directorTone))}</span></div><div class="director-tone-tabs">${toneButtons.map(tone=>`<button class="${tone===directorTone?"active":""}" data-action="set-director-tone" data-director-tone="${tone}">${escapeHTML(directorToneLabel(tone))}</button>`).join("")}</div></section>
+      <section class="director-briefing"><header><span>${intelligenceCopy("GÜNLÜK DİREKTÖR BÜLTENİ", "DAILY DIRECTOR BRIEFING")}</span><small>${new Date(briefing.generatedAt).toLocaleString(intelligenceLanguage()==="en"?"en-GB":"tr-TR",{dateStyle:"medium",timeStyle:"short"})}</small></header><h3>${escapeHTML(briefing.title)}</h3><p class="director-opening">${escapeHTML(briefing.opening)}</p><div class="director-alert-feed">${briefing.alerts.map((item,index)=>`<div><span>${String(index+1).padStart(2,"0")}</span><p>${escapeHTML(item)}</p></div>`).join("")}</div><blockquote>${escapeHTML(briefing.verdict)}</blockquote><footer><span>AI TOURNAMENT DIRECTOR</span><strong>${escapeHTML(directorToneLabel(directorTone))}</strong></footer></section>
+      <div class="grid-2"><section class="panel"><div class="panel-header"><div><h3 class="panel-title">${intelligenceCopy("Bugünün Kontrol Paneli", "Today's Control Panel")}</h3></div><span class="badge badge-blue">AUTO BRIEF</span></div><div class="director-control-grid"><div><span>${intelligenceCopy("Güncel Lider", "Current Leader")}</span><strong>${escapeHTML(briefing.leaderName)}</strong></div><div><span>${intelligenceCopy("Şampiyonluk Favorisi", "Title Favourite")}</span><strong>${escapeHTML(briefing.titleFavourite)} · ${briefing.titlePct}</strong></div><div><span>${intelligenceCopy("Elo Yükseleni", "Elo Riser")}</span><strong>${escapeHTML(briefing.mover)}</strong></div><div><span>${intelligenceCopy("Öncelikli Maç", "Priority Match")}</span><strong>${escapeHTML(briefing.nextLabel)}</strong></div></div></section><section class="panel"><div class="panel-header"><div><h3 class="panel-title">${intelligenceCopy("Direktör Protokolü", "Director Protocol")}</h3></div></div><div class="format-list"><div class="format-row"><div class="format-icon">1</div><div><div class="format-title">${intelligenceCopy("Gerçek sonuçları oku", "Read official results")}</div><div class="format-desc">${intelligenceCopy("Puan tablosu, Elo ve form değişimini tarar.", "Scans standings, Elo and form movement.")}</div></div></div><div class="format-row"><div class="format-icon">2</div><div><div class="format-title">${intelligenceCopy("Kritik gelişmeyi seç", "Select critical development")}</div><div class="format-desc">${intelligenceCopy("Canlı maç, seri, simülasyon ve sürpriz sinyallerini önceliklendirir.", "Prioritises live matches, streaks, simulation and upset signals.")}</div></div></div><div class="format-row"><div class="format-icon">3</div><div><div class="format-title">${intelligenceCopy("Bülteni yeniden yaz", "Rewrite the briefing")}</div><div class="format-desc">${intelligenceCopy("Seçilen anlatım karakterine göre dinamik metin üretir.", "Generates dynamic copy in the selected narrative voice.")}</div></div></div></div></section></div>
+      <div class="info-box"><strong>${intelligenceCopy("Şeffaflık:", "Transparency:")}</strong> ${intelligenceCopy("Direktör metinleri sitenin kayıtlı verilerinden çalışan kurallı bir anlatım motoruyla üretilir; dışarıya veri göndermez ve kesin sonuç iddiasında bulunmaz.", "Director copy is generated by a rules-based narrative engine using data stored on the site; it sends no data externally and makes no claim of certainty.")}</div>
+    </div>`;
+  }
+
+  async function shareDirectorBriefing() {
+    const briefing = buildTournamentDirectorBriefing();
+    const lines = [
+      `🧠 FIFA 9 · AI TOURNAMENT DIRECTOR`,
+      `*${briefing.title}*`,
+      briefing.opening,
+      ...briefing.alerts.slice(0,4).map(item=>`• ${item}`),
+      `🎯 ${briefing.verdict}`,
+      window.location.href
+    ];
+    const text = lines.join("\n");
+    if (navigator.share) {
+      try { await navigator.share({ title:"FIFA 9 Director Briefing", text, url:window.location.href }); return; } catch (error) { if (error?.name === "AbortError") return; }
+    }
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,"_blank","noopener,noreferrer");
+  }
+
   function renderIntelligenceCentre() {
     const sections = [
-      ["matchday", "Matchday", "◈"], ["elo", "Elo", "↗"], ["rivalry", "Rivalry DNA", "∞"],
-      ["predictions", "Tahmin Ligi", "1X2"], ["achievements", "Rozetler", "♛"],
-      ["simulator", "Simülatör", "◇"], ["cards", "Oyuncu Kartları", "▣"]
+      ["matchday", "Matchday", "◈"], ["elo", "Elo", "↗"], ["exchange", "Power Exchange", "⌁"],
+      ["pressure", intelligenceCopy("Baskı", "Pressure"), "◆"], ["destiny", intelligenceCopy("Kader Yolu", "Destiny Path"), "◇"],
+      ["pulse", intelligenceCopy("Live Pulse", "Live Pulse"), "♥"], ["director", "AI Director", "AI"],
+      ["rivalry", "Rivalry DNA", "∞"], ["predictions", intelligenceCopy("Tahmin Ligi", "Prediction League"), "1X2"],
+      ["achievements", intelligenceCopy("Rozetler", "Achievements"), "♛"], ["simulator", intelligenceCopy("Simülatör", "Simulator"), "◌"],
+      ["cards", intelligenceCopy("Oyuncu Kartları", "Player Cards"), "▣"]
     ];
-    const renderers = { matchday:renderMatchdaySection, elo:renderEloSection, rivalry:renderRivalrySection, predictions:renderPredictionSection, achievements:renderAchievementsSection, simulator:renderSimulatorSection, cards:renderPlayerCardSection };
+    const renderers = {
+      matchday:renderMatchdaySection,
+      elo:renderEloSection,
+      exchange:renderPowerExchangeSection,
+      pressure:renderPressureChamberSection,
+      destiny:renderDestinyPathSection,
+      pulse:renderLiveMatchPulseSection,
+      director:renderTournamentDirectorSection,
+      rivalry:renderRivalrySection,
+      predictions:renderPredictionSection,
+      achievements:renderAchievementsSection,
+      simulator:renderSimulatorSection,
+      cards:renderPlayerCardSection
+    };
     if (!renderers[intelligenceSection]) intelligenceSection = "matchday";
-    view.innerHTML = `<div class="group-banner intelligence-banner"><div><div class="eyebrow">FIFA 9 · INTELLIGENCE SUITE v18</div><h2>Turnuva Zekâ Merkezi</h2><p>Maç öncesi analizden canlı momentuma, Elo gücünden rekabet DNA’sına, tahmin liginden oyuncu kartlarına kadar bütün veri katmanları tek merkezde.</p></div><div class="intelligence-orbit"><span>AI</span><i>LIVE</i><b>DATA</b></div></div>
-      <nav class="intel-tabs" aria-label="Intelligence modules">${sections.map(([key,label,icon])=>`<button class="${intelligenceSection===key?"active":""}" data-action="set-intelligence-section" data-intelligence-section="${key}"><span>${icon}</span><strong>${label}</strong></button>`).join("")}</nav>
+    view.innerHTML = `<div class="group-banner intelligence-banner"><div><div class="eyebrow">FIFA 9 · LIVING INTELLIGENCE v19</div><h2>${intelligenceCopy("Turnuva Zekâ Merkezi", "Tournament Intelligence Centre")}</h2><p>${intelligenceCopy("Power Exchange, mental baskı analizi, kişisel kader yolları, canlı maç nabzı ve AI Tournament Director ile turnuva artık yalnızca izlenmez; yaşayan bir veri evreni olarak yorumlanır.", "With Power Exchange, pressure analytics, personal destiny paths, Live Match Pulse and the AI Tournament Director, the tournament is no longer merely followed; it is interpreted as a living data universe.")}</p></div><div class="intelligence-orbit v19"><span>AI</span><i>LIVE</i><b>F9PX</b></div></div>
+      <nav class="intel-tabs intel-tabs-v19" aria-label="Intelligence modules">${sections.map(([key,label,icon])=>`<button class="${intelligenceSection===key?"active":""}" data-action="set-intelligence-section" data-intelligence-section="${key}"><span>${icon}</span><strong>${escapeHTML(label)}</strong></button>`).join("")}</nav>
       ${renderers[intelligenceSection]()}`;
   }
 
@@ -4829,6 +5324,11 @@ ${shareData.url}`)}`;
       if (activeView === "intelligence") renderIntelligenceCentre();
       return;
     }
+    if (type === "open-live-pulse") {
+      intelligenceSection = "pulse";
+      navTo("intelligence");
+      return;
+    }
     if (type === "open-matchday-analysis") { openMatchdayAnalysis(action.dataset.matchId); return; }
     if (type === "refresh-predictions") { predictionCache.loadedAt = 0; loadPredictionRows(true); return; }
     if (type === "set-simulation-runs") {
@@ -4869,6 +5369,22 @@ ${shareData.url}`)}`;
     if (type === "select-player-card") {
       intelligencePlayerCard = action.dataset.playerName || intelligencePlayerCard;
       if (activeView === "intelligence") renderIntelligenceCentre();
+      return;
+    }
+    if (type === "set-director-tone") {
+      directorTone = ["analyst","dramatic","ruthless","captain"].includes(action.dataset.directorTone) ? action.dataset.directorTone : "analyst";
+      directorNonce += 1;
+      if (activeView === "intelligence") renderIntelligenceCentre();
+      return;
+    }
+    if (type === "refresh-director-briefing") {
+      directorNonce += 1;
+      if (activeView === "intelligence") renderIntelligenceCentre();
+      toast(intelligenceCopy("Direktör bülteni güncel verilerle yenilendi.", "Director briefing refreshed with current data."), "success");
+      return;
+    }
+    if (type === "share-director-briefing") {
+      shareDirectorBriefing();
       return;
     }
     if (type === "set-odds-filter") {
@@ -5033,6 +5549,11 @@ ${shareData.url}`)}`;
     }
     if (event.target.id === "intelPlayerCardSelect") {
       intelligencePlayerCard = event.target.value;
+      if (activeView === "intelligence") renderIntelligenceCentre();
+      return;
+    }
+    if (event.target.id === "intelDestinyPlayerSelect") {
+      intelligenceDestinyPlayer = event.target.value;
       if (activeView === "intelligence") renderIntelligenceCentre();
       return;
     }
