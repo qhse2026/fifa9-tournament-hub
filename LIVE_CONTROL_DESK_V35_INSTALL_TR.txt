@@ -1,0 +1,53 @@
+FIFA 9 LIVE CONTROL DESK V35
+Takım Logosu Olmadan Tam Canlı Kontrol Masası
+
+Bu sürüm, canlı yayın yönetim ekranını tamamen yeniden düzenler.
+
+ANA DEĞİŞİKLİKLER
+
+1. Ayrı Maç Olayı Ekle paneli kaldırıldı.
+2. Dropdown seçimleri kaldırıldı.
+3. Canlı Kontrol Masası üç ana bölüme ayrıldı:
+   - Sol: İkinci oyuncu ve olay butonları
+   - Orta: Dar dakika, ek süre, skor ve maç durumu konsolu
+   - Sağ: İlk oyuncu ve olay butonları
+4. Her iki oyuncu için tamamen aynı olay butonları bulunur:
+   - Atak
+   - Tehlikeli Atak
+   - Büyük Şans
+   - Mutlak Gol Kaçtı
+   - İsabetli Şut
+   - Gol
+   - Sarı Kart
+   - Kırmızı Kart
+   - Penaltı
+   - Penaltı Kaçtı
+5. Yalnızca Gol butonu altın sarısıdır.
+6. Diğer tüm olay butonları aynı koyu tasarım sistemini kullanır.
+7. Olaylar mevcut canlı dakika ve ek süreyle otomatik kaydedilir.
+8. Gol butonu skoru otomatik artırır.
+9. Oyuncu panellerindeki -1 düğmesi skor düzeltme içindir.
+10. Penaltı, penaltı kaçağı, kartlar ve diğer olaylar Attack Momentum grafiğine entegredir.
+11. Üst canlı skor panelindeki çift kontrol düğmeleri kaldırılmıştır; tüm yönetim Canlı Kontrol Masası içinden yapılır.
+12. Takım logoları ve forma görselleri bu sürüme dahil edilmemiştir. Takım adı alanları hazırdır; görseller sonraki sürümde bağlanabilir.
+
+PATCH ONLY KURULUMU
+
+GitHub repository ana dizinine şu dosyaları yükleyin:
+- index.html
+- app.js
+- styles.css
+- service-worker.js
+- LIVE_CONTROL_DESK_V35_INSTALL_TR.txt
+
+Commit mesajı:
+Add master live control desk v35
+
+Vercel deployment tamamlandıktan sonra Ctrl + F5 yapın.
+Telefon veya tablette eski görünüm devam ederse site verilerini / service worker önbelleğini temizleyin.
+
+TEKNİK NOTLAR
+- Supabase SQL gerekmez.
+- cloud-config.js değiştirilmez.
+- Mevcut maç, skor, olay ve arşiv verileri korunur.
+- Takım logoları veya forma dosyaları gerekmez.

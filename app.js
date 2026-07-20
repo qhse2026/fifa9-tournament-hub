@@ -876,7 +876,7 @@
   }
 
   function liveEventThreatValue(event) {
-    const weights = { goal: .9, bigchance: .55, hugemiss: .62, ontarget: .3, dangerous: .22, attack: .14, note: .07, yellow: .03, red: .09 };
+    const weights = { goal: .9, penalty: .7, penaltymiss: .6, bigchance: .55, hugemiss: .62, ontarget: .3, dangerous: .22, attack: .14, note: .07, yellow: .03, red: .09 };
     return weights[event?.type] || 0;
   }
 
@@ -966,6 +966,8 @@
     const events = [...(live.events || [])].sort((a, b) => (Number(a.minute) || 0) - (Number(b.minute) || 0) || (Number(a.addedTime) || 0) - (Number(b.addedTime) || 0) || String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
     const eventProfile = type => ({
       goal: { swing: 34, home: 54, away: 54, minute: 100, label: intelligenceCopy('Gol', 'Goal'), marker: '⚽' },
+      penalty: { swing: 27, home: 46, away: 46, minute: 88, label: intelligenceCopy('Penaltı', 'Penalty'), marker: '●' },
+      penaltymiss: { swing: 20, home: 39, away: 39, minute: 76, label: intelligenceCopy('Penaltı Kaçtı', 'Penalty Missed'), marker: '⊘' },
       hugemiss: { swing: 24, home: 42, away: 42, minute: 82, label: intelligenceCopy('Mutlak Gol Kaçtı', 'Huge Miss'), marker: '✖' },
       bigchance: { swing: 18, home: 32, away: 32, minute: 64, label: intelligenceCopy('Büyük Şans', 'Big Chance'), marker: '◎' },
       ontarget: { swing: 10, home: 20, away: 20, minute: 44, label: intelligenceCopy('İsabetli Şut', 'Shot on Target'), marker: '◉' },
@@ -1158,7 +1160,7 @@
     const chartLeft = 42;
     const activeMinute = Math.max(1, Math.min(90, Number(data.live?.minute) || 1));
     const markerY = baseline + 135;
-    const iconMap = { goal: '⚽', bigchance: '◎', hugemiss: '✖', ontarget: '◉', dangerous: '▲', attack: '↗', yellow: '🟨', red: '🟥', note: '•' };
+    const iconMap = { goal: '⚽', penalty: '●', penaltymiss: '⊘', bigchance: '◎', hugemiss: '✖', ontarget: '◉', dangerous: '▲', attack: '↗', yellow: '🟨', red: '🟥', note: '•' };
     return `<div class="live-studio-panel-stack">
       <div class="panel-header compact"><div><h3 class="panel-title">${intelligenceCopy('Atak Momentumu', 'Attack Momentum')}</h3><div class="panel-subtitle">${intelligenceCopy('Kısa butonlarla girilen atak, büyük şans, mutlak gol kaçağı ve goller dakikaya göre momentum çubuklarına işlenir.', 'Attacks, big chances, huge misses and goals entered with quick buttons are translated into minute-based momentum bars.')}</div></div><span class="badge badge-gold">${intelligenceCopy('CANLI AKIŞ', 'LIVE FLOW')}</span></div>
       <div class="live-studio-chart-wrap attack-momentum-wrap">
@@ -1189,7 +1191,7 @@
 
   function renderLiveStudioPressurePanel(data) {
     const recentEvents = [...(data.live?.events || [])].sort((a,b)=>(Number(b.minute)||0)-(Number(a.minute)||0) || String(b.createdAt||'').localeCompare(String(a.createdAt||''))).slice(0,8);
-    const labelMap = { goal: intelligenceCopy('Gol', 'Goal'), bigchance: intelligenceCopy('Büyük Şans', 'Big Chance'), hugemiss: intelligenceCopy('Mutlak Gol Kaçtı', 'Huge Miss'), ontarget: intelligenceCopy('İsabetli Şut', 'Shot on Target'), dangerous: intelligenceCopy('Tehlikeli Baskı', 'Dangerous Pressure'), attack: intelligenceCopy('Atak', 'Attack'), yellow: intelligenceCopy('Sarı Kart', 'Yellow Card'), red: intelligenceCopy('Kırmızı Kart', 'Red Card'), note: intelligenceCopy('Not', 'Note') };
+    const labelMap = { goal: intelligenceCopy('Gol', 'Goal'), penalty: intelligenceCopy('Penaltı', 'Penalty'), penaltymiss: intelligenceCopy('Penaltı Kaçtı', 'Penalty Missed'), bigchance: intelligenceCopy('Büyük Şans', 'Big Chance'), hugemiss: intelligenceCopy('Mutlak Gol Kaçtı', 'Huge Miss'), ontarget: intelligenceCopy('İsabetli Şut', 'Shot on Target'), dangerous: intelligenceCopy('Tehlikeli Baskı', 'Dangerous Pressure'), attack: intelligenceCopy('Atak', 'Attack'), yellow: intelligenceCopy('Sarı Kart', 'Yellow Card'), red: intelligenceCopy('Kırmızı Kart', 'Red Card'), note: intelligenceCopy('Not', 'Note') };
     const trendHome = (data.minuteBars || []).filter(row=>row.minute <= Math.max(1, Number(data.live?.minute)||1)).sort((a,b)=>b.minute-a.minute).slice(0,15).reduce((sum,row)=>sum+row.home,0);
     const trendAway = (data.minuteBars || []).filter(row=>row.minute <= Math.max(1, Number(data.live?.minute)||1)).sort((a,b)=>b.minute-a.minute).slice(0,15).reduce((sum,row)=>sum+row.away,0);
     return `<div class="live-studio-panel-stack compact-summary">
@@ -1234,7 +1236,7 @@
       }
       view.innerHTML = `
         <div class="group-banner live-match-banner">
-          <div><div class="eyebrow">LIVE MATCH STUDIO v21</div><h2>Canlı Maç Merkezi</h2><p>Yönetici için güçlü kontrol masası, izleyici için ise yayın kalitesinde skor, grafik ve maç akışı. Tam ekran yayın, TV/projektör modu, canlı xT atak tehdidi, oyuncu ısı rozetleri ve otomatik gol anonslarıyla zenginleştirilmiş yayın merkezi.</p></div>
+          <div><div class="eyebrow">LIVE MATCH STUDIO v35</div><h2>Canlı Maç Merkezi</h2><p>Yönetici için güçlü kontrol masası, izleyici için ise yayın kalitesinde skor, grafik ve maç akışı. Tam ekran yayın, TV/projektör modu, canlı xT atak tehdidi, oyuncu ısı rozetleri ve otomatik gol anonslarıyla zenginleştirilmiş yayın merkezi.</p></div>
           <div class="group-emblem live-ball">●</div>
         </div>
         <div class="live-match-empty-strip"><span class="live-offline-dot"></span><strong>Şu anda canlı maç yok</strong><span>${eligible.length} oynanmamış fikstür canlı yayına hazır.</span></div>
@@ -1267,15 +1269,15 @@
     const events = [...(live.events || [])].sort((a, b) => (Number(b.minute) || 0) - (Number(a.minute) || 0) || String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
     view.innerHTML = `
       <div class="group-banner live-match-banner active-live-banner studio-banner">
-        <div><div class="eyebrow"><span class="live-pulse-dot"></span> LIVE MATCH STUDIO v21</div><h2>${displayName(match.homeId)} vs ${displayName(match.awayId)}</h2><p>${escapeHTML(liveStageLabel(match))} · Son güncelleme ${escapeHTML(formatLiveUpdatedAt(live.updatedAt))} · ${escapeHTML(studio.importance.note || '')}</p></div>
+        <div><div class="eyebrow"><span class="live-pulse-dot"></span> LIVE MATCH STUDIO v35</div><h2>${displayName(match.homeId)} vs ${displayName(match.awayId)}</h2><p>${escapeHTML(liveStageLabel(match))} · Son güncelleme ${escapeHTML(formatLiveUpdatedAt(live.updatedAt))} · ${escapeHTML(studio.importance.note || '')}</p></div>
         <div class="live-progress-orb"><strong>${liveMinuteText(live)}</strong><span>${liveStatusText(live)}</span></div>
       </div>
       ${renderLivePresentationControls()}
 
       <section class="live-studio-scoreboard">
-        <div class="studio-team-card home"><span class="studio-side-tag">EV SAHİBİ</span><strong>${displayName(match.homeId)}</strong><small>${escapeHTML(live.homeTeam || match.homeTeam || 'Takım bekleniyor')}</small>${renderLiveHeatBadge(studio.homeHeat, studio.homeName)}${canEdit() ? `<div class="live-score-controls"><button data-action="live-score-minus" data-side="home">−</button><strong>${live.homeScore}</strong><button data-action="live-goal" data-side="home">+</button></div>` : `<div class="live-view-score">${live.homeScore}</div>`}</div>
+        <div class="studio-team-card home"><span class="studio-side-tag">EV SAHİBİ</span><strong>${displayName(match.homeId)}</strong><small>${escapeHTML(live.homeTeam || match.homeTeam || 'Takım bekleniyor')}</small>${renderLiveHeatBadge(studio.homeHeat, studio.homeName)}<div class="live-view-score">${live.homeScore}</div></div>
         <div class="studio-centre-stage"><div class="studio-live-chip"><span class="live-pulse-dot"></span>${liveStatusText(live)}</div><div class="studio-big-score">${live.homeScore}<span>–</span>${live.awayScore}</div><div class="studio-minute-chip">${liveMinuteText(live)}</div><div class="studio-stage-copy">${escapeHTML(studio.scoreboardLabel)}</div><div class="studio-stage-name">${escapeHTML(liveStageLabel(match))}</div></div>
-        <div class="studio-team-card away"><span class="studio-side-tag">DEPLASMAN</span><strong>${displayName(match.awayId)}</strong><small>${escapeHTML(live.awayTeam || match.awayTeam || 'Takım bekleniyor')}</small>${renderLiveHeatBadge(studio.awayHeat, studio.awayName)}${canEdit() ? `<div class="live-score-controls"><button data-action="live-score-minus" data-side="away">−</button><strong>${live.awayScore}</strong><button data-action="live-goal" data-side="away">+</button></div>` : `<div class="live-view-score">${live.awayScore}</div>`}</div>
+        <div class="studio-team-card away"><span class="studio-side-tag">DEPLASMAN</span><strong>${displayName(match.awayId)}</strong><small>${escapeHTML(live.awayTeam || match.awayTeam || 'Takım bekleniyor')}</small>${renderLiveHeatBadge(studio.awayHeat, studio.awayName)}<div class="live-view-score">${live.awayScore}</div></div>
       </section>
 
       ${renderLiveStudioMetrics(studio)}
@@ -1290,63 +1292,33 @@
       </div>
       <section class="panel live-studio-panel mt-24 live-story-wide">${renderLiveStudioStoryPanel(studio)}</section>
 
-      ${canEdit() ? `<div class="grid-2 mt-24 live-admin-grid">
-        <section class="panel live-control-panel">
-          <div class="panel-header"><div><h3 class="panel-title">Canlı Kontrol Masası</h3><div class="panel-subtitle">Dakika, maç durumu, takım ve skor yönetimi.</div></div><span class="badge badge-red">YÖNETİCİ</span></div>
-          <div class="live-minute-console">
-            <div class="live-minute-display">${liveMinuteText(live)}</div>
-            <div class="live-minute-buttons">
-              <button class="btn btn-ghost" data-action="live-minute-change" data-delta="-5">−5</button>
-              <button class="btn btn-ghost" data-action="live-minute-change" data-delta="-1">−1</button>
-              <button class="btn btn-blue" data-action="live-minute-change" data-delta="1">+1</button>
-              <button class="btn btn-blue" data-action="live-minute-change" data-delta="5">+5</button>
-            </div>
-            <div class="live-minute-inputs">
-              <label><span>Dakika</span><input type="number" min="0" max="130" value="${Number(live.minute) || 0}" data-live-number="minute"></label>
-              <label><span>Uzatma</span><input type="number" min="0" max="20" value="${Number(live.addedTime) || 0}" data-live-number="addedTime"></label>
-            </div>
-          </div>
-          <div class="live-status-controls">
-            <button class="btn btn-gold" data-action="live-set-status" data-status="live">Canlı</button>
-            <button class="btn btn-ghost" data-action="live-set-status" data-status="paused">Duraklat</button>
-            <button class="btn btn-ghost" data-action="live-set-status" data-status="halftime">Devre Arası</button>
-            <button class="btn btn-ghost" data-action="live-set-status" data-status="secondhalf">2. Yarı</button>
-            <button class="btn btn-ghost" data-action="live-set-status" data-status="extra">Uzatma</button>
-            <button class="btn btn-ghost" data-action="live-set-status" data-status="penalties">Penaltılar</button>
-          </div>
-          <div class="modal-form-grid mt-16">
-            <div class="field"><label>${displayName(match.homeId)} Takımı</label><input type="text" value="${escapeHTML(live.homeTeam || '')}" data-live-field="homeTeam" placeholder="Takım adı"></div>
-            <div class="field"><label>${displayName(match.awayId)} Takımı</label><input type="text" value="${escapeHTML(live.awayTeam || '')}" data-live-field="awayTeam" placeholder="Takım adı"></div>
-          </div>
-          <div class="live-admin-actions mt-16">
-            <button class="btn btn-blue" data-action="share-live-match">Canlı Skoru Paylaş</button>
-            <button class="btn btn-ghost" data-action="open-live-pulse">Canlı Nabzı Aç</button>
-            <button class="btn btn-danger" data-action="open-cancel-live">Yayını İptal Et</button>
-            <button class="btn btn-gold" data-action="open-finish-live">Maçı Bitir ve Kaydet</button>
-          </div>
-        </section>
-        <section class="panel">
-          <div class="panel-header"><div><h3 class="panel-title">Maç Olayı Ekle</h3><div class="panel-subtitle">Gol, kart, atak momentumu ve önemli notları dakika bilgisiyle kaydet.</div></div></div>
-          <form id="liveEventForm" class="live-event-form">
-            <div class="modal-form-grid">
-              <div class="field"><label>Olay</label><select name="type"><option value="goal">Gol</option><option value="bigchance">Büyük Şans</option><option value="hugemiss">Mutlak Gol Kaçtı</option><option value="ontarget">İsabetli Şut</option><option value="dangerous">Tehlikeli Baskı</option><option value="attack">Atak</option><option value="yellow">Sarı Kart</option><option value="red">Kırmızı Kart</option><option value="note">Maç Notu</option></select></div>
-              <div class="field"><label>Taraf</label><select name="side"><option value="home">${displayName(match.homeId)}</option><option value="away">${displayName(match.awayId)}</option><option value="neutral">Genel</option></select></div>
-              <div class="field"><label>Dakika</label><input type="number" name="minute" min="0" max="130" value="${Number(live.minute) || 0}"></div>
-              <div class="field"><label>Ek Süre</label><input type="number" name="addedTime" min="0" max="20" value="${Number(live.addedTime) || 0}"></div>
-            </div>
-            <div class="field mt-16"><label>Açıklama</label><input type="text" name="text" placeholder="Örn. Hızlı hücum / büyük şans / kritik müdahale"></div>
-            <div class="live-quick-event-grid mt-16">
-              <button type="button" data-action="live-quick-event" data-event-type="attack" data-side="home">${displayName(match.homeId)} · Atak</button>
-              <button type="button" data-action="live-quick-event" data-event-type="attack" data-side="away">${displayName(match.awayId)} · Atak</button>
-              <button type="button" data-action="live-quick-event" data-event-type="bigchance" data-side="home">${displayName(match.homeId)} · Büyük Şans</button>
-              <button type="button" data-action="live-quick-event" data-event-type="bigchance" data-side="away">${displayName(match.awayId)} · Büyük Şans</button>
-              <button type="button" data-action="live-quick-event" data-event-type="hugemiss" data-side="home">${displayName(match.homeId)} · Mutlak Kaçtı</button>
-              <button type="button" data-action="live-quick-event" data-event-type="hugemiss" data-side="away">${displayName(match.awayId)} · Mutlak Kaçtı</button>
-            </div>
-            <button class="btn btn-gold btn-wide mt-16" type="submit">Olayı Canlı Yayına Ekle</button>
-          </form>
-        </section>
-      </div>` : `<div class="live-viewer-message mt-24"><span class="live-pulse-dot"></span><div><strong>Canlı yayın aktif</strong><p>Skor, dakika, baskı grafikleri ve maç olayları yönetici tarafından güncellendikçe bu ekran otomatik yenilenir.</p></div><button class="btn btn-ghost" data-action="open-live-pulse">Canlı Nabzı Aç</button></div>`}
+      ${canEdit() ? `<section class="panel master-live-control-panel mt-24">
+        <div class="panel-header master-live-control-head"><div><div class="eyebrow">LIVE COMMAND CENTRE · V35</div><h3 class="panel-title">${intelligenceCopy("Canlı Kontrol Masası","Live Control Desk")}</h3><div class="panel-subtitle">${intelligenceCopy("Dropdown olmadan tüm maç olaylarını, skoru, dakika akışını ve maç durumunu tek merkezden yönet.","Manage every match event, score, clock and match state from one desk without dropdowns.")}</div></div><span class="badge badge-red">${intelligenceCopy("YÖNETİCİ","ADMIN")}</span></div>
+        <div class="master-live-control-grid">
+          <article class="master-player-control second-player away-control">
+            <header><span>${intelligenceCopy("İKİNCİ OYUNCU","SECOND PLAYER")}</span><h4>${displayName(match.awayId)}</h4><label><small>${intelligenceCopy("Takım","Team")}</small><input type="text" value="${escapeHTML(live.awayTeam || '')}" data-live-field="awayTeam" placeholder="${intelligenceCopy('Takım adı','Team name')}"></label></header>
+            <div class="master-side-score"><span>${intelligenceCopy("CANLI SKOR","LIVE SCORE")}</span><strong>${live.awayScore}</strong><button type="button" data-action="live-score-minus" data-side="away" title="${intelligenceCopy('Skor düzelt: -1','Correct score: -1')}">−1</button></div>
+            <div class="master-event-grid">${renderLiveControlEventButtons('away')}</div>
+          </article>
+
+          <section class="master-match-console">
+            <div class="master-clock-label">${intelligenceCopy("MAÇ SÜRESİ","MATCH CLOCK")}</div>
+            <div class="master-clock-row"><strong>${Number(live.minute)||0}'</strong><div><span>+${Number(live.addedTime)||0}</span><small>${intelligenceCopy("EK SÜRE","ADDED")}</small></div></div>
+            <div class="master-minute-buttons"><button data-action="live-minute-change" data-delta="-5">−5</button><button data-action="live-minute-change" data-delta="-1">−1</button><button data-action="live-minute-change" data-delta="1">+1</button><button data-action="live-minute-change" data-delta="5">+5</button></div>
+            <div class="master-minute-inputs"><label><span>${intelligenceCopy("Dakika","Minute")}</span><input type="number" min="0" max="130" value="${Number(live.minute)||0}" data-live-number="minute"></label><label><span>${intelligenceCopy("Ek","Added")}</span><input type="number" min="0" max="20" value="${Number(live.addedTime)||0}" data-live-number="addedTime"></label></div>
+            <div class="master-score-centre"><span>${intelligenceCopy("SKOR","SCORE")}</span><strong>${live.awayScore}<i>–</i>${live.homeScore}</strong><small>${displayName(match.awayId)} · ${displayName(match.homeId)}</small></div>
+            <div class="master-status-title">${intelligenceCopy("MAÇ DURUMU","MATCH STATE")}</div>
+            <div class="master-status-grid"><button class="${live.status==='live'?'active is-live':''}" data-action="live-set-status" data-status="live">● ${intelligenceCopy("Canlı","Live")}</button><button class="${live.status==='paused'?'active':''}" data-action="live-set-status" data-status="paused">Ⅱ ${intelligenceCopy("Duraklat","Pause")}</button><button class="${live.status==='halftime'?'active':''}" data-action="live-set-status" data-status="halftime">◫ ${intelligenceCopy("Devre Arası","Half-Time")}</button><button class="${live.status==='secondhalf'?'active':''}" data-action="live-set-status" data-status="secondhalf">↻ ${intelligenceCopy("2. Yarı","2nd Half")}</button><button class="${live.status==='extra'?'active':''}" data-action="live-set-status" data-status="extra">◷ ${intelligenceCopy("Uzatma","Extra Time")}</button><button class="${live.status==='penalties'?'active':''}" data-action="live-set-status" data-status="penalties">▦ ${intelligenceCopy("Penaltılar","Penalties")}</button></div>
+            <div class="master-control-actions"><button data-action="share-live-match">${intelligenceCopy("Skoru Paylaş","Share")}</button><button data-action="open-live-pulse">${intelligenceCopy("Canlı Nabız","Live Pulse")}</button><button class="danger" data-action="open-cancel-live">${intelligenceCopy("İptal","Cancel")}</button><button class="finish" data-action="open-finish-live">${intelligenceCopy("Bitir ve Kaydet","Finish & Save")}</button></div>
+          </section>
+
+          <article class="master-player-control first-player home-control">
+            <header><span>${intelligenceCopy("İLK OYUNCU","FIRST PLAYER")}</span><h4>${displayName(match.homeId)}</h4><label><small>${intelligenceCopy("Takım","Team")}</small><input type="text" value="${escapeHTML(live.homeTeam || '')}" data-live-field="homeTeam" placeholder="${intelligenceCopy('Takım adı','Team name')}"></label></header>
+            <div class="master-side-score"><span>${intelligenceCopy("CANLI SKOR","LIVE SCORE")}</span><strong>${live.homeScore}</strong><button type="button" data-action="live-score-minus" data-side="home" title="${intelligenceCopy('Skor düzelt: -1','Correct score: -1')}">−1</button></div>
+            <div class="master-event-grid">${renderLiveControlEventButtons('home')}</div>
+          </article>
+        </div>
+      </section>` : `<div class="live-viewer-message mt-24"><span class="live-pulse-dot"></span><div><strong>Canlı yayın aktif</strong><p>Skor, dakika, baskı grafikleri ve maç olayları yönetici tarafından güncellendikçe bu ekran otomatik yenilenir.</p></div><button class="btn btn-ghost" data-action="open-live-pulse">Canlı Nabzı Aç</button></div>`}
 
       <section class="panel mt-24 live-timeline-panel">
         <div class="panel-header"><div><h3 class="panel-title">Canlı Maç Zaman Çizelgesi</h3><div class="panel-subtitle">En yeni olay üstte gösterilir.</div></div><span class="badge badge-gold">${events.length} OLAY</span></div>
@@ -1369,9 +1341,25 @@
     return `<article class="live-archive-card"><div class="live-option-stage">${escapeHTML(item.stage || "FIFA 9")}</div><div class="live-archive-score"><span>${escapeHTML(item.homeName || "–")}</span><strong>${item.homeScore} – ${item.awayScore}</strong><span>${escapeHTML(item.awayName || "–")}</span></div><div class="live-archive-meta">${escapeHTML(item.homeTeam || "")} · ${escapeHTML(item.awayTeam || "")} · ${escapeHTML(formatLiveUpdatedAt(item.finishedAt))}</div>${item.matchId ? `<button class="btn btn-ghost btn-wide mt-16" data-action="open-match-archive-details" data-match-id="${escapeHTML(item.matchId)}">Canlı Yayın Detayları</button>` : ""}</article>`;
   }
 
+  function renderLiveControlEventButtons(side) {
+    const events = [
+      { type:"attack", icon:"↗", tr:"Atak", en:"Attack" },
+      { type:"dangerous", icon:"▲", tr:"Tehlikeli Atak", en:"Dangerous Attack" },
+      { type:"bigchance", icon:"◎", tr:"Büyük Şans", en:"Big Chance" },
+      { type:"hugemiss", icon:"✖", tr:"Mutlak Gol Kaçtı", en:"Huge Chance Missed" },
+      { type:"ontarget", icon:"◉", tr:"İsabetli Şut", en:"Shot on Target" },
+      { type:"goal", icon:"⚽", tr:"Gol", en:"Goal", goal:true },
+      { type:"yellow", icon:"▰", tr:"Sarı Kart", en:"Yellow Card" },
+      { type:"red", icon:"■", tr:"Kırmızı Kart", en:"Red Card" },
+      { type:"penalty", icon:"●", tr:"Penaltı", en:"Penalty" },
+      { type:"penaltymiss", icon:"⊘", tr:"Penaltı Kaçtı", en:"Penalty Missed" }
+    ];
+    return events.map(event=>`<button type="button" class="master-event-btn ${event.goal?'is-goal':''}" data-action="live-quick-event" data-event-type="${event.type}" data-side="${side}"><span>${event.icon}</span><strong>${intelligenceCopy(event.tr,event.en)}</strong></button>`).join("");
+  }
+
   function renderLiveEvent(event, match) {
-    const iconMap = { goal: "⚽", bigchance: "◎", hugemiss: "✖", ontarget: "◉", dangerous: "▲", attack: "↗", yellow: "▰", red: "■", note: "◆" };
-    const labelMap = { goal: "GOL", bigchance: "BÜYÜK ŞANS", hugemiss: "MUTLAK KAÇTI", ontarget: "İSABETLİ ŞUT", dangerous: "TEHLİKELİ BASKI", attack: "ATAK", yellow: "SARI KART", red: "KIRMIZI KART", note: "MAÇ NOTU" };
+    const iconMap = { goal: "⚽", penalty: "●", penaltymiss: "⊘", bigchance: "◎", hugemiss: "✖", ontarget: "◉", dangerous: "▲", attack: "↗", yellow: "▰", red: "■", note: "◆" };
+    const labelMap = { goal: "GOL", penalty: "PENALTI", penaltymiss: "PENALTI KAÇTI", bigchance: "BÜYÜK ŞANS", hugemiss: "MUTLAK KAÇTI", ontarget: "İSABETLİ ŞUT", dangerous: "TEHLİKELİ BASKI", attack: "ATAK", yellow: "SARI KART", red: "KIRMIZI KART", note: "MAÇ NOTU" };
     const sideName = event.side === "home" ? playerName(match.homeId) : event.side === "away" ? playerName(match.awayId) : "Maç Merkezi";
     const minute = `${Number(event.minute) || 0}${Number(event.addedTime) ? `+${Number(event.addedTime)}` : ""}'`;
     return `<div class="live-event-row type-${escapeHTML(event.type)}"><div class="live-event-minute">${minute}</div><div class="live-event-icon">${iconMap[event.type] || "◆"}</div><div class="live-event-copy"><strong>${labelMap[event.type] || "OLAY"} · ${escapeHTML(sideName)}</strong><span>${escapeHTML(event.text || (event.type === "goal" ? "Skor güncellendi" : "Canlı maç olayı"))}</span></div>${canEdit() ? `<button class="live-event-delete" data-action="delete-live-event" data-event-id="${event.id}" title="Olayı sil">×</button>` : ""}</div>`;
@@ -1480,7 +1468,7 @@
     active.minute = minute;
     active.addedTime = addedTime;
     active.events = Array.isArray(active.events) ? active.events : [];
-    const defaultText = type === "goal" ? "Gol" : type === "bigchance" ? "Büyük gol fırsatı" : type === "hugemiss" ? "Mutlak gol kaçtı" : type === "ontarget" ? "İsabetli şut" : type === "dangerous" ? "Tehlikeli baskı" : type === "attack" ? "Atak" : "Canlı maç olayı";
+    const defaultText = type === "goal" ? "Gol" : type === "penalty" ? "Penaltı kazanıldı" : type === "penaltymiss" ? "Penaltı kaçtı" : type === "yellow" ? "Sarı kart" : type === "red" ? "Kırmızı kart" : type === "bigchance" ? "Büyük gol fırsatı" : type === "hugemiss" ? "Mutlak gol kaçtı" : type === "ontarget" ? "İsabetli şut" : type === "dangerous" ? "Tehlikeli baskı" : type === "attack" ? "Atak" : "Canlı maç olayı";
     active.events.push({ id: `live-${Date.now()}-${Math.random().toString(36).slice(2,6)}`, type, side, minute, addedTime, text: text || defaultText, createdAt: new Date().toISOString() });
     touchLive();
     render();
@@ -1490,7 +1478,7 @@
   function addLiveQuickEvent(type, side) {
     if (!canEdit()) return;
     const active = getLiveState().active;
-    const allowed = ["attack", "dangerous", "bigchance", "hugemiss", "ontarget", "goal"];
+    const allowed = ["attack", "dangerous", "bigchance", "hugemiss", "ontarget", "goal", "yellow", "red", "penalty", "penaltymiss"];
     if (!active || !["home", "away"].includes(side) || !allowed.includes(type)) return;
     if (type === "goal") {
       addLiveGoal(side);
@@ -1498,7 +1486,7 @@
       return;
     }
     active.events = Array.isArray(active.events) ? active.events : [];
-    const textMap = { attack: "Atak", dangerous: "Tehlikeli baskı", bigchance: "Büyük gol fırsatı", hugemiss: "Mutlak gol kaçtı", ontarget: "İsabetli şut" };
+    const textMap = { attack: "Atak", dangerous: "Tehlikeli atak", bigchance: "Büyük gol fırsatı", hugemiss: "Mutlak gol kaçtı", ontarget: "İsabetli şut", yellow: "Sarı kart", red: "Kırmızı kart", penalty: "Penaltı kazanıldı", penaltymiss: "Penaltı kaçtı" };
     active.events.push({ id: `live-${Date.now()}-${Math.random().toString(36).slice(2,6)}`, type, side, minute: Number(active.minute) || 0, addedTime: Number(active.addedTime) || 0, text: textMap[type] || "Canlı olay", createdAt: new Date().toISOString() });
     touchLive();
     render();
@@ -6219,7 +6207,7 @@
     const contextCategory=editionProfile?.categories.find(category=>category.key==="competition");
     const contextMap=Object.fromEntries((contextCategory?.attributes||[]).map(attribute=>[attribute.key,attribute.value]));
     return `<div class="fm30-page fm32-page">
-      <section class="fm30-toolbar"><div><div class="eyebrow">FIFA TOURNAMENT INTELLIGENCE · V34</div><h2>${intelligenceCopy("Turnuva İçi Gerçek Performans Merkezi","Tournament-Native Performance Centre")}</h2></div><div class="fm32-toolbar-controls"><select id="intelPlayerCardSelect">${cards.map(row=>`<option value="${escapeHTML(row.name)}" ${row.name===selected.name?"selected":""}>${escapeHTML(row.name)} · CA ${row.currentAbility} · F${Number(state.current.edition||9)} ${row.fifa9Performance}</option>`).join("")}</select><select id="intelPlayerEditionSelect">${selected.editionProfiles.map(profile=>`<option value="${profile.edition}" ${profile.edition===Number(intelligencePlayerEdition)?"selected":""}>FIFA ${profile.edition} · ${profile.performance}/100</option>`).join("")}</select></div></section>
+      <section class="fm30-toolbar"><div><div class="eyebrow">FIFA TOURNAMENT INTELLIGENCE · V35</div><h2>${intelligenceCopy("Turnuva İçi Gerçek Performans Merkezi","Tournament-Native Performance Centre")}</h2></div><div class="fm32-toolbar-controls"><select id="intelPlayerCardSelect">${cards.map(row=>`<option value="${escapeHTML(row.name)}" ${row.name===selected.name?"selected":""}>${escapeHTML(row.name)} · CA ${row.currentAbility} · F${Number(state.current.edition||9)} ${row.fifa9Performance}</option>`).join("")}</select><select id="intelPlayerEditionSelect">${selected.editionProfiles.map(profile=>`<option value="${profile.edition}" ${profile.edition===Number(intelligencePlayerEdition)?"selected":""}>FIFA ${profile.edition} · ${profile.performance}/100</option>`).join("")}</select></div></section>
       <section class="fm32-edition-atlas"><header><div><span>${intelligenceCopy("TURNUVA PERFORMANS ATLASI","TOURNAMENT PERFORMANCE ATLAS")}</span><h3>${intelligenceCopy("FIFA 1’den FIFA 9’a edisyon bazlı performans","Edition-by-edition performance from FIFA 1 to FIFA 9")}</h3></div><small>${intelligenceCopy("Her turnuva kendi gol, puan, oyuncu ve aşama dağılımı içinde değerlendirilir.","Each tournament is evaluated within its own scoring, points, player and stage distribution.")}</small></header><div class="fm32-edition-cards">${Array.from({length:Math.max(9,Number(state.current.edition||9))},(_,index)=>index+1).map(edition=>{const profile=selected.editionProfiles.find(item=>item.edition===edition);return `<button class="fm32-edition-card ${edition===Number(intelligencePlayerEdition)?'active':''} ${profile?'':'empty'}" data-action="set-player-edition" data-player-edition="${edition}" ${profile?'':'disabled'}><span>FIFA ${edition}</span><strong>${profile?profile.performance:'—'}</strong><small>${profile?`${profile.stats.matches} ${intelligenceCopy('maç','matches')} · ${profile.stats.winRate.toFixed(0)}%` : intelligenceCopy('Katılmadı','No appearance')}</small></button>`;}).join("")}</div></section>
       <div class="fm30-layout">
         <aside class="fm30-left-column">
