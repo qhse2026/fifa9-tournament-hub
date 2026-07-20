@@ -1,0 +1,27 @@
+FIFA Tournament Intelligence V32.1
+Yuvarlama ve Gösterim Düzeltmesi
+
+Bu yama oyuncu kartlarındaki detay kriterlerde görünen uzun küsuratları temizler.
+
+DÜZELTİLEN ALANLAR
+- Oyuncu kartı detay kriter değerleri artık tam sayıya yuvarlanır.
+- Performans Bağlamı bölümündeki değerler artık tam sayıya yuvarlanır.
+- Kategori başlıklarındaki ana skorlar tam sayı olarak gösterilir.
+- Sadece görünüm düzeltilmiştir; puan hesaplama mantığı değiştirilmemiştir.
+
+KURULUM
+1. ZIP dosyasını açın.
+2. Şu dosyaları GitHub repository ana dizinine yükleyin:
+   - index.html
+   - app.js
+   - styles.css
+   - service-worker.js
+   - V32_1_ROUNDING_HOTFIX_INSTALL_TR.txt
+3. Mevcut dosyaların üzerine yazmayı onaylayın.
+4. Commit mesajı: Fix player card decimal display v32.1
+5. Vercel deploy bittikten sonra Ctrl + F5 yapın.
+
+NOT
+- Supabase SQL gerekmez.
+- Mevcut veriler korunur.
+- Bu güncelleme yalnızca sayı gösterimini temizler.
