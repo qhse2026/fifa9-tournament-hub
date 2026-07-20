@@ -1,0 +1,63 @@
+FIFA 9 Player Intelligence v31 — Reality Calibration
+
+Bu sürüm V30 arayüzünü korur ve oyuncu kartı değerlendirme motorunu düzeltir.
+
+TEMEL DÜZELTMELER
+
+1. Hücum ve Savunmada Mutlak Gerçeklik
+- Hücum puanının %55'i gerçek gol üretimine dayanır.
+- Savunma puanının %55'i gerçek gol yeme / gol önleme sonucuna dayanır.
+- Beklentiye göre düzeltilmiş performans %30 ağırlıktadır.
+- Rakip ve takım bağlamı %15 ağırlıktadır.
+- Bağlamsal düzeltme çok kötü mutlak sonucu ortalama seviyeye taşıyamaz.
+
+2. Gerçeklik Sınırları
+- Lig ortalamasının çok altında gol üreten oyuncuların Hücumu dinamik olarak sınırlandırılır.
+- Lig ortalamasının çok üzerinde gol yiyen oyuncuların Savunması dinamik olarak sınırlandırılır.
+- Bu sınırlar sabit oyuncu adlarına değil, turnuva gol ortalamalarına göre çalışır.
+
+3. İstikrar Düzeltmesi
+- Sürekli kötü performans artık yüksek İstikrar puanı üretmez.
+- Yeni İstikrar = performans kalitesi - volatilite cezası.
+- İstikrar puanı, temel üretim seviyesinden belirgin biçimde yüksek olamaz.
+
+4. N/A Sistemi
+- Güçlü rakip, favori, underdog, eleme veya final örneklemi yetersizse yapay 55 puanı verilmez.
+- Kriter N/A olarak gösterilir.
+- N/A kriterler kategori ortalamasına dahil edilmez.
+
+5. Savunma Kriterleri
+- Yakın Maç Savunması yerine Gol Farkı Dayanıklılığı kullanılır.
+- Maç Kontrolü yerine Ağır Gol Yeme Önleme kullanılır.
+- Yakın maç sonucu ve genel sonuç etkisi Savunmadan ayrıştırılır.
+
+6. FIFA 9 Form ve Performans
+- FIFA 9 Performance; sonuç, mutlak Hücum, mutlak Savunma ve beklenti sapmasını birlikte kullanır.
+- Current Form; puan ortalaması, gol farkı, düzeltilmiş performans ve son maç ağırlığını kullanır.
+- 0 puan ve ağır negatif gol farkı artık daha güçlü negatif karşılık üretir.
+
+7. Miras Ayrımı
+- Legacy ana kart puanını doğrudan şişirmez.
+- Current Ability, FIFA 9 Performance, Career Performance, Current Form ve Legacy ayrı kalır.
+
+KURULUM — PATCH ONLY
+
+1. ZIP dosyasını ayıkla.
+2. Aşağıdaki dosyaları GitHub repository ana dizinine yükle:
+   - index.html
+   - app.js
+   - styles.css
+   - service-worker.js
+   - V31_REALITY_CALIBRATION_INSTALL_TR.txt
+3. Mevcut dosyaların değiştirilmesini onayla.
+4. Commit mesajı:
+   Fix player card reality calibration v31
+5. Vercel deployment tamamlandıktan sonra Ctrl + F5 yap.
+6. Telefonda eski sürüm görünürse site önbelleğini temizle.
+
+TEKNİK NOTLAR
+
+- Supabase SQL gerekmez.
+- cloud-config.js değiştirilmez.
+- Mevcut maçlar ve turnuva verileri korunur.
+- V30 görsel düzeni korunur.
