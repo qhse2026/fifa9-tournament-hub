@@ -1,4 +1,4 @@
-const CACHE = "fifa9-hub-live-v31-reality-calibration";
+const CACHE = "fifa9-hub-live-v32-edition-performance-atlas";
 const APP_SHELL = [
   "./",
   "./index.html",

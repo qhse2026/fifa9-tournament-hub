@@ -1,0 +1,93 @@
+FIFA Tournament Intelligence v32 — Edition Performance Atlas
+
+Bu sürüm V31 arayüzünü ve mevcut verileri korur; oyuncu kartı motorunu edisyon bazlı değerlendirme sistemine taşır.
+
+ANA YENİLİKLER
+
+1. FIFA 1–FIFA 9 Performans Atlası
+- Oyuncunun katıldığı her FIFA edisyonu ayrı kartta görünür.
+- FIFA 1, FIFA 2, FIFA 3 ... FIFA 9 arasında geçiş yapılabilir.
+- Katılmadığı edisyonlar “Katılmadı” olarak gösterilir.
+- Seçilen edisyona göre detaylı kriterler, performans özeti ve bağlam verileri değişir.
+
+2. Edisyon İçi Normalizasyon
+- Her FIFA turnuvası kendi gol ortamına göre değerlendirilir.
+- FIFA 1’deki 4 gol ile FIFA 8’deki 4 gol aynı ham referansla ölçülmez.
+- Maç başına gol, gol yeme, yüksek skor ve çöküş oranları ilgili edisyonun ortalamasına göre normalize edilir.
+
+3. Revize Edilmiş Kriter Sistemi
+- Hücum: 8 kriter
+- Savunma: 8 kriter
+- Rekabet Seviyesi: 7 kriter
+- Mental / Baskı: 7 kriter
+- Takım Kullanımı: 7 kriter
+- Toplam 37 detay kriter
+
+4. Current Ability
+Baseline Ability:
+- %24 Hücum
+- %20 Savunma
+- %24 Rekabet Seviyesi
+- %17 Mental / Baskı
+- %15 Takım Kullanımı
+
+Current Ability:
+- %85 Baseline Ability
+- %15 Current Form
+
+Legacy, Current Ability puanını doğrudan yükseltmez.
+
+5. Edisyon Performansı
+Her FIFA edisyonu için:
+- %30 Sonuç Performansı
+- %20 Hücum
+- %18 Savunma
+- %20 Beklenti Üzeri Performans
+- %12 Rakip Kalitesi
+
+6. Kariyer Performansı
+- Edisyon performanslarının maç sayısı, güven ve edisyon yakınlığına göre ağırlıklı birleşimidir.
+- Eski FIFA edisyonları silinmez; her biri kariyer puanına katkı verir.
+
+7. Current Form
+- %35 Son 5 maç düzeltilmiş performans
+- %25 Son 10 maç düzeltilmiş performans
+- %20 Gerçek sonuç formu
+- %10 Hücum trendi
+- %10 Savunma trendi
+
+8. N/A Sistemi
+- Yetersiz örnekli kriterlere yapay 50 veya 55 verilmez.
+- N/A kriterler kategori ortalamasına dahil edilmez.
+- Güçlü rakip / underdog / favori / eşit güç kriterleri için en az 3 maç gerekir.
+- Eleme performansı için en az 2 maç gerekir.
+- Final performansı için en az 3 maç gerekir.
+- Takımlar arası istikrar için en az 8 takım bilgili maç ve 3 güç grubu gerekir.
+
+9. Gerçeklik Kontrolleri
+- Sürekli kötü performans yüksek “istikrar” puanı alamaz.
+- Skor ve savunma istikrarı kalite ile volatiliteyi birlikte ölçer.
+- Ham gol sonucu, bağlamsal düzeltmeden daha güçlü temel oluşturur.
+- Az maçlı oyuncular Current Ability dağılımında ortalamaya yaklaştırılır.
+
+PATCH ONLY KURULUMU
+
+1. ZIP dosyasını ayıkla.
+2. Şu dosyaları GitHub repository ana dizinine yükle:
+   - index.html
+   - app.js
+   - styles.css
+   - service-worker.js
+   - V32_EDITION_PERFORMANCE_ATLAS_INSTALL_TR.txt
+   - V32_PLAYER_CARD_CRITERIA_CONTRACT_TR.txt
+3. Mevcut dosyaların değiştirilmesini onayla.
+4. Commit mesajı:
+   Add edition performance atlas and criteria engine v32
+5. Vercel deployment tamamlandıktan sonra Ctrl + F5 yap.
+6. Telefonda eski sürüm görünürse site önbelleğini temizle.
+
+TEKNİK NOTLAR
+- Supabase SQL gerekmez.
+- cloud-config.js değiştirilmez.
+- Mevcut FIFA 9 sonuçları ve FIFA 1–8 arşivi korunur.
+- JavaScript söz dizimi, tarihî veri motoru ve sentetik düşük performans senaryosu test edilmiştir.

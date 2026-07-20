@@ -1,0 +1,169 @@
+V32 OYUNCU KARTI PUANLAMA SÖZLEŞMESİ
+
+Bu belge V32 algoritmasının kriterlerini, ağırlıklarını ve minimum örneklem kurallarını tanımlar.
+
+A. HÜCUM — 8 KRİTER
+
+1. Gol Üretimi
+- Maç başına gol
+- Gol atılan maç oranı
+- 2+ gol sıklığı
+- İlgili FIFA edisyonunun gol ortalamasına göre değerlendirilir
+Kategori ağırlığı: %25
+
+2. Skor Verimliliği
+- Gerçek atılan gol ile modelin beklediği gol arasındaki fark
+- Şut veya xG verisi olmadığı için “Bitiricilik” adı kullanılmaz
+Kategori ağırlığı: %15
+
+3. Büyük Skor Potansiyeli
+- 4+ gol sıklığı
+- 6+ gol sıklığı
+- Tek maç maksimum gol
+Kategori ağırlığı: %6
+
+4. Güçlü Rakibe Karşı Hücum
+- Üst güç dilimindeki rakiplere karşı düzeltilmiş hücum
+- Minimum 3 maç
+Kategori ağırlığı: %20
+
+5. Underdog Hücum Gücü
+- Kazanma ihtimali düşükken veya takım dezavantajı varken hücum üretimi
+- Minimum 3 maç
+Kategori ağırlığı: %15
+
+6. Kaliteli Skor İstikrarı
+- %62 ortalama hücum kalitesi
+- %38 düşük volatilite
+- Gol atamama oranı yüksekse üst sınır uygulanır
+Kategori ağırlığı: %12
+
+7. Favoriyken Hücum Üretimi
+- Favori olunan maçlarda beklenen üretimin karşılanması
+- Minimum 3 maç
+Kategori ağırlığı: %4
+
+8. Yüksek Üretim Sıklığı
+- 2+, 3+ ve 6+ gol sıklığı
+Kategori ağırlığı: %3
+
+B. SAVUNMA — 8 KRİTER
+
+1. Gol Önleme
+- Maç başına yenilen gol
+- 0–2 gol yeme oranı
+- 5+ gol yeme cezası
+Kategori ağırlığı: %28
+
+2. Beklentiye Göre Savunma
+- Modelin beklediği yenilen gol ile gerçek yenilen gol arasındaki fark
+Kategori ağırlığı: %20
+
+3. Güçlü Rakibe Karşı Savunma
+- Güçlü rakiplere karşı düzeltilmiş savunma
+- Minimum 3 maç
+Kategori ağırlığı: %18
+
+4. Favoriyken Maç Kontrolü
+- Favori olunan maçlardaki savunma performansı
+- Minimum 3 maç
+Kategori ağırlığı: %4
+
+5. Çöküş Önleme
+- Dört fark ve üzeri mağlubiyet oranı
+- Altı veya üzeri gol yeme oranı
+Kategori ağırlığı: %12
+
+6. Mağlubiyet Sınırlandırma
+- Sadece kaybedilen maçlardaki ortalama gol farkı
+- Minimum 3 mağlubiyet
+Kategori ağırlığı: %4
+
+7. Düşük Gol Yeme Oranı
+- İki veya daha az gol yenilen maç oranı
+Kategori ağırlığı: %8
+
+8. Kaliteli Savunma İstikrarı
+- %62 ortalama savunma kalitesi
+- %38 düşük volatilite
+- 5+ gol yeme oranı yüksekse üst sınır uygulanır
+Kategori ağırlığı: %6
+
+C. REKABET SEVİYESİ — 7 KRİTER
+
+1. Güçlü Rakip Performansı — %25 — minimum 3 maç
+2. Underdog Performansı — %20 — minimum 3 maç
+3. Eşit Güçte Maç Performansı — %18 — minimum 3 maç
+4. Favori Sorumluluğu — %12 — minimum 3 maç
+5. Zayıf Rakibe Karşı Beklentiyi Karşılama — %10 — minimum 3 maç
+6. Play-off / Eleme Performansı — %10 — minimum 2 maç
+7. Final Performansı — %5 — minimum 3 maç
+
+D. MENTAL / BASKI — 7 KRİTER
+
+1. Yakın Maç Yönetimi — %20 — minimum 3 yakın maç
+2. Baskı Yönetimi — %22
+3. Geri Dönüş Gücü — %12 — canlı olay / baskı verisi gerektirir
+4. Mağlubiyet Sonrası Tepki — %14 — minimum 3 örnek
+5. Seri Gücü — %12 — güncel ve kariyer serileri
+6. Odaklanma — %10 — favori/zayıf rakip maçlarında hata önleme
+7. Kritik Maç Mentalitesi — %10 — minimum 3 kritik maç
+
+E. TAKIM KULLANIMI — 7 KRİTER
+
+1. Zayıf Takımla Verim — %18 — minimum 3 maç
+2. Güçlü Takımla Verim — %10 — minimum 3 maç
+3. Başarılı Takım Çeşitliliği — %14
+4. Takım Seçimi Verimliliği — %18 — minimum 5 takım bilgili maç
+5. Takımdan Bağımsız Etki — %18 — minimum 3 takım dezavantajlı maç
+6. Takım Güç Dengesi Performansı — %12 — minimum 8 maç ve 3 güç grubu
+7. Takımlar Arası İstikrar — %10 — minimum 8 maç ve 3 takım güç grubu
+
+F. EDİSYON PERFORMANSI
+
+Her FIFA 1, FIFA 2 ... FIFA 9 ayrı hesaplanır:
+- %30 Sonuç Performansı
+- %20 Hücum
+- %18 Savunma
+- %20 Beklenti Üzeri Performans
+- %12 Rakip Kalitesi
+
+G. BASELINE VE CURRENT ABILITY
+
+Baseline Ability:
+- %24 Hücum
+- %20 Savunma
+- %24 Rekabet Seviyesi
+- %17 Mental / Baskı
+- %15 Takım Kullanımı
+
+Current Ability:
+- %85 Baseline Ability
+- %15 Current Form
+
+H. CURRENT FORM
+- %35 Son 5 düzeltilmiş performans
+- %25 Son 10 düzeltilmiş performans
+- %20 gerçek sonuç formu
+- %10 hücum trendi
+- %10 savunma trendi
+
+I. LEGACY / REPUTATION
+- %35 şampiyonluk ve final başarıları
+- %25 kariyer zirvesi / Peak Elo
+- %20 kariyer performansı
+- %10 tarihî güçlü rakip performansı
+- %10 devamlılık
+
+J. PUAN ARALIĞI
+90–94: Tarihî / Efsanevi
+82–89: Elite
+74–81: Çok güçlü
+66–73: Güçlü
+58–65: Ortalama üstü
+50–57: Ortalama
+42–49: Ortalama altı
+30–41: Zayıf
+5–29: Çok zayıf
+
+Normal puanlarda 95–100 kullanılmaz. 100 yalnızca teorik üst sınırdır.
