@@ -1,0 +1,29 @@
+FIFA 9 LIVE ATTACK MOMENTUM V34
+
+Bu sürümde canlı maç merkezi şu şekilde güncellenmiştir:
+1) Dakika Bazlı Baskı Dalgası paneli kaldırıldı.
+2) Yerine Sofascore benzeri Attack Momentum / Atak Momentumu paneli eklendi.
+3) Canlı Kontrol Masası içine kısa olay tuşları eklendi.
+4) Yeni hızlı olay türleri:
+   - Atak
+   - Tehlikeli
+   - Büyük Şans
+   - Mutlak Kaçtı
+   - İsabetli Şut
+   - Gol
+5) Olay şiddeti momentum barlarının yüksekliğini etkiler.
+6) Dakika, mevcut canlı sayaçtan otomatik alınır.
+7) Maç bittikten sonra canlı yayın arşiv detayında Atak Momentumu geçmişi de görüntülenir.
+
+PATCH kurulumu için yükleyin:
+- app.js
+- styles.css
+- service-worker.js
+- LIVE_ATTACK_MOMENTUM_V34_INSTALL_TR.txt
+
+Commit önerisi:
+Add live attack momentum v34
+
+Deploy sonrası:
+- Vercel deploy tamamlandıktan sonra Ctrl + F5
+- Gerekirse tarayıcı Service Worker cache temizliği yapın

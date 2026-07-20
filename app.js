@@ -876,7 +876,7 @@
   }
 
   function liveEventThreatValue(event) {
-    const weights = { goal: .72, bigchance: .42, attack: .15, note: .07, yellow: .03, red: .09 };
+    const weights = { goal: .9, bigchance: .55, hugemiss: .62, ontarget: .3, dangerous: .22, attack: .14, note: .07, yellow: .03, red: .09 };
     return weights[event?.type] || 0;
   }
 
@@ -943,10 +943,10 @@
     liveGoalAnnouncementTimer = setTimeout(() => { node.classList.remove("show"); setTimeout(() => node.remove(), 500); }, 4800);
   }
 
-  function buildLiveStudioData() {
+  function buildLiveStudioDataFromLive(live, match) {
+    if (!live || !match) return null;
     const pulse = buildLiveMatchPulse();
-    if (!pulse) return null;
-    const { live, match } = pulse;
+    const pulseLive = pulse && pulse.live?.matchId === live.matchId ? pulse : null;
     const homeName = playerName(match.homeId);
     const awayName = playerName(match.awayId);
     const minuteNow = Math.max(0, Math.min(120, Number(live.minute) || 0));
@@ -962,23 +962,59 @@
       eventCount: 0,
       events: []
     }));
+    const minuteBars = Array.from({ length: 90 }, (_, index) => ({ minute: index + 1, home: 0, away: 0, events: [] }));
     const events = [...(live.events || [])].sort((a, b) => (Number(a.minute) || 0) - (Number(b.minute) || 0) || (Number(a.addedTime) || 0) - (Number(b.addedTime) || 0) || String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
-    let baseMomentum = Math.round(((pulse.base?.market?.home?.probability || .34) - (pulse.base?.market?.away?.probability || .34)) * 54);
+    const eventProfile = type => ({
+      goal: { swing: 34, home: 54, away: 54, minute: 100, label: intelligenceCopy('Gol', 'Goal'), marker: '⚽' },
+      hugemiss: { swing: 24, home: 42, away: 42, minute: 82, label: intelligenceCopy('Mutlak Gol Kaçtı', 'Huge Miss'), marker: '✖' },
+      bigchance: { swing: 18, home: 32, away: 32, minute: 64, label: intelligenceCopy('Büyük Şans', 'Big Chance'), marker: '◎' },
+      ontarget: { swing: 10, home: 20, away: 20, minute: 44, label: intelligenceCopy('İsabetli Şut', 'Shot on Target'), marker: '◉' },
+      dangerous: { swing: 8, home: 16, away: 16, minute: 30, label: intelligenceCopy('Tehlikeli Baskı', 'Dangerous Pressure'), marker: '▲' },
+      attack: { swing: 5, home: 12, away: 12, minute: 18, label: intelligenceCopy('Atak', 'Attack'), marker: '↗' },
+      yellow: { swing: -5, home: 0, away: 0, minute: 0, label: intelligenceCopy('Sarı Kart', 'Yellow Card'), marker: '🟨' },
+      red: { swing: -14, home: 0, away: 0, minute: 0, label: intelligenceCopy('Kırmızı Kart', 'Red Card'), marker: '🟥' },
+      note: { swing: 3, home: 7, away: 7, minute: 10, label: intelligenceCopy('Not', 'Note'), marker: '•' }
+    }[type] || { swing: 4, home: 8, away: 8, minute: 12, label: intelligenceCopy('Olay', 'Event'), marker: '•' });
+    let baseMomentum = Math.round((((pulseLive?.base?.market?.home?.probability) || .34) - (((pulseLive?.base?.market?.away?.probability) || .34))) * 54);
     events.forEach(event => {
       const minute = Math.max(0, Math.min(89, Number(event.minute) || 0));
       const idx = Math.min(binCount - 1, Math.floor(minute / binSize));
+      const profile = eventProfile(event.type);
       let delta = 0;
-      if (event.type === 'goal') delta = event.side === 'home' ? 28 : event.side === 'away' ? -28 : 0;
-      else if (event.type === 'bigchance') delta = event.side === 'home' ? 20 : event.side === 'away' ? -20 : 0;
-      else if (event.type === 'attack') delta = event.side === 'home' ? 10 : event.side === 'away' ? -10 : 0;
-      else if (event.type === 'yellow') delta = event.side === 'home' ? -6 : event.side === 'away' ? 6 : 0;
-      else if (event.type === 'red') delta = event.side === 'home' ? -18 : event.side === 'away' ? 18 : 0;
-      else if (event.type === 'note') delta = event.side === 'home' ? 8 : event.side === 'away' ? -8 : 0;
+      if (['yellow','red'].includes(event.type)) delta = event.side === 'home' ? profile.swing : event.side === 'away' ? -profile.swing : 0;
+      else delta = event.side === 'home' ? profile.swing : event.side === 'away' ? -profile.swing : 0;
       bins[idx].swing += delta;
       bins[idx].eventCount += 1;
       bins[idx].events.push(event);
-      if (delta > 0) bins[idx].home += Math.abs(delta) + 8;
-      if (delta < 0) bins[idx].away += Math.abs(delta) + 8;
+      if (delta > 0) bins[idx].home += Math.abs(delta) + 6;
+      if (delta < 0) bins[idx].away += Math.abs(delta) + 6;
+      const barIndex = Math.min(89, minute);
+      const spread = [1, .58, .28];
+      spread.forEach((factor, offset) => {
+        const target = Math.min(89, barIndex + offset);
+        if (!minuteBars[target]) return;
+        const intensity = profile.minute * factor;
+        if (event.side === 'home') minuteBars[target].home = intelligenceClamp(minuteBars[target].home + intensity, 0, 100);
+        if (event.side === 'away') minuteBars[target].away = intelligenceClamp(minuteBars[target].away + intensity, 0, 100);
+      });
+      minuteBars[barIndex].events.push(event);
+    });
+    minuteBars.forEach((bar, index) => {
+      const minute = index + 1;
+      const gameBias = scoreDiff === 0 ? 2 : Math.min(12, Math.abs(scoreDiff) * 2.2);
+      const liveBias = minute <= minuteNow ? 1 : .35;
+      if (minute <= minuteNow) {
+        if (scoreDiff > 0 && minute > 60) bar.away = intelligenceClamp(bar.away + gameBias * .7, 0, 100);
+        if (scoreDiff < 0 && minute > 60) bar.home = intelligenceClamp(bar.home + gameBias * .7, 0, 100);
+      }
+      const prev = minuteBars[index - 1];
+      if (prev) {
+        bar.home = intelligenceClamp(bar.home + prev.home * .18 * liveBias, 0, 100);
+        bar.away = intelligenceClamp(bar.away + prev.away * .18 * liveBias, 0, 100);
+      }
+      bar.active = minute === Math.max(1, Math.min(90, minuteNow || 1));
+      bar.total = Math.max(bar.home, bar.away);
+      bar.balance = Math.round(bar.home - bar.away);
     });
 
     const points = [];
@@ -988,14 +1024,17 @@
       const progress = (index + 1) / binCount;
       const activeWeight = minuteNow >= bin.start ? 1 : .4;
       const scoreBias = scoreDiff * (8 + progress * 10) * activeWeight;
-      const momentumBias = pulse.momentum.side === 'home' ? 4 : pulse.momentum.side === 'away' ? -4 : 0;
+      const pulseMomentumSide = pulseLive?.momentum?.side || 'draw';
+      const momentumBias = pulseMomentumSide === 'home' ? 4 : pulseMomentumSide === 'away' ? -4 : 0;
       running = intelligenceClamp(running * .74 + bin.swing + scoreBias + momentumBias, -100, 100);
       const closenessBoost = Math.max(0, 24 - Math.abs(scoreDiff) * 7);
       const urgencyBoost = progress * 34 + (minuteNow >= 75 ? 8 : 0);
-      const importanceBonus = pulse.importance.level === 'legendary' ? 10 : pulse.importance.level === 'critical' ? 7 : pulse.importance.level === 'high' ? 4 : 0;
+      const importanceLevel = pulseLive?.importance?.level || 'normal';
+      const importanceBonus = importanceLevel === 'legendary' ? 10 : importanceLevel === 'critical' ? 7 : importanceLevel === 'high' ? 4 : 0;
       const pressure = Math.round(intelligenceClamp(Math.abs(running) * .4 + closenessBoost + urgencyBoost + bin.eventCount * 10 + importanceBonus, 6, 100));
-      const homePressure = Math.round(intelligenceClamp((running > 0 ? running : 0) * .72 + pressure * .32 + bin.home, 0, 100));
-      const awayPressure = Math.round(intelligenceClamp((running < 0 ? Math.abs(running) : 0) * .72 + pressure * .32 + bin.away, 0, 100));
+      const momentumSum = minuteBars.slice(bin.start, Math.min(90, bin.end)).reduce((sum, row) => ({ home: sum.home + row.home, away: sum.away + row.away }), { home: 0, away: 0 });
+      const homePressure = Math.round(intelligenceClamp((running > 0 ? running : 0) * .52 + pressure * .24 + bin.home + momentumSum.home / Math.max(1, (bin.end - bin.start)), 0, 100));
+      const awayPressure = Math.round(intelligenceClamp((running < 0 ? Math.abs(running) : 0) * .52 + pressure * .24 + bin.away + momentumSum.away / Math.max(1, (bin.end - bin.start)), 0, 100));
       points.push({
         minute: bin.end,
         start: bin.start,
@@ -1010,22 +1049,36 @@
     }
 
     const currentIndex = Math.min(binCount - 1, Math.floor(Math.min(89, minuteNow) / binSize));
-    const currentSegment = points[currentIndex] || points[0];
+    const currentSegment = points[currentIndex] || points[0] || { pressure: 0, homePressure: 0, awayPressure: 0, value: 0, start: 0, end: 5 };
     const maxAbs = Math.max(40, ...points.map(point => Math.abs(point.value)));
+    const pulseData = pulseLive || {
+      momentum: { side: currentSegment.value > 12 ? 'home' : currentSegment.value < -12 ? 'away' : 'draw', label: currentSegment.value > 12 ? `${homeName} ${intelligenceCopy('baskıyı kurdu', 'has the momentum')}` : currentSegment.value < -12 ? `${awayName} ${intelligenceCopy('baskıyı kurdu', 'has the momentum')}` : intelligenceCopy('Maç dengede', 'The match is balanced'), strength: Math.min(100, Math.abs(currentSegment.value)) },
+      pressure: currentSegment.pressure || Math.max(currentSegment.homePressure, currentSegment.awayPressure),
+      chaos: Math.min(100, 30 + events.length * 5 + Math.abs(scoreDiff) * 5),
+      comebackProbability: scoreDiff === 0 ? .24 : .16,
+      trailingSide: scoreDiff > 0 ? 'away' : scoreDiff < 0 ? 'home' : 'draw',
+      nextGoalSide: currentSegment.homePressure >= currentSegment.awayPressure ? 'home' : 'away',
+      pulse: 78,
+      importance: { level: 'normal', note: intelligenceCopy('Canlı yayın arşivi', 'Live archive') },
+      base: { home: { avgGoals: 2.2, gaPerGame: 2.2 }, away: { avgGoals: 2.2, gaPerGame: 2.2 }, market: { home: { probability: .34 }, draw: { probability: .32 }, away: { probability: .34 } } },
+      probability: { home: .34, draw: .32, away: .34 },
+      leaderSide: scoreDiff > 0 ? 'home' : scoreDiff < 0 ? 'away' : 'draw',
+      leadChanges: 0
+    };
     const eventSummary = [];
-    if (pulse.momentum.side !== 'draw') eventSummary.push(pulse.momentum.label);
-    if (pulse.pressure >= 72) eventSummary.push(intelligenceCopy('baskı seviyesi zirveye çıktı', 'pressure level has reached its peak'));
-    if (pulse.chaos >= 70) eventSummary.push(intelligenceCopy('maç tam bir kaos bölgesine girdi', 'the match has entered a chaos zone'));
-    if (pulse.leadChanges >= 1) eventSummary.push(intelligenceCopy(`${pulse.leadChanges} liderlik değişimi yaşandı`, `${pulse.leadChanges} lead changes have already occurred`));
+    if (pulseData.momentum.side !== 'draw') eventSummary.push(pulseData.momentum.label);
+    if (pulseData.pressure >= 72) eventSummary.push(intelligenceCopy('baskı seviyesi zirveye çıktı', 'pressure level has reached its peak'));
+    if (pulseData.chaos >= 70) eventSummary.push(intelligenceCopy('maç tam bir kaos bölgesine girdi', 'the match has entered a chaos zone'));
+    if ((pulseData.leadChanges || 0) >= 1) eventSummary.push(intelligenceCopy(`${pulseData.leadChanges} liderlik değişimi yaşandı`, `${pulseData.leadChanges} lead changes have already occurred`));
     if (scoreDiff === 0) eventSummary.push(intelligenceCopy('bir sonraki gol dengeyi tamamen kırabilir', 'the next goal could completely break the balance'));
     const topWave = [...points].sort((a, b) => (b.homePressure + b.awayPressure) - (a.homePressure + a.awayPressure))[0] || currentSegment;
     const momentumOwner = currentSegment.value > 10 ? homeName : currentSegment.value < -10 ? awayName : intelligenceCopy('denge', 'balance');
-    const controlOwner = pulse.leaderSide === 'home' ? homeName : pulse.leaderSide === 'away' ? awayName : intelligenceCopy('Denge', 'Balanced');
+    const controlOwner = pulseData.leaderSide === 'home' ? homeName : pulseData.leaderSide === 'away' ? awayName : intelligenceCopy('Denge', 'Balanced');
     const phaseProgress = Math.max(.08, Math.min(1.15, minuteNow / 90));
     const homeEventThreat = events.filter(event => event.side === 'home').reduce((sum, event) => sum + liveEventThreatValue(event), 0);
     const awayEventThreat = events.filter(event => event.side === 'away').reduce((sum, event) => sum + liveEventThreatValue(event), 0);
-    const expectedHome = intelligenceClamp(((pulse.base.home.avgGoals + pulse.base.away.gaPerGame) / 2) * (.24 + phaseProgress * .58), .05, 4.4);
-    const expectedAway = intelligenceClamp(((pulse.base.away.avgGoals + pulse.base.home.gaPerGame) / 2) * (.24 + phaseProgress * .58), .05, 4.4);
+    const expectedHome = intelligenceClamp((((pulseData.base.home?.avgGoals) || 2.2) + ((pulseData.base.away?.gaPerGame) || 2.2)) / 2 * (.24 + phaseProgress * .58), .05, 4.4);
+    const expectedAway = intelligenceClamp((((pulseData.base.away?.avgGoals) || 2.2) + ((pulseData.base.home?.gaPerGame) || 2.2)) / 2 * (.24 + phaseProgress * .58), .05, 4.4);
     const homeThreat = Number(intelligenceClamp(expectedHome + homeEventThreat + currentSegment.homePressure / 260, .05, 6.5).toFixed(2));
     const awayThreat = Number(intelligenceClamp(expectedAway + awayEventThreat + currentSegment.awayPressure / 260, .05, 6.5).toFixed(2));
     const threatTotal = homeThreat + awayThreat || 1;
@@ -1034,14 +1087,20 @@
     const recentWindow = events.filter(event => minuteNow - (Number(event.minute) || 0) <= 12);
     const homeRecentHeat = recentWindow.filter(event => event.side === 'home').reduce((sum, event) => sum + liveEventThreatValue(event) * 24, 0);
     const awayRecentHeat = recentWindow.filter(event => event.side === 'away').reduce((sum, event) => sum + liveEventThreatValue(event) * 24, 0);
-    const homeHeat = liveHeatProfile(currentSegment.homePressure * .72 + homeRecentHeat + (pulse.momentum.side === 'home' ? 12 : 0));
-    const awayHeat = liveHeatProfile(currentSegment.awayPressure * .72 + awayRecentHeat + (pulse.momentum.side === 'away' ? 12 : 0));
+    const homeHeat = liveHeatProfile(currentSegment.homePressure * .72 + homeRecentHeat + (pulseData.momentum.side === 'home' ? 12 : 0));
+    const awayHeat = liveHeatProfile(currentSegment.awayPressure * .72 + awayRecentHeat + (pulseData.momentum.side === 'away' ? 12 : 0));
+    const recentPulseWindow = minuteBars.slice(Math.max(0, minuteNow - 10), Math.max(1, minuteNow));
+    const homePulse = Math.round(recentPulseWindow.length ? recentPulseWindow.reduce((sum,row)=>sum + (Number(row.home)||0),0) / recentPulseWindow.length : 0);
+    const awayPulse = Math.round(recentPulseWindow.length ? recentPulseWindow.reduce((sum,row)=>sum + (Number(row.away)||0),0) / recentPulseWindow.length : 0);
     return {
-      ...pulse,
+      ...pulseData,
+      live,
+      match,
       homeName,
       awayName,
       currentSegment,
       points,
+      minuteBars,
       maxAbs,
       eventSummary,
       topWave,
@@ -1053,8 +1112,16 @@
       awayThreatShare,
       homeHeat,
       awayHeat,
+      homePulse,
+      awayPulse,
       scoreboardLabel: scoreDiff === 0 ? intelligenceCopy('Her şey açık', 'Everything is open') : scoreDiff > 0 ? `${homeName} ${intelligenceCopy('öne geçti', 'in front')}` : `${awayName} ${intelligenceCopy('öne geçti', 'in front')}`
     };
+  }
+
+  function buildLiveStudioData() {
+    const active = getActiveLive();
+    if (!active) return null;
+    return buildLiveStudioDataFromLive(active.live, active.match);
   }
 
   function renderLiveStudioMetrics(data) {
@@ -1085,47 +1152,50 @@
   }
 
   function renderLiveStudioMomentumPanel(data) {
-    const width = 1000, height = 280, baseline = 140;
-    const coords = data.points.map((point, index) => {
-      const x = 40 + (index / (data.points.length - 1 || 1)) * 920;
-      const y = baseline - (point.value / data.maxAbs) * 96;
-      return { ...point, x, y };
-    });
-    const line = coords.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join(' ');
-    const area = `${line} L ${coords[coords.length - 1].x.toFixed(1)} ${baseline} L ${coords[0].x.toFixed(1)} ${baseline} Z`;
-    const currentMinuteX = 40 + ((Math.min(90, Math.max(0, Number(data.live.minute) || 0)) / 90) * 920);
+    const width = 1200, height = 320, baseline = 158;
+    const bars = data.minuteBars || [];
+    const barWidth = 10;
+    const chartLeft = 42;
+    const activeMinute = Math.max(1, Math.min(90, Number(data.live?.minute) || 1));
+    const markerY = baseline + 135;
+    const iconMap = { goal: '⚽', bigchance: '◎', hugemiss: '✖', ontarget: '◉', dangerous: '▲', attack: '↗', yellow: '🟨', red: '🟥', note: '•' };
     return `<div class="live-studio-panel-stack">
-      <div class="panel-header compact"><div><h3 class="panel-title">${intelligenceCopy('Momentum Akışı', 'Momentum Flow')}</h3><div class="panel-subtitle">${intelligenceCopy('Dakika ilerledikçe hangi taraf oyunu itti, baskı nerede yükseldi?', 'Which side pushed the game and where did the pressure rise as the minutes advanced?')}</div></div><span class="badge badge-gold">${intelligenceCopy('CANLI', 'LIVE')}</span></div>
-      <div class="live-studio-chart-wrap">
-        <svg class="live-studio-chart" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-label="Live momentum chart">
-          <defs>
-            <linearGradient id="liveStudioArea" x1="0" x2="1" y1="0" y2="0"><stop offset="0%" stop-color="rgba(68,160,255,.12)"></stop><stop offset="50%" stop-color="rgba(232,196,92,.26)"></stop><stop offset="100%" stop-color="rgba(255,95,131,.12)"></stop></linearGradient>
-            <linearGradient id="liveStudioLine" x1="0" x2="1" y1="0" y2="0"><stop offset="0%" stop-color="#59b4ff"></stop><stop offset="50%" stop-color="#f0d28a"></stop><stop offset="100%" stop-color="#ff718b"></stop></linearGradient>
-          </defs>
-          ${[0,25,50,75,100].map(level => `<line x1="40" x2="960" y1="${baseline - level / 100 * 96}" y2="${baseline - level / 100 * 96}" class="studio-grid-line"></line><line x1="40" x2="960" y1="${baseline + level / 100 * 96}" y2="${baseline + level / 100 * 96}" class="studio-grid-line"></line>`).join('')}
-          ${[0,15,30,45,60,75,90].map(minute => `<line x1="${40 + minute / 90 * 920}" x2="${40 + minute / 90 * 920}" y1="34" y2="246" class="studio-grid-vertical"></line><text x="${40 + minute / 90 * 920}" y="262" text-anchor="middle" class="studio-minute-label">${minute}'</text>`).join('')}
-          <line x1="40" x2="960" y1="${baseline}" y2="${baseline}" class="studio-baseline"></line>
-          <path d="${area}" fill="url(#liveStudioArea)"></path>
-          <path d="${line}" class="studio-momentum-line"></path>
-          <line x1="${currentMinuteX}" x2="${currentMinuteX}" y1="26" y2="252" class="studio-current-minute"></line>
-          ${coords.map(point => `<circle cx="${point.x.toFixed(1)}" cy="${point.y.toFixed(1)}" r="4.5" class="studio-point ${point.value >= 0 ? 'home' : 'away'}"></circle>`).join('')}
-          ${coords.flatMap(point => (point.events || []).map(event => {
-            const markerY = event.side === 'home' ? baseline - 112 : event.side === 'away' ? baseline + 112 : baseline;
-            const markerClass = event.type === 'goal' ? 'goal' : event.type === 'bigchance' ? 'bigchance' : event.type === 'attack' ? 'attack' : event.type === 'red' ? 'red' : event.type === 'yellow' ? 'yellow' : 'note';
-            const markerText = event.type === 'goal' ? 'G' : event.type === 'bigchance' ? '!' : event.type === 'attack' ? 'A' : event.type === 'red' ? 'R' : event.type === 'yellow' ? 'Y' : '•';
-            return `<g class="studio-event-marker ${markerClass}"><circle cx="${point.x.toFixed(1)}" cy="${markerY.toFixed(1)}" r="8"></circle><text x="${point.x.toFixed(1)}" y="${(markerY + 3).toFixed(1)}" text-anchor="middle">${markerText}</text></g>`;
+      <div class="panel-header compact"><div><h3 class="panel-title">${intelligenceCopy('Atak Momentumu', 'Attack Momentum')}</h3><div class="panel-subtitle">${intelligenceCopy('Kısa butonlarla girilen atak, büyük şans, mutlak gol kaçağı ve goller dakikaya göre momentum çubuklarına işlenir.', 'Attacks, big chances, huge misses and goals entered with quick buttons are translated into minute-based momentum bars.')}</div></div><span class="badge badge-gold">${intelligenceCopy('CANLI AKIŞ', 'LIVE FLOW')}</span></div>
+      <div class="live-studio-chart-wrap attack-momentum-wrap">
+        <svg class="live-studio-chart attack-momentum-chart" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-label="Attack momentum chart">
+          <rect x="0" y="0" width="${width}" height="${height}" fill="rgba(255,255,255,.015)"></rect>
+          ${[0,20,40,60,80,100].map(level => `<line x1="${chartLeft}" x2="1164" y1="${baseline - level}" y2="${baseline - level}" class="studio-grid-line faint"></line><line x1="${chartLeft}" x2="1164" y1="${baseline + level}" y2="${baseline + level}" class="studio-grid-line faint"></line>`).join('')}
+          ${[0,15,30,45,60,75,90].map(minute => `<line x1="${chartLeft + minute/90*1120}" x2="${chartLeft + minute/90*1120}" y1="42" y2="286" class="studio-grid-vertical"></line><text x="${chartLeft + minute/90*1120}" y="306" text-anchor="middle" class="studio-minute-label">${minute}'</text>`).join('')}
+          <line x1="${chartLeft}" x2="1164" y1="${baseline}" y2="${baseline}" class="studio-baseline"></line>
+          <line x1="${chartLeft + (activeMinute/90)*1120}" x2="${chartLeft + (activeMinute/90)*1120}" y1="34" y2="288" class="studio-current-minute"></line>
+          ${bars.map((bar,index)=>{
+            const x = chartLeft + index * 12.2;
+            const homeHeight = Math.max(0, Math.min(100, bar.home || 0));
+            const awayHeight = Math.max(0, Math.min(100, bar.away || 0));
+            return `${homeHeight ? `<rect x="${x.toFixed(1)}" y="${(baseline-homeHeight).toFixed(1)}" width="${barWidth}" height="${homeHeight.toFixed(1)}" rx="2.4" class="attack-bar home ${bar.active?'active':''}"></rect>` : ''}${awayHeight ? `<rect x="${x.toFixed(1)}" y="${baseline.toFixed(1)}" width="${barWidth}" height="${awayHeight.toFixed(1)}" rx="2.4" class="attack-bar away ${bar.active?'active':''}"></rect>` : ''}`;
+          }).join('')}
+          ${bars.flatMap((bar,index)=>(bar.events||[]).slice(0,3).map((event,eventIndex)=>{
+            const x = chartLeft + index * 12.2 + barWidth/2;
+            const y = event.side === 'home' ? 24 - eventIndex * 0 : markerY + eventIndex * 0;
+            const sideY = event.side === 'home' ? 26 : markerY;
+            return `<g class="studio-event-marker ${escapeHTML(event.type)}"><circle cx="${x.toFixed(1)}" cy="${sideY.toFixed(1)}" r="9"></circle><text x="${x.toFixed(1)}" y="${(sideY+3).toFixed(1)}" text-anchor="middle">${iconMap[event.type] || '•'}</text></g>`;
           })).join('')}
         </svg>
       </div>
-      <div class="live-studio-chart-legend"><span class="home">${escapeHTML(data.homeName)} ${intelligenceCopy('baskı üst bölge', 'pressure upper zone')}</span><span class="draw">${intelligenceCopy('denge çizgisi', 'balance line')}</span><span class="away">${escapeHTML(data.awayName)} ${intelligenceCopy('baskı alt bölge', 'pressure lower zone')}</span></div>
+      <div class="live-studio-chart-legend attack-momentum-legend"><span class="home"><b>${escapeHTML(data.homeName)}</b> · ${intelligenceCopy('üst bant baskısı', 'upper pressure band')}</span><span class="draw">${intelligenceCopy('Çubuk boyu olay şiddetine göre artar', 'Bar size grows with event severity')}</span><span class="away"><b>${escapeHTML(data.awayName)}</b> · ${intelligenceCopy('alt bant baskısı', 'lower pressure band')}</span></div>
+      <div class="live-momentum-inline-stats"><div><span>${escapeHTML(data.homeName)}</span><strong>${data.homePulse}/100</strong><small>${intelligenceCopy('son 10 dk baskı', 'last 10m pressure')}</small></div><div><span>${intelligenceCopy('En sıcak dalga', 'Hottest wave')}</span><strong>${data.topWave.start}–${data.topWave.end}'</strong><small>${intelligenceCopy('maçın zirve bölgesi', 'peak spell')}</small></div><div><span>${escapeHTML(data.awayName)}</span><strong>${data.awayPulse}/100</strong><small>${intelligenceCopy('son 10 dk baskı', 'last 10m pressure')}</small></div></div>
     </div>`;
   }
 
   function renderLiveStudioPressurePanel(data) {
-    return `<div class="live-studio-panel-stack">
-      <div class="panel-header compact"><div><h3 class="panel-title">${intelligenceCopy('Dakika Bazlı Baskı Dalgası', 'Minute-by-Minute Pressure Wave')}</h3><div class="panel-subtitle">${intelligenceCopy('Her 5 dakikalık blokta baskı şiddeti ve yön değişimi.', 'Pressure intensity and direction in every 5-minute block.')}</div></div><span class="badge badge-blue">${data.points.length} BLOCKS</span></div>
-      <div class="live-pressure-wave-list">${data.points.map(point => `<div class="live-pressure-wave ${point.active ? 'active' : ''}"><div class="live-pressure-minute">${point.start}–${point.end}'</div><div class="live-pressure-bars"><span class="home" style="width:${point.homePressure}%"></span><span class="away" style="width:${point.awayPressure}%"></span></div><div class="live-pressure-meta"><strong>${point.pressure}</strong><small>${point.events.length ? point.events.map(event => event.type === 'goal' ? '⚽' : event.type === 'bigchance' ? '◎' : event.type === 'attack' ? '↗' : event.type === 'red' ? '🟥' : event.type === 'yellow' ? '🟨' : '◆').join(' ') : '—'}</small></div></div>`).join('')}</div>
-      <div class="live-pressure-footnote">${intelligenceCopy('Mavi bloklar ev sahibi baskısını, kırmızı bloklar deplasman baskısını gösterir. Sarı parlama, şu anda canlı oynanan zaman aralığını işaretler.', 'Blue bars show home pressure, red bars show away pressure. The gold glow marks the currently active live time block.')}</div>
+    const recentEvents = [...(data.live?.events || [])].sort((a,b)=>(Number(b.minute)||0)-(Number(a.minute)||0) || String(b.createdAt||'').localeCompare(String(a.createdAt||''))).slice(0,8);
+    const labelMap = { goal: intelligenceCopy('Gol', 'Goal'), bigchance: intelligenceCopy('Büyük Şans', 'Big Chance'), hugemiss: intelligenceCopy('Mutlak Gol Kaçtı', 'Huge Miss'), ontarget: intelligenceCopy('İsabetli Şut', 'Shot on Target'), dangerous: intelligenceCopy('Tehlikeli Baskı', 'Dangerous Pressure'), attack: intelligenceCopy('Atak', 'Attack'), yellow: intelligenceCopy('Sarı Kart', 'Yellow Card'), red: intelligenceCopy('Kırmızı Kart', 'Red Card'), note: intelligenceCopy('Not', 'Note') };
+    const trendHome = (data.minuteBars || []).filter(row=>row.minute <= Math.max(1, Number(data.live?.minute)||1)).sort((a,b)=>b.minute-a.minute).slice(0,15).reduce((sum,row)=>sum+row.home,0);
+    const trendAway = (data.minuteBars || []).filter(row=>row.minute <= Math.max(1, Number(data.live?.minute)||1)).sort((a,b)=>b.minute-a.minute).slice(0,15).reduce((sum,row)=>sum+row.away,0);
+    return `<div class="live-studio-panel-stack compact-summary">
+      <div class="panel-header compact"><div><h3 class="panel-title">${intelligenceCopy('Momentum Özeti', 'Momentum Summary')}</h3><div class="panel-subtitle">${intelligenceCopy('Gereksiz yer kaplayan baskı listesi yerine son akışın özeti ve kısa olay kayıtları.', 'Compact summary of the latest flow and quick event log instead of a space-heavy pressure list.')}</div></div><span class="badge badge-blue">${recentEvents.length} ${intelligenceCopy('KAYIT', 'EVENTS')}</span></div>
+      <div class="live-pressure-summary-grid"><article><span>${intelligenceCopy('Ev Sahibi Son 15 dk', 'Home Last 15m')}</span><strong>${Math.round(trendHome/15)}/100</strong><small>${escapeHTML(data.homeName)}</small></article><article><span>${intelligenceCopy('Deplasman Son 15 dk', 'Away Last 15m')}</span><strong>${Math.round(trendAway/15)}/100</strong><small>${escapeHTML(data.awayName)}</small></article><article><span>${intelligenceCopy('Canlı Baskı', 'Live Pressure')}</span><strong>${data.currentSegment.pressure}/100</strong><small>${data.currentSegment.start}–${data.currentSegment.end}'</small></article><article><span>${intelligenceCopy('Oyun Akışı', 'Flow State')}</span><strong>${escapeHTML(data.momentumOwner)}</strong><small>${escapeHTML(data.momentum.label)}</small></article></div>
+      <div class="live-recent-events-compact">${recentEvents.length ? recentEvents.map(event=>`<div class="compact-event-row ${escapeHTML(event.side||'neutral')}"><span class="minute">${Number(event.minute)||0}${Number(event.addedTime)?`+${Number(event.addedTime)}`:''}'</span><strong>${escapeHTML(event.side==='home'?data.homeName:event.side==='away'?data.awayName:intelligenceCopy('Nötr','Neutral'))}</strong><small>${escapeHTML(labelMap[event.type] || event.type)} · ${escapeHTML(event.text || '')}</small></div>`).join('') : `<div class="info-box">${intelligenceCopy('Henüz canlı olay girilmedi.', 'No live event has been entered yet.')}</div>`}</div>
     </div>`;
   }
 
@@ -1256,20 +1326,22 @@
           </div>
         </section>
         <section class="panel">
-          <div class="panel-header"><div><h3 class="panel-title">Maç Olayı Ekle</h3><div class="panel-subtitle">Gol, kart veya önemli notu dakika bilgisiyle kaydet.</div></div></div>
+          <div class="panel-header"><div><h3 class="panel-title">Maç Olayı Ekle</h3><div class="panel-subtitle">Gol, kart, atak momentumu ve önemli notları dakika bilgisiyle kaydet.</div></div></div>
           <form id="liveEventForm" class="live-event-form">
             <div class="modal-form-grid">
-              <div class="field"><label>Olay</label><select name="type"><option value="goal">Gol</option><option value="bigchance">Büyük Şans</option><option value="attack">Tehlikeli Atak</option><option value="yellow">Sarı Kart</option><option value="red">Kırmızı Kart</option><option value="note">Maç Notu</option></select></div>
+              <div class="field"><label>Olay</label><select name="type"><option value="goal">Gol</option><option value="bigchance">Büyük Şans</option><option value="hugemiss">Mutlak Gol Kaçtı</option><option value="ontarget">İsabetli Şut</option><option value="dangerous">Tehlikeli Baskı</option><option value="attack">Atak</option><option value="yellow">Sarı Kart</option><option value="red">Kırmızı Kart</option><option value="note">Maç Notu</option></select></div>
               <div class="field"><label>Taraf</label><select name="side"><option value="home">${displayName(match.homeId)}</option><option value="away">${displayName(match.awayId)}</option><option value="neutral">Genel</option></select></div>
               <div class="field"><label>Dakika</label><input type="number" name="minute" min="0" max="130" value="${Number(live.minute) || 0}"></div>
               <div class="field"><label>Ek Süre</label><input type="number" name="addedTime" min="0" max="20" value="${Number(live.addedTime) || 0}"></div>
             </div>
             <div class="field mt-16"><label>Açıklama</label><input type="text" name="text" placeholder="Örn. Hızlı hücum / büyük şans / kritik müdahale"></div>
             <div class="live-quick-event-grid mt-16">
-              <button type="button" data-action="live-quick-event" data-event-type="attack" data-side="home">${displayName(match.homeId)} · + Atak</button>
-              <button type="button" data-action="live-quick-event" data-event-type="attack" data-side="away">${displayName(match.awayId)} · + Atak</button>
+              <button type="button" data-action="live-quick-event" data-event-type="attack" data-side="home">${displayName(match.homeId)} · Atak</button>
+              <button type="button" data-action="live-quick-event" data-event-type="attack" data-side="away">${displayName(match.awayId)} · Atak</button>
               <button type="button" data-action="live-quick-event" data-event-type="bigchance" data-side="home">${displayName(match.homeId)} · Büyük Şans</button>
               <button type="button" data-action="live-quick-event" data-event-type="bigchance" data-side="away">${displayName(match.awayId)} · Büyük Şans</button>
+              <button type="button" data-action="live-quick-event" data-event-type="hugemiss" data-side="home">${displayName(match.homeId)} · Mutlak Kaçtı</button>
+              <button type="button" data-action="live-quick-event" data-event-type="hugemiss" data-side="away">${displayName(match.awayId)} · Mutlak Kaçtı</button>
             </div>
             <button class="btn btn-gold btn-wide mt-16" type="submit">Olayı Canlı Yayına Ekle</button>
           </form>
@@ -1298,8 +1370,8 @@
   }
 
   function renderLiveEvent(event, match) {
-    const iconMap = { goal: "⚽", bigchance: "◎", attack: "↗", yellow: "▰", red: "■", note: "◆" };
-    const labelMap = { goal: "GOL", bigchance: "BÜYÜK ŞANS", attack: "TEHLİKELİ ATAK", yellow: "SARI KART", red: "KIRMIZI KART", note: "MAÇ NOTU" };
+    const iconMap = { goal: "⚽", bigchance: "◎", hugemiss: "✖", ontarget: "◉", dangerous: "▲", attack: "↗", yellow: "▰", red: "■", note: "◆" };
+    const labelMap = { goal: "GOL", bigchance: "BÜYÜK ŞANS", hugemiss: "MUTLAK KAÇTI", ontarget: "İSABETLİ ŞUT", dangerous: "TEHLİKELİ BASKI", attack: "ATAK", yellow: "SARI KART", red: "KIRMIZI KART", note: "MAÇ NOTU" };
     const sideName = event.side === "home" ? playerName(match.homeId) : event.side === "away" ? playerName(match.awayId) : "Maç Merkezi";
     const minute = `${Number(event.minute) || 0}${Number(event.addedTime) ? `+${Number(event.addedTime)}` : ""}'`;
     return `<div class="live-event-row type-${escapeHTML(event.type)}"><div class="live-event-minute">${minute}</div><div class="live-event-icon">${iconMap[event.type] || "◆"}</div><div class="live-event-copy"><strong>${labelMap[event.type] || "OLAY"} · ${escapeHTML(sideName)}</strong><span>${escapeHTML(event.text || (event.type === "goal" ? "Skor güncellendi" : "Canlı maç olayı"))}</span></div>${canEdit() ? `<button class="live-event-delete" data-action="delete-live-event" data-event-id="${event.id}" title="Olayı sil">×</button>` : ""}</div>`;
@@ -1408,7 +1480,7 @@
     active.minute = minute;
     active.addedTime = addedTime;
     active.events = Array.isArray(active.events) ? active.events : [];
-    const defaultText = type === "goal" ? "Gol" : type === "bigchance" ? "Büyük gol fırsatı" : type === "attack" ? "Tehlikeli atak" : "Canlı maç olayı";
+    const defaultText = type === "goal" ? "Gol" : type === "bigchance" ? "Büyük gol fırsatı" : type === "hugemiss" ? "Mutlak gol kaçtı" : type === "ontarget" ? "İsabetli şut" : type === "dangerous" ? "Tehlikeli baskı" : type === "attack" ? "Atak" : "Canlı maç olayı";
     active.events.push({ id: `live-${Date.now()}-${Math.random().toString(36).slice(2,6)}`, type, side, minute, addedTime, text: text || defaultText, createdAt: new Date().toISOString() });
     touchLive();
     render();
@@ -1418,13 +1490,19 @@
   function addLiveQuickEvent(type, side) {
     if (!canEdit()) return;
     const active = getLiveState().active;
-    if (!active || !["home", "away"].includes(side) || !["attack", "bigchance"].includes(type)) return;
+    const allowed = ["attack", "dangerous", "bigchance", "hugemiss", "ontarget", "goal"];
+    if (!active || !["home", "away"].includes(side) || !allowed.includes(type)) return;
+    if (type === "goal") {
+      addLiveGoal(side);
+      toast("Gol canlı yayına işlendi.", "success");
+      return;
+    }
     active.events = Array.isArray(active.events) ? active.events : [];
-    const text = type === "bigchance" ? "Büyük gol fırsatı" : "Tehlikeli atak";
-    active.events.push({ id: `live-${Date.now()}-${Math.random().toString(36).slice(2,6)}`, type, side, minute: Number(active.minute) || 0, addedTime: Number(active.addedTime) || 0, text, createdAt: new Date().toISOString() });
+    const textMap = { attack: "Atak", dangerous: "Tehlikeli baskı", bigchance: "Büyük gol fırsatı", hugemiss: "Mutlak gol kaçtı", ontarget: "İsabetli şut" };
+    active.events.push({ id: `live-${Date.now()}-${Math.random().toString(36).slice(2,6)}`, type, side, minute: Number(active.minute) || 0, addedTime: Number(active.addedTime) || 0, text: textMap[type] || "Canlı olay", createdAt: new Date().toISOString() });
     touchLive();
     render();
-    toast(type === "bigchance" ? "Büyük şans canlı modele eklendi." : "Tehlikeli atak canlı modele eklendi.", "success");
+    toast(`${textMap[type] || 'Olay'} canlı modele eklendi.`, "success");
   }
 
   function deleteLiveEvent(eventId) {
@@ -3637,7 +3715,7 @@
       <div class="archive-detail-hero"><div><span>${escapeHTML(currentMatchStageLabel(match))}</span><h3>${escapeHTML(homeName)} <b>${match.homeScore}–${match.awayScore}</b> ${escapeHTML(awayName)}</h3><p>${escapeHTML(match.note || "FIFA 9 resmî maç sonucu")}</p></div><div class="archive-detail-stamp ${outcome.className}"><small>MODEL SONUCU</small><strong>${outcome.label}</strong></div></div>
       ${odds && !odds.unavailable ? `<section class="archive-detail-market"><div><span>1 · ${escapeHTML(homeName)}</span><strong>${Number(odds.homeOdds).toFixed(2)}</strong><small>${oddsPercent(odds.homeProbability)}</small></div><div><span>X · Beraberlik</span><strong>${Number(odds.drawOdds).toFixed(2)}</strong><small>${oddsPercent(odds.drawProbability)}</small></div><div><span>2 · ${escapeHTML(awayName)}</span><strong>${Number(odds.awayOdds).toFixed(2)}</strong><small>${oddsPercent(odds.awayProbability)}</small></div></section><div class="info-box mt-16"><strong>Maç öncesi model:</strong> ${escapeHTML(odds.favoriteName || "—")} favori · tahmini skor ${odds.predictedHome}-${odds.predictedAway} · snapshot ${odds.capturedAt ? new Date(odds.capturedAt).toLocaleString("tr-TR") : "—"}</div>` : `<div class="info-box warning-box">Bu maç için maç öncesi oran snapshot'ı bulunmuyor. v22 sonrasında başlayan maçlar otomatik arşivlenir.</div>`}
       <div class="mt-16">${renderCommunityPollShell(match.id, homeName, awayName, false, false, odds?.favoriteSide || "")}</div>
-      <section class="panel mt-24"><div class="panel-header"><div><h3 class="panel-title">Canlı Yayın Zaman Çizelgesi</h3><div class="panel-subtitle">Gol, kart, büyük şans, tehlikeli atak ve yayın notları.</div></div><span class="badge badge-gold">${events.length} OLAY</span></div>${events.length ? `<div class="live-event-timeline archive-timeline">${events.map(event => renderLiveEvent(event, match).replace(/<button class="live-event-delete"[\s\S]*?<\/button>/, "")).join("")}</div>` : `<div class="info-box">Bu maç canlı yayınlanmadı veya olay kaydı bulunmuyor.</div>`}</section>
+      ${archivedLive ? `<section class="panel mt-24"><div class="panel-header"><div><h3 class="panel-title">Atak Momentumu Arşivi</h3><div class="panel-subtitle">Maç sırasında girilen olaylara göre oluşan geçmiş baskı akışı.</div></div><span class="badge badge-blue">MOMENTUM</span></div>${renderLiveStudioMomentumPanel(buildLiveStudioDataFromLive(archivedLive, match))}</section>` : ""}<section class="panel mt-24"><div class="panel-header"><div><h3 class="panel-title">Canlı Yayın Zaman Çizelgesi</h3><div class="panel-subtitle">Gol, kart, büyük şans, tehlikeli atak ve yayın notları.</div></div><span class="badge badge-gold">${events.length} OLAY</span></div>${events.length ? `<div class="live-event-timeline archive-timeline">${events.map(event => renderLiveEvent(event, match).replace(/<button class="live-event-delete"[\s\S]*?<\/button>/, "")).join("")}</div>` : `<div class="info-box">Bu maç canlı yayınlanmadı veya olay kaydı bulunmuyor.</div>`}</section>
       <div class="modal-actions"><button class="btn btn-gold" data-action="close-modal">Kapat</button></div>
     `, "MATCH ARCHIVE v22");
     hydrateV22Community(modalBody);
@@ -6141,7 +6219,7 @@
     const contextCategory=editionProfile?.categories.find(category=>category.key==="competition");
     const contextMap=Object.fromEntries((contextCategory?.attributes||[]).map(attribute=>[attribute.key,attribute.value]));
     return `<div class="fm30-page fm32-page">
-      <section class="fm30-toolbar"><div><div class="eyebrow">FIFA TOURNAMENT INTELLIGENCE · V33</div><h2>${intelligenceCopy("Turnuva İçi Gerçek Performans Merkezi","Tournament-Native Performance Centre")}</h2></div><div class="fm32-toolbar-controls"><select id="intelPlayerCardSelect">${cards.map(row=>`<option value="${escapeHTML(row.name)}" ${row.name===selected.name?"selected":""}>${escapeHTML(row.name)} · CA ${row.currentAbility} · F${Number(state.current.edition||9)} ${row.fifa9Performance}</option>`).join("")}</select><select id="intelPlayerEditionSelect">${selected.editionProfiles.map(profile=>`<option value="${profile.edition}" ${profile.edition===Number(intelligencePlayerEdition)?"selected":""}>FIFA ${profile.edition} · ${profile.performance}/100</option>`).join("")}</select></div></section>
+      <section class="fm30-toolbar"><div><div class="eyebrow">FIFA TOURNAMENT INTELLIGENCE · V34</div><h2>${intelligenceCopy("Turnuva İçi Gerçek Performans Merkezi","Tournament-Native Performance Centre")}</h2></div><div class="fm32-toolbar-controls"><select id="intelPlayerCardSelect">${cards.map(row=>`<option value="${escapeHTML(row.name)}" ${row.name===selected.name?"selected":""}>${escapeHTML(row.name)} · CA ${row.currentAbility} · F${Number(state.current.edition||9)} ${row.fifa9Performance}</option>`).join("")}</select><select id="intelPlayerEditionSelect">${selected.editionProfiles.map(profile=>`<option value="${profile.edition}" ${profile.edition===Number(intelligencePlayerEdition)?"selected":""}>FIFA ${profile.edition} · ${profile.performance}/100</option>`).join("")}</select></div></section>
       <section class="fm32-edition-atlas"><header><div><span>${intelligenceCopy("TURNUVA PERFORMANS ATLASI","TOURNAMENT PERFORMANCE ATLAS")}</span><h3>${intelligenceCopy("FIFA 1’den FIFA 9’a edisyon bazlı performans","Edition-by-edition performance from FIFA 1 to FIFA 9")}</h3></div><small>${intelligenceCopy("Her turnuva kendi gol, puan, oyuncu ve aşama dağılımı içinde değerlendirilir.","Each tournament is evaluated within its own scoring, points, player and stage distribution.")}</small></header><div class="fm32-edition-cards">${Array.from({length:Math.max(9,Number(state.current.edition||9))},(_,index)=>index+1).map(edition=>{const profile=selected.editionProfiles.find(item=>item.edition===edition);return `<button class="fm32-edition-card ${edition===Number(intelligencePlayerEdition)?'active':''} ${profile?'':'empty'}" data-action="set-player-edition" data-player-edition="${edition}" ${profile?'':'disabled'}><span>FIFA ${edition}</span><strong>${profile?profile.performance:'—'}</strong><small>${profile?`${profile.stats.matches} ${intelligenceCopy('maç','matches')} · ${profile.stats.winRate.toFixed(0)}%` : intelligenceCopy('Katılmadı','No appearance')}</small></button>`;}).join("")}</div></section>
       <div class="fm30-layout">
         <aside class="fm30-left-column">
