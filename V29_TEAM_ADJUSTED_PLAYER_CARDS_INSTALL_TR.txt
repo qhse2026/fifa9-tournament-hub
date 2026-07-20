@@ -1,0 +1,92 @@
+FIFA 9 Player Card Intelligence v29
+Takım ve Rakip Gücüne Göre Düzeltilmiş Oyuncu Kartları
+
+Bu sürüm, V28 oyuncu kartı motorunu tamamen değiştirir.
+
+ANA DEĞİŞİKLİKLER
+
+1. Current Ability, Current Form ve Legacy ayrıldı
+- Current Ability: oyuncunun güncel temel oyun gücü
+- Current Form: son dönemdeki düzeltilmiş performans
+- Legacy: kariyer mirası, kupalar, zirve Elo ve devamlılık
+- Legacy artık ana kart puanını yapay biçimde yükseltmez
+
+2. Takım Gücü Modeli
+- Takım gücü, mevcut FIFA 1-9 maç arşivindeki takım bilgili maçlardan öğrenilir
+- Takımlar edisyon bazında değerlendirilir
+- Oyuncu Elo farkı etkisi ayrıştırılır
+- Takım gücü; sonuç, gol farkı, PPG ve farklı oyuncularla performans üzerinden oluşturulur
+- Takım bilgisi bulunmayan maçlara hayalî takım gücü verilmez
+
+3. Beklenen Performans
+Her maç için:
+- oyuncu Elo gücü
+- rakip Elo gücü
+- kullanılan takım gücü
+- rakip takım gücü
+- maç aşaması
+- beklenen sonuç
+- beklenen gol üretimi
+
+hesaplanır.
+
+Kart puanı:
+Gerçek Performans - Beklenen Performans
+
+mantığıyla üretilir.
+
+4. Ana Kart Alanları
+- Hücum
+- Savunma
+- Rekabet Seviyesi
+- Mental
+- Takımdan Bağımsız Etki
+
+5. Form Sistemi
+- Son 5 düzeltilmiş performans
+- Son 10 düzeltilmiş performans
+- Form trendi
+- Aktif galibiyet / yenilmezlik serisi
+- Rakip ve takım gücü bağlamı
+
+6. Performans Bağlamı
+Kartta ayrıca:
+- güçlü rakiplere karşı performans
+- underdog performansı
+- favoriyken beklentiyi karşılama
+- zayıf rakiplere karşı performans
+- ortalama kullanılan takım gücü
+- ortalama rakip takım gücü
+
+gösterilir.
+
+7. Puan Kalibrasyonu
+- Turnuva ortalaması yaklaşık 60 kabul edilir
+- 75+ çok güçlü
+- 82+ elite
+- 90+ tarihî ve çok nadir
+- Normal metriklerde 100'e yığılma engellenir
+- Az maçlı oyuncular güven katsayısıyla ortalamaya yaklaştırılır
+
+PATCH ONLY KURULUMU
+
+1. ZIP dosyasını ayıkla.
+2. Şu dosyaları GitHub repository ana dizinine yükle:
+   - index.html
+   - app.js
+   - styles.css
+   - service-worker.js
+   - V29_TEAM_ADJUSTED_PLAYER_CARDS_INSTALL_TR.txt
+3. Mevcut dosyaların değiştirilmesini onayla.
+4. Commit mesajı:
+   Add team-adjusted player card engine v29
+5. Vercel deployment tamamlandıktan sonra Ctrl + F5 yap.
+6. Telefonda eski sürüm görünürse site önbelleğini temizle.
+
+TEKNİK NOTLAR
+
+- Supabase SQL gerekmez.
+- cloud-config.js değiştirilmez.
+- Mevcut maçlar ve turnuva verileri korunur.
+- Takım bilgisi eksik maçlar Current Ability, Form, Mental ve Legacy hesaplarında kullanılabilir.
+- Takım gücü gerektiren özel metriklerde yalnızca takım bilgisi bulunan maçlar kullanılır.

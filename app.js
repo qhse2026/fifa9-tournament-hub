@@ -5140,56 +5140,134 @@
   }
 
 
+
   function playerCardMetricLabel(key) {
     const labels = {
       attack:intelligenceCopy("Hücum", "Attack"),
       defense:intelligenceCopy("Savunma", "Defence"),
-      form:intelligenceCopy("Form", "Form"),
+      competition:intelligenceCopy("Rekabet Seviyesi", "Competition Level"),
       mental:intelligenceCopy("Mental", "Mental"),
+      independence:intelligenceCopy("Takımdan Bağımsız Etki", "Team-Independent Impact"),
+      form:intelligenceCopy("Güncel Form", "Current Form"),
       legacy:intelligenceCopy("Miras", "Legacy"),
-      identity:intelligenceCopy("Oyun Kimliği", "Game Identity"),
-      finishing:intelligenceCopy("Bitiricilik", "Finishing"),
-      shotVolume:intelligenceCopy("Üretim Hacmi", "Shot Volume"),
-      efficiency:intelligenceCopy("Verimlilik", "Efficiency"),
-      bigMatchAttack:intelligenceCopy("Büyük Maç Hücumu", "Big Match Attack"),
-      goalShield:intelligenceCopy("Gol Kalkanı", "Goal Shield"),
-      lockdown:intelligenceCopy("Kilitleme", "Lockdown"),
-      control:intelligenceCopy("Maç Kontrolü", "Game Control"),
-      recovery:intelligenceCopy("Hasar Yönetimi", "Damage Control"),
-      last5:intelligenceCopy("Son 5 Maç", "Last 5 Matches"),
-      last10:intelligenceCopy("Son 10 Maç", "Last 10 Matches"),
-      trend:intelligenceCopy("Trend", "Trend"),
-      rhythm:intelligenceCopy("Ritim", "Rhythm"),
-      clutch:intelligenceCopy("Kritik An", "Clutch"),
-      pressure:intelligenceCopy("Baskı Oyunu", "Pressure Handling"),
+      adjustedScoring:intelligenceCopy("Düzeltilmiş Gol Üretimi", "Adjusted Scoring"),
+      eliteAttack:intelligenceCopy("Güçlü Rakibe Hücum", "Attack vs Strong Opponents"),
+      underdogThreat:intelligenceCopy("Underdog Tehdidi", "Underdog Threat"),
+      scoringConsistency:intelligenceCopy("Skor İstikrarı", "Scoring Consistency"),
+      adjustedPrevention:intelligenceCopy("Düzeltilmiş Gol Önleme", "Adjusted Goal Prevention"),
+      eliteResistance:intelligenceCopy("Güçlü Rakibe Direnç", "Resistance vs Strong Opponents"),
+      favouriteControl:intelligenceCopy("Favoriyken Kontrol", "Control as Favourite"),
+      collapsePrevention:intelligenceCopy("Çöküş Önleme", "Collapse Prevention"),
+      strongOppPerformance:intelligenceCopy("Güçlü Rakip Performansı", "Strong-Opponent Performance"),
+      underdogPerformance:intelligenceCopy("Underdog Performansı", "Underdog Performance"),
+      favouriteDelivery:intelligenceCopy("Favori Sorumluluğu", "Favourite Delivery"),
+      balancedMatches:intelligenceCopy("Eşit Güç Maçları", "Even Matchups"),
+      closeMatch:intelligenceCopy("Yakın Maç Yönetimi", "Close-Match Management"),
+      pressureHandling:intelligenceCopy("Baskı Yönetimi", "Pressure Handling"),
       resilience:intelligenceCopy("Dayanıklılık", "Resilience"),
-      comeback:intelligenceCopy("Geri Dönüş", "Comeback"),
-      trophies:intelligenceCopy("Kupa Dolabı", "Trophy Cabinet"),
+      bounceBack:intelligenceCopy("Mağlubiyet Sonrası Tepki", "Bounce-Back Response"),
+      weakTeamOutput:intelligenceCopy("Güçsüz Takımla Üretim", "Output with Weaker Teams"),
+      disadvantageOutput:intelligenceCopy("Takım Dezavantajı", "Team-Disadvantage Output"),
+      teamConsistency:intelligenceCopy("Takımlar Arası İstikrar", "Cross-Team Consistency"),
+      teamDiversity:intelligenceCopy("Takım Çeşitliliği", "Team Diversity"),
+      last5Adjusted:intelligenceCopy("Son 5 Düzeltilmiş", "Last 5 Adjusted"),
+      last10Adjusted:intelligenceCopy("Son 10 Düzeltilmiş", "Last 10 Adjusted"),
+      formTrend:intelligenceCopy("Form Trendi", "Form Trend"),
+      streak:intelligenceCopy("Aktif Seri", "Active Run"),
+      trophies:intelligenceCopy("Kupalar", "Trophies"),
+      peakLevel:intelligenceCopy("Kariyer Zirvesi", "Career Peak"),
       careerEfficiency:intelligenceCopy("Kariyer Verimi", "Career Efficiency"),
-      longevity:intelligenceCopy("Süreklilik", "Longevity"),
-      authority:intelligenceCopy("Otorite", "Authority"),
-      adaptability:intelligenceCopy("Uyarlanabilirlik", "Adaptability"),
-      favouriteMastery:intelligenceCopy("Favori Takım Ustalığı", "Favourite Team Mastery"),
-      diversity:intelligenceCopy("Takım Çeşitliliği", "Team Diversity"),
-      tacticalFlex:intelligenceCopy("Taktik Esneklik", "Tactical Flexibility")
+      longevity:intelligenceCopy("Süreklilik", "Longevity")
     };
     return labels[key] || key;
   }
 
-  function playerCardGroupBlurb(key) {
-    const blurbs = {
-      attack:intelligenceCopy("Gol üretimi, skor hacmi ve güçlü rakiplere karşı tehdit seviyesi.", "Goal creation, scoring volume and threat level against stronger opposition."),
-      defense:intelligenceCopy("Yenilen gol kalitesi, clean-sheet potansiyeli ve maç kontrolü.", "Goals-against profile, clean-sheet potential and match control."),
-      form:intelligenceCopy("Kısa dönem sıcaklık, güncel ivme ve puan ritmi.", "Short-term heat, current momentum and points rhythm."),
-      mental:intelligenceCopy("Baskı altında karar kalitesi, clutch performans ve geri dönüş gücü.", "Decision quality under pressure, clutch output and comeback power."),
-      legacy:intelligenceCopy("Kariyer verimi, kupa üretimi ve rekabet otoritesi.", "Career efficiency, trophy production and rivalry authority."),
-      identity:intelligenceCopy("Takım havuzu kullanımı, esneklik ve tercih edilen takımla verim.", "Use of the team pool, flexibility and efficiency with favourite teams.")
-    };
-    return blurbs[key] || "";
+  function playerCardReferenceLabel(score) {
+    const value = Number(score) || 0;
+    if (value >= 90) return intelligenceCopy("Tarihî", "Historic");
+    if (value >= 82) return intelligenceCopy("Elite", "Elite");
+    if (value >= 74) return intelligenceCopy("Çok Güçlü", "Very Strong");
+    if (value >= 66) return intelligenceCopy("Güçlü", "Strong");
+    if (value >= 58) return intelligenceCopy("Ortalama Üstü", "Above Average");
+    if (value >= 50) return intelligenceCopy("Ortalama", "Average");
+    if (value >= 42) return intelligenceCopy("Ortalama Altı", "Below Average");
+    return intelligenceCopy("Gelişim Gerekli", "Development Required");
+  }
+
+  function playerCardFormLabel(score, trend = 0) {
+    const value = Number(score) || 0;
+    if (value >= 82) return intelligenceCopy("Alev Alev", "Red Hot");
+    if (value >= 72) return intelligenceCopy("Çok Formda", "Excellent Form");
+    if (value >= 63) return intelligenceCopy("Formda", "In Form");
+    if (value >= 53) return trend > 3 ? intelligenceCopy("Yükselişte", "Improving") : intelligenceCopy("Dengeli", "Steady");
+    if (value >= 43) return trend < -3 ? intelligenceCopy("Düşüşte", "Declining") : intelligenceCopy("Dalgalı", "Inconsistent");
+    return intelligenceCopy("Soğuk Dönem", "Cold Spell");
+  }
+
+  function playerCardTeamTier(score) {
+    const value = Number(score) || 50;
+    if (value >= 73) return intelligenceCopy("Elite Takım", "Elite Team");
+    if (value >= 64) return intelligenceCopy("Güçlü Takım", "Strong Team");
+    if (value >= 56) return intelligenceCopy("Ortalama Üstü", "Above Average");
+    if (value >= 48) return intelligenceCopy("Dengeli", "Balanced");
+    if (value >= 40) return intelligenceCopy("Underdog", "Underdog");
+    return intelligenceCopy("Ağır Underdog", "Heavy Underdog");
+  }
+
+  function playerCardValidTeam(name) {
+    const value = normalizeTeamName(name || "");
+    if (!value) return false;
+    return !/^(no team|n\/a|none|unknown|takım yok|team yok|-|—)$/i.test(value);
+  }
+
+  function playerCardMean(values, fallback = 50) {
+    const list = (values || []).map(Number).filter(Number.isFinite);
+    return list.length ? list.reduce((sum,value)=>sum+value,0)/list.length : fallback;
+  }
+
+  function playerCardStd(values) {
+    const list = (values || []).map(Number).filter(Number.isFinite);
+    if (list.length < 2) return 0;
+    const mean = playerCardMean(list,0);
+    return Math.sqrt(list.reduce((sum,value)=>sum+Math.pow(value-mean,2),0)/list.length);
+  }
+
+  function playerCardWeightedMean(rows, selector, fallback = 50) {
+    let weighted = 0;
+    let weight = 0;
+    for (const row of rows || []) {
+      const value = Number(selector(row));
+      const rowWeight = Number(row.weight) || 1;
+      if (!Number.isFinite(value)) continue;
+      weighted += value * rowWeight;
+      weight += rowWeight;
+    }
+    return weight ? weighted / weight : fallback;
+  }
+
+  function playerCardShrink(value, sample, anchor = 55, halfLife = 10) {
+    const count = Math.max(0,Number(sample)||0);
+    const weight = count / (count + halfLife);
+    return intelligenceClamp(anchor + ((Number(value)||anchor)-anchor)*weight,0,100);
+  }
+
+  function playerCardPercentile(values, value) {
+    const sorted = (values || []).map(Number).filter(Number.isFinite).sort((a,b)=>a-b);
+    if (!sorted.length) return 0.5;
+    let below = 0;
+    for (const item of sorted) if (item <= value) below += 1;
+    return below / sorted.length;
+  }
+
+  function playerCardCalibrate(values, rawValue, targetMean = 60, targetSd = 11, minimum = 30, maximum = 93) {
+    const list = (values || []).map(Number).filter(Number.isFinite);
+    const mean = playerCardMean(list,rawValue);
+    const sd = playerCardStd(list) || 8;
+    return intelligenceClamp(targetMean + ((Number(rawValue)||mean)-mean)/sd*targetSd,minimum,maximum);
   }
 
   function playerCardRadar(values) {
-    const keys = ["attack","defense","form","mental","legacy","identity"];
+    const keys = ["attack","defense","competition","mental","independence","form"];
     const centre = 120;
     const radius = 84;
     const points = keys.map((key,index)=>{
@@ -5219,6 +5297,103 @@
     }).join("")}</svg>`;
   }
 
+  function buildPlayerCardTeamPowerModel(matches, elo) {
+    const globalMap = new Map();
+    const editionMap = new Map();
+    const recordMap = elo.recordMap || new Map();
+
+    function ensure(map,key,team,edition = null) {
+      if (!map.has(key)) map.set(key,{ key,team,edition,games:0,wins:0,draws:0,losses:0,gf:0,ga:0,points:0,residual:0,marginResidual:0,players:new Set() });
+      return map.get(key);
+    }
+
+    function addRow(row,player,gf,ga,outcome,residual,marginResidual) {
+      row.games += 1;
+      row.gf += gf;
+      row.ga += ga;
+      row.players.add(player);
+      row.residual += residual;
+      row.marginResidual += marginResidual;
+      if (outcome === 1) { row.wins += 1; row.points += 3; }
+      else if (outcome === .5) { row.draws += 1; row.points += 1; }
+      else row.losses += 1;
+    }
+
+    for (const match of matches) {
+      const homeTeam = normalizeTeamName(match.homeTeam || "");
+      const awayTeam = normalizeTeamName(match.awayTeam || "");
+      if (!playerCardValidTeam(homeTeam) || !playerCardValidTeam(awayTeam)) continue;
+      const record = recordMap.get(match.id);
+      const expectedHome = record?.expectedHome ?? .5;
+      const actualHome = match.homeScore > match.awayScore ? 1 : match.homeScore === match.awayScore ? .5 : 0;
+      const actualMargin = Math.tanh((match.homeScore-match.awayScore)/4);
+      const expectedMargin = Math.tanh((expectedHome-.5)*3.2);
+      const resultResidual = actualHome-expectedHome;
+      const marginResidual = actualMargin-expectedMargin;
+      const effect = resultResidual*.7 + marginResidual*.3;
+      const homeOutcome = actualHome;
+      const awayOutcome = actualHome === .5 ? .5 : 1-actualHome;
+
+      const homeGlobal = ensure(globalMap,homeTeam,homeTeam);
+      const awayGlobal = ensure(globalMap,awayTeam,awayTeam);
+      const homeEdition = ensure(editionMap,`${match.edition}|${homeTeam}`,homeTeam,match.edition);
+      const awayEdition = ensure(editionMap,`${match.edition}|${awayTeam}`,awayTeam,match.edition);
+
+      addRow(homeGlobal,match.homeName,match.homeScore,match.awayScore,homeOutcome,effect,marginResidual);
+      addRow(awayGlobal,match.awayName,match.awayScore,match.homeScore,awayOutcome,-effect,-marginResidual);
+      addRow(homeEdition,match.homeName,match.homeScore,match.awayScore,homeOutcome,effect,marginResidual);
+      addRow(awayEdition,match.awayName,match.awayScore,match.homeScore,awayOutcome,-effect,-marginResidual);
+    }
+
+    const rawScores = [];
+    function rawScore(row) {
+      const ppg = row.games ? row.points/row.games : 1.5;
+      const gdpg = row.games ? (row.gf-row.ga)/row.games : 0;
+      const residual = row.games ? row.residual/row.games : 0;
+      const margin = row.games ? row.marginResidual/row.games : 0;
+      const diversity = Math.min(1,row.players.size/5);
+      return 50 + residual*34 + margin*14 + (ppg-1.5)*7 + gdpg*1.8 + diversity*2;
+    }
+
+    for (const row of globalMap.values()) rawScores.push(rawScore(row));
+    const rawMean = playerCardMean(rawScores,50);
+    const rawSd = playerCardStd(rawScores) || 7;
+
+    const globalRows = new Map();
+    for (const [key,row] of globalMap.entries()) {
+      const calibrated = intelligenceClamp(54 + (rawScore(row)-rawMean)/rawSd*9,30,80);
+      const weight = row.games/(row.games+10);
+      const score = 50 + (calibrated-50)*weight;
+      globalRows.set(key,{...row,score,confidence:Math.round(intelligenceClamp(28+row.games*4+row.players.size*4,25,95))});
+    }
+
+    const editionRows = new Map();
+    const editionRaw = [...editionMap.values()].map(rawScore);
+    const editionMean = playerCardMean(editionRaw,50);
+    const editionSd = playerCardStd(editionRaw) || 7;
+    for (const [key,row] of editionMap.entries()) {
+      const global = globalRows.get(row.team);
+      const calibrated = intelligenceClamp(54 + (rawScore(row)-editionMean)/editionSd*9,30,80);
+      const weight = row.games/(row.games+5);
+      const prior = global?.score || 50;
+      editionRows.set(key,{...row,score:prior+(calibrated-prior)*weight,confidence:Math.round(intelligenceClamp(22+row.games*8+(global?.confidence||40)*.35,25,96))});
+    }
+
+    return {
+      globalRows,
+      editionRows,
+      get(team,edition) {
+        const normalized = normalizeTeamName(team || "");
+        if (!playerCardValidTeam(normalized)) return {score:50,confidence:0,games:0,tier:intelligenceCopy("Bilinmiyor","Unknown"),known:false};
+        const editionRow = editionRows.get(`${edition}|${normalized}`);
+        const globalRow = globalRows.get(normalized);
+        const row = editionRow || globalRow;
+        if (!row) return {score:50,confidence:10,games:0,tier:intelligenceCopy("Veri Az","Limited Data"),known:false};
+        return {score:row.score,confidence:row.confidence,games:row.games,tier:playerCardTeamTier(row.score),known:true};
+      }
+    };
+  }
+
   function playerCardFormRibbon(results) {
     const list = (results || []).slice(-10);
     if (!list.length) return `<span class="player-card-form-empty">${intelligenceCopy("Maç bekleniyor", "Awaiting matches")}</span>`;
@@ -5226,8 +5401,10 @@
   }
 
 
+
   function buildPlayerIdentityCards() {
     const names = intelligenceNames();
+    const matches = buildUnifiedAllTimeMatches();
     const form = buildFormAnalytics(20, "all");
     const allTime = buildAllTimeAnalytics();
     const elo = buildEloAnalytics();
@@ -5235,212 +5412,348 @@
     const pressure = buildPressureChamber();
     const powerExchange = buildPowerExchange();
     const teamAnalytics = buildTeamAnalytics();
+    const teamPowerModel = buildPlayerCardTeamPowerModel(matches,elo);
     const achievementMap = new Map(achievements.players.map(row=>[row.name,row]));
     const pressureMap = pressure.playerMap || new Map();
     const powerMap = new Map((powerExchange.players || []).map(row=>[row.name,row]));
     const teamMap = new Map((teamAnalytics.players || []).map(row=>[row.name,row]));
-    const matches = buildUnifiedAllTimeMatches();
-    const eloMap = new Map(names.map(name => [name, (elo.playerMap.get(name) || {}).rating || 1500]));
-    const allRatings = Array.from(eloMap.values()).sort((a,b)=>a-b);
-    const topCut = allRatings[Math.max(0,Math.floor(allRatings.length*0.65)-1)] || 1500;
+    const eloRatings = elo.players.map(row=>row.rating);
+    const effectiveStrengths = [];
+    const contexts = [];
 
+    const logistic = value => 1/(1+Math.pow(10,-value/400));
     const clamp = value => intelligenceClamp(Number(value)||0,0,100);
-    const ratio = (a,b, fallback = 0) => b ? a / b : fallback;
-    const average = values => values.length ? values.reduce((sum,value)=>sum + value,0) / values.length : 0;
-    const pointsFrom = result => result === "W" ? 3 : result === "D" ? 1 : 0;
-    const pointsPerMatchToScore = (ppm, scale = 2.2) => clamp(25 + ppm * scale * 25);
-    const shrink = (raw, sample, anchor = 50, cap = 18) => {
-      const weight = Math.max(0, Math.min(1, (sample || 0) / cap));
-      return clamp(anchor + (raw - anchor) * weight);
+    const outcomeValue = (gf,ga) => gf>ga ? 1 : gf===ga ? .5 : 0;
+    const stageWeight = stage => {
+      const value = String(stage||"").toLowerCase();
+      if (value.includes("final") && !value.includes("semi")) return 1.28;
+      if (value.includes("semi")) return 1.20;
+      if (value.includes("quarter") || value.includes("knockout") || value.includes("eleme")) return 1.14;
+      if (value.includes("gold") || value.includes("silver") || value.includes("altın") || value.includes("gümüş")) return 1.08;
+      return 1;
     };
 
-    return names.map(name => {
-      const f = form.playerMap.get(name) || { games:0,avgGoals:0,gaPerGame:0,formIndex:50,winRate:0,results:[],momentum:0,currentUnbeatenStreak:0,currentWinStreak:0 };
-      const career = allTime.playerMap.get(name) || { games:0,wins:0,draws:0,losses:0,winRate:0,ppg:0,avgGoals:0,gaPerGame:0,titles:0,finals:0,podiums:0 };
-      const e = elo.playerMap.get(name) || { rating:1500,peak:1500,tier:intelligenceTier(1500),last5Change:0,timeline:[] };
-      const ach = achievementMap.get(name) || { badges:[],unlocked:[],prestige:achievementPrestigeLevel(0),activeTitle:"ROOKIE",xp:0 };
-      const p = pressureMap.get(name) || { mentalIndex:50,clutchRate:50,pressurePerformance:50,resilience:50,comebackWins:0,lateWins:0,highPressureGames:0,knockoutRate:50 };
-      const exchange = powerMap.get(name) || { powerIndex:100,change:0,volatility:50,championProbability:0,finalProbability:0,valuationLabel:intelligenceCopy("DENGELİ","FAIR VALUE") };
-      const teams = teamMap.get(name) || { teams:[],totalAppearances:0 };
-      const playerMatches = matches.filter(match=>match.homeName===name||match.awayName===name);
-      const recent = playerMatches.slice(-20);
-      const last10 = recent.slice(-10);
-      const last5 = recent.slice(-5);
-      const prev5 = recent.slice(-10,-5);
-      const mapped = recent.map(match => {
-        const isHome = match.homeName===name;
+    for (const match of matches) {
+      const record = elo.recordMap.get(match.id);
+      const beforeHome = record?.beforeHome ?? (elo.playerMap.get(match.homeName)?.rating || 1500);
+      const beforeAway = record?.beforeAway ?? (elo.playerMap.get(match.awayName)?.rating || 1500);
+      const homeTeam = teamPowerModel.get(match.homeTeam,match.edition);
+      const awayTeam = teamPowerModel.get(match.awayTeam,match.edition);
+      const teamKnown = homeTeam.known && awayTeam.known;
+      const homeEffective = beforeHome + (teamKnown ? (homeTeam.score-50)*5.5 : 0);
+      const awayEffective = beforeAway + (teamKnown ? (awayTeam.score-50)*5.5 : 0);
+      effectiveStrengths.push(homeEffective,awayEffective);
+      contexts.push({match,record,beforeHome,beforeAway,homeTeam,awayTeam,teamKnown,homeEffective,awayEffective});
+    }
+
+    const goalAverage = matches.length ? matches.reduce((sum,match)=>sum+Number(match.homeScore||0)+Number(match.awayScore||0),0)/matches.length : 6;
+    const strengthCutHigh = effectiveStrengths.slice().sort((a,b)=>a-b)[Math.floor(effectiveStrengths.length*.67)] || 1550;
+    const strengthCutLow = effectiveStrengths.slice().sort((a,b)=>a-b)[Math.floor(effectiveStrengths.length*.33)] || 1450;
+
+    const playerContextMap = new Map(names.map(name=>[name,[]]));
+    contexts.forEach((ctx,index)=>{
+      const {match,beforeHome,beforeAway,homeTeam,awayTeam,teamKnown,homeEffective,awayEffective} = ctx;
+      const diff = homeEffective-awayEffective;
+      const expectedHome = logistic(diff);
+      const expectedAway = 1-expectedHome;
+      const totalExpected = intelligenceClamp(goalAverage*(.93+Math.abs(expectedHome-.5)*.22),3.2,10.5);
+      const homeShare = intelligenceClamp(.5+(expectedHome-.5)*.78,.22,.78);
+      const expectedHomeGoals = totalExpected*homeShare;
+      const expectedAwayGoals = totalExpected*(1-homeShare);
+      const actualHome = outcomeValue(match.homeScore,match.awayScore);
+      const actualAway = actualHome===.5 ? .5 : 1-actualHome;
+      const marginExpected = expectedHomeGoals-expectedAwayGoals;
+      const marginActual = Number(match.homeScore)-Number(match.awayScore);
+      const marginResidual = Math.tanh((marginActual-marginExpected)/3);
+      const attackResidualHome = Math.tanh((Number(match.homeScore)-expectedHomeGoals)/(1.8+expectedHomeGoals*.22));
+      const attackResidualAway = Math.tanh((Number(match.awayScore)-expectedAwayGoals)/(1.8+expectedAwayGoals*.22));
+      const defenseResidualHome = Math.tanh((expectedAwayGoals-Number(match.awayScore))/(1.8+expectedAwayGoals*.22));
+      const defenseResidualAway = Math.tanh((expectedHomeGoals-Number(match.homeScore))/(1.8+expectedHomeGoals*.22));
+      const stage = stageWeight(match.stage);
+
+      const addSide = (name,side) => {
+        if (!playerContextMap.has(name)) playerContextMap.set(name,[]);
+        const isHome = side==="home";
         const gf = Number(isHome ? match.homeScore : match.awayScore) || 0;
         const ga = Number(isHome ? match.awayScore : match.homeScore) || 0;
-        const opponent = isHome ? match.awayName : match.homeName;
-        const result = gf > ga ? "W" : gf === ga ? "D" : "L";
-        return {
-          match,
-          gf, ga, opponent, result,
-          opponentElo: eloMap.get(opponent) || 1500,
-          isTopOpponent: (eloMap.get(opponent) || 1500) >= topCut
-        };
+        const expected = isHome ? expectedHome : expectedAway;
+        const actual = isHome ? actualHome : actualAway;
+        const attackResidual = isHome ? attackResidualHome : attackResidualAway;
+        const defenseResidual = isHome ? defenseResidualHome : defenseResidualAway;
+        const signedMarginResidual = isHome ? marginResidual : -marginResidual;
+        const ownTeam = isHome ? homeTeam : awayTeam;
+        const oppTeam = isHome ? awayTeam : homeTeam;
+        const ownEffective = isHome ? homeEffective : awayEffective;
+        const oppEffective = isHome ? awayEffective : homeEffective;
+        const opponentName = isHome ? match.awayName : match.homeName;
+        const result = gf>ga ? "W" : gf===ga ? "D" : "L";
+        const outcomeResidual = actual-expected;
+        const composite = outcomeResidual*.55 + signedMarginResidual*.20 + attackResidual*.15 + defenseResidual*.10;
+        const adjustedPerformance = clamp(50+composite*48);
+        const adjustedAttack = clamp(50+attackResidual*27+outcomeResidual*14+signedMarginResidual*7);
+        const adjustedDefense = clamp(50+defenseResidual*29+outcomeResidual*10+signedMarginResidual*5);
+        const qualityPercentile = playerCardPercentile(effectiveStrengths,oppEffective);
+        const qualityWeight = .84+qualityPercentile*.34;
+        const weight = stage*qualityWeight;
+        playerContextMap.get(name).push({
+          order:index,
+          edition:match.edition,
+          stage:match.stage,
+          opponent:opponentName,
+          gf,ga,result,
+          expectedWin:expected,
+          expectedHomeGoals:isHome?expectedHomeGoals:expectedAwayGoals,
+          expectedAgainst:isHome?expectedAwayGoals:expectedHomeGoals,
+          adjustedPerformance,adjustedAttack,adjustedDefense,
+          outcomeResidual,attackResidual,defenseResidual,
+          ownTeamPower:ownTeam.score,oppTeamPower:oppTeam.score,
+          ownTeamTier:ownTeam.tier,oppTeamTier:oppTeam.tier,
+          teamKnown,
+          teamDisadvantage:teamKnown && ownTeam.score+3<oppTeam.score,
+          teamAdvantage:teamKnown && ownTeam.score>oppTeam.score+3,
+          underdog:expected<=.42,
+          favourite:expected>=.58,
+          balanced:expected>.42&&expected<.58,
+          strongOpponent:oppEffective>=strengthCutHigh,
+          weakOpponent:oppEffective<=strengthCutLow,
+          opponentStrength:oppEffective,
+          qualityPercentile,
+          weight
+        });
+      };
+
+      addSide(match.homeName,"home");
+      addSide(match.awayName,"away");
+    });
+
+    function subsetScore(rows,selector,fallback=55) {
+      return playerCardShrink(playerCardWeightedMean(rows,selector,fallback),rows.length,55,7);
+    }
+    function consistencyScore(rows,selector) {
+      if (!rows.length) return 50;
+      const values=rows.map(selector);
+      return clamp(88-playerCardStd(values)*1.35);
+    }
+    function bounceBackScore(rows) {
+      const scores=[];
+      for (let i=1;i<rows.length;i++) if (rows[i-1].result==="L") scores.push(rows[i].adjustedPerformance);
+      return playerCardShrink(playerCardMean(scores,50),scores.length,52,4);
+    }
+    function collapseScore(rows) {
+      if (!rows.length) return 50;
+      const severe=rows.filter(row=>row.ga-row.gf>=4 || row.adjustedDefense<28).length;
+      return clamp(88-severe/rows.length*70);
+    }
+    function formWeighted(rows,count) {
+      const slice=rows.slice(-count);
+      let weighted=0,total=0;
+      slice.forEach((row,index)=>{
+        const recency=(index+1)/Math.max(1,slice.length);
+        const weight=.55+recency*.9;
+        weighted+=row.adjustedPerformance*weight;
+        total+=weight;
       });
+      return total?weighted/total:50;
+    }
 
-      const resultSeries = (f.results || []).slice(-20);
-      const consistencyPoints = resultSeries.map(item=>pointsFrom(item.result || "L"));
-      const mean = average(consistencyPoints);
-      const variance = consistencyPoints.length ? consistencyPoints.reduce((sum,value)=>sum+Math.pow(value-mean,2),0)/consistencyPoints.length : 1.5;
+    const rawPlayers = names.map(name=>{
+      const rows=(playerContextMap.get(name)||[]).sort((a,b)=>a.order-b.order);
+      const f=form.playerMap.get(name)||{games:0,results:[],momentum:0,currentWinStreak:0,currentUnbeatenStreak:0};
+      const career=allTime.playerMap.get(name)||{games:0,wins:0,winRate:0,ppg:0,titles:0,finals:0,podiums:0};
+      const e=elo.playerMap.get(name)||{rating:1500,peak:1500,tier:intelligenceTier(1500),last5Change:0,timeline:[]};
+      const ach=achievementMap.get(name)||{badges:[],unlocked:[],prestige:achievementPrestigeLevel(0),activeTitle:"ROOKIE",xp:0};
+      const p=pressureMap.get(name)||{mentalIndex:50,clutchRate:50,pressurePerformance:50,resilience:50,comebackWins:0,lateWins:0,highPressureGames:0,knockoutRate:50};
+      const exchange=powerMap.get(name)||{powerIndex:100,change:0,volatility:50,championProbability:0,finalProbability:0,valuationLabel:intelligenceCopy("DENGELİ","FAIR VALUE")};
+      const teams=teamMap.get(name)||{teams:[],totalAppearances:0};
+      const knownRows=rows.filter(row=>row.teamKnown);
+      const strongRows=rows.filter(row=>row.strongOpponent);
+      const weakRows=rows.filter(row=>row.weakOpponent);
+      const underdogRows=rows.filter(row=>row.underdog);
+      const favouriteRows=rows.filter(row=>row.favourite);
+      const balancedRows=rows.filter(row=>row.balanced);
+      const disadvantageRows=rows.filter(row=>row.teamDisadvantage);
+      const weakTeamRows=knownRows.filter(row=>row.ownTeamPower<=46);
+      const closeRows=rows.filter(row=>Math.abs(row.gf-row.ga)<=1);
+      const closeWinScore=closeRows.length ? closeRows.filter(row=>row.result==="W").length/closeRows.length*100 : 50;
+      const teamGroups=new Map();
+      knownRows.forEach(row=>{
+        const bucket=Math.round(row.ownTeamPower/5)*5;
+        if(!teamGroups.has(bucket)) teamGroups.set(bucket,[]);
+        teamGroups.get(bucket).push(row.adjustedPerformance);
+      });
+      const teamBucketAverages=[...teamGroups.values()].map(values=>playerCardMean(values,50));
+      const uniqueTeams=(teams.teams||[]).length;
+      const winningTeams=(teams.teams||[]).filter(row=>(row.wins||0)>0).length;
+      const favouriteTeamRow=(teams.teams||[]).slice().sort((a,b)=>(b.games||0)-(a.games||0)||(b.wins||0)-(a.wins||0))[0]||null;
+      const favoriteTeam=favouriteTeamRow?.team||"–";
 
-      const scoredMatches = mapped.filter(row=>row.gf > 0);
-      const twoPlusMatches = mapped.filter(row=>row.gf >= 2);
-      const threePlusMatches = mapped.filter(row=>row.gf >= 3);
-      const cleanSheets = mapped.filter(row=>row.ga === 0);
-      const lowConcede = mapped.filter(row=>row.ga <= 1);
-      const wins = mapped.filter(row=>row.result === "W");
-      const nonLosses = mapped.filter(row=>row.result !== "L");
-      const oneGoalLosses = mapped.filter(row=>row.result === "L" && row.ga - row.gf <= 1);
-      const topOppMatches = mapped.filter(row=>row.isTopOpponent);
-      const topOppWins = topOppMatches.filter(row=>row.result === "W");
-      const topOppGoals = average(topOppMatches.map(row=>row.gf));
-      const closeMatches = mapped.filter(row=>Math.abs(row.gf-row.ga) <= 1);
-      const closeWins = closeMatches.filter(row=>row.result === "W").length;
+      const attackRaw={
+        adjustedScoring:subsetScore(rows,row=>row.adjustedAttack),
+        eliteAttack:subsetScore(strongRows,row=>row.adjustedAttack),
+        underdogThreat:subsetScore(underdogRows.length?underdogRows:disadvantageRows,row=>row.adjustedAttack),
+        scoringConsistency:consistencyScore(rows,row=>row.adjustedAttack)
+      };
+      const attack=attackRaw.adjustedScoring*.35+attackRaw.eliteAttack*.25+attackRaw.underdogThreat*.22+attackRaw.scoringConsistency*.18;
 
-      const playerRivalries = (allTime.rivalries || []).filter(row=>row.playerA===name||row.playerB===name);
-      const rivalryScore = playerRivalries.length ? playerRivalries.reduce((sum,row)=>{
-        const wins = row.playerA===name ? row.winsA : row.winsB;
-        return sum + (row.meetings ? wins/row.meetings*100 : 50);
-      },0)/playerRivalries.length : 50;
+      const defenseRaw={
+        adjustedPrevention:subsetScore(rows,row=>row.adjustedDefense),
+        eliteResistance:subsetScore(strongRows,row=>row.adjustedDefense),
+        favouriteControl:subsetScore(favouriteRows,row=>row.adjustedDefense),
+        collapsePrevention:collapseScore(rows)
+      };
+      const defense=defenseRaw.adjustedPrevention*.35+defenseRaw.eliteResistance*.25+defenseRaw.favouriteControl*.20+defenseRaw.collapsePrevention*.20;
 
-      const uniqueTeams = (teams.teams || []).length;
-      const winningTeams = (teams.teams || []).filter(row=>(row.wins||0) > 0).length;
-      const favoriteTeamRow = (teams.teams || []).slice().sort((a,b)=>(b.games||0)-(a.games||0)||(b.wins||0)-(a.wins||0))[0] || null;
-      const teamWinRates = (teams.teams || []).filter(row=>(row.games||0) >= 2).map(row=>row.winRate || 0);
-      const teamSpread = teamWinRates.length ? Math.max(...teamWinRates)-Math.min(...teamWinRates) : 18;
-      const favoriteTeamWinRate = favoriteTeamRow ? (favoriteTeamRow.winRate || 0) : 0;
-      const favoriteTeamGames = favoriteTeamRow ? (favoriteTeamRow.games || 0) : 0;
-      const favoriteTeam = favoriteTeamRow?.team || f.favoriteTeam?.name || "–";
-      const maxScored = mapped.reduce((max,row)=>Math.max(max,row.gf),0);
+      const competitionRaw={
+        strongOppPerformance:subsetScore(strongRows,row=>row.adjustedPerformance),
+        underdogPerformance:subsetScore(underdogRows.length?underdogRows:disadvantageRows,row=>row.adjustedPerformance),
+        favouriteDelivery:subsetScore(favouriteRows,row=>row.adjustedPerformance),
+        balancedMatches:subsetScore(balancedRows,row=>row.adjustedPerformance)
+      };
+      const competition=competitionRaw.strongOppPerformance*.30+competitionRaw.underdogPerformance*.28+competitionRaw.favouriteDelivery*.20+competitionRaw.balancedMatches*.22;
 
-      // Macro + sub attributes with confidence shrinkage
-      const finishing = shrink(28 + average(mapped.map(row=>Math.min(100,row.gf*26 + (row.result==="W"?9:0)))) * 0.62 + ratio(scoredMatches.length,mapped.length,0)*26 + ratio(threePlusMatches.length,mapped.length,0)*18, mapped.length, 50, 16);
-      const shotVolume = shrink(24 + (average(mapped.map(row=>row.gf))*17) + ratio(twoPlusMatches.length,mapped.length,0)*34 + Math.max(0,f.momentum||0)*2.4, mapped.length, 50, 16);
-      const efficiency = shrink(26 + (f.winRate||0)*0.34 + ratio(scoredMatches.length,mapped.length,0)*28 + pointsPerMatchToScore(average(mapped.filter(r=>r.gf>0).map(r=>pointsFrom(r.result))), 1.7), mapped.length, 50, 16);
-      const bigMatchAttack = shrink(28 + topOppGoals*16 + ratio(topOppWins.length,topOppMatches.length,0)*38 + (p.clutchRate||50)*0.22, topOppMatches.length || mapped.length, 50, 10);
-      const attack = Math.round(clamp(finishing*.31 + shotVolume*.27 + efficiency*.22 + bigMatchAttack*.20));
+      const mentalRaw={
+        closeMatch:playerCardShrink(closeWinScore,closeRows.length,52,6),
+        pressureHandling:clamp((p.pressurePerformance||50)*.65+(p.mentalIndex||50)*.35),
+        resilience:clamp((p.resilience||50)*.72+subsetScore(rows.slice(-10),row=>row.adjustedPerformance)*.28),
+        bounceBack:bounceBackScore(rows)
+      };
+      const mental=mentalRaw.closeMatch*.24+mentalRaw.pressureHandling*.29+mentalRaw.resilience*.25+mentalRaw.bounceBack*.22;
 
-      const goalShield = shrink(108 - average(mapped.map(row=>row.ga))*18 - (career.gaPerGame||0)*6, mapped.length, 50, 16);
-      const lockdown = shrink(26 + ratio(cleanSheets.length,mapped.length,0)*58 + ratio(lowConcede.length,mapped.length,0)*18 + (p.resilience||50)*0.10, mapped.length, 50, 16);
-      const control = shrink(28 + ratio(nonLosses.length,mapped.length,0)*42 + ratio(wins.length,mapped.length,0)*18 + (e.rating-1500)/8, mapped.length, 50, 16);
-      const recovery = shrink(30 + ratio(oneGoalLosses.length,Math.max(1,mapped.filter(row=>row.result==="L").length),0)*22 + (p.resilience||50)*0.44 + Math.min(12,(f.currentUnbeatenStreak||0)*2), mapped.length, 50, 16);
-      const defense = Math.round(clamp(goalShield*.33 + lockdown*.25 + control*.24 + recovery*.18));
+      const independenceRaw={
+        weakTeamOutput:subsetScore(weakTeamRows.length?weakTeamRows:disadvantageRows,row=>row.adjustedPerformance),
+        disadvantageOutput:subsetScore(disadvantageRows,row=>row.adjustedPerformance),
+        teamConsistency:teamBucketAverages.length?clamp(88-playerCardStd(teamBucketAverages)*1.5):50,
+        teamDiversity:clamp(36+Math.min(34,uniqueTeams*4.2)+Math.min(18,winningTeams*2.4))
+      };
+      const independence=independenceRaw.weakTeamOutput*.30+independenceRaw.disadvantageOutput*.30+independenceRaw.teamConsistency*.22+independenceRaw.teamDiversity*.18;
 
-      const last5Score = shrink(pointsPerMatchToScore(average(last5.map(row=>pointsFrom(row.result))), 2.0) + Math.max(-10, Math.min(10, average(last5.map(row=>row.gf-row.ga))*6)), last5.length, 50, 5);
-      const last10Score = shrink(pointsPerMatchToScore(average(last10.map(row=>pointsFrom(row.result))), 2.0) + Math.max(-12, Math.min(12, average(last10.map(row=>row.gf-row.ga))*4.5)), last10.length, 50, 10);
-      const trend = clamp(50 + (average(last5.map(row=>pointsFrom(row.result))) - average(prev5.map(row=>pointsFrom(row.result))))*20 + (f.momentum||0)*3.5);
-      const rhythm = shrink(94 - variance*24 + Math.min(10,(f.currentUnbeatenStreak||0)*2.1), consistencyPoints.length, 50, 14);
-      const formScore = Math.round(clamp(last5Score*.29 + last10Score*.31 + trend*.18 + rhythm*.22));
+      const last5=formWeighted(rows,5);
+      const last10=formWeighted(rows,10);
+      const previous5=formWeighted(rows.slice(0,-5),5);
+      const formTrend=clamp(50+(last5-previous5)*1.6+(f.momentum||0)*2);
+      const streak=clamp(48+Math.min(24,(f.currentWinStreak||0)*6)+Math.min(18,(f.currentUnbeatenStreak||0)*2.5));
+      const formRaw=last5*.36+last10*.31+formTrend*.20+streak*.13;
 
-      const clutch = clamp((p.clutchRate||50)*0.72 + ratio(closeWins,closeMatches.length,0)*18 + (p.knockoutRate||50)*0.10);
-      const pressureScore = clamp((p.pressurePerformance||50)*0.68 + Math.min(18,(p.highPressureGames||0)*2.2) + (e.rating-1500)/10);
-      const resilience = clamp((p.resilience||50)*0.74 + ratio(nonLosses.length,mapped.length,0)*18 + Math.min(10,(f.currentUnbeatenStreak||0)*1.8));
-      const comeback = clamp(34 + Math.min(28,(p.comebackWins||0)*8) + Math.min(18,(p.lateWins||0)*4.5) + ratio(oneGoalLosses.length,Math.max(1,mapped.filter(row=>row.result==="L").length),0)*12);
-      const mental = Math.round(clamp(clutch*.28 + pressureScore*.26 + resilience*.24 + comeback*.22));
+      const peakPercentile=playerCardPercentile(elo.players.map(row=>row.peak),e.peak);
+      const trophies=clamp(28+Math.min(42,(career.titles||0)*16)+Math.min(18,(career.finals||0)*4)+Math.min(8,(career.podiums||0)*2));
+      const peakLevel=clamp(30+peakPercentile*64);
+      const careerEfficiency=clamp(28+(career.winRate||0)*.38+(career.ppg||0)*16);
+      const longevity=clamp(24+Math.min(46,(career.games||0)*.85));
+      const legacyRaw=trophies*.34+peakLevel*.27+careerEfficiency*.23+longevity*.16;
 
-      const trophies = clamp(20 + Math.min(40,(career.titles||0)*14) + Math.min(18,(career.finals||0)*4) + Math.min(10,(career.podiums||0)*2));
-      const careerEfficiency = clamp(26 + (career.winRate||0)*0.36 + (career.ppg||0)*17 + Math.min(10,(career.avgGoals||0)*3));
-      const longevity = clamp(20 + Math.min(34,(career.games||0)*0.9) + Math.min(14,(career.wins||0)*0.38));
-      const authority = clamp(rivalryScore*0.48 + (e.rating-1350)*0.055 + Math.min(12,topOppMatches.length*1.3));
-      const legacy = Math.round(clamp(trophies*.32 + careerEfficiency*.26 + longevity*.19 + authority*.23));
+      const knownRatio=rows.length?knownRows.length/rows.length:0;
+      const confidence=clamp(32+Math.min(34,rows.length*.9)+knownRatio*22+Math.min(10,strongRows.length*1.2));
+      const ownTeamAverage=playerCardMean(knownRows.map(row=>row.ownTeamPower),50);
+      const opponentTeamAverage=playerCardMean(knownRows.map(row=>row.oppTeamPower),50);
+      const prestige=ach.prestige||achievementPrestigeLevel(ach.xp||0);
+      const activeTitle=ach.activeTitle||prestige.name||"ROOKIE";
+      const badgeList=ach.unlocked||ach.badges||[];
+      const nextPrestige=prestige.next?{name:prestige.next.name,remaining:Math.max(0,prestige.next.min-(ach.xp||0))}:null;
+      const initials=name.split(/\s+/).filter(Boolean).map(part=>part[0]).slice(0,2).join("").toUpperCase();
 
-      const adaptability = clamp(30 + Math.min(26,uniqueTeams*3.8) + Math.min(16,winningTeams*2.8) + Math.max(0,12-teamSpread*0.22));
-      const favouriteMastery = shrink(26 + favoriteTeamWinRate*0.54 + Math.min(16,favoriteTeamGames*1.1), favoriteTeamGames, 50, 12);
-      const diversity = clamp(28 + Math.min(28,uniqueTeams*4.4) + Math.min(16,winningTeams*2.5));
-      const tacticalFlex = clamp(32 + adaptability*0.34 + (100-Math.min(100,teamSpread))*0.22 + (exchange.volatility||50)*0.12);
-      const identity = Math.round(clamp(adaptability*.30 + favouriteMastery*.22 + diversity*.23 + tacticalFlex*.25));
+      return {
+        name,rows,knownRows,strongRows,weakRows,underdogRows,favouriteRows,balancedRows,disadvantageRows,
+        raw:{attack,defense,competition,mental,independence,form:formRaw,legacy:legacyRaw},
+        rawGroups:{attack:attackRaw,defense:defenseRaw,competition:competitionRaw,mental:mentalRaw,independence:independenceRaw},
+        formBreakdown:{last5Adjusted:last5,last10Adjusted:last10,formTrend,streak},
+        legacyBreakdown:{trophies,peakLevel,careerEfficiency,longevity},
+        confidence,knownRatio,ownTeamAverage,opponentTeamAverage,
+        favouriteTeam:favoriteTeam,uniqueTeams,winningTeams,
+        prestige,activeTitle,badgeList,nextPrestige,initials,xp:ach.xp||0,
+        career,e,exchange,f,p
+      };
+    });
 
-      const confidence = Math.round(clamp(38 + Math.min(26,mapped.length*1.2) + Math.min(18,(career.games||0)*0.45) + Math.min(12,topOppMatches.length*1.8)));
-      const overallRaw = attack*.20 + defense*.17 + formScore*.17 + mental*.17 + legacy*.16 + identity*.13;
-      const overall = Math.round(clamp(overallRaw*0.82 + confidence*0.18));
+    const keys=["attack","defense","competition","mental","independence"];
+    const calibratedPlayers=rawPlayers.map(player=>{
+      const metrics={};
+      const sampleReliability=.38+.62*Math.min(1,player.rows.length/30)*(.68+.32*player.knownRatio);
+      keys.forEach(key=>{
+        const values=rawPlayers.map(row=>row.raw[key]);
+        const calibrated=playerCardCalibrate(values,player.raw[key],60,11,32,92);
+        metrics[key]=Math.round(60+(calibrated-60)*sampleReliability);
+      });
+      const formValues=rawPlayers.map(row=>row.raw.form);
+      const legacyValues=rawPlayers.map(row=>row.raw.legacy);
+      const formReliability=.58+.42*Math.min(1,player.rows.length/10);
+      metrics.form=Math.round(55+(playerCardCalibrate(formValues,player.raw.form,55,14,22,92)-55)*formReliability);
+      const legacy=Math.round(55+(playerCardCalibrate(legacyValues,player.raw.legacy,55,15,20,95)-55)*(.50+Math.min(1,(player.career.games||0)/40)*.50));
 
-      let styleKey = "balanced";
-      if (attack>=82 && bigMatchAttack>=78) styleKey="aggressive";
-      else if (defense>=82 && goalShield>=80) styleKey="wall";
-      else if (formScore>=80 && trend>=75) styleKey="momentum";
-      else if (mental>=82 && clutch>=80) styleKey="clutch";
-      else if (legacy>=82 || (career.titles||0)>=2) styleKey="general";
-      else if (identity>=80 && adaptability>=78) styleKey="creator";
-      else if (recovery>=80 || comeback>=80) styleKey="survivor";
+      const caRaw=metrics.attack*.22+metrics.defense*.18+metrics.competition*.24+metrics.mental*.20+metrics.independence*.16;
+      return {...player,metrics,legacy,caRaw,sampleReliability};
+    });
 
-      const attributeGroups = [
-        { key:"attack", score:attack, blurb:playerCardGroupBlurb("attack"), attributes:[
-          { key:"finishing", value:Math.round(finishing) },
-          { key:"shotVolume", value:Math.round(shotVolume) },
-          { key:"efficiency", value:Math.round(efficiency) },
-          { key:"bigMatchAttack", value:Math.round(bigMatchAttack) }
-        ]},
-        { key:"defense", score:defense, blurb:playerCardGroupBlurb("defense"), attributes:[
-          { key:"goalShield", value:Math.round(goalShield) },
-          { key:"lockdown", value:Math.round(lockdown) },
-          { key:"control", value:Math.round(control) },
-          { key:"recovery", value:Math.round(recovery) }
-        ]},
-        { key:"form", score:formScore, blurb:playerCardGroupBlurb("form"), attributes:[
-          { key:"last5", value:Math.round(last5Score) },
-          { key:"last10", value:Math.round(last10Score) },
-          { key:"trend", value:Math.round(trend) },
-          { key:"rhythm", value:Math.round(rhythm) }
-        ]},
-        { key:"mental", score:mental, blurb:playerCardGroupBlurb("mental"), attributes:[
-          { key:"clutch", value:Math.round(clutch) },
-          { key:"pressure", value:Math.round(pressureScore) },
-          { key:"resilience", value:Math.round(resilience) },
-          { key:"comeback", value:Math.round(comeback) }
-        ]},
-        { key:"legacy", score:legacy, blurb:playerCardGroupBlurb("legacy"), attributes:[
-          { key:"trophies", value:Math.round(trophies) },
-          { key:"careerEfficiency", value:Math.round(careerEfficiency) },
-          { key:"longevity", value:Math.round(longevity) },
-          { key:"authority", value:Math.round(authority) }
-        ]},
-        { key:"identity", score:identity, blurb:playerCardGroupBlurb("identity"), attributes:[
-          { key:"adaptability", value:Math.round(adaptability) },
-          { key:"favouriteMastery", value:Math.round(favouriteMastery) },
-          { key:"diversity", value:Math.round(diversity) },
-          { key:"tacticalFlex", value:Math.round(tacticalFlex) }
-        ]}
+    const caValues=calibratedPlayers.map(row=>row.caRaw);
+    return calibratedPlayers.map(player=>{
+      const caReliability=.42+.58*Math.min(1,player.rows.length/35)*(.72+.28*player.knownRatio);
+      const currentAbility=Math.round(60+(playerCardCalibrate(caValues,player.caRaw,61,12,34,92)-60)*caReliability);
+      const modelKey=player.prestige.key||"rookie";
+      const cardTier=currentAbility>=89?"icon":currentAbility>=83?"legend":currentAbility>=77?"elite":currentAbility>=70?"gold":currentAbility>=62?"silver":"bronze";
+      const currentForm=Math.round(player.metrics.form);
+      const formTrend=player.formBreakdown.formTrend-50;
+      const formLabel=playerCardFormLabel(currentForm,formTrend);
+      const styleCandidates=[
+        {key:"aggressive",score:player.metrics.attack},
+        {key:"wall",score:player.metrics.defense},
+        {key:"clutch",score:player.metrics.mental},
+        {key:"creator",score:player.metrics.independence},
+        {key:"momentum",score:currentForm},
+        {key:"general",score:player.legacy}
+      ].sort((a,b)=>b.score-a.score);
+      const styleKey=styleCandidates[0]?.score>=72?styleCandidates[0].key:"balanced";
+      const attributeGroups=[
+        {key:"attack",score:player.metrics.attack,attributes:Object.entries(player.rawGroups.attack).map(([key,value])=>({key,value:Math.round(value)}))},
+        {key:"defense",score:player.metrics.defense,attributes:Object.entries(player.rawGroups.defense).map(([key,value])=>({key,value:Math.round(value)}))},
+        {key:"competition",score:player.metrics.competition,attributes:Object.entries(player.rawGroups.competition).map(([key,value])=>({key,value:Math.round(value)}))},
+        {key:"mental",score:player.metrics.mental,attributes:Object.entries(player.rawGroups.mental).map(([key,value])=>({key,value:Math.round(value)}))},
+        {key:"independence",score:player.metrics.independence,attributes:Object.entries(player.rawGroups.independence).map(([key,value])=>({key,value:Math.round(value)}))}
       ].map(group=>({
-        ...group,
-        label:playerCardMetricLabel(group.key),
+        ...group,label:playerCardMetricLabel(group.key),
         topAttribute:group.attributes.slice().sort((a,b)=>b.value-a.value)[0],
         weakAttribute:group.attributes.slice().sort((a,b)=>a.value-b.value)[0]
       }));
-
-      const categoryScores = Object.fromEntries(attributeGroups.map(group=>[group.key, group.score]));
-      const topMetrics = attributeGroups.slice().sort((a,b)=>b.score-a.score).slice(0,3).map(group=>({ key:group.key, label:group.label, value:group.score }));
-      const weakMetrics = attributeGroups.slice().sort((a,b)=>a.score-b.score).slice(0,2).map(group=>({ key:group.key, label:group.label, value:group.score }));
-      const allSubAttributes = attributeGroups.flatMap(group=>group.attributes.map(item=>({ ...item, label:playerCardMetricLabel(item.key), groupKey:group.key, groupLabel:group.label })));
-      const bestSubAttribute = allSubAttributes.slice().sort((a,b)=>b.value-a.value)[0] || null;
-      const weakestSubAttribute = allSubAttributes.slice().sort((a,b)=>a.value-b.value)[0] || null;
-
-      const prestige = ach.prestige || achievementPrestigeLevel(ach.xp||0);
-      const modelKey = prestige.key || "rookie";
-      const cardTier = overall>=92?"immortal":overall>=88?"icon":overall>=84?"legend":overall>=80?"elite":overall>=75?"gold":overall>=68?"silver":"bronze";
-      const initials = name.split(/\s+/).filter(Boolean).map(part=>part[0]).slice(0,2).join("").toUpperCase();
-      const activeTitle = ach.activeTitle || prestige.name || "ROOKIE";
-      const badgeList = ach.unlocked || ach.badges || [];
-      const nextPrestige = prestige.next ? { name:prestige.next.name, remaining:Math.max(0,prestige.next.min-(ach.xp||0)) } : null;
+      const allAttributes=attributeGroups.flatMap(group=>group.attributes.map(item=>({...item,label:playerCardMetricLabel(item.key),group:group.label})));
+      const bestSubAttribute=allAttributes.slice().sort((a,b)=>b.value-a.value)[0]||null;
+      const weakestSubAttribute=allAttributes.slice().sort((a,b)=>a.value-b.value)[0]||null;
+      const topMetrics=[
+        ...attributeGroups.map(group=>({key:group.key,label:group.label,value:group.score})),
+        {key:"form",label:playerCardMetricLabel("form"),value:currentForm}
+      ].sort((a,b)=>b.value-a.value).slice(0,3);
+      const weakMetrics=attributeGroups.map(group=>({key:group.key,label:group.label,value:group.score})).sort((a,b)=>a.value-b.value).slice(0,2);
 
       return {
-        name, initials, overall, cardTier, prestige, modelKey, modelLabel:playerCardModelLabel(modelKey),
-        activeTitle, xp:ach.xp||0, nextPrestige, styleKey, style:playerCardStyleLabel(styleKey),
-        metrics:categoryScores, attributeGroups, topMetrics, weakMetrics, bestSubAttribute, weakestSubAttribute,
-        elo:e.rating, eloPeak:e.peak, eloTier:e.tier, eloChange:e.last5Change||0, eloTimeline:(e.timeline||[]).slice(-18).map(item=>item.rating),
-        powerIndex:exchange.powerIndex, powerChange:exchange.change, volatility:exchange.volatility,
-        championProbability:exchange.championProbability||0, finalProbability:exchange.finalProbability||0,
-        valuationLabel:exchange.valuationLabel, confidence,
-        formResults:(f.results||[]).slice(-10), momentum:f.momentum||0,
-        currentWinStreak:f.currentWinStreak||0, currentUnbeatenStreak:f.currentUnbeatenStreak||0,
-        favoriteTeam, badges:badgeList, career,
-        closeMatches:closeMatches.length, closeWins, uniqueTeams, winningTeams,
-        topOpponentGames:topOppMatches.length, favoriteTeamWinRate, maxScored,
-        scoutingFocus:topMetrics[0]?.label || "—", developmentFocus:weakMetrics[0]?.label || "—"
+        name:player.name,initials:player.initials,
+        overall:currentAbility,currentAbility,currentForm,formLabel,legacy:player.legacy,
+        cardTier,prestige:player.prestige,modelKey,modelLabel:playerCardModelLabel(modelKey),
+        activeTitle:player.activeTitle,xp:player.xp||0,nextPrestige:player.nextPrestige,
+        styleKey,style:playerCardStyleLabel(styleKey),
+        metrics:player.metrics,attributeGroups,topMetrics,weakMetrics,bestSubAttribute,weakestSubAttribute,
+        formBreakdown:{
+          last5Adjusted:Math.round(player.formBreakdown.last5Adjusted),
+          last10Adjusted:Math.round(player.formBreakdown.last10Adjusted),
+          formTrend:Math.round(player.formBreakdown.formTrend),
+          streak:Math.round(player.formBreakdown.streak)
+        },
+        legacyBreakdown:Object.fromEntries(Object.entries(player.legacyBreakdown).map(([key,value])=>[key,Math.round(value)])),
+        elo:player.e.rating,eloPeak:player.e.peak,eloTier:player.e.tier,eloChange:player.e.last5Change||0,eloTimeline:(player.e.timeline||[]).slice(-18).map(item=>item.rating),
+        powerIndex:player.exchange.powerIndex,powerChange:player.exchange.change,volatility:player.exchange.volatility,
+        championProbability:player.exchange.championProbability||0,finalProbability:player.exchange.finalProbability||0,
+        valuationLabel:player.exchange.valuationLabel,
+        formResults:(player.f.results||[]).slice(-10),momentum:player.f.momentum||0,
+        currentWinStreak:player.f.currentWinStreak||0,currentUnbeatenStreak:player.f.currentUnbeatenStreak||0,
+        favoriteTeam:player.favouriteTeam,badges:player.badgeList,career:player.career,
+        uniqueTeams:player.uniqueTeams,winningTeams:player.winningTeams,
+        confidence:Math.round(player.confidence),knownTeamMatches:player.knownRows.length,totalMatches:player.rows.length,
+        ownTeamAverage:Math.round(player.ownTeamAverage),opponentTeamAverage:Math.round(player.opponentTeamAverage),
+        strongOpponentMatches:player.strongRows.length,underdogMatches:player.underdogRows.length,
+        favouriteMatches:player.favouriteRows.length,balancedMatches:player.balancedRows.length,
+        strongOpponentScore:Math.round(subsetScore(player.strongRows,row=>row.adjustedPerformance)),
+        underdogScore:Math.round(subsetScore(player.underdogRows.length?player.underdogRows:player.disadvantageRows,row=>row.adjustedPerformance)),
+        favouriteScore:Math.round(subsetScore(player.favouriteRows,row=>row.adjustedPerformance)),
+        weakOpponentScore:Math.round(subsetScore(player.weakRows,row=>row.adjustedPerformance)),
+        scoutingFocus:topMetrics[0]?.label||"—",developmentFocus:weakMetrics[0]?.label||"—"
       };
-    }).sort((a,b)=>b.overall-a.overall||b.xp-a.xp||b.elo-a.elo||a.name.localeCompare(b.name,"tr"));
+    }).sort((a,b)=>b.currentAbility-a.currentAbility||b.currentForm-a.currentForm||b.elo-a.elo||a.name.localeCompare(b.name,"tr"));
   }
 
 
@@ -5450,34 +5763,44 @@
     intelligencePlayerCard = selected?.name || "";
     if (!selected) return `<div class="info-box">${intelligenceCopy("Oyuncu verisi bulunmuyor.","No player data is available.")}</div>`;
 
-    const prestigeProgress = selected.prestige?.progress ?? 100;
-    const nextPrestigeText = selected.nextPrestige
-      ? intelligenceCopy(`${selected.nextPrestige.name} için ${selected.nextPrestige.remaining} XP`, `${selected.nextPrestige.remaining} XP to ${selected.nextPrestige.name}`)
+    const locale=intelligenceLanguage()==="en"?"en-GB":"tr-TR";
+    const prestigeProgress=selected.prestige?.progress??100;
+    const nextPrestigeText=selected.nextPrestige
+      ? intelligenceCopy(`${selected.nextPrestige.name} için ${selected.nextPrestige.remaining} XP`,`${selected.nextPrestige.remaining} XP to ${selected.nextPrestige.name}`)
       : intelligenceCopy("Maksimum Prestige seviyesi","Maximum Prestige level");
-    const titleBadges = selected.badges.slice(0,5);
-    const titleProbability = simulationPct(selected.championProbability,1);
+    const titleBadges=selected.badges.slice(0,5);
+    const titleProbability=simulationPct(selected.championProbability,1);
+    const formTrend=selected.formBreakdown.formTrend-50;
+    const formTrendLabel=formTrend>=5?intelligenceCopy("Yükselişte","Improving"):formTrend<=-5?intelligenceCopy("Düşüşte","Declining"):intelligenceCopy("Dengeli","Steady");
+    const knownCoverage=selected.totalMatches?selected.knownTeamMatches/selected.totalMatches*100:0;
 
-    const renderAttributeCard = group => `<article class="player-card-attribute-card group-${group.key}">
-      <header class="player-card-attribute-header"><div><span>${escapeHTML(group.label.toUpperCase())}</span><strong>${group.score}</strong></div><small>${escapeHTML(group.blurb)}</small></header>
+    const renderAttributeCard=group=>`<article class="player-card-attribute-card group-${group.key}">
+      <header class="player-card-attribute-header"><div><span>${escapeHTML(group.label.toUpperCase())}</span><strong>${group.score}</strong></div><small>${escapeHTML(playerCardReferenceLabel(group.score))}</small></header>
       <div class="player-card-attribute-list">${group.attributes.map(item=>`<div class="player-card-attribute-row"><label>${escapeHTML(playerCardMetricLabel(item.key))}</label><i><b style="width:${item.value}%"></b></i><strong>${item.value}</strong></div>`).join("")}</div>
       <footer class="player-card-attribute-foot"><span>${intelligenceCopy("Öne çıkan","Best")} · <b>${escapeHTML(playerCardMetricLabel(group.topAttribute.key))}</b></span><small>${group.topAttribute.value}</small></footer>
     </article>`;
 
-    return `<div class="intel-section-stack player-card-universe">
+    const renderBreakdown=(title,score,items,className)=>`<article class="player-card-deep-panel ${className}">
+      <header><div><span>${escapeHTML(title.toUpperCase())}</span><strong>${score}</strong></div><b>${escapeHTML(className==="form-panel"?selected.formLabel:playerCardReferenceLabel(score))}</b></header>
+      <div>${Object.entries(items).map(([key,value])=>`<div class="player-card-deep-row"><label>${escapeHTML(playerCardMetricLabel(key))}</label><i><b style="width:${value}%"></b></i><strong>${value}</strong></div>`).join("")}</div>
+    </article>`;
+
+    return `<div class="intel-section-stack player-card-universe player-card-v29">
       <section class="player-card-universe-hero">
         <div>
-          <div class="eyebrow">FIFA 9 · PLAYER CARD UNIVERSE v28</div>
-          <h2>${intelligenceCopy("FM Esintili Oyuncu Kimlik Kartları","FM-Inspired Player Identity Cards")}</h2>
-          <p>${intelligenceCopy("Yeni kart motoru artık tek katmanlı 12 metrik yerine 6 ana performans sütununu ve her sütunun altında 4 alt parametreyi ayrı ayrı değerlendiriyor. Kart puanı; güncel form, büyük maç etkisi, clean-sheet profili, baskı dayanıklılığı, kariyer mirası ve takım havuzu verimliliğini birlikte okur.","The new card engine now evaluates six core performance pillars with four sub-parameters under each one instead of a flat 12-metric layer. Card value now reads current form, big-match impact, clean-sheet profile, pressure resilience, career legacy and team-pool efficiency together.")}</p>
+          <div class="eyebrow">FIFA 9 · PLAYER CARD INTELLIGENCE v29</div>
+          <h2>${intelligenceCopy("Takım ve Rakip Gücüne Göre Düzeltilmiş Oyuncu Kartları","Team- and Opponent-Adjusted Player Cards")}</h2>
+          <p>${intelligenceCopy("Yeni motor yaklaşık 430 maçlık arşivden takım güçlerini öğrenir; oyuncunun kullandığı takım, rakibin takımı, rakip Elo seviyesi ve maçın aşamasına göre beklenen performansı hesaplar. Kart puanı ham gole değil, gerçekleşen performansın beklentiden ne kadar saptığına dayanır.","The new engine learns team strength from roughly 430 archived matches, then calculates expected performance from the player's team, the opponent's team, opponent Elo and match stage. Card ratings are based not on raw goals, but on how far actual performance exceeds or falls below expectation.")}</p>
           <div class="player-card-hero-tags">
-            <span>${intelligenceCopy("6 ana sütun","6 core pillars")}</span>
-            <span>${intelligenceCopy("24 alt parametre","24 sub-attributes")}</span>
-            <span>${intelligenceCopy("FM tarzı scouting mantığı","FM-style scouting logic")}</span>
+            <span>${intelligenceCopy("Takım gücü düzeltmesi","Team-strength adjustment")}</span>
+            <span>${intelligenceCopy("Rakip kalitesi","Opponent quality")}</span>
+            <span>${intelligenceCopy("Underdog / favori bağlamı","Underdog / favourite context")}</span>
+            <span>${intelligenceCopy("Dağılım kalibrasyonu","Distribution calibration")}</span>
           </div>
         </div>
         <div class="player-card-selector-shell">
           <span>${intelligenceCopy("OYUNCU SEÇ","SELECT PLAYER")}</span>
-          <select id="intelPlayerCardSelect">${cards.map(row=>`<option value="${escapeHTML(row.name)}" ${row.name===selected.name?"selected":""}>${escapeHTML(row.name)} · ${row.overall} OVR · ${escapeHTML(row.prestige.name)}</option>`).join("")}</select>
+          <select id="intelPlayerCardSelect">${cards.map(row=>`<option value="${escapeHTML(row.name)}" ${row.name===selected.name?"selected":""}>${escapeHTML(row.name)} · CA ${row.currentAbility} · FORM ${row.currentForm}</option>`).join("")}</select>
           <small>${cards.length} ${intelligenceCopy("aktif kart","active cards")}</small>
         </div>
       </section>
@@ -5486,7 +5809,7 @@
         <article class="player-card-premium prestige-${selected.modelKey} tier-${selected.cardTier}">
           <div class="player-card-foil"></div><div class="player-card-grid-pattern"></div><div class="player-card-energy"></div>
           <header class="player-card-premium-top">
-            <div class="player-card-rating"><strong>${selected.overall}</strong><span>OVR</span></div>
+            <div class="player-card-rating"><strong>${selected.currentAbility}</strong><span>CA</span></div>
             <div class="player-card-edition"><span>FIFA 9</span><strong>${escapeHTML(selected.modelLabel)}</strong></div>
             <div class="player-card-prestige-mark"><span>${escapeHTML(selected.prestige.icon||"Ⅰ")}</span><small>${escapeHTML(selected.prestige.name)}</small></div>
           </header>
@@ -5496,44 +5819,68 @@
             <h3>${escapeHTML(selected.name)}</h3>
             <strong>${escapeHTML(selected.style)}</strong>
           </div>
-          <div class="player-card-live-strip">
-            <div><span>${intelligenceCopy("ELO","ELO")}</span><strong>${selected.elo}</strong></div>
-            <div><span>${intelligenceCopy("POWER","POWER")}</span><strong>${selected.powerIndex.toFixed(1)}</strong></div>
-            <div><span>${intelligenceCopy("GÜVEN","CONFIDENCE")}</span><strong>${selected.confidence}</strong></div>
-            <div><span>${intelligenceCopy("ŞAMPİYON","CHAMPION")}</span><strong>${titleProbability}</strong></div>
+          <div class="player-card-live-strip player-card-live-strip-v29">
+            <div><span>${intelligenceCopy("YETENEK","ABILITY")}</span><strong>${selected.currentAbility}</strong><small>${escapeHTML(playerCardReferenceLabel(selected.currentAbility))}</small></div>
+            <div><span>${intelligenceCopy("FORM","FORM")}</span><strong>${selected.currentForm}</strong><small>${escapeHTML(selected.formLabel)}</small></div>
+            <div><span>${intelligenceCopy("MİRAS","LEGACY")}</span><strong>${selected.legacy}</strong><small>${escapeHTML(playerCardReferenceLabel(selected.legacy))}</small></div>
+            <div><span>${intelligenceCopy("GÜVEN","CONFIDENCE")}</span><strong>${selected.confidence}</strong><small>${selected.knownTeamMatches}/${selected.totalMatches}</small></div>
           </div>
-          <div class="player-card-form-ribbon"><span>${intelligenceCopy("SON 10","LAST 10")}</span><div>${playerCardFormRibbon(selected.formResults)}</div></div>
-          <div class="player-card-top-badges">${titleBadges.length ? titleBadges.map(item=>`<span class="rarity-${item.rarity?.key||"starter"}" title="${escapeHTML(item.title)}">${escapeHTML(item.icon||"◆")}</span>`).join("") : `<span>◇</span>`}</div>
+          <div class="player-card-form-ribbon"><span>${intelligenceCopy("SON 10","LAST 10")} · ${escapeHTML(selected.formLabel)}</span><div>${playerCardFormRibbon(selected.formResults)}</div></div>
+          <div class="player-card-top-badges">${titleBadges.length?titleBadges.map(item=>`<span class="rarity-${item.rarity?.key||"starter"}" title="${escapeHTML(item.title)}">${escapeHTML(item.icon||"◆")}</span>`).join(""):`<span>◇</span>`}</div>
           <footer class="player-card-prestige-progress">
-            <div><span>${selected.xp.toLocaleString(intelligenceLanguage()==="en"?"en-GB":"tr-TR")} XP</span><small>${escapeHTML(nextPrestigeText)}</small></div>
+            <div><span>${selected.xp.toLocaleString(locale)} XP</span><small>${escapeHTML(nextPrestigeText)}</small></div>
             <i><b style="width:${prestigeProgress}%"></b></i>
           </footer>
         </article>
 
         <div class="player-card-intelligence">
           <div class="player-card-intelligence-head">
-            <div><div class="eyebrow">CARD INTELLIGENCE · SCOUTING MATRIX</div><h3>${intelligenceCopy("Performans DNA’sı 2.0","Performance DNA 2.0")}</h3><p>${intelligenceCopy("Bu kart artık tek bir genel puana değil; Hücum, Savunma, Form, Mental, Miras ve Oyun Kimliği sütunlarının altında çalışan 24 alt parametreye dayanır. Algoritma az örneklemli verileri dengelemek için güven katsayısı uygular; böylece kart hem gerçekçi hem de daha kararlı olur.","This card is no longer driven by a single general score; it now stands on 24 sub-attributes grouped under Attack, Defence, Form, Mental, Legacy and Game Identity. The algorithm applies a confidence coefficient to stabilise low-sample data, making the card both more realistic and more reliable.")}</p></div>
-            <div class="player-card-overall-chip"><span>${intelligenceCopy("GENEL","OVERALL")}</span><strong>${selected.overall}</strong><small>${escapeHTML(selected.cardTier.toUpperCase())}</small></div>
+            <div><div class="eyebrow">EXPECTED PERFORMANCE MODEL · v29</div><h3>${intelligenceCopy("Gerçek Performans DNA’sı","Real Performance DNA")}</h3><p>${intelligenceCopy("Her maçta önce beklenen sonuç ve beklenen skor hesaplanır. Güçsüz takımla güçlü rakibe karşı alınan sonuç daha fazla değer üretirken, güçlü takımla zayıf rakibe karşı sıradan galibiyet otomatik olarak yüksek puan vermez.","For every match, expected result and expected score are calculated first. Results achieved with a weaker team against a stronger opponent carry more value, while routine wins with a stronger team against a weaker opponent do not automatically generate elite ratings.")}</p></div>
+            <div class="player-card-overall-chip"><span>${intelligenceCopy("CURRENT ABILITY","CURRENT ABILITY")}</span><strong>${selected.currentAbility}</strong><small>${escapeHTML(selected.cardTier.toUpperCase())}</small></div>
           </div>
 
-          <div class="player-card-analysis-grid">
+          <div class="player-card-reference-strip">
+            <div><span>${intelligenceCopy("ORTALAMA REFERANS","AVERAGE REFERENCE")}</span><strong>60</strong><small>${intelligenceCopy("Turnuva ortalaması","Tournament average")}</small></div>
+            <div><span>75+</span><strong>${intelligenceCopy("ÇOK GÜÇLÜ","VERY STRONG")}</strong><small>${intelligenceCopy("Üst düzey performans","High-level performance")}</small></div>
+            <div><span>82+</span><strong>ELITE</strong><small>${intelligenceCopy("Üst yüzde dilimi","Top percentile")}</small></div>
+            <div><span>90+</span><strong>${intelligenceCopy("TARİHÎ","HISTORIC")}</strong><small>${intelligenceCopy("Çok nadir","Extremely rare")}</small></div>
+          </div>
+
+          <div class="player-card-analysis-grid player-card-analysis-v29">
             <section class="player-card-radar-panel">
               ${playerCardRadar(selected.metrics)}
               <div class="player-card-strength-tags">${selected.topMetrics.map(item=>`<span>${escapeHTML(item.label)} <strong>${item.value}</strong></span>`).join("")}</div>
               <div class="player-card-confidence-panel">
                 <div><span>${intelligenceCopy("MODEL GÜVENİ","MODEL CONFIDENCE")}</span><strong>${selected.confidence}/100</strong></div>
-                <div><span>${intelligenceCopy("BÜYÜK MAÇ ÖRNEĞİ","TOP-MATCH SAMPLE")}</span><strong>${selected.topOpponentGames}</strong></div>
-                <div><span>${intelligenceCopy("MAKS GOL","MAX GOALS")}</span><strong>${selected.maxScored}</strong></div>
+                <div><span>${intelligenceCopy("TAKIM VERİSİ","TEAM DATA")}</span><strong>${Math.round(knownCoverage)}%</strong></div>
+                <div><span>${intelligenceCopy("ELO","ELO")}</span><strong>${selected.elo}</strong></div>
               </div>
             </section>
             <section class="player-card-attribute-panel">${selected.attributeGroups.map(renderAttributeCard).join("")}</section>
           </div>
 
+          <div class="player-card-form-legacy-grid">
+            ${renderBreakdown(intelligenceCopy("Güncel Form","Current Form"),selected.currentForm,selected.formBreakdown,"form-panel")}
+            ${renderBreakdown(intelligenceCopy("Kariyer Mirası","Career Legacy"),selected.legacy,selected.legacyBreakdown,"legacy-panel")}
+          </div>
+
+          <section class="player-card-context-panel">
+            <header><div><span>${intelligenceCopy("PERFORMANS BAĞLAMI","PERFORMANCE CONTEXT")}</span><h4>${intelligenceCopy("Rakip ve takım gücüne göre düzeltilmiş sonuçlar","Results adjusted for opponent and team strength")}</h4></div><b>${selected.knownTeamMatches}/${selected.totalMatches} ${intelligenceCopy("maçta takım verisi","matches with team data")}</b></header>
+            <div class="player-card-context-grid">
+              <article><span>${intelligenceCopy("GÜÇLÜ RAKİPLER","STRONG OPPONENTS")}</span><strong>${selected.strongOpponentScore}</strong><small>${selected.strongOpponentMatches} ${intelligenceCopy("maç","matches")}</small></article>
+              <article><span>UNDERDOG</span><strong>${selected.underdogScore}</strong><small>${selected.underdogMatches} ${intelligenceCopy("maç","matches")}</small></article>
+              <article><span>${intelligenceCopy("FAVORİYKEN","AS FAVOURITE")}</span><strong>${selected.favouriteScore}</strong><small>${selected.favouriteMatches} ${intelligenceCopy("maç","matches")}</small></article>
+              <article><span>${intelligenceCopy("ZAYIF RAKİPLER","WEAKER OPPONENTS")}</span><strong>${selected.weakOpponentScore}</strong><small>${intelligenceCopy("Beklentiyi karşılama","Expectation delivery")}</small></article>
+              <article><span>${intelligenceCopy("ORT. KENDİ TAKIMI","AVG OWN TEAM")}</span><strong>${selected.ownTeamAverage}</strong><small>${escapeHTML(playerCardTeamTier(selected.ownTeamAverage))}</small></article>
+              <article><span>${intelligenceCopy("ORT. RAKİP TAKIM","AVG OPP TEAM")}</span><strong>${selected.opponentTeamAverage}</strong><small>${escapeHTML(playerCardTeamTier(selected.opponentTeamAverage))}</small></article>
+            </div>
+          </section>
+
           <div class="player-card-live-intelligence-grid">
             <article><span>POWER EXCHANGE</span><strong>${selected.powerIndex.toFixed(1)}</strong><small class="${selected.powerChange>=0?"positive":"negative"}">${selected.powerChange>=0?"+":""}${selected.powerChange.toFixed(1)} · ${escapeHTML(selected.valuationLabel)}</small></article>
             <article><span>${intelligenceCopy("ELO GÜCÜ","ELO POWER")}</span><strong>${selected.elo}</strong><small>${intelligenceCopy("Zirve","Peak")} ${selected.eloPeak} · ${selected.eloChange>=0?"+":""}${selected.eloChange}</small></article>
             <article><span>${intelligenceCopy("ŞAMPİYONLUK YOLU","TITLE PATH")}</span><strong>${titleProbability}</strong><small>${intelligenceCopy("Final","Final")} ${simulationPct(selected.finalProbability,1)}</small></article>
-            <article><span>${intelligenceCopy("AKTİF SERİ","ACTIVE RUN")}</span><strong>${selected.currentWinStreak}W</strong><small>${selected.currentUnbeatenStreak} ${intelligenceCopy("maç yenilmez","matches unbeaten")}</small></article>
+            <article><span>${intelligenceCopy("FORM TRENDİ","FORM TREND")}</span><strong>${formTrend>=0?"+":""}${Math.round(formTrend)}</strong><small>${escapeHTML(formTrendLabel)}</small></article>
           </div>
 
           <div class="player-card-career-row">
@@ -5546,37 +5893,37 @@
           </div>
 
           <div class="player-card-explanation-grid player-card-scout-grid">
-            <article><span>${intelligenceCopy("KARTIN EN GÜÇLÜ TARAFI","CARD SIGNATURE")}</span><strong>${escapeHTML(selected.topMetrics[0]?.label||"—")} · ${selected.topMetrics[0]?.value||0}</strong><p>${intelligenceCopy("Kartın genel puanına en çok güç veren ana sütun.","The pillar contributing the most strength to the overall card.")}</p></article>
-            <article><span>${intelligenceCopy("EN İYİ ALT PARAMETRE","BEST SUB-ATTRIBUTE")}</span><strong>${escapeHTML(selected.bestSubAttribute?.label||"—")} · ${selected.bestSubAttribute?.value||0}</strong><p>${intelligenceCopy("Oyuncunun bu kartta en belirgin uzmanlık alanı.","The player’s clearest specialist area on this card.")}</p></article>
-            <article><span>${intelligenceCopy("GELİŞİM ALANI","DEVELOPMENT AREA")}</span><strong>${escapeHTML(selected.weakMetrics[0]?.label||"—")} · ${selected.weakMetrics[0]?.value||0}</strong><p>${intelligenceCopy("Bir üst seviyeye çıkmak için en fazla geliştirilmesi gereken ana sütun.","The pillar that needs the most improvement to reach the next tier.")}</p></article>
-            <article><span>${intelligenceCopy("ZAYIF ALT PARAMETRE","WEAKEST SUB-ATTRIBUTE")}</span><strong>${escapeHTML(selected.weakestSubAttribute?.label||"—")} · ${selected.weakestSubAttribute?.value||0}</strong><p>${intelligenceCopy("Algoritmanın en kırılgan gördüğü detay parametre.","The most fragile detailed parameter according to the model.")}</p></article>
-            <article><span>${intelligenceCopy("KART MODELİ","CARD MODEL")}</span><strong>${escapeHTML(selected.modelLabel)}</strong><p>${intelligenceCopy("Tasarım, Prestige seviyesi ve oyun arketipine göre otomatik seçilir.","The design is selected automatically from the player’s Prestige level and playing archetype.")}</p></article>
-            <article><span>${intelligenceCopy("SCOUT ÖZETİ","SCOUT SUMMARY")}</span><strong>${escapeHTML(selected.scoutingFocus)}</strong><p>${intelligenceCopy(`Kartın omurgası ${selected.scoutingFocus}; bir sonraki seviye için odak alanı ${selected.developmentFocus}.`,`The backbone of this card is ${selected.scoutingFocus}; the key focus for the next tier is ${selected.developmentFocus}.`)}</p></article>
+            <article><span>${intelligenceCopy("SCOUT İMZASI","SCOUT SIGNATURE")}</span><strong>${escapeHTML(selected.scoutingFocus)} · ${selected.topMetrics[0]?.value||0}</strong><p>${intelligenceCopy("Oyuncunun düzeltilmiş modelde en güçlü ana performans alanı.","The player's strongest core area in the adjusted model.")}</p></article>
+            <article><span>${intelligenceCopy("EN İYİ ALT PARAMETRE","BEST SUB-ATTRIBUTE")}</span><strong>${escapeHTML(selected.bestSubAttribute?.label||"—")} · ${selected.bestSubAttribute?.value||0}</strong><p>${intelligenceCopy("Takım ve rakip gücü düzeltmesinden sonra öne çıkan uzmanlık.","The specialist trait that remains strongest after team and opponent adjustment.")}</p></article>
+            <article><span>${intelligenceCopy("GELİŞİM ALANI","DEVELOPMENT AREA")}</span><strong>${escapeHTML(selected.developmentFocus)} · ${selected.weakMetrics[0]?.value||0}</strong><p>${intelligenceCopy("Current Ability değerini en fazla sınırlayan ana alan.","The main area currently limiting Current Ability.")}</p></article>
+            <article><span>${intelligenceCopy("ZAYIF ALT PARAMETRE","WEAKEST SUB-ATTRIBUTE")}</span><strong>${escapeHTML(selected.weakestSubAttribute?.label||"—")} · ${selected.weakestSubAttribute?.value||0}</strong><p>${intelligenceCopy("Modelin oyuncu profilinde en kırılgan gördüğü detay.","The most fragile detail in the player's modelled profile.")}</p></article>
+            <article><span>${intelligenceCopy("VERİ GÜVENİ","DATA CONFIDENCE")}</span><strong>${selected.confidence}/100</strong><p>${intelligenceCopy("Toplam maç, takım bilgisi kapsamı ve güçlü rakip örneklemiyle hesaplanır.","Calculated from total matches, team-data coverage and strong-opponent sample size.")}</p></article>
+            <article><span>${intelligenceCopy("MODEL NOTU","MODEL NOTE")}</span><strong>${escapeHTML(playerCardReferenceLabel(selected.currentAbility))}</strong><p>${intelligenceCopy("Ana kart puanı Miras tarafından şişirilmez; Form ve Miras ayrı göstergeler olarak tutulur.","The main card rating is not inflated by Legacy; Form and Legacy remain separate indicators.")}</p></article>
           </div>
         </div>
       </section>
 
       <section class="panel player-card-elo-panel">
-        <div class="panel-header"><div><h3 class="panel-title">${intelligenceCopy("Elo ve Kariyer Hareketi","Elo & Career Movement")}</h3><div class="panel-subtitle">${intelligenceCopy("Son Elo değişimleri, güncel form ve Prestige ilerlemesi aynı çizgide.","Recent Elo movement, current form and Prestige progress on one line.")}</div></div><span class="badge badge-gold">${selected.elo} ELO</span></div>
+        <div class="panel-header"><div><h3 class="panel-title">${intelligenceCopy("Elo, Form ve Veri Güveni","Elo, Form & Data Confidence")}</h3><div class="panel-subtitle">${intelligenceCopy("Kartın güncel gücü, son dönem performansı ve veri kapsamı birlikte izlenir.","Current ability, recent performance and data coverage are tracked together.")}</div></div><span class="badge badge-gold">${selected.elo} ELO</span></div>
         <div class="player-card-history-layout">
           <div class="player-card-history-chart">${intelligenceSparkline(selected.eloTimeline,"player-card-elo-spark")}</div>
           <div class="player-card-history-stats">
-            <div><span>${intelligenceCopy("SON 5 ELO","LAST 5 ELO")}</span><strong class="${selected.eloChange>=0?"positive":"negative"}">${selected.eloChange>=0?"+":""}${selected.eloChange}</strong></div>
-            <div><span>${intelligenceCopy("MOMENTUM","MOMENTUM")}</span><strong>${selected.momentum>=0?"+":""}${selected.momentum}</strong></div>
-            <div><span>${intelligenceCopy("VOLATİLİTE","VOLATILITY")}</span><strong>${selected.volatility}/100</strong></div>
-            <div><span>${intelligenceCopy("ROZETLER","BADGES")}</span><strong>${selected.badges.length}</strong></div>
+            <div><span>${intelligenceCopy("CURRENT ABILITY","CURRENT ABILITY")}</span><strong>${selected.currentAbility}</strong></div>
+            <div><span>${intelligenceCopy("CURRENT FORM","CURRENT FORM")}</span><strong>${selected.currentForm}</strong></div>
+            <div><span>${intelligenceCopy("LEGACY","LEGACY")}</span><strong>${selected.legacy}</strong></div>
+            <div><span>${intelligenceCopy("TEAM DATA","TEAM DATA")}</span><strong>${Math.round(knownCoverage)}%</strong></div>
           </div>
         </div>
       </section>
 
       <section class="panel">
-        <div class="panel-header"><div><h3 class="panel-title">${intelligenceCopy("Premium Kart Koleksiyonu","Premium Card Collection")}</h3><div class="panel-subtitle">${intelligenceCopy("Bütün oyuncular Overall, Prestige ve Elo değerine göre canlı sıralanır.","All players are ranked live by Overall, Prestige and Elo.")}</div></div><span class="badge badge-blue">${cards.length} CARDS</span></div>
+        <div class="panel-header"><div><h3 class="panel-title">${intelligenceCopy("Kalibre Edilmiş Kart Koleksiyonu","Calibrated Card Collection")}</h3><div class="panel-subtitle">${intelligenceCopy("Kartlar Current Ability değerine göre sıralanır; Form ve Miras ayrı gösterilir.","Cards are ranked by Current Ability, with Form and Legacy shown separately.")}</div></div><span class="badge badge-blue">${cards.length} CARDS</span></div>
         <div class="player-card-collection-v26">${cards.map((row,index)=>`<button class="player-card-mini-v26 prestige-${row.modelKey} archetype-${row.styleKey} ${row.name===selected.name?"active":""}" data-action="select-player-card" data-player-name="${escapeHTML(row.name)}">
-          <div class="mini-card-shine"></div><header><strong>${row.overall}</strong><span>${escapeHTML(row.prestige.name)}</span><b>#${index+1}</b></header>
+          <div class="mini-card-shine"></div><header><strong>${row.currentAbility}</strong><span>${escapeHTML(row.prestige.name)}</span><b>#${index+1}</b></header>
           <div class="mini-card-avatar">${escapeHTML(row.initials)}</div>
           <h4>${escapeHTML(row.name)}</h4><p>${escapeHTML(row.activeTitle)}</p>
-          <div class="mini-card-data"><span>${row.elo} ELO</span><span>${row.powerIndex.toFixed(1)} PWR</span></div>
-          <footer><span>${escapeHTML(row.style)}</span><b>${row.xp.toLocaleString(intelligenceLanguage()==="en"?"en-GB":"tr-TR")} XP</b></footer>
+          <div class="mini-card-data"><span>FORM ${row.currentForm}</span><span>LEG ${row.legacy}</span></div>
+          <footer><span>${escapeHTML(row.formLabel)}</span><b>${row.confidence}% CONF</b></footer>
         </button>`).join("")}</div>
       </section>
     </div>`;
