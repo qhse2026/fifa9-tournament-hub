@@ -3465,3 +3465,10 @@ html[data-language="en"] .brand-subtitle { letter-spacing: .095em; }
 }
 .master-status-grid button.active{border-color:rgba(228,183,80,.5);box-shadow:inset 0 0 0 1px rgba(228,183,80,.1);color:#f5d782}
 .master-status-grid button.active.is-live{color:#160f03}
+
+/* v35.1 Silver Group administrative replacement */
+.admin-replacement-notice{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:14px;margin:16px 0;border-color:rgba(236,193,96,.35);background:linear-gradient(135deg,rgba(232,184,73,.12),rgba(32,59,87,.35));}
+.admin-replacement-notice strong{color:#f0ca70;white-space:nowrap;}
+.admin-replacement-notice span{color:var(--text);line-height:1.5;}
+.admin-replacement-notice small{color:var(--muted);text-align:right;}
+@media(max-width:900px){.admin-replacement-notice{grid-template-columns:1fr}.admin-replacement-notice small{text-align:left}}

@@ -4,6 +4,14 @@
   const STORAGE_KEY = "fifa-tournament-hub-v1";
   const PLAYER_COUNT = 16;
   const LEAGUE_ROUNDS = 6;
+  const PHASE2_ADMIN_REPLACEMENTS = [{
+    id: "silver-denar-ilia-zelentsov-to-ersin-darici",
+    group: "silver",
+    outgoingName: "Denar Ilia Zelentsov",
+    incomingName: "Ersin Darıcı",
+    reason: "Player declined Silver Group participation",
+    reasonTr: "Oyuncu Gümüş Grup katılımından çekildi"
+  }];
   const historical = window.HISTORICAL_DATA || { editions: [], allTime: [], champions: [], summary: {} };
   const cloud = window.FIFA_CLOUD || null;
   let cloudConfigured = Boolean(cloud?.isConfigured?.());
@@ -88,7 +96,8 @@
           silverIds: [],
           eliminatedIds: [],
           goldRounds: [],
-          silverRounds: []
+          silverRounds: [],
+          adminReplacements: []
         },
         knockout: {
           generated: false,
@@ -250,6 +259,90 @@
 
   function displayName(id) {
     return escapeHTML(playerName(id));
+  }
+
+  function normalizeAdministrativeName(value) {
+    return String(value || "").trim().toLocaleLowerCase("tr-TR").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+  }
+
+  function participantIdByName(name) {
+    const target = normalizeAdministrativeName(name);
+    return state.current.participants.find(item => normalizeAdministrativeName(item.name) === target)?.id || null;
+  }
+
+  function configuredPhase2Replacement() {
+    return PHASE2_ADMIN_REPLACEMENTS[0] || null;
+  }
+
+  function phase2SelectionFromLeague(table = leagueStandings()) {
+    const goldIds = table.slice(0, 6).map(row => row.id);
+    const silverIds = table.slice(6, 12).map(row => row.id);
+    const eliminatedIds = table.slice(12).map(row => row.id);
+    const config = configuredPhase2Replacement();
+    if (!config || config.group !== "silver") return { goldIds, silverIds, eliminatedIds, replacement: null };
+    const outgoingId = participantIdByName(config.outgoingName);
+    const incomingId = participantIdByName(config.incomingName);
+    const outgoingIndex = silverIds.indexOf(outgoingId);
+    const incomingEliminatedIndex = eliminatedIds.indexOf(incomingId);
+    if (!outgoingId || !incomingId || outgoingIndex < 0 || incomingEliminatedIndex < 0) return { goldIds, silverIds, eliminatedIds, replacement: null };
+    silverIds[outgoingIndex] = incomingId;
+    const qualified = new Set([...goldIds, ...silverIds]);
+    const updatedEliminated = table.map(row => row.id).filter(id => !qualified.has(id));
+    return {
+      goldIds, silverIds, eliminatedIds: updatedEliminated,
+      replacement: { ...config, outgoingId, incomingId, outgoingLeagueRank: table.findIndex(row => row.id === outgoingId) + 1, incomingLeagueRank: table.findIndex(row => row.id === incomingId) + 1 }
+    };
+  }
+
+  function phase2ReplacementRecord() {
+    const id = configuredPhase2Replacement()?.id;
+    return (state.current.phase2.adminReplacements || []).find(item => item.id === id && item.status === "applied") || null;
+  }
+
+  function applyConfiguredPhase2Replacement(options = {}) {
+    const { silent = true } = options;
+    if (!state.current.phase2.generated || !leagueFinished()) return { changed: false, reason: "phase2-not-ready" };
+    const config = configuredPhase2Replacement();
+    if (!config) return { changed: false, reason: "no-config" };
+    const outgoingId = participantIdByName(config.outgoingName);
+    const incomingId = participantIdByName(config.incomingName);
+    if (!outgoingId || !incomingId) return { changed: false, reason: "players-not-found" };
+    const existing = phase2ReplacementRecord();
+    const alreadyApplied = state.current.phase2.silverIds.includes(incomingId) && !state.current.phase2.silverIds.includes(outgoingId);
+    if (alreadyApplied) {
+      if (!existing) {
+        state.current.phase2.adminReplacements = [...(state.current.phase2.adminReplacements || []), { ...config, outgoingId, incomingId, status: "applied", appliedAt: new Date().toISOString() }];
+        return { changed: true, reason: "metadata-added" };
+      }
+      return { changed: false, reason: "already-applied" };
+    }
+    if (!state.current.phase2.silverIds.includes(outgoingId) || state.current.phase2.silverIds.includes(incomingId)) return { changed: false, reason: "selection-mismatch" };
+    const outgoingCompleted = allRoundMatches(state.current.phase2.silverRounds).some(match => matchComplete(match) && (match.homeId === outgoingId || match.awayId === outgoingId));
+    const activeSilverMatch = state.current.live?.active && (state.current.live.active.matchId || "").startsWith("silver-") && [state.current.live.active.homeId, state.current.live.active.awayId].includes(outgoingId);
+    if (outgoingCompleted || activeSilverMatch || state.current.knockout.generated) {
+      if (!silent) toast("İdari değişiklik güvenli uygulanamadı: Denar adına tamamlanmış veya aktif Gümüş Grup kaydı bulunuyor.", "error");
+      return { changed: false, reason: "unsafe-existing-results" };
+    }
+    const table = leagueStandings();
+    const selection = phase2SelectionFromLeague(table);
+    if (!selection.replacement) return { changed: false, reason: "replacement-not-eligible" };
+    state.current.phase2.silverIds = selection.silverIds;
+    state.current.phase2.eliminatedIds = selection.eliminatedIds;
+    state.current.phase2.silverRounds = (state.current.phase2.silverRounds || []).map(round => ({
+      ...round,
+      matches: (round.matches || []).map(match => {
+        const updated = { ...match };
+        if (updated.homeId === outgoingId) { updated.homeId = incomingId; updated.homeTeam = ""; }
+        if (updated.awayId === outgoingId) { updated.awayId = incomingId; updated.awayTeam = ""; }
+        return updated;
+      })
+    }));
+    state.current.phase2.adminReplacements = [
+      ...(state.current.phase2.adminReplacements || []).filter(item => item.id !== config.id),
+      { ...selection.replacement, status: "applied", appliedAt: new Date().toISOString(), carriedPoints: leagueStandings().find(row => row.id === incomingId)?.pts || 0, carriedGoalDifference: leagueStandings().find(row => row.id === incomingId)?.gd || 0 }
+    ];
+    if (!silent) toast("Gümüş Grup idari değişikliği uygulandı: Ersin Darıcı, kendi League Phase puanıyla Denar Ilia Zelentsov'un yerine alındı.", "success");
+    return { changed: true, reason: "applied" };
   }
 
   function filledParticipants() {
@@ -1672,13 +1765,15 @@
     const table = phase2Standings(group);
     const completed = matches.filter(matchComplete).length;
     const otherComplete = isGold ? silverMatches().every(matchComplete) : goldMatches().every(matchComplete);
+    const adminReplacement = !isGold ? phase2ReplacementRecord() : null;
     view.innerHTML = `
       <div class="group-banner ${isGold ? "gold" : "silver"}">
         <div><div class="eyebrow">ROUND 2</div><h2>${isGold ? "Altın Grup" : "Gümüş Grup"}</h2><p>League Phase puanları ve averajları taşındı. Her oyuncu bu aşamada 5 ek maç yapar.</p></div>
         <div class="group-emblem">${isGold ? "★" : "✦"}</div>
       </div>
+      ${adminReplacement ? `<div class="info-box admin-replacement-notice"><strong>İdari Oyuncu Değişikliği</strong><span>${escapeHTML(configuredPhase2Replacement().outgoingName)} Gümüş Grup katılımından çekildi. ${escapeHTML(configuredPhase2Replacement().incomingName)}, kendi League Phase puanı ve averajıyla yedek katılımcı olarak gruba alındı.</span><small>League Phase sıralaması ve tamamlanmış maç sonuçları değiştirilmedi.</small></div>` : ""}
       <div class="kpi-grid">
-        ${kpiCard("Grup Oyuncusu", "6", `${isGold ? "League Phase 1–6" : "League Phase 7–12"}`)}
+        ${kpiCard("Grup Oyuncusu", "6", `${isGold ? "League Phase 1–6" : adminReplacement ? "7–12 + idari yedek" : "League Phase 7–12"}`)}
         ${kpiCard("Grup Maçı", `${completed} / 15`, "Tamamlanan ikinci aşama maçı", Math.round(completed/15*100))}
         ${kpiCard("Kişi Başı Ek Maç", "5", "Puanlara ve averaja eklenir")}
         ${kpiCard(isGold ? "Doğrudan Yarı Final" : "Eleme Kontenjanı", isGold ? "1." : "1–3", isGold ? "Altın Grup lideri" : "İlk üç oyuncu")}
@@ -2773,9 +2868,11 @@
 
     const officialMap = new Map();
     if (state.current.phase2.generated) {
+      const replacement = phase2ReplacementRecord();
       phase2Standings("gold").forEach((row,index)=>officialMap.set(row.id, `Altın Grup #${index+1}`));
-      phase2Standings("silver").forEach((row,index)=>officialMap.set(row.id, `Gümüş Grup #${index+1}`));
-      state.current.phase2.eliminatedIds.forEach((id,index)=>officialMap.set(id, `League Phase #${13+index}`));
+      phase2Standings("silver").forEach((row,index)=>officialMap.set(row.id, replacement?.incomingId === row.id ? `Gümüş Grup #${index+1} · İdari Yedek` : `Gümüş Grup #${index+1}`));
+      const leagueRankMap = new Map(leagueStandings().map((row,index)=>[row.id,index+1]));
+      state.current.phase2.eliminatedIds.forEach(id=>officialMap.set(id, replacement?.outgoingId === id ? `League Phase #${leagueRankMap.get(id) || "–"} · Çekildi` : `League Phase #${leagueRankMap.get(id) || "–"}`));
     } else {
       leagueStandings().forEach((row,index)=>officialMap.set(row.id, `League Phase #${index+1}`));
     }
@@ -7218,20 +7315,20 @@
       return;
     }
     const table = leagueStandings();
-    const goldIds = table.slice(0, 6).map(row => row.id);
-    const silverIds = table.slice(6, 12).map(row => row.id);
-    const eliminatedIds = table.slice(12).map(row => row.id);
+    const selection = phase2SelectionFromLeague(table);
+    const { goldIds, silverIds, eliminatedIds } = selection;
     state.current.phase2 = {
       generated: true,
       goldIds,
       silverIds,
       eliminatedIds,
       goldRounds: roundRobin(goldIds, "gold", true),
-      silverRounds: roundRobin(silverIds, "silver", true)
+      silverRounds: roundRobin(silverIds, "silver", true),
+      adminReplacements: selection.replacement ? [{ ...selection.replacement, status: "applied", appliedAt: new Date().toISOString(), carriedPoints: table.find(row => row.id === selection.replacement.incomingId)?.pts || 0, carriedGoalDifference: table.find(row => row.id === selection.replacement.incomingId)?.gd || 0 }] : []
     };
     state.current.knockout = defaultState().current.knockout;
     saveState();
-    toast("Altın ve Gümüş grupları oluşturuldu. Puanlar taşındı.", "success");
+    toast(selection.replacement ? "Altın ve Gümüş grupları oluşturuldu. Ersin Darıcı, idari yedek olarak kendi puanıyla Gümüş Gruba alındı." : "Altın ve Gümüş grupları oluşturuldu. Puanlar taşındı.", "success");
     navTo("gold");
   }
 
@@ -7279,8 +7376,9 @@
     let warning = "";
     if (phase === "league" && state.current.phase2.generated) {
       const table = leagueStandings();
-      const gold = table.slice(0,6).map(row=>row.id);
-      const silver = table.slice(6,12).map(row=>row.id);
+      const selection = phase2SelectionFromLeague(table);
+      const gold = selection.goldIds;
+      const silver = selection.silverIds;
       if (!arraySame(gold,state.current.phase2.goldIds) || !arraySame(silver,state.current.phase2.silverIds)) {
         state.current.phase2 = defaultState().current.phase2;
         state.current.knockout = defaultState().current.knockout;
@@ -7445,6 +7543,7 @@ ${shareData.url}`)}`;
         const candidate = parsed.state || parsed;
         if (!candidate.current?.participants) throw new Error("Geçersiz yedek");
         state = mergeState(candidate);
+        applyConfiguredPhase2Replacement({ silent: true });
         saveState();
         toast("Yedek başarıyla geri yüklendi.", "success");
         navTo("dashboard");
@@ -7820,6 +7919,8 @@ ${shareData.url}`)}`;
     updateAuthUI();
     if (!cloudConfigured || !cloud?.init) {
       setCloudState(cloudConfigured ? "error" : "not-configured");
+      const replacementResult = applyConfiguredPhase2Replacement({ silent: true });
+      if (replacementResult.changed) cacheState();
       render();
       return;
     }
@@ -7827,15 +7928,19 @@ ${shareData.url}`)}`;
       await cloud.init({
         onState: (remoteState, meta = {}) => {
           state = mergeState(remoteState);
+          const replacementResult = applyConfiguredPhase2Replacement({ silent: true });
           cloudUpdatedAt = meta.updatedAt || cloudUpdatedAt;
           cacheState();
+          if (replacementResult.changed && cloudAdmin) saveState(false, true);
           if (meta.source === "realtime") toast("Canlı turnuva verisi güncellendi.", "success");
           render();
         },
         onAuth: ({ user, isAdmin }) => {
           cloudUser = user || null;
           cloudAdmin = Boolean(isAdmin);
+          const replacementResult = applyConfiguredPhase2Replacement({ silent: true });
           updateAuthUI();
+          if (replacementResult.changed && cloudAdmin) saveState(false, true);
           render();
         },
         onStatus: ({ status, detail }) => setCloudState(status, detail)

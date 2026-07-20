@@ -1,0 +1,38 @@
+FIFA 9 V35.1 — Gümüş Grup İdari Oyuncu Değişikliği
+
+UYGULANAN DEĞİŞİKLİK
+- Denar Ilia Zelentsov Gümüş Grup katılımından çekildi.
+- League Phase'i 13. sırada tamamlayan Ersin Darıcı, idari yedek olarak Gümüş Gruba alındı.
+- Ersin Darıcı kendi League Phase puanı, averajı, gol ve sonuçlarıyla devam eder.
+- Denar Ilia Zelentsov'un 6 puanı Ersin'e aktarılmaz.
+
+KORUNAN VERİLER
+- League Phase sıralaması değiştirilmez.
+- League Phase skorları ve maç sonuçları değiştirilmez.
+- Oyuncuların Elo, form, kariyer ve arşiv kayıtları değiştirilmez.
+- Diğer Gümüş Grup oyuncuları ve fikstür tur sırası korunur.
+
+TEKNİK UYGULAMA
+- Phase 2 silverIds listesinde yalnızca katılımcı kimliği değiştirilir.
+- Denar'ın tamamlanmamış Gümüş Grup fikstürleri Ersin'e atanır.
+- Ersin eliminatedIds listesinden çıkarılır; Denar bu listeye gerçek League Phase derecesiyle eklenir.
+- Değişiklik adminReplacements kaydıyla kalıcı hale getirilir.
+- Sayfa yenilendiğinde otomatik sıralama Denar'ı tekrar gruba almaz.
+- Gümüş Grup ekranında idari değişiklik bilgi notu gösterilir.
+
+GÜVENLİK
+Denar adına tamamlanmış veya aktif Gümüş Grup maçı ya da oluşturulmuş eleme aşaması varsa otomatik değişiklik uygulanmaz. Böylece mevcut sonuçların başka oyuncuya aktarılması engellenir.
+
+KURULUM
+PATCH paketindeki dosyaları GitHub repository ana dizinine yükleyin:
+- index.html
+- app.js
+- styles.css
+- service-worker.js
+- V35_1_SILVER_GROUP_ADMIN_REPLACEMENT_INSTALL_TR.txt
+
+Commit mesajı:
+Apply Silver Group administrative replacement v35.1
+
+Vercel deploy tamamlandıktan sonra Ctrl + F5 yapın.
+Supabase SQL gerekmez. cloud-config.js değiştirilmez.
