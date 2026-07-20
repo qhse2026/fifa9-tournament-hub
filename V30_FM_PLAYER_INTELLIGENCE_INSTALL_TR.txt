@@ -1,0 +1,104 @@
+FIFA 9 Player Intelligence v30 — FM Tarzı Oyuncu Analiz Merkezi
+
+V30, V29 takım/rakip gücü modelini korur ve oyuncu kartı ekranını FM esintili yoğun analiz arayüzüne dönüştürür.
+
+V30 İÇERİĞİ
+
+ANA ÖZET PUANLARI
+- Current Ability
+- FIFA 9 Performance
+- Career Performance
+- Current Form
+- Legacy / Reputation
+- Model Confidence
+
+37 DETAYLI KRİTER
+
+Hücum — 8 kriter
+- Gol Üretimi
+- Bitiricilik Verimi
+- Büyük Skor Potansiyeli
+- Güçlü Rakiplere Karşı Hücum
+- Underdog Hücum Gücü
+- Skor İstikrarı
+- Gol Farkı Etkisi
+- Yüksek Üretim Sıklığı
+
+Savunma — 8 kriter
+- Gol Önleme
+- Güçlü Rakiplere Karşı Savunma
+- Favoriyken Maç Kontrolü
+- Çöküş Önleme
+- Yakın Maç Savunması
+- Düşük Gol Yeme Oranı
+- Savunma İstikrarı
+- Maç Kontrolü
+
+Rekabet Seviyesi — 7 kriter
+- Güçlü Rakip Performansı
+- Zayıf Rakibe Karşı Performans
+- Eşit Güçte Maç Performansı
+- Underdog Performansı
+- Favori Sorumluluğu
+- Play-off / Eleme Performansı
+- Final Performansı
+
+Mental / Baskı — 7 kriter
+- Yakın Maç Yönetimi
+- Baskı Yönetimi
+- Geri Dönüş Gücü
+- Mağlubiyet Sonrası Tepki
+- Seri Gücü
+- Odaklanma
+- Kritik Maç Mentalitesi
+
+Takım Kullanımı — 7 kriter
+- Zayıf Takımla Verim
+- Güçlü Takımla Verim
+- Takım Çeşitliliği
+- Takım Seçimi Verimliliği
+- Takımdan Bağımsız Etki
+- Rakip-Takım Denge Performansı
+- Takımlar Arası İstikrar
+
+EK PANELLER
+- FIFA 9 performans özeti
+- Kariyer özeti
+- Güçlü yönler
+- Gelişim alanları
+- Oyuncu rolü ve profil özeti
+- Performans bağlamı
+- Elo zaman çizelgesi
+- En çok kullanılan takımlar
+- Hızlı gerçekler
+- 0–100 puan aralığı rehberi
+
+ALGORİTMA
+- Takım ve rakip gücüne göre beklenen performans hesaplanır.
+- Gerçek sonuç, beklenen sonuç ve beklenen skorla karşılaştırılır.
+- Güçlü rakip, underdog, favori ve eşit güç bağlamları ayrı değerlendirilir.
+- FIFA 9 performansı ile kariyer performansı ayrı hesaplanır.
+- Legacy ana Current Ability puanını şişirmez.
+- 37 kriter oyuncular arası dağılıma göre kalibre edilir.
+- Az maçlı oyuncular güven katsayısıyla ortalamaya yaklaştırılır.
+- 90+ puanlar çok nadir olacak şekilde sınırlandırılır.
+
+PATCH ONLY KURULUMU
+
+1. ZIP dosyasını ayıkla.
+2. Aşağıdaki dosyaları GitHub repository ana dizinine yükle:
+   - index.html
+   - app.js
+   - styles.css
+   - service-worker.js
+   - V30_FM_PLAYER_INTELLIGENCE_INSTALL_TR.txt
+3. Replace / overwrite işlemini onayla.
+4. Commit mesajı:
+   Add FM-style player intelligence v30
+5. Vercel deployment tamamlandıktan sonra Ctrl + F5 yap.
+6. Telefonda eski sürüm görünürse site önbelleğini temizle.
+
+TEKNİK NOTLAR
+- Supabase SQL gerekmez.
+- cloud-config.js değiştirilmez.
+- Mevcut turnuva, maç, sohbet, topluluk oylaması ve rozet verileri korunur.
