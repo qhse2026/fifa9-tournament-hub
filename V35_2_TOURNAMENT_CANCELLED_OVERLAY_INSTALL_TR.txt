@@ -1,0 +1,20 @@
+FIFA 9 V35.2 — FULL SCREEN TOURNAMENT CANCELLATION OVERLAY
+
+Bu sürümde site açıldığında tüm ekranı kaplayan kırmızı yanıp sönen iptal duyurusu aktif edilir.
+
+Gösterilen metin:
+- Turnuva şikeden dolayı kalıcı olarak iptal edilmiştir
+- Bir daha FIFA turnuvası tarafımdan düzenlenmeyecektir.
+
+Yüklenecek dosyalar:
+- index.html
+- styles.css
+- service-worker.js
+- V35_2_TOURNAMENT_CANCELLED_OVERLAY_INSTALL_TR.txt
+
+Commit önerisi:
+Add full screen cancellation overlay v35.2
+
+Deploy sonrası:
+- Vercel deploy bitince Ctrl + F5
+- Gerekirse Service Worker cache temizliği yap

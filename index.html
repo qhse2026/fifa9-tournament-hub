@@ -10,7 +10,15 @@
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="stylesheet" href="styles.css" />
 </head>
-<body>
+<body class="shutdown-mode">
+  <div class="shutdown-overlay" role="alert" aria-live="assertive">
+    <div class="shutdown-overlay-inner">
+      <div class="shutdown-kicker">RESMÎ DUYURU</div>
+      <h1 class="shutdown-title">Turnuva şikeden dolayı kalıcı olarak iptal edilmiştir</h1>
+      <div class="shutdown-divider"></div>
+      <p class="shutdown-subtitle">Bir daha FIFA turnuvası tarafımdan düzenlenmeyecektir.</p>
+    </div>
+  </div>
   <div class="ambient ambient-one"></div>
   <div class="ambient ambient-two"></div>
 
@@ -71,7 +79,7 @@
       </header>
 
       <section id="view" class="view" aria-live="polite"></section>
-      <footer class="site-footer">FIFA 9 Tournament Hub is an independent private gaming tournament and is not affiliated with UEFA, FIFA or EA Sports.</footer>
+      <footer class="site-footer">FIFA 9 Tournament Hub — tournament cancelled notice active.</footer>
     </main>
   </div>
 
