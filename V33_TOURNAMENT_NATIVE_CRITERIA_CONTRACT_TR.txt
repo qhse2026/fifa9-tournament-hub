@@ -1,0 +1,69 @@
+V33 TOURNAMENT-NATIVE INTELLIGENCE
+PUANLAMA SÖZLEŞMESİ
+
+1. DEĞERLENDİRME EVRENİ
+Her FIFA edisyonu bağımsız bir değerlendirme evrenidir. Oyuncunun FIFA 5 puanı, FIFA 5'e katılan oyuncuların FIFA 5 içindeki verileriyle hesaplanır. Kariyer performansı, ayrı ayrı hesaplanan edisyon puanlarının ağırlıklı birleşimidir.
+
+2. EDİSYON İÇİ SIRALAMA
+Her metrik için orta sıra yüzdeliği kullanılır. Aynı değere sahip oyuncular aynı sıra bölgesini paylaşır. Normal hedef aralık 8-92'dir. Tek katılımcılı örneklerde puan 50 kabul edilir.
+
+3. MUTLAK + GÖRELİ HİBRİT
+Sadece yüzdelik sıra kullanılmaz. Gerçek maç başına gol, maç başına puan, galibiyet oranı, yenilen gol ve gol farkı da doğrudan hesaba katılır. Böylece zayıf bir turnuvada düşük mutlak üretimle yapay Elite puan oluşmaz.
+
+4. SONUÇ PERFORMANSI
+Aşama ağırlıklı PPG %45
+Aşama ağırlıklı galibiyet oranı %25
+Aşama ağırlıklı gol farkı %20
+Ulaşılan aşama %10
+
+5. AŞAMA BAŞARISI REFERANSLARI
+Şampiyon: 94
+Finalist: 84
+Üçüncü: 72
+Yarı finalist: 68-70
+Eleme aşaması: 60
+Altın/Gümüş ikinci aşama: 52
+Lig aşaması: 42
+
+6. HÜCUM GERÇEKLİK KONTROLÜ
+Gol Üretimi; ağırlıklı gol ortalaması, gol atılan maç oranı ve 2+ gol sıklığına dayanır. Alt %10 gol üretimi toplam Hücumu 28, alt %20 39, alt %30 49 ile sınırlar. Takım/rakip bağlamı bu sınırları aşamaz.
+
+7. SAVUNMA GERÇEKLİK KONTROLÜ
+Gol Önleme; ağırlıklı yenilen gol ortalaması, 0-2 gol yeme oranı ve ağır gol yeme oranına dayanır. En kötü %10 savunma toplam Savunmayı 28, en kötü %20 39, en kötü %30 49 ile sınırlar.
+
+8. BÜYÜK MAÇ PERFORMANSI
+Play-off, yarı final ve final performansı ayrı hesaplanır. Ulaşılan aşama bir alt sınır sağlar:
+Şampiyon minimum 80
+Finalist minimum 68
+Yarı finalist / üçüncü minimum 58
+Eleme aşaması minimum 50
+Lig aşaması minimum 35
+Bu puan, gerçek büyük maç sonuçları kötü ise sınırsız yükselmez; ancak finale ulaşmanın anlamını korur.
+
+9. FORM
+Son 5 maç bileşeni %65
+Son 10 maç bileşeni %35
+Her pencere içinde:
+- %40 PPG
+- %20 Gol farkı
+- %15 Hücum
+- %15 Savunma
+- %10 Beklenti bağlamı
+
+10. CURRENT ABILITY
+Kariyer Hücum %24
+Kariyer Savunma %20
+Kariyer Rekabet %24
+Kariyer Mental %17
+Kariyer Takım Kullanımı %15
+Bu Baseline Ability değerinin %85'i ile Current Form'un %15'i birleştirilir. Legacy Current Ability'yi şişirmez.
+
+11. KARİYER PERFORMANSI
+Her edisyonun Turnuva Performansı; maç sayısının karekökü, veri güveni ve yakın dönem katsayısıyla birleştirilir. Eski edisyonlar silinmez, yeni edisyonlar kontrollü biçimde biraz daha fazla ağırlık alır.
+
+12. N/A KURALLARI
+Güçlü rakip, underdog, favori ve eşit güç kriterleri için minimum 3 maç.
+Eleme performansı için minimum 2 maç.
+Yarı final ve final puanı, maç varsa gösterilir; örneklem güveni ayrıca görünür.
+Takım seçimi verimliliği için minimum 5 takım bilgili maç.
+Takımlar arası istikrar için minimum 8 takım bilgili maç ve en az 3 güç grubu.

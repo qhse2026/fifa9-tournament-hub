@@ -1,0 +1,90 @@
+FIFA 9 Tournament-Native Intelligence v33
+Kurulum ve Güncelleme Notu
+
+V33, oyuncu kartı puanlama motorunu her FIFA turnuvasını kendi içinde değerlendirecek şekilde yeniden kurar.
+
+TEMEL PRENSİP
+- FIFA 1 yalnızca FIFA 1 oyuncuları ve FIFA 1 skor ortamıyla değerlendirilir.
+- FIFA 2 yalnızca FIFA 2 oyuncuları ve FIFA 2 skor ortamıyla değerlendirilir.
+- Aynı yaklaşım FIFA 9 ve sonraki edisyonlara uygulanır.
+- Az gol atan düşük Hücum, çok gol atan yüksek Hücum alır.
+- Çok gol yiyen düşük Savunma, az gol yiyen yüksek Savunma alır.
+- Az kazanan ve az puan toplayan düşük Turnuva Performansı alır.
+- Takım ve rakip gücü yalnızca küçük bir bağlam düzeltmesidir; gerçek sonucu tersine çeviremez.
+
+AŞAMA AĞIRLIKLARI
+- Lig / İlk Aşama: 1.00
+- Altın / Gümüş Grup: 1.10
+- Play-off / Eleme: 1.25
+- Yarı Final: 1.50
+- Final: 1.80
+- Üçüncülük / Sıralama maçı: 1.15
+
+TURNAVA PERFORMANSI
+- %40 Sonuç Performansı
+- %20 Hücum
+- %15 Savunma
+- %15 Büyük Maç Performansı
+- %5 Beklenti Üzeri Performans
+- %5 Rakip Kalitesi
+
+SONUÇ PERFORMANSI
+- %45 Aşama ağırlıklı maç başına puan
+- %25 Aşama ağırlıklı galibiyet oranı
+- %20 Aşama ağırlıklı gol farkı
+- %10 Ulaşılan turnuva aşaması
+
+HÜCUM
+- %40 Gol Üretimi
+- %15 Skor Verimliliği
+- %10 Büyük Skor Potansiyeli
+- %10 Güçlü Rakibe Karşı Hücum
+- %8 Underdog Hücum Gücü
+- %7 Kaliteli Skor İstikrarı
+- %5 Favoriyken Hücum Üretimi
+- %5 Yüksek Üretim Sıklığı
+
+SAVUNMA
+- %40 Gol Önleme
+- %10 Beklentiye Göre Savunma
+- %10 Güçlü Rakibe Karşı Savunma
+- %5 Favoriyken Maç Kontrolü
+- %15 Çöküş Önleme
+- %5 Mağlubiyet Sınırlandırma
+- %10 Düşük Gol Yeme Oranı
+- %5 Kaliteli Savunma İstikrarı
+
+BÜYÜK MAÇ SİSTEMİ
+- Play-off, yarı final ve final maçları ayrı izlenir.
+- Yarı final ve final değerleri Detaylı Kriterler bölümünde görünür.
+- Şampiyon, finalist, yarı finalist ve eleme aşamasına ulaşan oyuncular için Aşama Başarısı hesaplanır.
+- Büyük Maç Performansı ana özet kartında ayrı gösterilir.
+- Turnuva Aşama Etkisi panelinde Lig, Grup, Eleme, Yarı Final ve Final puanları ayrı görünür.
+
+PUAN DAĞILIMI
+- Normal kriterlerde hedef aralık 8-92'dir.
+- 90+ tarihî ve çok nadirdir.
+- Turnuva içindeki sıralama ile gerçek mutlak performans birlikte kullanılır.
+- Alt %10 gol üretimi Hücum puanını en fazla 28'e kadar sınırlar.
+- En kötü %10 gol yeme profili Savunma puanını en fazla 28'e kadar sınırlar.
+- Yetersiz örnek bulunan kriterler N/A olur ve ortalamaya katılmaz.
+
+PATCH ONLY KURULUMU
+1. ZIP dosyasını ayıkla.
+2. Şu dosyaları GitHub repository ana dizinine yükle:
+   - index.html
+   - app.js
+   - styles.css
+   - service-worker.js
+   - V33_TOURNAMENT_NATIVE_ENGINE_INSTALL_TR.txt
+   - V33_TOURNAMENT_NATIVE_CRITERIA_CONTRACT_TR.txt
+3. Mevcut dosyaların üzerine yazmayı onayla.
+4. Commit mesajı:
+   Add tournament-native intelligence engine v33
+5. Vercel deployment tamamlandıktan sonra Ctrl + F5 yap.
+
+TEKNİK NOTLAR
+- Supabase SQL gerekmez.
+- cloud-config.js değiştirilmez.
+- Mevcut FIFA 9 sonuçları ve FIFA 1-8 arşivi korunur.
+- Hesaplar her yeni skor girişinde otomatik yenilenir.

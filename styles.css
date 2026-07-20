@@ -3235,3 +3235,19 @@ html[data-language="en"] .brand-subtitle { letter-spacing: .095em; }
   .fm32-edition-cards { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .fm32-component-grid { grid-template-columns:1fr; }
 }
+
+/* FIFA Tournament Intelligence v33 */
+.fm30-summary-grid{grid-template-columns:repeat(6,minmax(0,1fr))}
+.fm32-edition-table.v33 .head,.fm32-edition-table.v33 .row{grid-template-columns:88px 70px 70px 70px 86px 58px 65px 65px;min-width:610px}
+.fm32-component-grid.v33{grid-template-columns:repeat(2,minmax(0,1fr))}
+.fm33-stage-panel{border-color:rgba(104,226,165,.16)}
+.fm33-stage-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px}
+.fm33-stage-grid>div{padding:10px 7px;border-radius:12px;border:1px solid rgba(255,255,255,.055);background:rgba(255,255,255,.016);text-align:center}
+.fm33-stage-grid>div.is-na{opacity:.45}
+.fm33-stage-grid span{display:block;min-height:24px;color:#8096a8;font-size:7px;letter-spacing:.08em}
+.fm33-stage-grid strong{display:block;margin-top:6px;color:#68e2a5;font-size:18px}
+.fm33-stage-panel footer{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.055)}
+.fm33-stage-panel footer span{color:#8197aa;font-size:8px;letter-spacing:.1em}
+.fm33-stage-panel footer b{color:#f0d37d;font-size:11px}
+@media(max-width:1260px){.fm30-summary-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:700px){.fm30-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.fm33-stage-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}

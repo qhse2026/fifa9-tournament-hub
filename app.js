@@ -5175,6 +5175,11 @@
       favouriteResponsibility:intelligenceCopy("Favori Sorumluluğu","Favourite Responsibility"),
       knockoutPerformance:intelligenceCopy("Play-off / Eleme Performansı","Play-off / Knockout Performance"),
       finalPerformance:intelligenceCopy("Final Performansı","Final Performance"),
+      semiFinalPerformance:intelligenceCopy("Yarı Final Performansı","Semi-final Performance"),
+      championshipImpact:intelligenceCopy("Şampiyona Etkisi","Championship Impact"),
+      bigMatchPerformance:intelligenceCopy("Büyük Maç Performansı","Big-Match Performance"),
+      leaguePerformance:intelligenceCopy("Lig Aşaması Performansı","League-Stage Performance"),
+      groupPerformance:intelligenceCopy("İkinci Aşama Performansı","Second-Stage Performance"),
       closeMatchManagement:intelligenceCopy("Yakın Maç Yönetimi","Close-Match Management"),
       pressureManagement:intelligenceCopy("Baskı Yönetimi","Pressure Management"),
       comebackPower:intelligenceCopy("Geri Dönüş Gücü","Comeback Power"),
@@ -5371,6 +5376,7 @@
     };
   }
 
+
   function buildPlayerIdentityCards() {
     const names = intelligenceNames();
     const matches = buildUnifiedAllTimeMatches();
@@ -5387,96 +5393,368 @@
     const teamMap = new Map((teamAnalytics.players||[]).map(row=>[row.name,row]));
     const teamModel = buildPlayerCardTeamPowerModel(matches,elo);
     const currentEdition = Number(state.current.edition || 9);
+    const historicalEditionMap = new Map((historical.editions||[]).map(row=>[Number(row.edition),row]));
     const contexts = new Map(names.map(name=>[name,[]]));
     const strengths = [];
-    const editionBaselineRows = new Map();
-    matches.forEach(match=>{
-      const edition=Number(match.edition)||0;
-      if(!editionBaselineRows.has(edition))editionBaselineRows.set(edition,[]);
-      editionBaselineRows.get(edition).push(match);
-    });
-    const editionGoalPriors=new Map([...editionBaselineRows.entries()].map(([edition,editionMatches])=>[edition,Math.max(3.5,Math.min(10.5,playerCardMean(editionMatches.map(item=>Number(item.homeScore||0)+Number(item.awayScore||0)),6.1)))]));
-    const logistic = value=>1/(1+Math.pow(10,-value/400));
-    const resultPoints = row=>row.result==="W"?3:row.result==="D"?1:0;
-    const outcome = (gf,ga)=>gf>ga?1:gf===ga?.5:0;
-    const rate = (rows,predicate)=>rows.length?rows.filter(predicate).length/rows.length:0;
+
+    const clamp = (value,min=5,max=94)=>playerCardClamp(value,min,max);
     const safeMean = (values,fallback=50)=>playerCardMean(values,fallback);
-    const metric = (rows,key,minSample=3)=>rows.length>=minSample?playerCardWeightedMean(rows,row=>row[key],50):null;
+    const rate = (rows,predicate)=>rows.length?rows.filter(predicate).length/rows.length:0;
+    const resultPoints = row=>row.result==="W"?3:row.result==="D"?1:0;
+    const logistic = value=>1/(1+Math.pow(10,-value/400));
+    const outcome = (gf,ga)=>gf>ga?1:gf===ga?.5:0;
+
+    const stageClass = stage=>{
+      const value=String(stage||"").toLocaleLowerCase("tr");
+      if ((value.includes("final")||value.includes("şampiyon"))&&!value.includes("semi")&&!value.includes("yarı")) return "final";
+      if (value.includes("semi")||value.includes("yarı")) return "semi";
+      if (value.includes("quarter")||value.includes("çeyrek")||value.includes("knockout")||value.includes("eleme")||value.includes("play")) return "knockout";
+      if (value.includes("3rd")||value.includes("third")||value.includes("üçüncü")) return "placement";
+      if (value.includes("gold")||value.includes("silver")||value.includes("altın")||value.includes("gümüş")) return "group";
+      return "league";
+    };
     const stageWeight = stage=>{
-      const value = String(stage||"").toLowerCase();
-      if (value.includes("final")&&!value.includes("semi")) return 1.25;
-      if (/semi|quarter|knockout|eleme|play/.test(value)) return 1.15;
-      if (/gold|silver|altın|gümüş/.test(value)) return 1.07;
+      const type=stageClass(stage);
+      if(type==="final") return 1.80;
+      if(type==="semi") return 1.50;
+      if(type==="knockout") return 1.25;
+      if(type==="placement") return 1.15;
+      if(type==="group") return 1.10;
       return 1;
     };
+    const stageLabel = type=>({
+      league:intelligenceCopy("Lig / İlk Aşama","League / First Stage"),
+      group:intelligenceCopy("Altın / Gümüş Grup","Gold / Silver Group"),
+      knockout:intelligenceCopy("Play-off / Eleme","Play-off / Knockout"),
+      semi:intelligenceCopy("Yarı Final","Semi-final"),
+      final:intelligenceCopy("Final","Final"),
+      placement:intelligenceCopy("Sıralama Maçı","Placement Match")
+    }[type]||type);
+
+    const editionMatchesMap = new Map();
+    matches.forEach(match=>{
+      const edition=Number(match.edition)||0;
+      if(!editionMatchesMap.has(edition)) editionMatchesMap.set(edition,[]);
+      editionMatchesMap.get(edition).push(match);
+    });
+    const editionGoalPriors=new Map([...editionMatchesMap.entries()].map(([edition,editionMatches])=>[
+      edition,
+      Math.max(3.2,Math.min(11, safeMean(editionMatches.map(item=>Number(item.homeScore||0)+Number(item.awayScore||0)),6)))
+    ]));
 
     matches.forEach((match,index)=>{
-      const edition = Number(match.edition)||0;
-      const record = elo.recordMap.get(match.id);
-      const homeElo = record?.beforeHome ?? elo.playerMap.get(match.homeName)?.rating ?? 1500;
-      const awayElo = record?.beforeAway ?? elo.playerMap.get(match.awayName)?.rating ?? 1500;
-      const homeTeam = teamModel.get(match.homeTeam,edition);
-      const awayTeam = teamModel.get(match.awayTeam,edition);
-      const known = homeTeam.known&&awayTeam.known;
-      const homeStrength = homeElo+(known?(homeTeam.score-50)*5.3:0);
-      const awayStrength = awayElo+(known?(awayTeam.score-50)*5.3:0);
+      const edition=Number(match.edition)||0;
+      const record=elo.recordMap.get(match.id);
+      const homeElo=record?.beforeHome??elo.playerMap.get(match.homeName)?.rating??1500;
+      const awayElo=record?.beforeAway??elo.playerMap.get(match.awayName)?.rating??1500;
+      const homeTeam=teamModel.get(match.homeTeam,edition);
+      const awayTeam=teamModel.get(match.awayTeam,edition);
+      const known=homeTeam.known&&awayTeam.known;
+      const homeStrength=homeElo+(known?(homeTeam.score-50)*5.3:0);
+      const awayStrength=awayElo+(known?(awayTeam.score-50)*5.3:0);
       strengths.push(homeStrength,awayStrength);
-      const expectedHome = logistic(homeStrength-awayStrength);
-      const totalGoalsPrior = editionGoalPriors.get(edition)||6.1;
-      const totalGoals = playerCardClamp(totalGoalsPrior+Math.abs(expectedHome-.5)*1.25,3.4,10.8);
-      const homeShare = playerCardClamp(.5+(expectedHome-.5)*.76,.24,.76);
-      const xHome = totalGoals*homeShare;
-      const xAway = totalGoals*(1-homeShare);
-      const add = (name,isHome)=>{
-        if (!contexts.has(name)) contexts.set(name,[]);
-        const gf = Number(isHome?match.homeScore:match.awayScore)||0;
-        const ga = Number(isHome?match.awayScore:match.homeScore)||0;
-        const expected = isHome?expectedHome:1-expectedHome;
-        const actual = outcome(gf,ga);
-        const xGF = isHome?xHome:xAway;
-        const xGA = isHome?xAway:xHome;
-        const ownTeam = isHome?homeTeam:awayTeam;
-        const oppTeam = isHome?awayTeam:homeTeam;
-        const opponent = isHome?match.awayName:match.homeName;
-        const opponentStrength = isHome?awayStrength:homeStrength;
-        const resultResidual = actual-expected;
-        const attackResidual = Math.tanh((gf-xGF)/(1.8+xGF*.2));
-        const defenceResidual = Math.tanh((xGA-ga)/(1.8+xGA*.2));
-        const marginResidual = Math.tanh(((gf-ga)-(xGF-xGA))/3);
-        const adjusted = playerCardClamp(50+(resultResidual*.52+attackResidual*.18+defenceResidual*.15+marginResidual*.15)*48,5,94);
-        const attack = playerCardClamp(50+attackResidual*29+resultResidual*12+marginResidual*6,5,94);
-        const defence = playerCardClamp(50+defenceResidual*29+resultResidual*10+marginResidual*6,5,94);
+      const expectedHome=logistic(homeStrength-awayStrength);
+      const goalPrior=editionGoalPriors.get(edition)||6;
+      const totalGoals=clamp(goalPrior+Math.abs(expectedHome-.5)*1.05,3.2,11);
+      const homeShare=playerCardClamp(.5+(expectedHome-.5)*.72,.25,.75);
+      const xHome=totalGoals*homeShare;
+      const xAway=totalGoals*(1-homeShare);
+      const add=(name,isHome)=>{
+        if(!contexts.has(name)) contexts.set(name,[]);
+        const gf=Number(isHome?match.homeScore:match.awayScore)||0;
+        const ga=Number(isHome?match.awayScore:match.homeScore)||0;
+        const expected=isHome?expectedHome:1-expectedHome;
+        const actual=outcome(gf,ga);
+        const xGF=isHome?xHome:xAway;
+        const xGA=isHome?xAway:xHome;
+        const ownTeam=isHome?homeTeam:awayTeam;
+        const oppTeam=isHome?awayTeam:homeTeam;
+        const opponent=isHome?match.awayName:match.homeName;
+        const opponentStrength=isHome?awayStrength:homeStrength;
+        const resultResidual=actual-expected;
+        const attackResidual=Math.tanh((gf-xGF)/(1.9+xGF*.22));
+        const defenceResidual=Math.tanh((xGA-ga)/(1.9+xGA*.22));
+        const marginResidual=Math.tanh(((gf-ga)-(xGF-xGA))/3.2);
+        const adjusted=clamp(50+(resultResidual*.58+attackResidual*.15+defenceResidual*.12+marginResidual*.15)*46);
+        const adjustedAttack=clamp(50+attackResidual*27+resultResidual*7+marginResidual*4);
+        const adjustedDefence=clamp(50+defenceResidual*28+resultResidual*6+marginResidual*4);
+        const type=stageClass(match.stage);
         contexts.get(name).push({
-          index,edition,stage:String(match.stage||"").toLowerCase(),opponent,gf,ga,xGF,xGA,
-          result:gf>ga?"W":gf===ga?"D":"L",expected,adjusted,attack,defence,
+          index,edition,stage:String(match.stage||""),stageType:type,stageLabel:stageLabel(type),
+          opponent,gf,ga,xGF,xGA,result:gf>ga?"W":gf===ga?"D":"L",
+          expected,adjusted,attack:adjustedAttack,defence:adjustedDefence,
           resultResidual,attackResidual,defenceResidual,marginResidual,
           ownTeam:ownTeam.score,oppTeam:oppTeam.score,known,
           teamDisadvantage:known&&ownTeam.score+4<oppTeam.score,
           teamAdvantage:known&&ownTeam.score>oppTeam.score+4,
           underdog:expected<=.42,favourite:expected>=.58,balanced:expected>.42&&expected<.58,
-          opponentStrength,strongOpponent:false,weakOpponent:false,weight:stageWeight(match.stage)
+          opponentStrength,strongOpponent:false,weakOpponent:false,
+          weight:stageWeight(match.stage)
         });
       };
       add(match.homeName,true);
       add(match.awayName,false);
     });
 
-    const sortedStrengths = strengths.slice().sort((a,b)=>a-b);
-    const highStrength = sortedStrengths[Math.floor(sortedStrengths.length*.70)]||1550;
-    const lowStrength = sortedStrengths[Math.floor(sortedStrengths.length*.30)]||1450;
+    const sortedStrengths=strengths.slice().sort((a,b)=>a-b);
+    const highStrength=sortedStrengths[Math.floor(sortedStrengths.length*.70)]||1550;
+    const lowStrength=sortedStrengths[Math.floor(sortedStrengths.length*.30)]||1450;
     contexts.forEach(rows=>rows.forEach(row=>{
-      row.strongOpponent = row.opponentStrength>=highStrength;
-      row.weakOpponent = row.opponentStrength<=lowStrength;
+      row.strongOpponent=row.opponentStrength>=highStrength;
+      row.weakOpponent=row.opponentStrength<=lowStrength;
     }));
 
-    const editionBaselines = new Map();
-    editionBaselineRows.forEach((editionMatches,edition)=>{
+    function midrankScore(values,value,invert=false,minimum=8,maximum=92) {
+      const list=(values||[]).map(Number).filter(Number.isFinite).sort((a,b)=>a-b);
+      const target=Number(value);
+      if(!list.length||!Number.isFinite(target)) return null;
+      if(list.length===1) return 50;
+      let lower=0,equal=0;
+      list.forEach(item=>{
+        if(item<target-1e-9) lower+=1;
+        else if(Math.abs(item-target)<=1e-9) equal+=1;
+      });
+      let percentile=(lower+equal*.5)/list.length;
+      if(invert) percentile=1-percentile;
+      return clamp(minimum+percentile*(maximum-minimum),minimum,maximum);
+    }
+
+    function absolutePositive(value,maximumValue) {
+      if(!Number.isFinite(Number(value))||!maximumValue) return null;
+      return clamp(5+Math.max(0,Math.min(1,Number(value)/maximumValue))*89);
+    }
+
+    function absoluteMargin(value,scale=3) {
+      return clamp(50+Math.tanh((Number(value)||0)/scale)*42);
+    }
+
+    function relativeGoalScore(value,baseline,invert=false) {
+      const actual=Math.max(0,Number(value)||0);
+      const reference=Math.max(.2,Number(baseline)||.2);
+      const ratio=Math.log((actual+.35)/(reference+.35));
+      return clamp(50+(invert?-1:1)*ratio*28);
+    }
+
+    function weightedStats(rows) {
+      if(!rows.length) return {
+        matches:0,wins:0,draws:0,losses:0,winRate:0,ppg:0,avgGF:0,avgGA:0,gd:0,
+        weightedWinRate:0,weightedPpg:0,weightedGF:0,weightedGA:0,weightedGD:0,
+        scoreRate:0,twoPlus:0,threePlus:0,fourPlus:0,sixPlus:0,lowConcede:0,
+        heavyConcede:0,sixConcede:0,severeLoss:0,maxGF:0,avgLossMargin:null,
+        goalStd:0,concedeStd:0,expectation:50,attackExpectation:50,defenceExpectation:50
+      };
+      const wins=rows.filter(row=>row.result==="W").length;
+      const draws=rows.filter(row=>row.result==="D").length;
+      const losses=rows.length-wins-draws;
+      const weightTotal=rows.reduce((sum,row)=>sum+(row.weight||1),0)||1;
+      const weightedPoints=rows.reduce((sum,row)=>sum+resultPoints(row)*(row.weight||1),0);
+      const weightedWins=rows.reduce((sum,row)=>sum+(row.result==="W"?1:0)*(row.weight||1),0);
+      const weightedGF=rows.reduce((sum,row)=>sum+row.gf*(row.weight||1),0)/weightTotal;
+      const weightedGA=rows.reduce((sum,row)=>sum+row.ga*(row.weight||1),0)/weightTotal;
+      const avgGF=safeMean(rows.map(row=>row.gf),0);
+      const avgGA=safeMean(rows.map(row=>row.ga),0);
+      const lossRows=rows.filter(row=>row.result==="L");
+      return {
+        matches:rows.length,wins,draws,losses,
+        winRate:wins/rows.length*100,
+        ppg:rows.reduce((sum,row)=>sum+resultPoints(row),0)/rows.length,
+        avgGF,avgGA,gd:avgGF-avgGA,
+        weightedWinRate:weightedWins/weightTotal*100,
+        weightedPpg:weightedPoints/weightTotal,
+        weightedGF,weightedGA,weightedGD:weightedGF-weightedGA,
+        scoreRate:rate(rows,row=>row.gf>0),
+        twoPlus:rate(rows,row=>row.gf>=2),
+        threePlus:rate(rows,row=>row.gf>=3),
+        fourPlus:rate(rows,row=>row.gf>=4),
+        sixPlus:rate(rows,row=>row.gf>=6),
+        lowConcede:rate(rows,row=>row.ga<=2),
+        heavyConcede:rate(rows,row=>row.ga>=5),
+        sixConcede:rate(rows,row=>row.ga>=6),
+        severeLoss:rate(rows,row=>row.ga-row.gf>=4),
+        maxGF:Math.max(...rows.map(row=>row.gf)),
+        avgLossMargin:lossRows.length?safeMean(lossRows.map(row=>row.ga-row.gf),0):null,
+        goalStd:playerCardStd(rows.map(row=>row.gf)),
+        concedeStd:playerCardStd(rows.map(row=>row.ga)),
+        expectation:safeMean(rows.map(row=>row.adjusted),50),
+        attackExpectation:safeMean(rows.map(row=>row.attack),50),
+        defenceExpectation:safeMean(rows.map(row=>row.defence),50)
+      };
+    }
+
+    function subsetRaw(rows) {
+      if(!rows.length) return null;
+      const stats=weightedStats(rows);
+      const points=absolutePositive(stats.weightedPpg,3);
+      const wins=absolutePositive(stats.weightedWinRate,100);
+      const margin=absoluteMargin(stats.weightedGD,3);
+      return clamp(points*.50+wins*.22+margin*.18+stats.expectation*.10);
+    }
+
+    function longestRuns(rows) {
+      let currentWin=0,maxWin=0,currentUnbeaten=0,maxUnbeaten=0;
+      rows.forEach(row=>{
+        if(row.result==="W"){currentWin+=1;currentUnbeaten+=1;}
+        else if(row.result==="D"){currentWin=0;currentUnbeaten+=1;}
+        else {currentWin=0;currentUnbeaten=0;}
+        maxWin=Math.max(maxWin,currentWin);
+        maxUnbeaten=Math.max(maxUnbeaten,currentUnbeaten);
+      });
+      return {maxWin,maxUnbeaten,currentWin,currentUnbeaten};
+    }
+
+    function stageAchievement(name,edition,rows) {
+      const meta=historicalEditionMap.get(Number(edition));
+      if(meta?.champion===name) return {score:94,label:intelligenceCopy("Şampiyon","Champion"),rank:1};
+      if(meta?.runnerUp===name) return {score:84,label:intelligenceCopy("Finalist","Runner-up"),rank:2};
+      if(meta?.third===name) return {score:72,label:intelligenceCopy("Üçüncü","Third Place"),rank:3};
+      if(meta?.fourth===name) return {score:68,label:intelligenceCopy("Yarı Finalist","Semi-finalist"),rank:4};
+      const finalRows=rows.filter(row=>row.stageType==="final");
+      if(finalRows.some(row=>row.result==="W")) return {score:94,label:intelligenceCopy("Şampiyon","Champion"),rank:1};
+      if(finalRows.length) return {score:84,label:intelligenceCopy("Finalist","Finalist"),rank:2};
+      if(rows.some(row=>row.stageType==="semi")) return {score:70,label:intelligenceCopy("Yarı Finalist","Semi-finalist"),rank:4};
+      if(rows.some(row=>row.stageType==="knockout")) return {score:60,label:intelligenceCopy("Eleme Aşaması","Knockout Stage"),rank:8};
+      if(rows.some(row=>row.stageType==="group")) return {score:52,label:intelligenceCopy("İkinci Aşama","Second Stage"),rank:null};
+      return {score:42,label:intelligenceCopy("Lig Aşaması","League Stage"),rank:null};
+    }
+
+    function rollingStats(rows,count) {
+      const slice=rows.slice(-count);
+      return weightedStats(slice);
+    }
+
+    const editionParticipantRows=new Map();
+    contexts.forEach((rows,name)=>{
+      rows.forEach(row=>{
+        const key=Number(row.edition);
+        if(!editionParticipantRows.has(key)) editionParticipantRows.set(key,new Map());
+        if(!editionParticipantRows.get(key).has(name)) editionParticipantRows.get(key).set(name,[]);
+        editionParticipantRows.get(key).get(name).push(row);
+      });
+    });
+
+    const rawEditionProfiles=new Map();
+    editionParticipantRows.forEach((playerRowsMap,edition)=>{
+      const rawProfiles=[];
+      playerRowsMap.forEach((rows,name)=>{
+        const sorted=rows.slice().sort((a,b)=>a.index-b.index);
+        const stats=weightedStats(sorted);
+        const strongRows=sorted.filter(row=>row.strongOpponent);
+        const weakRows=sorted.filter(row=>row.weakOpponent);
+        const evenRows=sorted.filter(row=>row.balanced);
+        const underdogRows=sorted.filter(row=>row.underdog||row.teamDisadvantage);
+        const favouriteRows=sorted.filter(row=>row.favourite);
+        const knockoutRows=sorted.filter(row=>row.stageType==="knockout");
+        const semiRows=sorted.filter(row=>row.stageType==="semi");
+        const finalRows=sorted.filter(row=>row.stageType==="final");
+        const placementRows=sorted.filter(row=>row.stageType==="placement");
+        const bigRows=sorted.filter(row=>["knockout","semi","final"].includes(row.stageType));
+        const leagueRows=sorted.filter(row=>row.stageType==="league");
+        const groupRows=sorted.filter(row=>row.stageType==="group");
+        const closeRows=sorted.filter(row=>Math.abs(row.gf-row.ga)<=1);
+        const afterLoss=[];
+        for(let i=1;i<sorted.length;i++) if(sorted[i-1].result==="L") afterLoss.push(sorted[i]);
+        const known=sorted.filter(row=>row.known);
+        const weakTeamRows=known.filter(row=>row.ownTeam<=45||row.teamDisadvantage);
+        const strongTeamRows=known.filter(row=>row.ownTeam>=63);
+        const disadvantageRows=known.filter(row=>row.teamDisadvantage);
+        const achievement=stageAchievement(name,edition,sorted);
+        const runs=longestRuns(sorted);
+        const last5=rollingStats(sorted,5);
+        const last10=rollingStats(sorted,10);
+        const previous5=weightedStats(sorted.slice(-10,-5));
+        const contextBucketMap=new Map();
+        known.forEach(row=>{
+          const difference=row.ownTeam-row.oppTeam;
+          const bucket=difference>=10?"heavyAdv":difference>=4?"adv":difference>-4?"even":difference>-10?"disadv":"heavyDisadv";
+          if(!contextBucketMap.has(bucket)) contextBucketMap.set(bucket,[]);
+          contextBucketMap.get(bucket).push(row);
+        });
+        const contextScores=[...contextBucketMap.values()].filter(list=>list.length>=2).map(list=>subsetRaw(list));
+        const teamPowerGroups=new Map();
+        known.forEach(row=>{
+          const bucket=Math.round(row.ownTeam/5)*5;
+          if(!teamPowerGroups.has(bucket)) teamPowerGroups.set(bucket,[]);
+          teamPowerGroups.get(bucket).push(row);
+        });
+        const teamPowerScores=[...teamPowerGroups.values()].filter(list=>list.length>=2).map(list=>subsetRaw(list));
+        const teamInfo=teamMap.get(name)||{teams:[]};
+        const successfulTeams=(teamInfo.teams||[]).filter(team=>(team.wins||0)>0).length;
+        const powerBands=new Set(known.map(row=>Math.round(row.ownTeam/10)*10)).size;
+        const teamDiversityRaw=known.length>=5?clamp(26+Math.min(34,successfulTeams*5)+Math.min(20,powerBands*5)+Math.min(10,(teamInfo.teams||[]).length*1.5)):null;
+        const pressureRow=pressureMap.get(name)||{};
+        const closeRaw=closeRows.length>=3?subsetRaw(closeRows):null;
+        const comebackRaw=(pressureRow.highPressureGames||0)>=3&&((pressureRow.comebackWins||0)>0||(pressureRow.lateWins||0)>0)
+          ?clamp(30+Math.min(36,(pressureRow.comebackWins||0)*8)+Math.min(18,(pressureRow.lateWins||0)*4))
+          :null;
+        rawProfiles.push({
+          name,edition,rows:sorted,stats,achievement,runs,
+          raw:{
+            weightedPpg:stats.weightedPpg,weightedWinRate:stats.weightedWinRate,weightedGD:stats.weightedGD,
+            weightedGF:stats.weightedGF,weightedGA:stats.weightedGA,scoreRate:stats.scoreRate,
+            twoPlus:stats.twoPlus,threePlus:stats.threePlus,fourPlus:stats.fourPlus,sixPlus:stats.sixPlus,
+            maxGF:stats.maxGF,lowConcede:stats.lowConcede,heavyConcede:stats.heavyConcede,
+            sixConcede:stats.sixConcede,severeLoss:stats.severeLoss,avgLossMargin:stats.avgLossMargin,
+            goalStd:stats.goalStd,concedeStd:stats.concedeStd,
+            attackExpectation:stats.attackExpectation,defenceExpectation:stats.defenceExpectation,
+            expectation:stats.expectation,
+            strongAttack:strongRows.length>=3?weightedStats(strongRows).weightedGF:null,
+            strongAttackExpectation:strongRows.length>=3?weightedStats(strongRows).attackExpectation:null,
+            underdogAttack:underdogRows.length>=3?weightedStats(underdogRows).weightedGF:null,
+            underdogAttackExpectation:underdogRows.length>=3?weightedStats(underdogRows).attackExpectation:null,
+            favouriteAttack:favouriteRows.length>=3?weightedStats(favouriteRows).weightedGF:null,
+            strongDefence:strongRows.length>=3?weightedStats(strongRows).weightedGA:null,
+            strongDefenceExpectation:strongRows.length>=3?weightedStats(strongRows).defenceExpectation:null,
+            favouriteDefence:favouriteRows.length>=3?weightedStats(favouriteRows).weightedGA:null,
+            strongPerformance:strongRows.length>=3?subsetRaw(strongRows):null,
+            weakPerformance:weakRows.length>=3?subsetRaw(weakRows):null,
+            evenPerformance:evenRows.length>=3?subsetRaw(evenRows):null,
+            underdogPerformance:underdogRows.length>=3?subsetRaw(underdogRows):null,
+            favouritePerformance:favouriteRows.length>=3?subsetRaw(favouriteRows):null,
+            knockoutPerformance:knockoutRows.length>=2?subsetRaw(knockoutRows):null,
+            semiPerformance:semiRows.length?subsetRaw(semiRows):null,
+            finalPerformance:finalRows.length?subsetRaw(finalRows):null,
+            leaguePerformance:leagueRows.length?subsetRaw(leagueRows):null,
+            groupPerformance:groupRows.length?subsetRaw(groupRows):null,
+            placementPerformance:placementRows.length?subsetRaw(placementRows):null,
+            bigMatchPerformance:bigRows.length?subsetRaw(bigRows)*.72+achievement.score*.28:achievement.score,
+            closePerformance:closeRaw,
+            pressureManagement:bigRows.length?subsetRaw(bigRows)*.65+(pressureRow.mentalIndex||50)*.35:(pressureRow.mentalIndex||50),
+            comebackPower:comebackRaw,
+            bounceBack:afterLoss.length>=3?subsetRaw(afterLoss):null,
+            streakStrength:clamp(32+Math.min(30,runs.maxWin*7)+Math.min(22,runs.maxUnbeaten*3)),
+            focus:favouriteRows.length>=3?subsetRaw(favouriteRows)-rate(favouriteRows,row=>row.result==="L")*12:null,
+            criticalMentality:bigRows.length?subsetRaw(bigRows):null,
+            weakTeamEfficiency:weakTeamRows.length>=3?subsetRaw(weakTeamRows):null,
+            strongTeamEfficiency:strongTeamRows.length>=3?subsetRaw(strongTeamRows):null,
+            teamDiversity:teamDiversityRaw,
+            selectionEfficiency:known.length>=5?subsetRaw(known):null,
+            independentImpact:disadvantageRows.length>=3?subsetRaw(disadvantageRows):null,
+            balancePerformance:known.length>=8&&contextScores.length>=3?clamp(safeMean(contextScores,50)-playerCardStd(contextScores)*.45):null,
+            crossTeamConsistency:known.length>=8&&teamPowerScores.length>=3?clamp(safeMean(teamPowerScores,50)*.65+(88-playerCardStd(teamPowerScores)*1.2)*.35):null,
+            last5Ppg:last5.weightedPpg,last5WinRate:last5.weightedWinRate,last5GD:last5.weightedGD,
+            last5GF:last5.weightedGF,last5GA:last5.weightedGA,last5Expectation:last5.expectation,
+            last10Ppg:last10.weightedPpg,last10WinRate:last10.weightedWinRate,last10GD:last10.weightedGD,
+            last10GF:last10.weightedGF,last10GA:last10.weightedGA,last10Expectation:last10.expectation,
+            previous5Ppg:previous5.weightedPpg
+          },
+          samples:{
+            strong:strongRows.length,weak:weakRows.length,even:evenRows.length,underdog:underdogRows.length,
+            favourite:favouriteRows.length,knockout:knockoutRows.length,semi:semiRows.length,final:finalRows.length,
+            big:bigRows.length,known:known.length
+          }
+        });
+      });
+      rawEditionProfiles.set(edition,rawProfiles);
+    });
+
+    function editionBaseline(edition) {
+      const editionMatches=editionMatchesMap.get(Number(edition))||[];
       const sides=[];
       editionMatches.forEach(match=>{
         sides.push({gf:Number(match.homeScore)||0,ga:Number(match.awayScore)||0});
         sides.push({gf:Number(match.awayScore)||0,ga:Number(match.homeScore)||0});
       });
-      editionBaselines.set(edition,{
+      return {
         avgGF:safeMean(sides.map(row=>row.gf),3),
         avgGA:safeMean(sides.map(row=>row.ga),3),
         scoreRate:rate(sides,row=>row.gf>0),
@@ -5486,290 +5764,312 @@
         sixPlus:rate(sides,row=>row.gf>=6),
         lowConcede:rate(sides,row=>row.ga<=2),
         heavyConcede:rate(sides,row=>row.ga>=5),
-        sixConcede:rate(sides,row=>row.ga>=6),
-        severeLoss:rate(sides,row=>row.ga-row.gf>=4),
-        avgMargin:safeMean(sides.map(row=>row.gf-row.ga),0)
+        severeLoss:rate(sides,row=>row.ga-row.gf>=4)
+      };
+    }
+
+    function createEditionProfile(rawProfile,peerProfiles) {
+      const {name,edition,rows,stats,raw,samples,achievement}=rawProfile;
+      const baseline=editionBaseline(edition);
+      const values=(key)=>peerProfiles.map(profile=>profile.raw[key]).filter(value=>value!=null&&Number.isFinite(Number(value)));
+      const score=(key,invert=false)=>raw[key]==null?null:midrankScore(values(key),raw[key],invert);
+      const hybrid=(key,absolute,invert=false,peerWeight=.65)=>raw[key]==null?null:clamp(score(key,invert)*peerWeight+absolute*(1-peerWeight));
+
+      const weightedGoalRank=score("weightedGF");
+      const goalProduction=clamp(
+        hybrid("weightedGF",relativeGoalScore(stats.weightedGF,baseline.avgGF),false,.62)*.55+
+        score("scoreRate")*.20+
+        score("twoPlus")*.15+
+        absolutePositive(stats.weightedGF,Math.max(1,baseline.avgGF*2.2))*.10
+      );
+      const scoringEfficiencyRaw=hybrid("attackExpectation",raw.attackExpectation,false,.70);
+      const scoringEfficiency=scoringEfficiencyRaw==null?null:Math.min(scoringEfficiencyRaw,goalProduction+12);
+      const bigScorePotential=clamp(score("fourPlus")*.34+score("sixPlus")*.34+score("maxGF")*.22+(score("strongAttack")??50)*.10);
+      const strongOpponentAttack=raw.strongAttack==null?null:clamp(score("strongAttack")*.68+(score("strongAttackExpectation")??50)*.32);
+      const underdogAttack=raw.underdogAttack==null?null:clamp(score("underdogAttack")*.68+(score("underdogAttackExpectation")??50)*.32);
+      const favouriteProduction=raw.favouriteAttack==null?null:score("favouriteAttack");
+      const highOutputFrequency=clamp(score("twoPlus")*.42+score("threePlus")*.36+score("sixPlus")*.22);
+      let scoringConsistency=clamp(goalProduction*.64+midrankScore(values("goalStd"),raw.goalStd,true)*.36);
+      if(stats.scoreRate<baseline.scoreRate*.55) scoringConsistency=Math.min(scoringConsistency,35);
+      let attackScore=playerCardWeightedAvailable([
+        {value:goalProduction,weight:40},{value:scoringEfficiency,weight:15},{value:bigScorePotential,weight:10},
+        {value:strongOpponentAttack,weight:10},{value:underdogAttack,weight:8},{value:scoringConsistency,weight:7},
+        {value:favouriteProduction,weight:5},{value:highOutputFrequency,weight:5}
+      ],goalProduction);
+      const gfPercentile=playerCardPercentile(values("weightedGF"),raw.weightedGF);
+      if(gfPercentile<=.10) attackScore=Math.min(attackScore,28);
+      else if(gfPercentile<=.20) attackScore=Math.min(attackScore,39);
+      else if(gfPercentile<=.30) attackScore=Math.min(attackScore,49);
+      attackScore=Math.round(clamp(attackScore));
+
+      const goalPrevention=clamp(
+        hybrid("weightedGA",relativeGoalScore(stats.weightedGA,baseline.avgGA,true),true,.65)*.60+
+        score("lowConcede")*.25+
+        score("heavyConcede",true)*.15
+      );
+      const expectedDefenceRaw=hybrid("defenceExpectation",raw.defenceExpectation,false,.70);
+      const expectedDefence=expectedDefenceRaw==null?null:Math.min(expectedDefenceRaw,goalPrevention+12);
+      const strongOpponentDefence=raw.strongDefence==null?null:clamp(score("strongDefence",true)*.68+(score("strongDefenceExpectation")??50)*.32);
+      const favouriteControl=raw.favouriteDefence==null?null:score("favouriteDefence",true);
+      const collapsePrevention=clamp(score("severeLoss",true)*.55+score("sixConcede",true)*.45);
+      const lossLimitation=raw.avgLossMargin==null?null:score("avgLossMargin",true);
+      const lowConcedeRate=score("lowConcede");
+      let defensiveConsistency=clamp(goalPrevention*.65+midrankScore(values("concedeStd"),raw.concedeStd,true)*.35);
+      if(stats.heavyConcede>baseline.heavyConcede*1.6) defensiveConsistency=Math.min(defensiveConsistency,38);
+      let defenseScore=playerCardWeightedAvailable([
+        {value:goalPrevention,weight:40},{value:expectedDefence,weight:10},{value:strongOpponentDefence,weight:10},
+        {value:favouriteControl,weight:5},{value:collapsePrevention,weight:15},{value:lossLimitation,weight:5},
+        {value:lowConcedeRate,weight:10},{value:defensiveConsistency,weight:5}
+      ],goalPrevention);
+      const gaPercentile=playerCardPercentile(values("weightedGA"),raw.weightedGA);
+      if(gaPercentile>=.90) defenseScore=Math.min(defenseScore,28);
+      else if(gaPercentile>=.80) defenseScore=Math.min(defenseScore,39);
+      else if(gaPercentile>=.70) defenseScore=Math.min(defenseScore,49);
+      defenseScore=Math.round(clamp(defenseScore));
+
+      const contextScore=key=>raw[key]==null?null:clamp(score(key)*.70+raw[key]*.30);
+      const strongOpponentPerformance=contextScore("strongPerformance");
+      const weakOpponentDelivery=contextScore("weakPerformance");
+      const evenMatchPerformance=contextScore("evenPerformance");
+      const underdogPerformance=contextScore("underdogPerformance");
+      const favouriteResponsibility=contextScore("favouritePerformance");
+      const knockoutPerformance=contextScore("knockoutPerformance");
+      const semiFinalPerformance=contextScore("semiPerformance");
+      const finalPerformance=contextScore("finalPerformance");
+      const championshipImpact=achievement.score;
+      const competitionScore=Math.round(playerCardWeightedAvailable([
+        {value:strongOpponentPerformance,weight:18},{value:underdogPerformance,weight:15},
+        {value:evenMatchPerformance,weight:14},{value:favouriteResponsibility,weight:10},
+        {value:weakOpponentDelivery,weight:8},{value:knockoutPerformance,weight:10},
+        {value:semiFinalPerformance,weight:10},{value:finalPerformance,weight:10},
+        {value:championshipImpact,weight:5}
+      ],50));
+
+      const closeMatchManagement=contextScore("closePerformance");
+      const pressureManagement=contextScore("pressureManagement");
+      const comebackPower=contextScore("comebackPower");
+      const bounceBack=contextScore("bounceBack");
+      const streakStrength=contextScore("streakStrength");
+      const focus=contextScore("focus");
+      const criticalMentality=contextScore("criticalMentality");
+      const mentalScore=Math.round(playerCardWeightedAvailable([
+        {value:closeMatchManagement,weight:20},{value:pressureManagement,weight:22},
+        {value:comebackPower,weight:10},{value:bounceBack,weight:13},{value:streakStrength,weight:12},
+        {value:focus,weight:10},{value:criticalMentality,weight:13}
+      ],45));
+
+      const weakTeamEfficiency=contextScore("weakTeamEfficiency");
+      const strongTeamEfficiency=contextScore("strongTeamEfficiency");
+      const teamDiversity=contextScore("teamDiversity");
+      const selectionEfficiency=contextScore("selectionEfficiency");
+      const independentImpact=contextScore("independentImpact");
+      const balancePerformance=contextScore("balancePerformance");
+      const crossTeamConsistency=contextScore("crossTeamConsistency");
+      const teamUsageScore=Math.round(playerCardWeightedAvailable([
+        {value:weakTeamEfficiency,weight:18},{value:strongTeamEfficiency,weight:10},
+        {value:teamDiversity,weight:14},{value:selectionEfficiency,weight:18},
+        {value:independentImpact,weight:18},{value:balancePerformance,weight:12},
+        {value:crossTeamConsistency,weight:10}
+      ],45));
+
+      const ppgScore=hybrid("weightedPpg",absolutePositive(stats.weightedPpg,3),false,.62);
+      const winScore=hybrid("weightedWinRate",absolutePositive(stats.weightedWinRate,100),false,.62);
+      const gdScore=hybrid("weightedGD",absoluteMargin(stats.weightedGD,3),false,.66);
+      const resultPerformance=clamp(ppgScore*.45+winScore*.25+gdScore*.20+achievement.score*.10);
+
+      const expectationPerformance=clamp(score("expectation")*.70+raw.expectation*.30);
+      const opponentQuality=clamp(35+safeMean(rows.map(row=>playerCardPercentile(strengths,row.opponentStrength)),.5)*50);
+
+      const bigMatchPeerScore=contextScore("bigMatchPerformance");
+      const bigMatchFloor=achievement.score>=90?80:achievement.score>=80?68:achievement.score>=68?58:achievement.score>=60?50:35;
+      const bigMatchPerformance=Math.round(Math.max(bigMatchFloor,clamp((bigMatchPeerScore??achievement.score)*.72+achievement.score*.28)));
+
+      const last5Ppg=hybrid("last5Ppg",absolutePositive(raw.last5Ppg,3),false,.55);
+      const last5Win=hybrid("last5WinRate",absolutePositive(raw.last5WinRate,100),false,.55);
+      const last5Gd=hybrid("last5GD",absoluteMargin(raw.last5GD,3),false,.60);
+      const last5Attack=hybrid("last5GF",relativeGoalScore(raw.last5GF,baseline.avgGF),false,.60);
+      const last5Defense=hybrid("last5GA",relativeGoalScore(raw.last5GA,baseline.avgGA,true),true,.60);
+      const last5Context=hybrid("last5Expectation",raw.last5Expectation,false,.70);
+      const last5Form=clamp(last5Ppg*.40+last5Gd*.20+last5Attack*.15+last5Defense*.15+last5Context*.10);
+      const last10Ppg=hybrid("last10Ppg",absolutePositive(raw.last10Ppg,3),false,.55);
+      const last10Win=hybrid("last10WinRate",absolutePositive(raw.last10WinRate,100),false,.55);
+      const last10Gd=hybrid("last10GD",absoluteMargin(raw.last10GD,3),false,.60);
+      const last10Attack=hybrid("last10GF",relativeGoalScore(raw.last10GF,baseline.avgGF),false,.60);
+      const last10Defense=hybrid("last10GA",relativeGoalScore(raw.last10GA,baseline.avgGA,true),true,.60);
+      const last10Context=hybrid("last10Expectation",raw.last10Expectation,false,.70);
+      const last10Form=clamp(last10Ppg*.40+last10Gd*.20+last10Attack*.15+last10Defense*.15+last10Context*.10);
+      const currentForm=Math.round(clamp(last5Form*.65+last10Form*.35));
+
+      const performance=Math.round(clamp(
+        resultPerformance*.40+
+        attackScore*.20+
+        defenseScore*.15+
+        bigMatchPerformance*.15+
+        expectationPerformance*.05+
+        opponentQuality*.05
+      ));
+
+      const categories=[
+        {key:"attack",label:playerCardMetricLabel("attack"),score:attackScore,attributes:[
+          {key:"goalProduction",label:playerCardMetricLabel("goalProduction"),value:goalProduction},
+          {key:"scoringEfficiency",label:playerCardMetricLabel("scoringEfficiency"),value:scoringEfficiency},
+          {key:"bigScorePotential",label:playerCardMetricLabel("bigScorePotential"),value:bigScorePotential},
+          {key:"strongOpponentAttack",label:playerCardMetricLabel("strongOpponentAttack"),value:strongOpponentAttack},
+          {key:"underdogAttack",label:playerCardMetricLabel("underdogAttack"),value:underdogAttack},
+          {key:"scoringConsistency",label:playerCardMetricLabel("scoringConsistency"),value:scoringConsistency},
+          {key:"favouriteProduction",label:playerCardMetricLabel("favouriteProduction"),value:favouriteProduction},
+          {key:"highOutputFrequency",label:playerCardMetricLabel("highOutputFrequency"),value:highOutputFrequency}
+        ]},
+        {key:"defense",label:playerCardMetricLabel("defense"),score:defenseScore,attributes:[
+          {key:"goalPrevention",label:playerCardMetricLabel("goalPrevention"),value:goalPrevention},
+          {key:"expectedDefence",label:playerCardMetricLabel("expectedDefence"),value:expectedDefence},
+          {key:"strongOpponentDefence",label:playerCardMetricLabel("strongOpponentDefence"),value:strongOpponentDefence},
+          {key:"favouriteControl",label:playerCardMetricLabel("favouriteControl"),value:favouriteControl},
+          {key:"collapsePrevention",label:playerCardMetricLabel("collapsePrevention"),value:collapsePrevention},
+          {key:"lossLimitation",label:playerCardMetricLabel("lossLimitation"),value:lossLimitation},
+          {key:"lowConcedeRate",label:playerCardMetricLabel("lowConcedeRate"),value:lowConcedeRate},
+          {key:"defensiveConsistency",label:playerCardMetricLabel("defensiveConsistency"),value:defensiveConsistency}
+        ]},
+        {key:"competition",label:playerCardMetricLabel("competition"),score:competitionScore,attributes:[
+          {key:"strongOpponentPerformance",label:playerCardMetricLabel("strongOpponentPerformance"),value:strongOpponentPerformance},
+          {key:"weakOpponentDelivery",label:playerCardMetricLabel("weakOpponentDelivery"),value:weakOpponentDelivery},
+          {key:"evenMatchPerformance",label:playerCardMetricLabel("evenMatchPerformance"),value:evenMatchPerformance},
+          {key:"underdogPerformance",label:playerCardMetricLabel("underdogPerformance"),value:underdogPerformance},
+          {key:"favouriteResponsibility",label:playerCardMetricLabel("favouriteResponsibility"),value:favouriteResponsibility},
+          {key:"knockoutPerformance",label:playerCardMetricLabel("knockoutPerformance"),value:knockoutPerformance},
+          {key:"semiFinalPerformance",label:playerCardMetricLabel("semiFinalPerformance"),value:semiFinalPerformance},
+          {key:"finalPerformance",label:playerCardMetricLabel("finalPerformance"),value:finalPerformance},
+          {key:"championshipImpact",label:playerCardMetricLabel("championshipImpact"),value:championshipImpact}
+        ]},
+        {key:"mental",label:playerCardMetricLabel("mental"),score:mentalScore,attributes:[
+          {key:"closeMatchManagement",label:playerCardMetricLabel("closeMatchManagement"),value:closeMatchManagement},
+          {key:"pressureManagement",label:playerCardMetricLabel("pressureManagement"),value:pressureManagement},
+          {key:"comebackPower",label:playerCardMetricLabel("comebackPower"),value:comebackPower},
+          {key:"bounceBack",label:playerCardMetricLabel("bounceBack"),value:bounceBack},
+          {key:"streakStrength",label:playerCardMetricLabel("streakStrength"),value:streakStrength},
+          {key:"focus",label:playerCardMetricLabel("focus"),value:focus},
+          {key:"criticalMentality",label:playerCardMetricLabel("criticalMentality"),value:criticalMentality}
+        ]},
+        {key:"teamUsage",label:playerCardMetricLabel("teamUsage"),score:teamUsageScore,attributes:[
+          {key:"weakTeamEfficiency",label:playerCardMetricLabel("weakTeamEfficiency"),value:weakTeamEfficiency},
+          {key:"strongTeamEfficiency",label:playerCardMetricLabel("strongTeamEfficiency"),value:strongTeamEfficiency},
+          {key:"teamDiversity",label:playerCardMetricLabel("teamDiversity"),value:teamDiversity},
+          {key:"selectionEfficiency",label:playerCardMetricLabel("selectionEfficiency"),value:selectionEfficiency},
+          {key:"independentImpact",label:playerCardMetricLabel("independentImpact"),value:independentImpact},
+          {key:"balancePerformance",label:playerCardMetricLabel("balancePerformance"),value:balancePerformance},
+          {key:"crossTeamConsistency",label:playerCardMetricLabel("crossTeamConsistency"),value:crossTeamConsistency}
+        ]}
+      ];
+
+      const stageBreakdown={
+        league:raw.leaguePerformance==null?null:Math.round(contextScore("leaguePerformance")),
+        group:raw.groupPerformance==null?null:Math.round(contextScore("groupPerformance")),
+        knockout:knockoutPerformance==null?null:Math.round(knockoutPerformance),
+        semi:semiFinalPerformance==null?null:Math.round(semiFinalPerformance),
+        final:finalPerformance==null?null:Math.round(finalPerformance),
+        achievement:achievement.score,
+        achievementLabel:achievement.label
+      };
+
+      const confidence=Math.round(clamp(
+        30+Math.min(42,stats.matches*2.4)+
+        (stats.matches?samples.known/stats.matches*16:0)+
+        Math.min(8,samples.strong*1.2)+
+        Math.min(6,samples.big*2)
+      ,20,98));
+
+      return {
+        edition,name,rows,performance,attack:attackScore,defense:defenseScore,
+        competition:competitionScore,mental:mentalScore,teamUsage:teamUsageScore,
+        resultPerformance:Math.round(resultPerformance),
+        expectationPerformance:Math.round(expectationPerformance),
+        opponentQuality:Math.round(opponentQuality),
+        bigMatchPerformance,
+        currentForm,
+        categories,stats:{
+          matches:stats.matches,wins:stats.wins,draws:stats.draws,losses:stats.losses,
+          winRate:stats.winRate,ppg:stats.ppg,avgGF:stats.avgGF,avgGA:stats.avgGA,gd:stats.gd,
+          weightedPpg:stats.weightedPpg,weightedWinRate:stats.weightedWinRate,
+          weightedGF:stats.weightedGF,weightedGA:stats.weightedGA,weightedGD:stats.weightedGD
+        },
+        stageBreakdown,achievement,confidence,samples
+      };
+    }
+
+    const editionProfilesByName=new Map(names.map(name=>[name,[]]));
+    rawEditionProfiles.forEach((profiles,edition)=>{
+      profiles.forEach(rawProfile=>{
+        editionProfilesByName.get(rawProfile.name)?.push(createEditionProfile(rawProfile,profiles));
       });
     });
 
-    function blendedBaseline(rows) {
-      const editions=[...new Set(rows.map(row=>row.edition))];
-      if (!editions.length) return {avgGF:3,avgGA:3,scoreRate:.85,twoPlus:.7,threePlus:.5,fourPlus:.35,sixPlus:.12,lowConcede:.35,heavyConcede:.3,sixConcede:.2,severeLoss:.18,avgMargin:0};
-      const weights=editions.map(edition=>rows.filter(row=>row.edition===edition).length);
-      const total=weights.reduce((sum,value)=>sum+value,0)||1;
-      const fields=["avgGF","avgGA","scoreRate","twoPlus","threePlus","fourPlus","sixPlus","lowConcede","heavyConcede","sixConcede","severeLoss","avgMargin"];
-      return Object.fromEntries(fields.map(field=>[field,editions.reduce((sum,edition,index)=>sum+(editionBaselines.get(edition)?.[field]??0)*weights[index],0)/total]));
-    }
-
-    function logarithmic(value,reference,offset=.45) {
-      return Math.log((Math.max(0,value)+offset)/(Math.max(0,reference)+offset));
-    }
-
-    function qualityConsistency(rows,key,absoluteQuality,zeroRate=0) {
-      if (rows.length<3) return null;
-      const values=rows.map(row=>Number(row[key])).filter(Number.isFinite);
-      const quality=safeMean(values,45);
-      const volatility=playerCardStd(values);
-      let score=quality*.62+(88-volatility*1.25)*.38;
-      if (zeroRate>.5) score=Math.min(score,38);
-      if (absoluteQuality<35) score=Math.min(score,40);
-      return playerCardClamp(score,5,94);
-    }
-
-    function attackMetrics(rows) {
-      const baseline=blendedBaseline(rows);
-      const avgGF=safeMean(rows.map(row=>row.gf),0);
-      const scoreRate=rate(rows,row=>row.gf>0);
-      const twoPlus=rate(rows,row=>row.gf>=2);
-      const threePlus=rate(rows,row=>row.gf>=3);
-      const fourPlus=rate(rows,row=>row.gf>=4);
-      const sixPlus=rate(rows,row=>row.gf>=6);
-      const maxGF=rows.length?Math.max(...rows.map(row=>row.gf)):0;
-      const goalProduction=playerCardClamp(50+logarithmic(avgGF,baseline.avgGF)*25+(scoreRate-baseline.scoreRate)*18+(twoPlus-baseline.twoPlus)*10,5,94);
-      const scoringEfficiency=rows.length?playerCardClamp(50+safeMean(rows.map(row=>row.attackResidual),0)*32,5,94):null;
-      const bigScorePotential=playerCardClamp(50+(fourPlus-baseline.fourPlus)*34+(sixPlus-baseline.sixPlus)*46+Math.max(0,maxGF-5)*2.2,5,94);
-      const strongOpponentAttack=metric(rows.filter(row=>row.strongOpponent),"attack",3);
-      const underdogRows=rows.filter(row=>row.underdog||row.teamDisadvantage);
-      const underdogAttack=metric(underdogRows,"attack",3);
-      const favouriteProduction=metric(rows.filter(row=>row.favourite),"attack",3);
-      const highOutputFrequency=playerCardClamp(50+(twoPlus-baseline.twoPlus)*30+(threePlus-baseline.threePlus)*25+(sixPlus-baseline.sixPlus)*16,5,94);
-      const zeroRate=1-scoreRate;
-      const scoringConsistency=qualityConsistency(rows,"attack",goalProduction,zeroRate);
-      const values={goalProduction,scoringEfficiency,bigScorePotential,strongOpponentAttack,underdogAttack,scoringConsistency,favouriteProduction,highOutputFrequency};
-      const score=playerCardWeightedAvailable([
-        {value:goalProduction,weight:25},{value:scoringEfficiency,weight:15},{value:strongOpponentAttack,weight:20},{value:underdogAttack,weight:15},
-        {value:scoringConsistency,weight:12},{value:bigScorePotential,weight:6},{value:favouriteProduction,weight:4},{value:highOutputFrequency,weight:3}
-      ],goalProduction);
-      return {score:Math.round(score),values,stats:{avgGF,scoreRate,twoPlus,threePlus,fourPlus,sixPlus,maxGF}};
-    }
-
-    function defenseMetrics(rows) {
-      const baseline=blendedBaseline(rows);
-      const avgGA=safeMean(rows.map(row=>row.ga),0);
-      const lowConcede=rate(rows,row=>row.ga<=2);
-      const heavyConcede=rate(rows,row=>row.ga>=5);
-      const sixConcede=rate(rows,row=>row.ga>=6);
-      const severeLoss=rate(rows,row=>row.ga-row.gf>=4);
-      const goalPrevention=playerCardClamp(50+logarithmic(baseline.avgGA,avgGA)*27+(lowConcede-baseline.lowConcede)*18-(heavyConcede-baseline.heavyConcede)*14,5,94);
-      const expectedDefence=rows.length?playerCardClamp(50+safeMean(rows.map(row=>row.defenceResidual),0)*32,5,94):null;
-      const strongOpponentDefence=metric(rows.filter(row=>row.strongOpponent),"defence",3);
-      const favouriteControl=metric(rows.filter(row=>row.favourite),"defence",3);
-      const collapsePrevention=playerCardClamp(50-(severeLoss-baseline.severeLoss)*62-(sixConcede-baseline.sixConcede)*34,5,94);
-      const losses=rows.filter(row=>row.result==="L");
-      const lossLimitation=losses.length>=3?playerCardClamp(64-safeMean(losses.map(row=>row.ga-row.gf),3)*10,5,94):null;
-      const lowConcedeRate=playerCardClamp(50+(lowConcede-baseline.lowConcede)*55-(heavyConcede-baseline.heavyConcede)*10,5,94);
-      const defensiveConsistency=qualityConsistency(rows,"defence",goalPrevention,heavyConcede);
-      const values={goalPrevention,expectedDefence,strongOpponentDefence,favouriteControl,collapsePrevention,lossLimitation,lowConcedeRate,defensiveConsistency};
-      const score=playerCardWeightedAvailable([
-        {value:goalPrevention,weight:28},{value:expectedDefence,weight:20},{value:strongOpponentDefence,weight:18},{value:collapsePrevention,weight:12},
-        {value:lowConcedeRate,weight:8},{value:defensiveConsistency,weight:6},{value:favouriteControl,weight:4},{value:lossLimitation,weight:4}
-      ],goalPrevention);
-      return {score:Math.round(score),values,stats:{avgGA,lowConcede,heavyConcede,sixConcede,severeLoss}};
-    }
-
-    function competitionMetrics(rows) {
-      const strong=metric(rows.filter(row=>row.strongOpponent),"adjusted",3);
-      const weak=metric(rows.filter(row=>row.weakOpponent),"adjusted",3);
-      const even=metric(rows.filter(row=>row.balanced),"adjusted",3);
-      const underdog=metric(rows.filter(row=>row.underdog||row.teamDisadvantage),"adjusted",3);
-      const favourite=metric(rows.filter(row=>row.favourite),"adjusted",3);
-      const knockoutRows=rows.filter(row=>/semi|quarter|knockout|eleme|play/.test(row.stage));
-      const finalRows=rows.filter(row=>row.stage.includes("final")&&!row.stage.includes("semi"));
-      const knockout=metric(knockoutRows,"adjusted",2);
-      const final=metric(finalRows,"adjusted",3);
-      const values={strongOpponentPerformance:strong,weakOpponentDelivery:weak,evenMatchPerformance:even,underdogPerformance:underdog,favouriteResponsibility:favourite,knockoutPerformance:knockout,finalPerformance:final};
-      const score=playerCardWeightedAvailable([
-        {value:strong,weight:25},{value:underdog,weight:20},{value:even,weight:18},{value:favourite,weight:12},{value:weak,weight:10},{value:knockout,weight:10},{value:final,weight:5}
-      ],safeMean(rows.map(row=>row.adjusted),45));
-      return {score:Math.round(score),values,samples:{strong:rows.filter(row=>row.strongOpponent).length,weak:rows.filter(row=>row.weakOpponent).length,even:rows.filter(row=>row.balanced).length,underdog:rows.filter(row=>row.underdog||row.teamDisadvantage).length,favourite:rows.filter(row=>row.favourite).length,knockout:knockoutRows.length,final:finalRows.length}};
-    }
-
-    function mentalMetrics(rows,name) {
-      const closeRows=rows.filter(row=>Math.abs(row.gf-row.ga)<=1);
-      const closeMatchManagement=closeRows.length>=3?playerCardClamp(18+(closeRows.reduce((sum,row)=>sum+resultPoints(row),0)/(closeRows.length*3))*54+safeMean(closeRows.map(row=>row.adjusted),45)*.28,5,94):null;
-      const p=pressureMap.get(name)||{};
-      const pressureManagement=playerCardClamp((p.pressurePerformance||50)*.55+(p.mentalIndex||50)*.30+(p.clutchRate||50)*.15,5,94);
-      const comebackPower=(p.highPressureGames||0)>=3&&((p.comebackWins||0)>0||(p.lateWins||0)>0)?playerCardClamp(35+Math.min(34,(p.comebackWins||0)*8)+Math.min(18,(p.lateWins||0)*4),5,94):null;
-      const afterLoss=[];
-      for(let index=1;index<rows.length;index++) if(rows[index-1].result==="L") afterLoss.push(rows[index]);
-      const bounceBack=metric(afterLoss,"adjusted",3);
-      const formRow=formAnalytics.playerMap.get(name)||{};
-      const achievementRow=achMap.get(name)||{};
-      const careerWins=achievementRow.metrics?.maxWins||0;
-      const careerUnbeaten=achievementRow.metrics?.maxUnbeaten||0;
-      const streakStrength=playerCardClamp(34+Math.min(24,(formRow.currentWinStreak||0)*6)+Math.min(16,(formRow.currentUnbeatenStreak||0)*2.5)+Math.min(12,careerWins*1.1)+Math.min(8,careerUnbeaten*.45),5,94);
-      const focusRows=rows.filter(row=>row.favourite||row.weakOpponent);
-      const focus=focusRows.length>=3?playerCardClamp(safeMean(focusRows.map(row=>row.adjusted),45)-rate(focusRows,row=>row.result==="L")*22,5,94):null;
-      const criticalRows=rows.filter(row=>/semi|quarter|knockout|eleme|play|final/.test(row.stage));
-      const criticalMentality=metric(criticalRows,"adjusted",3);
-      const values={closeMatchManagement,pressureManagement,comebackPower,bounceBack,streakStrength,focus,criticalMentality};
-      const score=playerCardWeightedAvailable([
-        {value:closeMatchManagement,weight:20},{value:pressureManagement,weight:22},{value:comebackPower,weight:12},{value:bounceBack,weight:14},{value:streakStrength,weight:12},{value:focus,weight:10},{value:criticalMentality,weight:10}
-      ],45);
-      return {score:Math.round(score),values};
-    }
-
-    function teamUsageMetrics(rows,name) {
-      const known=rows.filter(row=>row.known);
-      const weakTeamRows=known.filter(row=>row.ownTeam<=45||row.teamDisadvantage);
-      const strongTeamRows=known.filter(row=>row.ownTeam>=63);
-      const disadvantageRows=known.filter(row=>row.teamDisadvantage);
-      const weakTeamEfficiency=metric(weakTeamRows,"adjusted",3);
-      const strongTeamEfficiency=metric(strongTeamRows,"adjusted",3);
-      const teams=teamMap.get(name)||{teams:[]};
-      const successfulTeams=(teams.teams||[]).filter(team=>(team.wins||0)>0).length;
-      const powerBands=new Set(known.map(row=>Math.round(row.ownTeam/10)*10)).size;
-      const teamDiversity=known.length>=5?playerCardClamp(26+Math.min(34,successfulTeams*5)+Math.min(20,powerBands*5)+Math.min(10,(teams.teams||[]).length*1.5),5,94):null;
-      const selectionEfficiency=metric(known,"adjusted",5);
-      const independentImpact=metric(disadvantageRows,"adjusted",3);
-      const buckets=new Map();
-      known.forEach(row=>{
-        const difference=row.ownTeam-row.oppTeam;
-        const key=difference>=10?"heavyAdv":difference>=4?"adv":difference>-4?"even":difference>-10?"disadv":"heavyDisadv";
-        if(!buckets.has(key))buckets.set(key,[]);
-        buckets.get(key).push(row.adjusted);
-      });
-      const bucketScores=[...buckets.values()].filter(values=>values.length>=2).map(values=>safeMean(values,50));
-      const balancePerformance=known.length>=8&&bucketScores.length>=3?playerCardClamp(safeMean(bucketScores,50)-playerCardStd(bucketScores)*.45,5,94):null;
-      const teamGroups=new Map();
-      known.forEach(row=>{
-        const key=Math.round(row.ownTeam/5)*5;
-        if(!teamGroups.has(key))teamGroups.set(key,[]);
-        teamGroups.get(key).push(row.adjusted);
-      });
-      const groupMeans=[...teamGroups.values()].filter(values=>values.length>=2).map(values=>safeMean(values,50));
-      const crossTeamConsistency=known.length>=8&&groupMeans.length>=3?playerCardClamp(safeMean(groupMeans,50)*.62+(88-playerCardStd(groupMeans)*1.35)*.38,5,94):null;
-      const values={weakTeamEfficiency,strongTeamEfficiency,teamDiversity,selectionEfficiency,independentImpact,balancePerformance,crossTeamConsistency};
-      const score=playerCardWeightedAvailable([
-        {value:weakTeamEfficiency,weight:18},{value:strongTeamEfficiency,weight:10},{value:teamDiversity,weight:14},{value:selectionEfficiency,weight:18},{value:independentImpact,weight:18},{value:balancePerformance,weight:12},{value:crossTeamConsistency,weight:10}
-      ],45);
-      return {score:Math.round(score),values,knownMatches:known.length};
-    }
-
-    function resultPerformance(rows) {
-      if (!rows.length) return 25;
-      const ppg=rows.reduce((sum,row)=>sum+resultPoints(row),0)/rows.length;
-      const averageMargin=safeMean(rows.map(row=>row.gf-row.ga),0);
-      return playerCardClamp(14+(ppg/3)*67+Math.tanh(averageMargin/3.2)*12,5,94);
-    }
-
-    function opponentQualityScore(rows) {
-      if (!rows.length) return 50;
-      const percentiles=rows.map(row=>playerCardPercentile(strengths,row.opponentStrength));
-      return playerCardClamp(35+safeMean(percentiles,.5)*50,25,88);
-    }
-
-    function editionProfile(rows,name,edition) {
-      const sorted=rows.slice().sort((a,b)=>a.index-b.index);
-      const attack=attackMetrics(sorted);
-      const defense=defenseMetrics(sorted);
-      const competition=competitionMetrics(sorted);
-      const mental=mentalMetrics(sorted,name);
-      const teamUsage=teamUsageMetrics(sorted,name);
-      const result=resultPerformance(sorted);
-      const expectation=sorted.length?playerCardClamp(safeMean(sorted.map(row=>row.adjusted),45),5,94):25;
-      const opponentQuality=opponentQualityScore(sorted);
-      const performance=playerCardWeightedAvailable([
-        {value:result,weight:30},{value:attack.score,weight:20},{value:defense.score,weight:18},{value:expectation,weight:20},{value:opponentQuality,weight:12}
-      ],25);
-      const wins=sorted.filter(row=>row.result==="W").length;
-      const draws=sorted.filter(row=>row.result==="D").length;
-      const losses=sorted.length-wins-draws;
-      const avgGF=safeMean(sorted.map(row=>row.gf),0);
-      const avgGA=safeMean(sorted.map(row=>row.ga),0);
-      const stats={matches:sorted.length,wins,draws,losses,winRate:sorted.length?wins/sorted.length*100:0,ppg:sorted.length?sorted.reduce((sum,row)=>sum+resultPoints(row),0)/sorted.length:0,avgGF,avgGA,gd:avgGF-avgGA};
-      const categories=[
-        {key:"attack",label:playerCardMetricLabel("attack"),score:attack.score,attributes:Object.entries(attack.values).map(([key,value])=>({key,label:playerCardMetricLabel(key),value}))},
-        {key:"defense",label:playerCardMetricLabel("defense"),score:defense.score,attributes:Object.entries(defense.values).map(([key,value])=>({key,label:playerCardMetricLabel(key),value}))},
-        {key:"competition",label:playerCardMetricLabel("competition"),score:competition.score,attributes:Object.entries(competition.values).map(([key,value])=>({key,label:playerCardMetricLabel(key),value}))},
-        {key:"mental",label:playerCardMetricLabel("mental"),score:mental.score,attributes:Object.entries(mental.values).map(([key,value])=>({key,label:playerCardMetricLabel(key),value}))},
-        {key:"teamUsage",label:playerCardMetricLabel("teamUsage"),score:teamUsage.score,attributes:Object.entries(teamUsage.values).map(([key,value])=>({key,label:playerCardMetricLabel(key),value}))}
-      ];
-      const confidence=playerCardClamp(28+Math.min(42,sorted.length*2.4)+(sorted.length?sorted.filter(row=>row.known).length/sorted.length*20:0)+Math.min(10,sorted.filter(row=>row.strongOpponent).length*1.5),20,98);
-      return {edition,rows:sorted,performance:Math.round(performance),attack:attack.score,defense:defense.score,competition:competition.score,mental:mental.score,teamUsage:teamUsage.score,resultPerformance:Math.round(result),expectationPerformance:Math.round(expectation),opponentQuality:Math.round(opponentQuality),categories,stats,confidence:Math.round(confidence)};
-    }
-
-    function formScore(rows) {
-      if (!rows.length) return 25;
-      const weightedSlice=(count,selector)=>{
-        const slice=rows.slice(-count);
-        let sum=0,weight=0;
-        slice.forEach((row,index)=>{
-          const rowWeight=.55+(index+1)/Math.max(1,slice.length);
-          sum+=selector(row)*rowWeight;
-          weight+=rowWeight;
-        });
-        return weight?sum/weight:25;
-      };
-      const last5=weightedSlice(5,row=>row.adjusted);
-      const last10=weightedSlice(10,row=>row.adjusted);
-      const result=weightedSlice(10,row=>playerCardClamp(12+resultPoints(row)/3*72,5,94));
-      const currentAttack=weightedSlice(5,row=>row.attack);
-      const previousAttack=rows.length>5?playerCardMean(rows.slice(-10,-5).map(row=>row.attack),currentAttack):currentAttack;
-      const currentDefence=weightedSlice(5,row=>row.defence);
-      const previousDefence=rows.length>5?playerCardMean(rows.slice(-10,-5).map(row=>row.defence),currentDefence):currentDefence;
-      const attackTrend=playerCardClamp(50+(currentAttack-previousAttack)*1.5,5,94);
-      const defenceTrend=playerCardClamp(50+(currentDefence-previousDefence)*1.5,5,94);
-      return playerCardClamp(last5*.35+last10*.25+result*.20+attackTrend*.10+defenceTrend*.10,5,94);
-    }
-
     const rawPlayers=names.map(name=>{
       const rows=(contexts.get(name)||[]).sort((a,b)=>a.index-b.index);
-      const editions=[...new Set(rows.map(row=>row.edition))].sort((a,b)=>a-b);
-      const editionProfiles=editions.map(edition=>editionProfile(rows.filter(row=>row.edition===edition),name,edition));
-      const careerAttack=playerCardWeightedAvailable(editionProfiles.map(profile=>({value:profile.attack,weight:Math.sqrt(profile.stats.matches)*(0.72+profile.edition/Math.max(9,currentEdition)*.28)})),40);
-      const careerDefense=playerCardWeightedAvailable(editionProfiles.map(profile=>({value:profile.defense,weight:Math.sqrt(profile.stats.matches)*(0.72+profile.edition/Math.max(9,currentEdition)*.28)})),40);
-      const careerCompetition=playerCardWeightedAvailable(editionProfiles.map(profile=>({value:profile.competition,weight:Math.sqrt(profile.stats.matches)*(0.72+profile.edition/Math.max(9,currentEdition)*.28)})),40);
-      const careerMental=playerCardWeightedAvailable(editionProfiles.map(profile=>({value:profile.mental,weight:Math.sqrt(profile.stats.matches)*(0.72+profile.edition/Math.max(9,currentEdition)*.28)})),40);
-      const careerTeamUsage=playerCardWeightedAvailable(editionProfiles.map(profile=>({value:profile.teamUsage,weight:Math.sqrt(profile.stats.matches)*(0.72+profile.edition/Math.max(9,currentEdition)*.28)})),40);
-      const careerPerformance=playerCardWeightedAvailable(editionProfiles.map(profile=>({value:profile.performance,weight:Math.sqrt(profile.stats.matches)*(0.72+profile.edition/Math.max(9,currentEdition)*.28)})),30);
-      const currentProfile=editionProfiles.find(profile=>profile.edition===currentEdition)||editionProfiles[editionProfiles.length-1]||editionProfile([],name,currentEdition);
-      const currentRows=currentProfile.rows;
-      const currentForm=formScore(currentRows);
+      const editionProfiles=(editionProfilesByName.get(name)||[]).sort((a,b)=>a.edition-b.edition);
+      const editionWeight=profile=>Math.sqrt(Math.max(1,profile.stats.matches))*(.72+profile.edition/Math.max(9,currentEdition)*.28);
+      const careerAttack=playerCardWeightedAvailable(editionProfiles.map(profile=>({value:profile.attack,weight:editionWeight(profile)})),35);
+      const careerDefense=playerCardWeightedAvailable(editionProfiles.map(profile=>({value:profile.defense,weight:editionWeight(profile)})),35);
+      const careerCompetition=playerCardWeightedAvailable(editionProfiles.map(profile=>({value:profile.competition,weight:editionWeight(profile)})),35);
+      const careerMental=playerCardWeightedAvailable(editionProfiles.map(profile=>({value:profile.mental,weight:editionWeight(profile)})),35);
+      const careerTeamUsage=playerCardWeightedAvailable(editionProfiles.map(profile=>({value:profile.teamUsage,weight:editionWeight(profile)})),35);
+      const careerPerformance=playerCardWeightedAvailable(editionProfiles.map(profile=>({value:profile.performance,weight:editionWeight(profile)})),25);
+      const careerBigMatch=playerCardWeightedAvailable(editionProfiles.map(profile=>({value:profile.bigMatchPerformance,weight:Math.sqrt(Math.max(1,profile.stats.matches))})),35);
+      const currentProfile=editionProfiles.find(profile=>profile.edition===currentEdition)||editionProfiles[editionProfiles.length-1]||null;
+      const currentForm=currentProfile?.currentForm||25;
       const baselineAbility=careerAttack*.24+careerDefense*.20+careerCompetition*.24+careerMental*.17+careerTeamUsage*.15;
-      const currentAbility=playerCardClamp(baselineAbility*.85+currentForm*.15,5,94);
+      const rawCurrentAbility=clamp(baselineAbility*.85+currentForm*.15);
       const careerRow=allTime.playerMap.get(name)||{};
       const e=elo.playerMap.get(name)||{rating:1500,peak:1500,timeline:[]};
       const ach=achMap.get(name)||{prestige:achievementPrestigeLevel(0),xp:0,unlocked:[],metrics:{}};
       const px=powerMap.get(name)||{powerIndex:100,change:0,championProbability:0,finalProbability:0};
       const teams=teamMap.get(name)||{teams:[]};
       const peakPercent=playerCardPercentile(elo.players.map(row=>row.peak),e.peak);
-      const historicStrong=playerCardWeightedAvailable(editionProfiles.map(profile=>({value:profile.categories.find(category=>category.key==="competition")?.attributes.find(attribute=>attribute.key==="strongOpponentPerformance")?.value,weight:Math.sqrt(profile.stats.matches)})),40);
       const legacyAttrs={
-        trophies:playerCardClamp(20+Math.min(50,(careerRow.titles||0)*18)+Math.min(16,(careerRow.finals||0)*4),5,94),
-        peakLevel:playerCardClamp(25+peakPercent*68,5,94),
+        trophies:clamp(20+Math.min(50,(careerRow.titles||0)*18)+Math.min(16,(careerRow.finals||0)*4)),
+        peakLevel:clamp(25+peakPercent*68),
         careerEfficiency:Math.round(careerPerformance),
-        historicStrong:Math.round(historicStrong),
-        longevity:playerCardClamp(18+Math.min(58,(careerRow.games||0)*.82),5,94)
+        historicStrong:Math.round(careerBigMatch),
+        longevity:clamp(18+Math.min(58,(careerRow.games||0)*.82))
       };
       const legacy=legacyAttrs.trophies*.35+legacyAttrs.peakLevel*.25+legacyAttrs.careerEfficiency*.20+legacyAttrs.historicStrong*.10+legacyAttrs.longevity*.10;
-      const confidence=playerCardClamp(30+Math.min(40,rows.length*.9)+(rows.length?rows.filter(row=>row.known).length/rows.length*20:0)+Math.min(8,editions.length*1.5),20,98);
-      return {name,rows,editionProfiles,currentProfile,currentForm,currentAbility,careerPerformance,legacy,legacyAttrs,careerGroups:{attack:careerAttack,defense:careerDefense,competition:careerCompetition,mental:careerMental,teamUsage:careerTeamUsage},careerRow,e,ach,px,teams,confidence};
+      const knownRatio=rows.length?rows.filter(row=>row.known).length/rows.length:0;
+      const confidence=clamp(30+Math.min(40,rows.length*.9)+knownRatio*18+Math.min(10,editionProfiles.length*1.8),20,98);
+      return {
+        name,rows,editionProfiles,currentProfile,currentForm,rawCurrentAbility,careerPerformance,careerBigMatch,
+        legacy,legacyAttrs,careerGroups:{attack:careerAttack,defense:careerDefense,competition:careerCompetition,mental:careerMental,teamUsage:careerTeamUsage},
+        careerRow,e,ach,px,teams,confidence
+      };
     });
 
-    const currentAbilityValues=rawPlayers.map(player=>player.currentAbility);
     return rawPlayers.map(player=>{
-      const calibratedAbility=playerCardCalibrate(currentAbilityValues,player.currentAbility,60,11,25,94);
-      const sampleReliability=.35+.65*(player.rows.length/(player.rows.length+25))*(.75+.25*Math.min(1,player.editionProfiles.length/4));
-      const currentAbility=Math.round(60+(calibratedAbility-60)*sampleReliability);
+      const sampleReliability=.55+.45*(player.rows.length/(player.rows.length+18))*(.78+.22*Math.min(1,player.editionProfiles.length/4));
+      const currentAbility=Math.round(clamp(50+(player.rawCurrentAbility-50)*sampleReliability));
       const prestige=player.ach.prestige||achievementPrestigeLevel(player.ach.xp||0);
       const modelKey=prestige.key||"rookie";
       const cardTier=currentAbility>=89?"icon":currentAbility>=83?"legend":currentAbility>=77?"elite":currentAbility>=70?"gold":currentAbility>=62?"silver":"bronze";
       const allAttributes=player.editionProfiles.flatMap(profile=>profile.categories.flatMap(category=>category.attributes.filter(attribute=>attribute.value!=null).map(attribute=>({...attribute,edition:profile.edition,group:category.label}))));
       const averagedAttributes=new Map();
       allAttributes.forEach(attribute=>{
-        if(!averagedAttributes.has(attribute.key))averagedAttributes.set(attribute.key,[]);
-        averagedAttributes.get(attribute.key).push(attribute.value);
+        if(!averagedAttributes.has(attribute.key)) averagedAttributes.set(attribute.key,[]);
+        averagedAttributes.get(attribute.key).push(Number(attribute.value));
       });
-      const careerAttributes=[...averagedAttributes.entries()].map(([key,values])=>({key,label:playerCardMetricLabel(key),value:Math.round(safeMean(values,50))})).sort((a,b)=>b.value-a.value);
+      const careerAttributes=[...averagedAttributes.entries()].map(([key,values])=>({
+        key,label:playerCardMetricLabel(key),value:Math.round(safeMean(values,50))
+      })).sort((a,b)=>b.value-a.value);
       const pros=careerAttributes.slice(0,5);
       const cons=careerAttributes.slice(-5).reverse();
       const currentProfile=player.currentProfile;
-      const role=currentProfile.categories.find(category=>category.key==="competition")?.attributes.find(attribute=>attribute.key==="strongOpponentPerformance")?.value>=78?intelligenceCopy("Dev Katili","Giant Killer"):currentProfile.categories.find(category=>category.key==="competition")?.attributes.find(attribute=>attribute.key==="underdogPerformance")?.value>=76?intelligenceCopy("Underdog General","Underdog General"):player.careerGroups.mental>=75?intelligenceCopy("Baskı Ustası","Pressure Master"):player.careerGroups.attack>=75?intelligenceCopy("Skor Üreticisi","Score Producer"):player.careerGroups.defense>=75?intelligenceCopy("Kontrol Uzmanı","Control Specialist"):player.careerGroups.teamUsage>=75?intelligenceCopy("Takım Bukalemunu","Team Chameleon"):player.currentForm>=78?intelligenceCopy("Momentum Avcısı","Momentum Hunter"):intelligenceCopy("Dengeli Rakip","Balanced Competitor");
+      const role=(currentProfile?.bigMatchPerformance||0)>=80?intelligenceCopy("Büyük Maç Oyuncusu","Big-Match Player"):
+        (currentProfile?.categories.find(category=>category.key==="competition")?.attributes.find(attribute=>attribute.key==="strongOpponentPerformance")?.value||0)>=78?intelligenceCopy("Dev Katili","Giant Killer"):
+        player.careerGroups.mental>=75?intelligenceCopy("Baskı Ustası","Pressure Master"):
+        player.careerGroups.attack>=75?intelligenceCopy("Skor Üreticisi","Score Producer"):
+        player.careerGroups.defense>=75?intelligenceCopy("Kontrol Uzmanı","Control Specialist"):
+        player.currentForm>=78?intelligenceCopy("Momentum Avcısı","Momentum Hunter"):
+        intelligenceCopy("Dengeli Rakip","Balanced Competitor");
       const topTeams=(player.teams.teams||[]).slice().sort((a,b)=>(b.games||0)-(a.games||0)).slice(0,5);
       const maxScore=player.rows.slice().sort((a,b)=>b.gf-a.gf)[0];
       const hardestWin=player.rows.filter(row=>row.result==="W").sort((a,b)=>b.opponentStrength-a.opponentStrength)[0];
-      const latestProfile=player.editionProfiles.find(profile=>profile.edition===currentEdition)||player.editionProfiles[player.editionProfiles.length-1]||player.currentProfile;
+      const latestProfile=player.editionProfiles.find(profile=>profile.edition===currentEdition)||player.editionProfiles[player.editionProfiles.length-1]||null;
       return {
         name:player.name,
         initials:player.name.split(/\s+/).map(part=>part[0]).slice(0,2).join("").toUpperCase(),
@@ -5777,6 +6077,8 @@
         fifa9Performance:Math.round(latestProfile?.performance||25),
         careerPerformance:Math.round(player.careerPerformance),
         currentForm:Math.round(player.currentForm),
+        bigMatchPerformance:Math.round(latestProfile?.bigMatchPerformance||player.careerBigMatch||35),
+        careerBigMatch:Math.round(player.careerBigMatch),
         legacy:Math.round(player.legacy),
         confidence:Math.round(player.confidence),
         formLabel:playerCardFormLabel(player.currentForm),
@@ -5790,8 +6092,16 @@
         favoriteTeam:topTeams[0]?.team||"–",uniqueTeams:(player.teams.teams||[]).length,topTeams,
         formResults:(latestProfile?.rows||[]).slice(-10).map(row=>({result:row.result,opponent:row.opponent})),
         legacyAttrs:player.legacyAttrs,
-        quickFacts:{maxScore:maxScore?`${maxScore.gf} - ${maxScore.ga}`:"–",hardestWin:hardestWin?`${hardestWin.gf} - ${hardestWin.ga}`:"–",winStreak:formAnalytics.playerMap.get(player.name)?.currentWinStreak||0,unbeaten:formAnalytics.playerMap.get(player.name)?.currentUnbeatenStreak||0},
-        modelNote:intelligenceCopy("Her FIFA edisyonu kendi gol ortamında normalize edilir. N/A kriterler ortalamaya katılmaz.","Every FIFA edition is normalised within its own scoring environment. N/A criteria are excluded from averages.")
+        quickFacts:{
+          maxScore:maxScore?`${maxScore.gf} - ${maxScore.ga}`:"–",
+          hardestWin:hardestWin?`${hardestWin.gf} - ${hardestWin.ga}`:"–",
+          winStreak:formAnalytics.playerMap.get(player.name)?.currentWinStreak||0,
+          unbeaten:formAnalytics.playerMap.get(player.name)?.currentUnbeatenStreak||0
+        },
+        modelNote:intelligenceCopy(
+          "Her FIFA turnuvası kendi oyuncu, gol, puan ve aşama dağılımı içinde değerlendirilir. Yarı final ve final maçları yüksek ağırlık taşır; takım/rakip düzeltmesi ana sonucu tersine çeviremez.",
+          "Every FIFA tournament is evaluated within its own player, scoring, points and stage distribution. Semi-finals and finals carry higher weight, while team/opponent adjustments cannot overturn the actual result."
+        )
       };
     }).sort((a,b)=>b.currentAbility-a.currentAbility||b.fifa9Performance-a.fifa9Performance||b.elo-a.elo);
   }
@@ -5824,14 +6134,15 @@
       ["fifaPerformance",editionProfile?.performance||25,"#65b8ff"],
       ["careerPerformance",selected.careerPerformance,"#d9dce2"],
       ["currentForm",selected.currentForm,"#ffc93f"],
+      ["bigMatchPerformance",editionProfile?.bigMatchPerformance||35,"#68e2a5"],
       ["legacy",selected.legacy,"#ff9c79"]
     ];
     const stats=editionProfile?.stats||{matches:0,wins:0,draws:0,losses:0,winRate:0,ppg:0,avgGF:0,avgGA:0,gd:0};
     const contextCategory=editionProfile?.categories.find(category=>category.key==="competition");
     const contextMap=Object.fromEntries((contextCategory?.attributes||[]).map(attribute=>[attribute.key,attribute.value]));
     return `<div class="fm30-page fm32-page">
-      <section class="fm30-toolbar"><div><div class="eyebrow">FIFA TOURNAMENT INTELLIGENCE · V32</div><h2>${intelligenceCopy("Edisyon Bazlı Oyuncu Analiz Merkezi","Edition-Based Player Analysis Centre")}</h2></div><div class="fm32-toolbar-controls"><select id="intelPlayerCardSelect">${cards.map(row=>`<option value="${escapeHTML(row.name)}" ${row.name===selected.name?"selected":""}>${escapeHTML(row.name)} · CA ${row.currentAbility} · F${Number(state.current.edition||9)} ${row.fifa9Performance}</option>`).join("")}</select><select id="intelPlayerEditionSelect">${selected.editionProfiles.map(profile=>`<option value="${profile.edition}" ${profile.edition===Number(intelligencePlayerEdition)?"selected":""}>FIFA ${profile.edition} · ${profile.performance}/100</option>`).join("")}</select></div></section>
-      <section class="fm32-edition-atlas"><header><div><span>${intelligenceCopy("TURNUVA PERFORMANS ATLASI","TOURNAMENT PERFORMANCE ATLAS")}</span><h3>${intelligenceCopy("FIFA 1’den FIFA 9’a edisyon bazlı performans","Edition-by-edition performance from FIFA 1 to FIFA 9")}</h3></div><small>${intelligenceCopy("Her edisyon kendi gol ortamında normalize edilir.","Each edition is normalised within its own scoring environment.")}</small></header><div class="fm32-edition-cards">${Array.from({length:Math.max(9,Number(state.current.edition||9))},(_,index)=>index+1).map(edition=>{const profile=selected.editionProfiles.find(item=>item.edition===edition);return `<button class="fm32-edition-card ${edition===Number(intelligencePlayerEdition)?'active':''} ${profile?'':'empty'}" data-action="set-player-edition" data-player-edition="${edition}" ${profile?'':'disabled'}><span>FIFA ${edition}</span><strong>${profile?profile.performance:'—'}</strong><small>${profile?`${profile.stats.matches} ${intelligenceCopy('maç','matches')} · ${profile.stats.winRate.toFixed(0)}%` : intelligenceCopy('Katılmadı','No appearance')}</small></button>`;}).join("")}</div></section>
+      <section class="fm30-toolbar"><div><div class="eyebrow">FIFA TOURNAMENT INTELLIGENCE · V33</div><h2>${intelligenceCopy("Turnuva İçi Gerçek Performans Merkezi","Tournament-Native Performance Centre")}</h2></div><div class="fm32-toolbar-controls"><select id="intelPlayerCardSelect">${cards.map(row=>`<option value="${escapeHTML(row.name)}" ${row.name===selected.name?"selected":""}>${escapeHTML(row.name)} · CA ${row.currentAbility} · F${Number(state.current.edition||9)} ${row.fifa9Performance}</option>`).join("")}</select><select id="intelPlayerEditionSelect">${selected.editionProfiles.map(profile=>`<option value="${profile.edition}" ${profile.edition===Number(intelligencePlayerEdition)?"selected":""}>FIFA ${profile.edition} · ${profile.performance}/100</option>`).join("")}</select></div></section>
+      <section class="fm32-edition-atlas"><header><div><span>${intelligenceCopy("TURNUVA PERFORMANS ATLASI","TOURNAMENT PERFORMANCE ATLAS")}</span><h3>${intelligenceCopy("FIFA 1’den FIFA 9’a edisyon bazlı performans","Edition-by-edition performance from FIFA 1 to FIFA 9")}</h3></div><small>${intelligenceCopy("Her turnuva kendi gol, puan, oyuncu ve aşama dağılımı içinde değerlendirilir.","Each tournament is evaluated within its own scoring, points, player and stage distribution.")}</small></header><div class="fm32-edition-cards">${Array.from({length:Math.max(9,Number(state.current.edition||9))},(_,index)=>index+1).map(edition=>{const profile=selected.editionProfiles.find(item=>item.edition===edition);return `<button class="fm32-edition-card ${edition===Number(intelligencePlayerEdition)?'active':''} ${profile?'':'empty'}" data-action="set-player-edition" data-player-edition="${edition}" ${profile?'':'disabled'}><span>FIFA ${edition}</span><strong>${profile?profile.performance:'—'}</strong><small>${profile?`${profile.stats.matches} ${intelligenceCopy('maç','matches')} · ${profile.stats.winRate.toFixed(0)}%` : intelligenceCopy('Katılmadı','No appearance')}</small></button>`;}).join("")}</div></section>
       <div class="fm30-layout">
         <aside class="fm30-left-column">
           <article class="fm30-identity-card prestige-${selected.modelKey}"><header><strong>${selected.currentAbility}</strong><span>#${cards.findIndex(row=>row.name===selected.name)+1}</span></header><div class="fm30-avatar">${escapeHTML(selected.initials)}</div><h3>${escapeHTML(selected.name)}</h3><p>${escapeHTML(selected.activeTitle)}</p><div class="fm30-identity-meta"><div><span>${intelligenceCopy("OYUN TARZI","PLAY STYLE")}</span><b>${escapeHTML(selected.role)}</b></div><div><span>${intelligenceCopy("FAVORİ TAKIM","FAVOURITE TEAM")}</span><b>${escapeHTML(selected.favoriteTeam)}</b></div><div><span>ELO</span><b>${selected.elo}</b></div><div><span>${intelligenceCopy("PRESTIGE","PRESTIGE")}</span><b>${escapeHTML(selected.prestige.name)}</b></div></div><footer><div><span>${intelligenceCopy("MAÇ","MATCHES")}</span><strong>${selected.career.games||0}</strong></div><div><span>${intelligenceCopy("GALİBİYET","WINS")}</span><strong>${selected.career.wins||0}</strong></div><div><span>${intelligenceCopy("KUPA","TITLES")}</span><strong>${selected.career.titles||0}</strong></div></footer></article>
@@ -5843,11 +6154,12 @@
           <section class="fm30-summary-grid">${summaryCards.map(([key,value,color])=>`<article style="--summary-color:${color}"><span>${key==='fifaPerformance'?`FIFA ${editionProfile?.edition||intelligencePlayerEdition} ${intelligenceCopy('PERFORMANSI','PERFORMANCE')}`:escapeHTML(playerCardMetricLabel(key).toUpperCase())}</span><strong>${Math.round(value)}<small>/100</small></strong><p>${escapeHTML(playerCardReferenceLabel(value))}</p></article>`).join("")}</section>
           <div class="fm30-confidence"><span>${intelligenceCopy("MODEL GÜVENİ","MODEL CONFIDENCE")}</span><strong>${selected.confidence>=85?intelligenceCopy("ÇOK YÜKSEK","VERY HIGH"):selected.confidence>=70?intelligenceCopy("YÜKSEK","HIGH"):intelligenceCopy("ORTA","MEDIUM")}</strong><b>%${selected.confidence}</b><small>${escapeHTML(selected.modelNote)}</small></div>
           <section class="fm30-criteria"><header><h3>FIFA ${editionProfile?.edition||intelligencePlayerEdition} · ${intelligenceCopy("Detaylı Kriterler","Detailed Criteria")}</h3><span>${intelligenceCopy("PUANLAMA: 0–100","RATING: 0–100")}</span></header><div class="fm30-criteria-grid">${(editionProfile?.categories||[]).map(metricCard).join("")}<article class="fm30-scale"><h4>${intelligenceCopy("Puan Aralıkları Rehberi","Rating Scale Guide")}</h4>${[[90,'Tarihî / Efsanevi'],[82,'Elite'],[74,'Çok Güçlü'],[66,'Güçlü'],[58,'Ortalama Üstü'],[50,'Ortalama'],[42,'Ortalama Altı'],[30,'Zayıf'],[0,'Çok Zayıf']].map(([value,label])=>`<p><b>${value}${value?' +':''}</b><span>${escapeHTML(intelligenceLanguage()==='en'?playerCardReferenceLabel(value):label)}</span></p>`).join("")}</article></div></section>
-          <section class="fm32-edition-comparison"><header><h3>${intelligenceCopy("Edisyon Karşılaştırması","Edition Comparison")}</h3><span>${intelligenceCopy("Tüm katıldığı FIFA turnuvaları","All FIFA tournaments entered")}</span></header><div class="fm32-edition-table"><div class="head"><span>${intelligenceCopy("EDİSYON","EDITION")}</span><span>${intelligenceCopy("PERF.","PERF.")}</span><span>${intelligenceCopy("HÜCUM","ATTACK")}</span><span>${intelligenceCopy("SAVUNMA","DEFENCE")}</span><span>${intelligenceCopy("REKABET","COMPETITION")}</span><span>${intelligenceCopy("MAÇ","MATCHES")}</span><span>${intelligenceCopy("G/MAÇ","GF/M")}</span><span>${intelligenceCopy("YG/MAÇ","GA/M")}</span></div>${selected.editionProfiles.map(profile=>`<button class="row ${profile.edition===Number(intelligencePlayerEdition)?'active':''}" data-action="set-player-edition" data-player-edition="${profile.edition}"><span>FIFA ${profile.edition}</span><strong>${profile.performance}</strong><span>${profile.attack}</span><span>${profile.defense}</span><span>${profile.competition}</span><span>${profile.stats.matches}</span><span>${profile.stats.avgGF.toFixed(2)}</span><span>${profile.stats.avgGA.toFixed(2)}</span></button>`).join("")}</div></section>
+          <section class="fm32-edition-comparison"><header><h3>${intelligenceCopy("Edisyon Karşılaştırması","Edition Comparison")}</h3><span>${intelligenceCopy("Tüm katıldığı FIFA turnuvaları","All FIFA tournaments entered")}</span></header><div class="fm32-edition-table v33"><div class="head"><span>${intelligenceCopy("EDİSYON","EDITION")}</span><span>${intelligenceCopy("PERF.","PERF.")}</span><span>${intelligenceCopy("HÜCUM","ATTACK")}</span><span>${intelligenceCopy("SAVUNMA","DEFENCE")}</span><span>${intelligenceCopy("BÜYÜK MAÇ","BIG MATCH")}</span><span>${intelligenceCopy("MAÇ","MATCHES")}</span><span>${intelligenceCopy("G/MAÇ","GF/M")}</span><span>${intelligenceCopy("YG/MAÇ","GA/M")}</span></div>${selected.editionProfiles.map(profile=>`<button class="row ${profile.edition===Number(intelligencePlayerEdition)?'active':''}" data-action="set-player-edition" data-player-edition="${profile.edition}"><span>FIFA ${profile.edition}</span><strong>${profile.performance}</strong><span>${profile.attack}</span><span>${profile.defense}</span><span>${profile.bigMatchPerformance}</span><span>${profile.stats.matches}</span><span>${profile.stats.avgGF.toFixed(2)}</span><span>${profile.stats.avgGA.toFixed(2)}</span></button>`).join("")}</div></section>
         </main>
         <aside class="fm30-right-column">
           <article class="fm30-panel fifa9"><h4>FIFA ${editionProfile?.edition||intelligencePlayerEdition} ${intelligenceCopy("Performans Özeti","Performance Summary")}</h4><div class="fm30-form-head"><strong>${escapeHTML(playerCardReferenceLabel(editionProfile?.performance||25))}</strong><small>${intelligenceCopy("Edisyon içi normalize performans","Edition-normalised performance")}</small></div><div class="fm30-form-row">${playerCardFormRibbon((editionProfile?.rows||[]).slice(-10).map(row=>({result:row.result,opponent:row.opponent})))}</div><div class="fm30-stat-grid"><div><span>${intelligenceCopy("MAÇ","MATCHES")}</span><b>${stats.matches}</b></div><div><span>${intelligenceCopy("GALİBİYET %","WIN %")}</span><b>${stats.winRate.toFixed(0)}%</b></div><div><span>${intelligenceCopy("PUAN ORT.","PPG")}</span><b>${stats.ppg.toFixed(2)}</b></div><div><span>${intelligenceCopy("GOL ORT.","AVG GF")}</span><b>${stats.avgGF.toFixed(2)}</b></div><div><span>${intelligenceCopy("YENİLEN GOL","AVG GA")}</span><b>${stats.avgGA.toFixed(2)}</b></div><div><span>${intelligenceCopy("GOL FARKI","GOAL DIFF")}</span><b>${stats.gd>=0?'+':''}${stats.gd.toFixed(2)}</b></div></div></article>
-          <article class="fm30-panel"><h4>${intelligenceCopy("Edisyon Model Bileşenleri","Edition Model Components")}</h4><div class="fm32-component-grid"><div><span>${playerCardMetricLabel('resultPerformance')}</span><b>${editionProfile?.resultPerformance||0}</b></div><div><span>${playerCardMetricLabel('expectationPerformance')}</span><b>${editionProfile?.expectationPerformance||0}</b></div><div><span>${playerCardMetricLabel('opponentQuality')}</span><b>${editionProfile?.opponentQuality||0}</b></div><div><span>${intelligenceCopy('MODEL GÜVENİ','MODEL CONFIDENCE')}</span><b>${editionProfile?.confidence||0}%</b></div></div></article>
+          <article class="fm30-panel"><h4>${intelligenceCopy("Edisyon Model Bileşenleri","Edition Model Components")}</h4><div class="fm32-component-grid v33"><div><span>${playerCardMetricLabel('resultPerformance')}</span><b>${editionProfile?.resultPerformance||0}</b></div><div><span>${playerCardMetricLabel('bigMatchPerformance')}</span><b>${editionProfile?.bigMatchPerformance||0}</b></div><div><span>${playerCardMetricLabel('expectationPerformance')}</span><b>${editionProfile?.expectationPerformance||0}</b></div><div><span>${playerCardMetricLabel('opponentQuality')}</span><b>${editionProfile?.opponentQuality||0}</b></div><div><span>${intelligenceCopy('AŞAMA BAŞARISI','STAGE ACHIEVEMENT')}</span><b>${editionProfile?.stageBreakdown?.achievement||0}</b></div><div><span>${intelligenceCopy('MODEL GÜVENİ','MODEL CONFIDENCE')}</span><b>${editionProfile?.confidence||0}%</b></div></div></article>
+          <article class="fm30-panel fm33-stage-panel"><h4>${intelligenceCopy("Turnuva Aşama Etkisi","Tournament Stage Impact")}</h4><div class="fm33-stage-grid">${[['league','Lig / İlk Aşama','League / First Stage'],['group','Altın / Gümüş Grup','Gold / Silver Group'],['knockout','Play-off / Eleme','Play-off / Knockout'],['semi','Yarı Final','Semi-final'],['final','Final','Final']].map(([key,tr,en])=>{const value=editionProfile?.stageBreakdown?.[key];return `<div class="${value==null?'is-na':''}"><span>${intelligenceCopy(tr,en)}</span><strong>${value==null?'N/A':value}</strong></div>`;}).join('')}</div><footer><span>${intelligenceCopy('ULAŞILAN AŞAMA','STAGE REACHED')}</span><b>${escapeHTML(editionProfile?.stageBreakdown?.achievementLabel||'—')}</b></footer></article>
           <article class="fm30-panel"><h4>${intelligenceCopy("Kariyer Özeti (Tüm Turnuvalar)","Career Summary (All Tournaments)")}</h4><div class="fm30-stat-grid"><div><span>${intelligenceCopy("TOPLAM MAÇ","TOTAL MATCHES")}</span><b>${selected.career.games||0}</b></div><div><span>${intelligenceCopy("GALİBİYET %","WIN %")}</span><b>${(selected.career.winRate||0).toFixed(0)}%</b></div><div><span>${intelligenceCopy("TOPLAM GOL","TOTAL GOALS")}</span><b>${selected.career.gf||0}</b></div><div><span>${intelligenceCopy("FİNALLER","FINALS")}</span><b>${selected.career.finals||0}</b></div><div><span>${intelligenceCopy("ŞAMPİYONLUK","TITLES")}</span><b>${selected.career.titles||0}</b></div><div><span>PEAK ELO</span><b>${selected.eloPeak}</b></div></div></article>
           <article class="fm30-panel"><h4>${intelligenceCopy("Performans Bağlamı","Performance Context")}</h4>${[['strongOpponentPerformance','strong'],['underdogPerformance','underdog'],['favouriteResponsibility','favourite'],['weakOpponentDelivery','weak'],['evenMatchPerformance','even']].map(([key])=>{const value=contextMap[key];return `<div class="fm30-context-row ${value==null?'is-na':''}"><span>${escapeHTML(playerCardMetricLabel(key))}</span><i><b style="width:${value==null?0:value}%"></b></i><strong>${displayMetricValue(value)}</strong></div>`;}).join("")}${playerCardRadar({attack:editionProfile?.attack||0,defense:editionProfile?.defense||0,competition:editionProfile?.competition||0,mental:editionProfile?.mental||0,teamUsage:editionProfile?.teamUsage||0,form:selected.currentForm})}</article>
           <article class="fm30-panel"><h4>${intelligenceCopy("Kariyer Zaman Çizelgesi (Elo)","Career Timeline (Elo)")}</h4>${playerCardTimelineSvg(selected.eloTimeline)}</article>
