@@ -1,0 +1,29 @@
+FIFA 9 Player Card Universe v28 — Gelişmiş Oyuncu Kartı Motoru
+
+Bu güncelleme oyuncu kartlarını FM esintili daha gelişmiş bir değerlendirme modeline taşır.
+
+Yenilikler:
+- 6 ana performans sütunu: Hücum, Savunma, Form, Mental, Miras, Oyun Kimliği
+- Her sütun altında 4 alt parametre (toplam 24 alt parametre)
+- Daha gerçekçi overall algoritması
+- Büyük maç örneklemi ve güven katsayısı
+- FM tarzı scouting yaklaşımı
+- Gelişmiş kart açıklamaları ve scouting özetleri
+- İngilizce metinler tamamlandı / geliştirildi
+
+Kurulum (PATCH ONLY):
+1. ZIP dosyasını aç.
+2. Aşağıdaki dosyaları GitHub repository ana dizinine yükle:
+   - app.js
+   - styles.css
+   - service-worker.js
+   - V28_PLAYER_CARD_SCOUTING_INSTALL_TR.txt
+3. Replace / overwrite onayını ver.
+4. Commit mesajı örneği:
+   Upgrade player card engine to v28 scouting matrix
+5. Vercel deploy tamamlandıktan sonra Ctrl + F5 yap.
+
+Notlar:
+- Supabase SQL gerekmez.
+- cloud-config.js değişmez.
+- Mevcut turnuva verileri korunur.

@@ -1,4 +1,4 @@
-const CACHE = "fifa9-hub-live-v27-one-page-group-packs";
+const CACHE = "fifa9-hub-live-v28-player-card-scouting";
 const APP_SHELL = [
   "./",
   "./index.html",
