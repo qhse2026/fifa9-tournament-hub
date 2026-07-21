@@ -1,0 +1,21 @@
+FIFA 10 Trophy Icons & Sidebar Fix v37.1
+=======================================
+
+Bu güncelleme şunları içerir:
+1) Premier League, Championship, Oruç Reis Kupası ve Süper Kupa için daha profesyonel SVG kupa görselleri
+2) Masaüstü sürümünde sol toolbar / sidebar için dikey kaydırma (scroll) düzeltmesi
+3) Kupa müzesinde görsellerin biraz daha büyük ve güçlü görünmesi için ufak stil iyileştirmesi
+
+Kurulum:
+- PATCH ONLY paketini kullanıyorsanız içindeki dosyaları mevcut site klasörünüzün üzerine yazın.
+- FULL paketi kullanıyorsanız doğrudan yeni sürümü deploy edin.
+
+Teknik olarak güncellenen ana dosyalar:
+- assets/trophies/premier-league.svg
+- assets/trophies/championship.svg
+- assets/trophies/oruc-reis-cup.svg
+- assets/trophies/super-cup.svg
+- styles.css
+
+Not:
+Bu güncelleme veri yapısını değiştirmez. Sadece görsel kupa varlıkları ve sidebar davranışı güncellenir.

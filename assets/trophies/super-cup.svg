@@ -1,4 +1,37 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 520">
-<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffffff"/><stop offset=".25" stop-color="#a7b1bb"/><stop offset=".5" stop-color="#f7f7f7"/><stop offset=".8" stop-color="#586570"/><stop offset="1" stop-color="#222b33"/></linearGradient><radialGradient id="b"><stop stop-color="#e5c66c"/><stop offset=".55" stop-color="#7b5517"/><stop offset="1" stop-color="#111820"/></radialGradient><filter id="s"><feDropShadow dx="0" dy="14" stdDeviation="13" flood-opacity=".55"/></filter></defs>
-<g filter="url(#s)"><path fill="none" stroke="url(#g)" stroke-width="31" d="M102 86c29 96 35 207 108 278 73-71 79-182 108-278M107 93c52 31 76 68 103 121 27-53 51-90 103-121"/><circle cx="210" cy="204" r="59" fill="url(#b)"/><path fill="none" stroke="#d9be70" stroke-width="5" d="M170 185c27 12 53 12 80 0M171 222c26-12 52-12 78 0M210 147c-18 39-18 75 0 114M210 147c18 39 18 75 0 114" opacity=".85"/><path fill="#101820" d="M160 385h100v56H160z"/><path fill="url(#g)" d="M100 441h220v36H100z"/></g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 600" role="img" aria-label="Super Cup Trophy">
+  <defs>
+    <linearGradient id="superSilver" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.22" stop-color="#cad4dd"/>
+      <stop offset="0.48" stop-color="#f8fafc"/>
+      <stop offset="0.78" stop-color="#77818c"/>
+      <stop offset="1" stop-color="#212a34"/>
+    </linearGradient>
+    <linearGradient id="superPlate" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f2d07a"/>
+      <stop offset="0.55" stop-color="#a06e23"/>
+      <stop offset="1" stop-color="#473010"/>
+    </linearGradient>
+    <radialGradient id="superGlow" cx="50%" cy="38%" r="58%">
+      <stop offset="0" stop-color="#c9d8ea" stop-opacity="0.56"/>
+      <stop offset="1" stop-color="#c9d8ea" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="superShadow" x="-30%" y="-30%" width="160%" height="180%">
+      <feDropShadow dx="0" dy="18" stdDeviation="16" flood-color="#000" flood-opacity="0.46"/>
+    </filter>
+  </defs>
+  <ellipse cx="240" cy="546" rx="124" ry="24" fill="#000" opacity="0.25"/>
+  <g filter="url(#superShadow)">
+    <ellipse cx="240" cy="236" rx="144" ry="144" fill="url(#superGlow)"/>
+    <g fill="url(#superSilver)">
+      <path d="M240 70c-31 96-43 188-123 263 29 15 59 27 89 34 11-60 32-116 34-181 2 65 23 121 34 181 30-7 60-19 89-34-80-75-92-167-123-263z"/>
+      <path d="M154 400h172v36H154z"/>
+      <path d="M131 436h218v34H131z"/>
+      <path d="M160 470h160v20H160z"/>
+    </g>
+    <circle cx="240" cy="215" r="66" fill="url(#superPlate)"/>
+    <circle cx="240" cy="215" r="54" fill="none" stroke="#f1dd9a" stroke-width="6" opacity="0.8"/>
+    <path d="M205 215h70M240 180v70M218 193l44 44M262 193l-44 44" stroke="#fff0ba" stroke-width="5.5" stroke-linecap="round" opacity="0.82"/>
+    <path d="M140 124c44 26 74 61 100 118M340 124c-44 26-74 61-100 118" fill="none" stroke="#e8eef5" stroke-width="12" stroke-linecap="round" opacity="0.78"/>
+  </g>
 </svg>

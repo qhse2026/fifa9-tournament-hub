@@ -1,4 +1,45 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 520">
-<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fffbd8"/><stop offset=".25" stop-color="#bfc5ca"/><stop offset=".48" stop-color="#ffffff"/><stop offset=".75" stop-color="#9b7131"/><stop offset="1" stop-color="#4e3214"/></linearGradient><filter id="s"><feDropShadow dx="0" dy="14" stdDeviation="13" flood-opacity=".55"/></filter></defs>
-<g filter="url(#s)"><path fill="url(#g)" d="M126 140h168l-18 190c-5 53-31 86-66 86s-61-33-66-86z"/><path fill="url(#g)" d="M170 93h80l18 46H152z"/><path fill="url(#g)" d="M195 38h30v60h-30z"/><circle cx="210" cy="31" r="21" fill="url(#g)"/><path fill="none" stroke="url(#g)" stroke-width="24" d="M132 176H78c-18 0-29 18-21 34 28 55 58 84 92 99M288 176h54c18 0 29 18 21 34-28 55-58 84-92 99"/><path fill="#111821" d="M156 395h108v49H156z"/><path fill="url(#g)" d="M93 444h234v34H93z"/><path fill="#8b1017" d="M105 143 65 360l45-23 30 37 23-231zM315 143l40 217-45-23-30 37-23-231z"/><circle cx="210" cy="251" r="48" fill="#0d1722" opacity=".25"/><path fill="none" stroke="#f8dd91" stroke-width="7" d="M184 251h52M210 225v52" opacity=".8"/></g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 600" role="img" aria-label="Oruç Reis Cup">
+  <defs>
+    <linearGradient id="orucGold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff6d4"/>
+      <stop offset="0.22" stop-color="#d3d8de"/>
+      <stop offset="0.42" stop-color="#fefefe"/>
+      <stop offset="0.66" stop-color="#bd8936"/>
+      <stop offset="1" stop-color="#512f14"/>
+    </linearGradient>
+    <linearGradient id="orucRibbon" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#b31723"/>
+      <stop offset="1" stop-color="#6c0d16"/>
+    </linearGradient>
+    <filter id="orucShadow" x="-30%" y="-30%" width="160%" height="180%">
+      <feDropShadow dx="0" dy="18" stdDeviation="16" flood-color="#000" flood-opacity="0.46"/>
+    </filter>
+    <radialGradient id="orucGlow" cx="50%" cy="36%" r="58%">
+      <stop offset="0" stop-color="#ffe6a6" stop-opacity="0.6"/>
+      <stop offset="1" stop-color="#ffe6a6" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <ellipse cx="240" cy="548" rx="126" ry="24" fill="#000" opacity="0.28"/>
+  <g filter="url(#orucShadow)">
+    <ellipse cx="240" cy="230" rx="146" ry="146" fill="url(#orucGlow)"/>
+    <g fill="url(#orucGold)">
+      <path d="M173 88h134l22 48H151z"/>
+      <path d="M192 54h96v36h-96z"/>
+      <path d="M210 26h60v28h-60z"/>
+      <path d="M146 136h188l-18 194c-7 79-39 130-76 130s-69-51-76-130z"/>
+      <path d="M154 178H98c-19 0-30 18-22 35 25 52 61 86 101 104" fill="none" stroke="url(#orucGold)" stroke-width="23" stroke-linecap="round"/>
+      <path d="M326 178h56c19 0 30 18 22 35-25 52-61 86-101 104" fill="none" stroke="url(#orucGold)" stroke-width="23" stroke-linecap="round"/>
+      <path d="M184 462h112v40H184z"/>
+      <path d="M132 502h216v32H132z"/>
+      <path d="M155 534h170v22H155z"/>
+    </g>
+    <path d="M178 144H102l16 211 36-20 28 34z" fill="url(#orucRibbon)"/>
+    <path d="M302 144h76l-16 211-36-20-28 34z" fill="url(#orucRibbon)"/>
+    <path d="M181 148h118l-12 174c-4 58-23 100-47 100s-43-42-47-100z" fill="#07131d" opacity="0.18"/>
+    <g transform="translate(240 260)">
+      <circle r="48" fill="#0d1722" opacity="0.18"/>
+      <path d="M0-24v49M-24 0h48M-16 21c6 6 13 10 16 10s10-4 16-10" fill="none" stroke="#f7dc90" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"/>
+      <circle r="6" fill="#f7dc90"/>
+    </g>
+  </g>
 </svg>

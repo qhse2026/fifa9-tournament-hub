@@ -1,4 +1,44 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 520">
-<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f6f7f9"/><stop offset=".32" stop-color="#84909c"/><stop offset=".55" stop-color="#ffffff"/><stop offset="1" stop-color="#3b4650"/></linearGradient><filter id="s"><feDropShadow dx="0" dy="14" stdDeviation="12" flood-opacity=".55"/></filter></defs>
-<g filter="url(#s)"><path fill="url(#g)" d="M111 92h198l-18 244c-4 57-39 92-81 92s-77-35-81-92z"/><path fill="none" stroke="url(#g)" stroke-width="28" d="M120 141H65c-14 0-24 13-20 26 20 76 52 119 99 137M300 141h55c14 0 24 13 20 26-20 76-52 119-99 137"/><path fill="#111923" d="M158 405h104v38H158z"/><path fill="url(#g)" d="M103 443h214v34H103z"/><path fill="#17212c" d="M152 140h116l-20 210c-2 22-18 43-38 43s-36-21-38-43z" opacity=".18"/><path fill="none" stroke="#e6ebef" stroke-width="7" d="M176 218h68M169 248h82M165 278h90" opacity=".75"/></g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 600" role="img" aria-label="Championship Trophy">
+  <defs>
+    <linearGradient id="champSilver" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fcfdff"/>
+      <stop offset="0.2" stop-color="#d7dde4"/>
+      <stop offset="0.45" stop-color="#8a96a2"/>
+      <stop offset="0.68" stop-color="#f2f4f8"/>
+      <stop offset="1" stop-color="#505b67"/>
+    </linearGradient>
+    <linearGradient id="champSteel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#263240"/>
+      <stop offset="1" stop-color="#0b1219"/>
+    </linearGradient>
+    <radialGradient id="champGlow" cx="50%" cy="35%" r="58%">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="champShadow" x="-30%" y="-30%" width="160%" height="180%">
+      <feDropShadow dx="0" dy="18" stdDeviation="16" flood-color="#000" flood-opacity="0.42"/>
+    </filter>
+  </defs>
+  <ellipse cx="240" cy="545" rx="122" ry="24" fill="#000" opacity="0.26"/>
+  <g filter="url(#champShadow)">
+    <ellipse cx="240" cy="235" rx="140" ry="140" fill="url(#champGlow)"/>
+    <g fill="url(#champSilver)">
+      <path d="M150 110h180l-18 228c-7 85-43 134-72 134s-65-49-72-134z"/>
+      <path d="M170 76h140l20 34H150z"/>
+      <path d="M136 150H84c-15 0-24 14-20 27 19 74 56 118 106 142" fill="none" stroke="url(#champSilver)" stroke-width="24" stroke-linecap="round"/>
+      <path d="M344 150h52c15 0 24 14 20 27-19 74-56 118-106 142" fill="none" stroke="url(#champSilver)" stroke-width="24" stroke-linecap="round"/>
+      <path d="M186 468h108v38H186z"/>
+      <path d="M138 506h204v30H138z"/>
+      <path d="M160 536h160v22H160z"/>
+    </g>
+    <path d="M178 126h124l-15 188c-5 63-25 111-47 111s-42-48-47-111z" fill="#08131e" opacity="0.18"/>
+    <g stroke="#eef5fb" stroke-width="6" fill="none" opacity="0.78" stroke-linecap="round">
+      <path d="M188 208h104"/>
+      <path d="M182 240h116"/>
+      <path d="M178 272h124"/>
+      <path d="M186 304h108"/>
+    </g>
+    <circle cx="240" cy="268" r="40" fill="none" stroke="#dfe8f1" stroke-width="8" opacity="0.78"/>
+    <path d="M221 268l13 13 26-28" fill="none" stroke="#f7fbff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"/>
+  </g>
 </svg>
