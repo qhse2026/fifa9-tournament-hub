@@ -1,0 +1,17 @@
+FIFA 9 V35.3 — TURNUVA ORGANİZASYONU DUYURU EKRANI
+
+Bu güncelleme mevcut sert iptal ekranını, arkadaşlık ortamını koruyan ve kimseyi hedef göstermeyen tam ekran bir organizasyon kapanış duyurusuna dönüştürür.
+
+Güncellenen dosyalar:
+- index.html
+- styles.css
+- service-worker.js
+
+GitHub yükleme:
+1. PATCH ZIP dosyasını açın.
+2. Dosyaları repository ana dizinine yükleyin.
+3. Mevcut dosyaların üzerine yazmayı onaylayın.
+4. Commit mesajı: Add respectful tournament announcement v35.3
+5. Vercel deploy tamamlandıktan sonra Ctrl + F5 yapın.
+
+Supabase SQL gerekmez. Mevcut turnuva verileri silinmez.

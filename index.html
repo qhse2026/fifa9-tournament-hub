@@ -11,14 +11,22 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body class="shutdown-mode">
-  <div class="shutdown-overlay" role="alert" aria-live="assertive">
-    <div class="shutdown-overlay-inner">
-      <div class="shutdown-kicker">RESMÎ DUYURU</div>
-      <h1 class="shutdown-title">Turnuva şikeden dolayı kalıcı olarak iptal edilmiştir</h1>
+  <div class="shutdown-overlay tournament-announcement-overlay" role="dialog" aria-modal="true" aria-labelledby="announcementTitle">
+    <div class="shutdown-overlay-inner tournament-announcement-card">
+      <div class="shutdown-kicker">FIFA TURNUVA MERKEZİ</div>
+      <h1 class="shutdown-title" id="announcementTitle">Turnuva Organizasyonu Hakkında Duyuru</h1>
       <div class="shutdown-divider"></div>
-      <p class="shutdown-subtitle">Bir daha FIFA turnuvası tarafımdan düzenlenmeyecektir.</p>
+      <div class="tournament-announcement-copy">
+        <p>Bu organizasyon; herkesin yoğun çalışma temposu içinde keyifli vakit geçirebileceği, dostça rekabet edebileceği ve birlikte güzel anılar biriktirebileceği bir ortam oluşturmak amacıyla planlandı. Aynı anlayışla, turnuvayı keyifle takip edebileceğiniz ve sizlere yakışan kapsamlı bir platform hazırlamak için büyük bir emek ve zaman harcandı.</p>
+        <p>Ancak süreç içerisinde organizasyonun başlangıçtaki eğlence ve birliktelik amacından uzaklaşmaya başladığını; bazı arkadaşlarımızın kendisini rahatsız, huzursuz veya keyifsiz hissettiğini gözlemledim. Bir etkinliğin insanları bir araya getirmesi gerekirken aramızdaki güzel arkadaşlık ortamını olumsuz etkileme ihtimali benim için turnuvanın devamından daha önemlidir.</p>
+        <p>Bu nedenle, herhangi bir arkadaşımızı hedef göstermeden veya kimseyi kırmadan, turnuva organizasyonunu bu noktada sonlandırma ve bundan sonraki FIFA turnuvalarının organizasyon sorumluluğunu üstlenmeme kararı aldım.</p>
+        <p>Bu karar herhangi bir kişiye karşı alınmış değildir. Tek amacım, gemide birlikte geçirdiğimiz zamanı, karşılıklı saygımızı ve arkadaşlık bağlarımızı korumaktır. Bugüne kadar turnuvaya katılan, destek veren, maçları takip eden ve organizasyona renk katan herkese içtenlikle teşekkür ederim.</p>
+        <p class="tournament-announcement-closing">Umarım geriye rekabetten çok birlikte güldüğümüz ve keyif aldığımız güzel anlar kalır.</p>
+      </div>
+      <div class="tournament-announcement-thanks">Anlayışınız için teşekkür ederim.</div>
     </div>
   </div>
+
   <div class="ambient ambient-one"></div>
   <div class="ambient ambient-two"></div>
 
@@ -55,7 +63,7 @@
 
       <div class="sidebar-footer">
         <div class="save-indicator" id="sidebarCloudStatus"><span class="status-dot"></span> Canlı bağlantı hazırlanıyor</div>
-        <div class="sidebar-version">FIFA 9 · Intelligence Platform v35.1</div>
+        <div class="sidebar-version">FIFA 9 · Announcement Mode v35.3</div>
       </div>
     </aside>
 
