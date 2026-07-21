@@ -1,0 +1,47 @@
+FIFA Lig Sistemi v38.0 — Sezon Operasyon Platformu
+==================================================
+
+Bu sürüm FIFA 10 ve sonraki sezonlar için üç ana modül ekler:
+
+1. SEZON BAŞLATMA SİHİRBAZI
+- Katılım teyidi
+- Premier League / Championship dağılımı
+- Tüm Zamanlar sıralamasına göre otomatik ilk 7
+- Takım havuzu ve tekrar kuralı onayı
+- Test / resmî sezon seçimi
+- Fikstürü oluşturma ve uygun durumda sezonu başlatma
+
+2. TAKIM HAVUZU VE KULLANIM MERKEZİ
+- 4★, 4.5★, 5★ ve kupa takım havuzları
+- Yönetici tarafından takım listesi düzenleme
+- Takım havuzlarını kilitleme
+- Havuz dışı takım kullanımını engelleme
+- Aynı devrede aynı takımı tekrar kullanmayı engelleme
+- Oyuncu takım kullanım matrisi
+- En çok kullanılan takım ve sonuç özeti
+
+3. OYUNCU KARİYER PASAPORTU
+- FIFA01 ve sonraki sezonların kariyer özeti
+- Maç, galibiyet, gol ve averaj verileri
+- Kupa, ikincilik ve üçüncülük koleksiyonu
+- Sezon yolculuğu, lig seviyesi ve sıralama
+- En sık kullanılan takımlar
+- En çok karşılaşılan rakip
+- Legacy puanı
+
+KURULUM
+- PATCH ONLY paketindeki dosyaları GitHub ana dizinine yükleyin.
+- Klasör yapısını koruyun.
+- Vercel deploy tamamlandıktan sonra Ctrl + F5 uygulayın.
+
+GÜNCELLENEN ANA DOSYALAR
+- index.html
+- season-hub.js
+- season-hub.css
+- service-worker.js
+
+VERİ GÜVENLİĞİ
+- Yeni SQL gerekmez.
+- FIFA09 ve tarihî turnuva kayıtları korunur.
+- Mevcut FIFA10 sezon verileri otomatik olarak v38 yapısına uyarlanır.
+- Takım havuzları boş başlayabilir ve yönetici tarafından doldurulabilir.

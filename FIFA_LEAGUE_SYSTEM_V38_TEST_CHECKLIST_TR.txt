@@ -1,0 +1,39 @@
+FIFA Lig Sistemi v38.0 — Test Kontrol Listesi
+============================================
+
+SEZON SİHİRBAZI
+[ ] Yönetici > Sezon Sihirbazı açılıyor
+[ ] Katılım teyidi değiştirilebiliyor
+[ ] Otomatik ilk 7 Premier dağılımı çalışıyor
+[ ] Premier oyuncu sayısı 7 değilse işlem engelleniyor
+[ ] Championship oyuncu sayısı en az 2 değilse işlem engelleniyor
+[ ] Test modu seçilebiliyor
+[ ] FIFA09 bitmeden resmî FIFA10 hemen başlatılamıyor
+[ ] 7 oyunculu Premier fikstürü 63 maç oluşturuyor
+[ ] Her Premier oyuncusu 18 maç oynuyor
+
+TAKIM MERKEZİ
+[ ] 4★ havuzu düzenleniyor
+[ ] 4.5★ havuzu düzenleniyor
+[ ] 5★ havuzu düzenleniyor
+[ ] Kupa havuzu düzenleniyor
+[ ] Havuz kilidi çalışıyor
+[ ] Kilitli havuzda liste dışı takım engelleniyor
+[ ] Aynı oyuncunun aynı devrede aynı takımı tekrar kullanması engelleniyor
+[ ] Takım kullanım matrisi sonuçlardan sonra güncelleniyor
+
+KARİYER PASAPORTU
+[ ] Oyuncu seçimi çalışıyor
+[ ] FIFA01-FIFA08 tarihî madalyaları gösteriliyor
+[ ] FIFA09 tamamlandığında kupa kaydı görünüyor
+[ ] FIFA10+ lig ve kupa kayıtları görünüyor
+[ ] Maç ve gol istatistikleri hesaplanıyor
+[ ] Takım kullanım listesi oluşuyor
+[ ] Sezon yolculuğu sıralanıyor
+
+GENEL
+[ ] Masaüstü görünüm düzgün
+[ ] Mobil görünüm düzgün
+[ ] Yönetici olmayan kullanıcı yalnızca görüntüleyebiliyor
+[ ] Supabase senkronizasyonu sonrası veriler korunuyor
+[ ] Ctrl + F5 sonrası v38.0 görünür

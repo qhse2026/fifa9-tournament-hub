@@ -1,4 +1,4 @@
-const CACHE = "fifa-league-system-v37-1-trophy-sidebar-fix";
+const CACHE = "fifa-league-system-v38-season-operations";
 const APP_SHELL = [
   "./",
   "./index.html",
