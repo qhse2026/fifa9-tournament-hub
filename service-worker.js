@@ -1,9 +1,11 @@
-const CACHE = "fifa9-fifa10-season-museum-v36";
+const CACHE = "fifa-league-system-v37-real-season-engine";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
+  "./season-hub.js",
+  "./season-hub.css",
   "./language.js",
   "./cloud.js",
   "./chat.js",

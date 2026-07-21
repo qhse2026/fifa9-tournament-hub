@@ -47,6 +47,7 @@
     print: "Çıktı Merkezi",
     archive: "Turnuva Arşivi",
     museum: "Sezonlar & Kupa Müzesi",
+    seasonhub: "FIFA Lig Sistemi",
     alltime: "Tüm Zamanlar",
     teams: "Takım İstatistikleri",
     backup: "Veri & Yedek"
@@ -84,6 +85,9 @@
 
   function defaultSeasonSystem() {
     return {
+      infrastructureVersion: 37,
+      activeEdition: 10,
+      seasons: [],
       fifa10Draft: {
         status: "none",
         createdAt: null,
@@ -165,7 +169,10 @@
           },
           players: Array.isArray(raw.seasonSystem?.fifa10Draft?.players) ? raw.seasonSystem.fifa10Draft.players : []
         },
-        customHonours: Array.isArray(raw.seasonSystem?.customHonours) ? raw.seasonSystem.customHonours : []
+        customHonours: Array.isArray(raw.seasonSystem?.customHonours) ? raw.seasonSystem.customHonours : [],
+        seasons: Array.isArray(raw.seasonSystem?.seasons) ? raw.seasonSystem.seasons : [],
+        activeEdition: Number(raw.seasonSystem?.activeEdition) || 10,
+        infrastructureVersion: Math.max(37, Number(raw.seasonSystem?.infrastructureVersion) || 0)
       },
       current: {
         ...fresh.current,
@@ -929,24 +936,35 @@
   }
 
   function renderFifa10DraftPanel() {
-    const draft=seasonSystem().fifa10Draft;
-    if (draft.status!=="draft") return `<section class="panel fifa10-draft-empty"><div><span class="badge badge-gold">FIFA 10 HAZIRLIK</span><h3>Yeni sezon arayüzü hazır, aktif turnuva korunuyor</h3><p>FIFA 09 tamamlanmadan FIFA 10 için test taslağı oluşturabilirsin. Taslak ayrı bir alanda tutulur; mevcut maçlara, tablolara ve canlı yayına dokunmaz.</p></div>${canEdit()?`<button class="btn btn-gold" data-action="create-fifa10-draft">FIFA 10 Test Taslağı Oluştur</button>`:`<span class="badge">Yönetici oluşturabilir</span>`}</section>`;
-    const premier=draft.players.filter(item=>item.league==="premier"&&item.name?.trim());
-    const championship=draft.players.filter(item=>item.league!=="premier"&&item.name?.trim());
+    const seasons = Array.isArray(seasonSystem().seasons) ? seasonSystem().seasons : [];
+    const season10 = seasons.find(item => Number(item.edition) === 10);
+    const status = season10?.status || "setup";
+    const statusCopy = {
+      setup: "Oyuncu kayıtları hazırlanıyor",
+      scheduled: "Üç devreli fikstür hazır",
+      active: season10?.mode === "test" ? "Test sezonu aktif" : "Resmî sezon aktif",
+      completed: "Sezon tamamlandı",
+      cancelled: "Sezon iptal edildi"
+    }[status] || "Gerçek sezon altyapısı hazır";
+    const players = Array.isArray(season10?.players) ? season10.players.filter(item => item.participating !== false && item.name?.trim()) : [];
+    const premier = players.filter(item => item.league === "premier").length;
+    const championship = players.filter(item => item.league !== "premier").length;
     return `<section class="panel fifa10-draft-panel">
-      <div class="panel-header"><div><div class="eyebrow">FIFA 10 · TEST MODU</div><h3 class="panel-title">Sezon Yapılandırması</h3><div class="panel-subtitle">FIFA 09 aktif kalırken bağımsız taslak ortamı.</div></div><div class="draft-actions">${canEdit()?`<button class="btn btn-ghost btn-small" data-action="auto-assign-fifa10">İlk 7’yi Otomatik Belirle</button><button class="btn btn-gold btn-small" data-action="save-fifa10-draft">Taslağı Kaydet</button><button class="btn btn-danger btn-small" data-action="cancel-fifa10-draft">Taslağı İptal Et</button>`:""}</div></div>
-      <div class="fifa10-format-grid"><div><strong>Premier League</strong><span>${premier.length} / 7 oyuncu</span><small>Tüm zamanların en iyi 7 aktif oyuncusu</small></div><div><strong>Championship</strong><span>${championship.length} oyuncu</span><small>Kalan ve yeni katılan oyuncular</small></div><div><strong>3 Devre Sistemi</strong><span>4★ · 4.5★ · 5★</span><small>Her rakiple üç maç</small></div><div><strong>Yükselme / Düşme</strong><span>2 ↑ · 2 ↓</span><small>Sezon sonunda otomatik geçiş</small></div></div>
-      <div class="fifa10-player-editor"><div class="fifa10-player-editor-head"><strong>FIFA 10 Oyuncu Listesi</strong><span>İsimleri yaz; otomatik dağıtım Tüm Zamanlar sıralamasını kullanır.</span></div><div class="fifa10-player-rows">${draft.players.map((item,index)=>`<div class="fifa10-player-row"><span>${String(index+1).padStart(2,"0")}</span><input class="text-input" data-fifa10-name="${item.id}" value="${escapeHTML(item.name)}" placeholder="Oyuncu adı" ${canEdit()?"":"disabled"}><select class="select-control" data-fifa10-league="${item.id}" ${canEdit()?"":"disabled"}><option value="premier" ${item.league==="premier"?"selected":""}>Premier League</option><option value="championship" ${item.league!=="premier"?"selected":""}>Championship</option></select>${canEdit()?`<button class="icon-button danger" data-action="remove-fifa10-player" data-player-id="${item.id}" aria-label="Oyuncuyu sil">×</button>`:""}</div>`).join("")}</div>${canEdit()?`<button class="btn btn-ghost btn-small mt-16" data-action="add-fifa10-player">+ Oyuncu Ekle</button>`:""}</div>
-      <div class="draft-safety-note"><span>✓</span><div><strong>Güvenli taslak modu</strong><p>Bu ekran FIFA 09 fikstürünü, sonuçlarını, oyuncu istatistiklerini veya arşivini değiştirmez. İptal işlemi yalnızca FIFA 10 taslağını kaldırır.</p></div></div>
+      <div class="panel-header"><div><div class="eyebrow">FIFA 10 · GERÇEK SEZON FORMATI</div><h3 class="panel-title">Kalıcı FIFA Lig Sistemi</h3><div class="panel-subtitle">FIFA 10 ve sonraki sezonlarda aynı yükselme, düşme ve kupa motoru kullanılacaktır.</div></div><button class="btn btn-gold" data-nav="seasonhub">FIFA Lig Sistemini Aç</button></div>
+      <div class="fifa10-format-grid"><div><strong>Premier League</strong><span>${premier || 7} oyuncu</span><small>FIFA 10 için aktif Tüm Zamanlar ilk 7</small></div><div><strong>Championship</strong><span>${championship || "Kalan oyuncular"}</span><small>Yeni ve geri dönen oyuncular burada başlar</small></div><div><strong>3 Devre Sistemi</strong><span>4★ · 4.5★ · 5★</span><small>Premier oyuncusu başına 18 lig maçı</small></div><div><strong>Kalıcı Sezon Motoru</strong><span>FIFA 10 → FIFA 11+</span><small>2 yükselir, 2 düşer, yedek sırası uygulanır</small></div></div>
+      <div class="draft-safety-note"><span>✓</span><div><strong>${escapeHTML(statusCopy)}</strong><p>FIFA 09 mevcut turnuva verileri korunur. FIFA 10 ayrı gerçek sezon altyapısında hazırlanabilir, test edilebilir, sıfırlanabilir ve gerektiğinde iptal edilebilir.</p></div></div>
     </section>`;
   }
 
   function renderSeasonMuseum() {
-    const draftActive=seasonSystem().fifa10Draft.status==="draft";
-    const editions=Array.from({length:10},(_,i)=>i+1);
-    view.innerHTML=`<section class="museum-hero"><div><div class="eyebrow">FIFA SEZON EVRENİ</div><h2>Kupa Müzesi & Sezon Merkezi</h2><p>Oruç Reis Kupası tarihinden Premier League dönemine uzanan kalıcı şampiyonluk arşivi.</p></div><div class="museum-status"><span class="status-live">● FIFA 09 aktif</span><span class="${draftActive?"status-draft":"status-muted"}">${draftActive?"FIFA 10 taslak modu":"FIFA 10 henüz oluşturulmadı"}</span></div></section>
-      <section class="museum-season-switch"><strong>EDİSYON / SEZON SEÇİCİ</strong><div>${editions.map(e=>`<button class="${museumSelectedEdition===e?"active":""} ${e===10?"draft-tab":""}" data-action="set-museum-edition" data-edition="${e}">${seasonLabel(e)}${e===10?`<small>${draftActive?"TASLAK":"HAZIRLIK"}</small>`:""}</button>`).join("")}</div></section>
-      <section class="museum-gallery-wrap"><aside class="museum-gallery-intro"><span>KUPA MÜZESİ</span><h3>Koleksiyon</h3><p>Turnuva tarihinin prestijli kupaları, sezon kayıtları ve oyuncu madalyaları.</p><div class="museum-current-season"><strong>${seasonLabel(museumSelectedEdition)}</strong><small>${museumSelectedEdition===9&&!currentFifa9Honour()?"Turnuva devam ediyor":museumSelectedEdition===10?"Yeni lig sistemi":"Tarihî sezon"}</small></div></aside><div class="museum-trophy-gallery">${museumCompetitions.map(renderMuseumTrophyCard).join("")}</div></section>
+    const seasons = Array.isArray(seasonSystem().seasons) ? seasonSystem().seasons : [];
+    const season10 = seasons.find(item => Number(item.edition) === 10);
+    const maxEdition = Math.max(10, ...seasons.map(item => Number(item.edition) || 0));
+    const editions=Array.from({length:maxEdition},(_,i)=>i+1);
+    const seasonStatus = season10 ? ({setup:"HAZIRLIK",scheduled:"FİKSTÜR HAZIR",active:season10.mode === "test" ? "TEST AKTİF" : "AKTİF",completed:"TAMAMLANDI",cancelled:"İPTAL"}[season10.status] || "HAZIRLIK") : "ALTYAPI HAZIR";
+    view.innerHTML=`<section class="museum-hero"><div><div class="eyebrow">FIFA SEZON EVRENİ</div><h2>Kupa Müzesi & Sezon Merkezi</h2><p>Oruç Reis Kupası tarihinden Premier League dönemine uzanan kalıcı şampiyonluk arşivi.</p></div><div class="museum-status"><span class="status-live">● FIFA 09 aktif</span><span class="status-draft">FIFA 10 · ${escapeHTML(seasonStatus)}</span></div></section>
+      <section class="museum-season-switch"><strong>EDİSYON / SEZON SEÇİCİ</strong><div>${editions.map(e=>`<button class="${museumSelectedEdition===e?"active":""} ${e>=10?"draft-tab":""}" data-action="set-museum-edition" data-edition="${e}">${seasonLabel(e)}${e>=10?`<small>${e===10?seasonStatus:"SEZON"}</small>`:""}</button>`).join("")}</div></section>
+      <section class="museum-gallery-wrap"><aside class="museum-gallery-intro"><span>KUPA MÜZESİ</span><h3>Koleksiyon</h3><p>Turnuva tarihinin prestijli kupaları, sezon kayıtları ve oyuncu madalyaları.</p><div class="museum-current-season"><strong>${seasonLabel(museumSelectedEdition)}</strong><small>${museumSelectedEdition===9&&!currentFifa9Honour()?"Turnuva devam ediyor":museumSelectedEdition>=10?"Premier League dönemi":"Tarihî Oruç Reis Kupası"}</small></div></aside><div class="museum-trophy-gallery">${museumCompetitions.map(renderMuseumTrophyCard).join("")}</div></section>
       <div class="museum-lower-grid">${renderHonourBoard()}${renderPlayerMuseum()}</div>
       ${renderFifa10DraftPanel()}`;
   }
@@ -980,6 +998,7 @@
       case "print": renderPrintCenter(); break;
       case "archive": renderArchive(); break;
       case "museum": renderSeasonMuseum(); break;
+      case "seasonhub": window.FIFA_SEASON_HUB?.render?.(view); break;
       case "alltime": renderAllTime(); break;
       case "teams": renderTeamStatistics(); break;
       case "backup": renderBackup(); break;
@@ -7936,6 +7955,7 @@ ${shareData.url}`)}`;
 
   document.addEventListener("click", event => {
     if (window.FIFA_CHAT_UI?.handleClick?.(event)) return;
+    if (window.FIFA_SEASON_HUB?.handleClick?.(event)) return;
     const nav = event.target.closest("[data-nav]");
     if (nav) { navTo(nav.dataset.nav); return; }
     const action = event.target.closest("[data-action]");
@@ -8122,6 +8142,7 @@ ${shareData.url}`)}`;
   });
 
   document.addEventListener("input", event => {
+    if (window.FIFA_SEASON_HUB?.handleInput?.(event)) return;
     if (event.target.dataset.fifa10Name && canEdit()) {
       const player=seasonSystem().fifa10Draft.players.find(item=>item.id===event.target.dataset.fifa10Name);
       if (player) { player.name=event.target.value; seasonSystem().fifa10Draft.updatedAt=new Date().toISOString(); saveState(); }
@@ -8153,6 +8174,7 @@ ${shareData.url}`)}`;
 
   document.addEventListener("submit", event => {
     if (window.FIFA_CHAT_UI?.handleSubmit?.(event)) return;
+    if (window.FIFA_SEASON_HUB?.handleSubmit?.(event)) return;
     if (event.target.id === "honourRecordForm") { event.preventDefault(); saveHonourRecord(event.target); return; }
     if (event.target.id === "matchForm") {
       event.preventDefault();
@@ -8177,6 +8199,7 @@ ${shareData.url}`)}`;
   });
 
   document.addEventListener("change", event => {
+    if (window.FIFA_SEASON_HUB?.handleChange?.(event)) return;
     if (event.target.dataset.fifa10League && canEdit()) {
       const player=seasonSystem().fifa10Draft.players.find(item=>item.id===event.target.dataset.fifa10League);
       if (player) { player.league=event.target.value==="premier"?"premier":"championship"; seasonSystem().fifa10Draft.updatedAt=new Date().toISOString(); saveState(); renderSeasonMuseum(); }
@@ -8256,10 +8279,16 @@ ${shareData.url}`)}`;
   window.FIFA_APP_CONTEXT = {
     getState: () => state,
     getParticipants: () => state.current.participants,
+    getHistorical: () => historical,
     getActiveView: () => activeView,
     canEdit,
     isAdmin: () => cloudAdmin,
     toast,
+    saveState,
+    cacheState,
+    openModal,
+    closeModal,
+    escapeHTML,
     refreshView: () => render(),
     navigate: target => navTo(target)
   };

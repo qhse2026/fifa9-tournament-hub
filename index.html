@@ -9,6 +9,7 @@
   <link rel="icon" href="assets/f9-mark.svg" type="image/svg+xml" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="season-hub.css" />
 </head>
 <body class="shutdown-mode">
   <div class="shutdown-overlay tournament-announcement-overlay" id="tournamentAnnouncement" role="dialog" aria-modal="true" aria-labelledby="announcementTitle">
@@ -57,6 +58,7 @@
         <button class="nav-item" data-nav="knockout"><span class="nav-icon">⌁</span><span>Eleme Aşaması</span></button>
         <button class="nav-item" data-nav="print"><span class="nav-icon">▤</span><span>Çıktı Merkezi</span></button>
         <div class="nav-divider"></div>
+        <button class="nav-item" data-nav="seasonhub"><span class="nav-icon">⚽</span><span>FIFA Lig Sistemi</span></button>
         <button class="nav-item" data-nav="museum"><span class="nav-icon">♜</span><span>Sezonlar & Kupa Müzesi</span></button>
         <button class="nav-item" data-nav="archive"><span class="nav-icon">◇</span><span>Turnuva Arşivi</span></button>
         <button class="nav-item" data-nav="alltime"><span class="nav-icon">♛</span><span>Tüm Zamanlar</span></button>
@@ -117,6 +119,7 @@
   <script src="chat.js"></script>
   <script src="community.js"></script>
   <script src="app.js"></script>
+  <script src="season-hub.js"></script>
   <script>
     (() => {
       const overlay = document.getElementById('tournamentAnnouncement');

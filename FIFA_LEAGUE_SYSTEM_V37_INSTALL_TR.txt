@@ -1,0 +1,82 @@
+FIFA LEAGUE SYSTEM V37.0 — GERÇEK FIFA 10 SEZONU VE ÇOKLU SEZON ALTYAPISI
+
+KURULUM
+1. PATCH ONLY paketini açın.
+2. Aşağıdaki dosyaları GitHub projesinin ana dizinine yükleyin / üzerine yazın:
+   - index.html
+   - app.js
+   - season-hub.js
+   - season-hub.css
+   - service-worker.js
+   - assets/trophies/*.svg
+3. Commit önerisi:
+   Add real FIFA 10 league system and multi-season engine v37
+4. Vercel deployment tamamlandıktan sonra Ctrl + F5 uygulayın.
+
+YENİ MENÜ
+- Sol menü: FIFA Lig Sistemi
+- Kupa Müzesi mevcut ayrı menü olarak korunur.
+
+FIFA 10 KURULUM AKIŞI
+1. FIFA Lig Sistemi > Yönetim sekmesine girin.
+2. Toplu Liste ile FIFA 10 oyuncularını her satıra bir isim gelecek şekilde ekleyin.
+3. Otomatik Dağıt düğmesine basın.
+   - Katılım listesindeki Tüm Zamanlar sıralamasında en iyi 7 oyuncu Premier League'e alınır.
+   - Diğer oyuncular Championship'e alınır.
+4. Gerekirse lig dağılımını yönetici olarak manuel düzeltin.
+5. Fikstürü Oluştur düğmesine basın.
+6. FIFA 09 tamamlanmadan deneme yapmak için Test Modunu Açın.
+7. Resmî başlangıçta Test sonuçlarını sıfırlayın, Resmî Moda geçin ve Sezonu Başlatın.
+
+GERÇEK FORMAT
+- Premier League: 7 oyuncu.
+- 1. Devre: 4 yıldızlı takımlar.
+- 2. Devre: 4.5 yıldızlı takımlar.
+- 3. Devre: 5 yıldızlı takımlar.
+- Premier oyuncusu başına 18 maç; Premier toplam 63 maç.
+- Championship aynı üç devreli round-robin sistemi kullanır.
+- Galibiyet 3, beraberlik 1, mağlubiyet 0 puan.
+- Premier son 2 Championship'e düşer.
+- Championship ilk 2 Premier League'e yükselir.
+- Championship 3. oyuncusu ilk yedek hak sahibidir.
+
+ORUÇ REİS KUPASI
+- Premier 1. ve 2. doğrudan yarı finale kalır.
+- Play-off 1: Premier 3. – Championship 1.
+- Play-off 2: Premier 4. – Premier 5.
+- Play-off ve yarı final Best of 3, 4.5 yıldız.
+- Yarı final eşleşmeleri kura ile belirlenir.
+- Final tek maç, 4.5 yıldız ve aynı takım formatıdır.
+
+SÜPER KUPA
+- Premier League şampiyonu – Oruç Reis Kupası şampiyonu.
+- Aynı oyuncu iki kupayı kazanırsa Oruç Reis Kupası finalisti rakip olur.
+- Tek maç ve aynı takım formatı.
+- FIFA 11 resmî olarak başlatılmadan FIFA 10 Süper Kupasının tamamlanması gerekir.
+
+SONRAKİ SEZONLAR
+- + Yeni Sezon düğmesi FIFA 11, FIFA 12 ve sonraki sezonları oluşturur.
+- Önceki Premier ilk 5 ligde kalır.
+- Championship ilk 2 yükselir.
+- Premier son 2 Championship'e düşer.
+- Katılmayan Premier hak sahibinin yeri Championship 3., ardından 4., 5. sırasıyla doldurulur.
+- Yeni ve geri dönen oyuncular Championship'ten başlar.
+
+TEST / İPTAL GÜVENLİĞİ
+- Test modundaki sonuçlar Kupa Müzesine resmî kayıt olarak işlenmez.
+- Sonuçları Sıfırla: skorları ve kupa aşamalarını temizler; oyuncu ve lig fikstürünü korur.
+- Sezonu İptal Et: yalnızca seçili sezonu iptal durumuna alır; FIFA 09 ve diğer sezonlar etkilenmez.
+- İptal edilen sezon yeniden açılabilir.
+- FIFA 11 ve sonraki sonuçsuz sezonlar kalıcı olarak silinebilir.
+
+KUPA MÜZESİ
+Resmî modda tamamlanan sonuçlar otomatik kaydedilir:
+- Premier League: şampiyon, ikinci, üçüncü.
+- Championship: şampiyon, ikinci, üçüncü.
+- Oruç Reis Kupası: şampiyon ve finalist.
+- Süper Kupa: şampiyon ve finalist.
+
+VERİ / SUPABASE
+- Yeni SQL gerekmez.
+- Sezonlar mevcut ana state JSON'u içinde saklanır.
+- app.js içindeki mergeState güncellemesi sezon verilerinin bulut ve localStorage arasında korunmasını sağlar.

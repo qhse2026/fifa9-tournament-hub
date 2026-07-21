@@ -1,0 +1,30 @@
+FIFA LEAGUE SYSTEM V37.0 — TEST LİSTESİ
+
+[ ] FIFA Lig Sistemi menüsü açılıyor.
+[ ] FIFA 10 oyuncu listesi toplu olarak girilebiliyor.
+[ ] Otomatik dağıtım tam 7 Premier oyuncusu belirliyor.
+[ ] Kalan oyuncular Championship'te görünüyor.
+[ ] Premier fikstürü 63 maç oluşturuyor.
+[ ] Her Premier oyuncusu toplam 18 maç oynuyor.
+[ ] Her iki ligde 1. devre 4★, 2. devre 4.5★, 3. devre 5★ görünüyor.
+[ ] Lig sonucu girilip düzenlenebiliyor ve silinebiliyor.
+[ ] Puan tablosu O/G/B/M/AG/YG/AV/P değerlerini güncelliyor.
+[ ] Premier son 2 ve Championship ilk 2 işaretleniyor.
+[ ] Championship 3. ilk yedek olarak gösteriliyor.
+[ ] Ligler tamamlandığında Oruç Reis Kupası başlatılabiliyor.
+[ ] P3-C1 ve P4-P5 play-off serileri oluşuyor.
+[ ] Best of 3 serisinde iki galibiyet alan oyuncu tur atlıyor.
+[ ] Yarı final kurası çekilebiliyor.
+[ ] Final tek maç ve aynı takım alanıyla oluşuyor.
+[ ] Oruç Reis Kupası sonucu Kupa Müzesine işleniyor.
+[ ] Süper Kupa doğru iki oyuncu arasında oluşuyor.
+[ ] Çifte şampiyon durumunda kupa finalisti Süper Kupaya geliyor.
+[ ] Test modu sonuçları Kupa Müzesine resmî kayıt eklemiyor.
+[ ] Sonuçları Sıfırla diğer sezonları etkilemiyor.
+[ ] Sezonu İptal Et FIFA 09 verilerini etkilemiyor.
+[ ] İptal edilen sezon yeniden açılabiliyor.
+[ ] Yeni Sezon düğmesi FIFA 11 altyapısını oluşturuyor.
+[ ] Önceki sezon Premier ilk 5 + Championship ilk 2 Premier'e atanıyor.
+[ ] Championship 3. ve sonrası yedek önceliği olarak korunuyor.
+[ ] Yeni oyuncular Championship'e ekleniyor.
+[ ] JSON sezon dışa aktarımı çalışıyor.
