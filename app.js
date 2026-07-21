@@ -46,12 +46,15 @@
     knockout: "Eleme Aşaması",
     print: "Çıktı Merkezi",
     archive: "Turnuva Arşivi",
+    museum: "Sezonlar & Kupa Müzesi",
     alltime: "Tüm Zamanlar",
     teams: "Takım İstatistikleri",
     backup: "Veri & Yedek"
   };
 
   let activeView = "dashboard";
+  let museumSelectedEdition = 9;
+  let museumSelectedPlayerName = "";
   let state = loadState();
   let allTimeSelectedPlayerName = "";
   let allTimeRivalryA = "";
@@ -79,9 +82,34 @@
   let livePresentationMode = sessionStorage.getItem("fifa9-live-presentation-mode") || "standard";
   let liveGoalAnnouncementTimer = null;
 
+  function defaultSeasonSystem() {
+    return {
+      fifa10Draft: {
+        status: "none",
+        createdAt: null,
+        updatedAt: null,
+        players: [],
+        settings: {
+          premierSize: 7,
+          legs: [
+            { id: "leg-1", label: "1. Devre", stars: 4 },
+            { id: "leg-2", label: "2. Devre", stars: 4.5 },
+            { id: "leg-3", label: "3. Devre", stars: 5 }
+          ],
+          promotion: 2,
+          relegation: 2,
+          cupFormat: "Oruç Reis Kupası",
+          testMode: true
+        }
+      },
+      customHonours: []
+    };
+  }
+
   function defaultState() {
     return {
       schemaVersion: 1,
+      seasonSystem: defaultSeasonSystem(),
       current: {
         edition: 9,
         createdAt: new Date().toISOString(),
@@ -125,6 +153,20 @@
     const merged = {
       ...fresh,
       ...raw,
+      seasonSystem: {
+        ...fresh.seasonSystem,
+        ...(raw.seasonSystem || {}),
+        fifa10Draft: {
+          ...fresh.seasonSystem.fifa10Draft,
+          ...(raw.seasonSystem?.fifa10Draft || {}),
+          settings: {
+            ...fresh.seasonSystem.fifa10Draft.settings,
+            ...(raw.seasonSystem?.fifa10Draft?.settings || {})
+          },
+          players: Array.isArray(raw.seasonSystem?.fifa10Draft?.players) ? raw.seasonSystem.fifa10Draft.players : []
+        },
+        customHonours: Array.isArray(raw.seasonSystem?.customHonours) ? raw.seasonSystem.customHonours : []
+      },
       current: {
         ...fresh.current,
         ...(raw.current || {}),
@@ -628,6 +670,287 @@
     </svg>`;
   }
 
+
+  const museumCompetitions = [
+    { id: "premier", name: "Premier League", short: "Premier", trophy: "assets/trophies/premier-league.svg", activeFrom: 10, prestige: "Ana Lig Kupası" },
+    { id: "championship", name: "Championship", short: "Championship", trophy: "assets/trophies/championship.svg", activeFrom: 10, prestige: "Yükselme Ligi" },
+    { id: "oruc", name: "Oruç Reis Kupası", short: "Oruç Reis", trophy: "assets/trophies/oruc-reis-cup.svg", activeFrom: 1, prestige: "Ana Kupa" },
+    { id: "super", name: "Süper Kupa", short: "Süper Kupa", trophy: "assets/trophies/super-cup.svg", activeFrom: 10, prestige: "Sezonlar Arası Kupa" }
+  ];
+
+  function seasonSystem() {
+    if (!state.seasonSystem) state.seasonSystem = defaultSeasonSystem();
+    if (!state.seasonSystem.fifa10Draft) state.seasonSystem.fifa10Draft = defaultSeasonSystem().fifa10Draft;
+    if (!Array.isArray(state.seasonSystem.customHonours)) state.seasonSystem.customHonours = [];
+    return state.seasonSystem;
+  }
+
+  function seasonLabel(edition) {
+    return `FIFA${String(Number(edition) || 0).padStart(2, "0")}`;
+  }
+
+  function normalizeCompetition(value) {
+    return museumCompetitions.some(item => item.id === value) ? value : "oruc";
+  }
+
+  function historicalHonours() {
+    return (historical.editions || []).map(item => ({
+      id: `historical-oruc-${item.edition}`,
+      edition: Number(item.edition),
+      competition: "oruc",
+      winner: item.champion || "",
+      runnerUp: item.runnerUp || "",
+      third: item.third || "",
+      source: "historical"
+    }));
+  }
+
+  function currentFifa9Honour() {
+    const ko = state.current?.knockout || {};
+    if (!ko.championId || !ko.final || !matchComplete(ko.final)) return null;
+    const winnerId = ko.championId;
+    const runnerId = ko.final.homeId === winnerId ? ko.final.awayId : ko.final.homeId;
+    return {
+      id: "live-oruc-9",
+      edition: 9,
+      competition: "oruc",
+      winner: playerName(winnerId),
+      runnerUp: playerName(runnerId),
+      third: "",
+      source: "live"
+    };
+  }
+
+  function allMuseumHonours() {
+    const records = [...historicalHonours()];
+    const current = currentFifa9Honour();
+    if (current) records.push(current);
+    for (const custom of seasonSystem().customHonours) {
+      const normalized = {
+        id: custom.id || `custom-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        edition: Number(custom.edition),
+        competition: normalizeCompetition(custom.competition),
+        winner: String(custom.winner || "").trim(),
+        runnerUp: String(custom.runnerUp || "").trim(),
+        third: String(custom.third || "").trim(),
+        source: "custom"
+      };
+      const index = records.findIndex(item => item.edition === normalized.edition && item.competition === normalized.competition);
+      if (index >= 0) records[index] = normalized;
+      else records.push(normalized);
+    }
+    return records.sort((a,b) => a.edition - b.edition || a.competition.localeCompare(b.competition));
+  }
+
+  function honoursForCompetition(id) {
+    return allMuseumHonours().filter(item => item.competition === id);
+  }
+
+  function competitionMedalCounts(id) {
+    const records = honoursForCompetition(id);
+    return {
+      titles: records.filter(item => item.winner).length,
+      runners: records.filter(item => item.runnerUp).length,
+      thirds: records.filter(item => item.third).length
+    };
+  }
+
+  function museumPlayerNames() {
+    const names = new Set();
+    (historical.allTime || []).forEach(item => item.name && names.add(item.name));
+    state.current.participants.forEach(item => item.name?.trim() && names.add(item.name.trim()));
+    (seasonSystem().fifa10Draft?.players || []).forEach(item => item.name?.trim() && names.add(item.name.trim()));
+    allMuseumHonours().forEach(item => [item.winner,item.runnerUp,item.third].forEach(name => name && names.add(name)));
+    return [...names].sort((a,b)=>a.localeCompare(b,"tr"));
+  }
+
+  function playerMuseumRecord(name) {
+    const records = allMuseumHonours();
+    const byCompetition = Object.fromEntries(museumCompetitions.map(comp => [comp.id, {
+      titles: records.filter(r => r.competition === comp.id && r.winner === name).map(r=>r.edition),
+      runners: records.filter(r => r.competition === comp.id && r.runnerUp === name).map(r=>r.edition),
+      thirds: records.filter(r => r.competition === comp.id && r.third === name).map(r=>r.edition)
+    }]));
+    const totals = Object.values(byCompetition).reduce((acc,item)=>{
+      acc.titles += item.titles.length;
+      acc.runners += item.runners.length;
+      acc.thirds += item.thirds.length;
+      return acc;
+    },{titles:0,runners:0,thirds:0});
+    return { byCompetition, totals };
+  }
+
+  function honourMedalPill(record, type) {
+    const name = type === "winner" ? record.winner : type === "runner" ? record.runnerUp : record.third;
+    const className = type === "winner" ? "gold" : type === "runner" ? "silver" : "bronze";
+    const label = type === "winner" ? "Winner" : type === "runner" ? "Runners-up" : "Third place";
+    return `<div class="museum-medal-pill ${className}"><span>${seasonLabel(record.edition)}</span><strong>${escapeHTML(name || "—")}</strong><small>${label}</small></div>`;
+  }
+
+  function renderMuseumTrophyCard(comp) {
+    const counts = competitionMedalCounts(comp.id);
+    const available = museumSelectedEdition >= comp.activeFrom;
+    const record = allMuseumHonours().find(item => item.competition === comp.id && item.edition === museumSelectedEdition);
+    return `<article class="museum-trophy-card ${comp.id === "oruc" ? "featured" : ""} ${available ? "" : "future"}">
+      <div class="museum-trophy-head"><span>${escapeHTML(comp.name)}</span><small>${escapeHTML(comp.prestige)}</small></div>
+      <div class="museum-trophy-stage"><img src="${comp.trophy}" alt="${escapeHTML(comp.name)} kupası" /></div>
+      <div class="museum-trophy-season">${available ? (record ? `${seasonLabel(museumSelectedEdition)} KAYDI` : museumSelectedEdition >= 10 ? `${seasonLabel(museumSelectedEdition)} İLE BAŞLAYACAK` : "TARİHİ KOLEKSİYON") : `${seasonLabel(comp.activeFrom)} İLE BAŞLAYACAK`}</div>
+      <div class="museum-trophy-counts">
+        <div><strong>${counts.titles}</strong><span>Şampiyonluk</span></div>
+        <div><strong>${counts.runners}</strong><span>İkincilik</span></div>
+        <div><strong>${counts.thirds}</strong><span>Üçüncülük</span></div>
+      </div>
+    </article>`;
+  }
+
+  function renderHonourBoard() {
+    const records = allMuseumHonours().filter(item => item.competition === "oruc");
+    const editions = Array.from({length:10},(_,i)=>i+1);
+    const rows = [
+      ["winner","🏆","Winner","Şampiyon"],
+      ["runner","◈","Runners-up","İkincilik"],
+      ["third","◆","Third place","Üçüncülük"]
+    ];
+    return `<section class="panel museum-honour-board">
+      <div class="panel-header"><div><h3 class="panel-title">Onur Tablosu</h3><div class="panel-subtitle">Oruç Reis Kupası tarihinin sezon bazlı madalya kayıtları.</div></div>${canEdit()?`<button class="btn btn-ghost btn-small" data-action="open-honour-editor">Kupa Kaydı Düzenle</button>`:""}</div>
+      <div class="honour-season-strip">${editions.map(e=>`<button class="${museumSelectedEdition===e?"active":""}" data-action="set-museum-edition" data-edition="${e}">${seasonLabel(e)}</button>`).join("")}</div>
+      <div class="honour-board-grid">${rows.map(([type,icon,en,tr])=>{
+        const key = type === "winner" ? "winner" : type === "runner" ? "runnerUp" : "third";
+        return `<div class="honour-board-row ${type}"><div class="honour-board-label"><span>${icon}</span><div><strong>${en}</strong><small>${tr}</small></div></div><div class="honour-board-seasons">${editions.map(e=>{
+          const rec=records.find(r=>r.edition===e); const value=rec?.[key]||"";
+          return `<div class="honour-mini-card ${museumSelectedEdition===e?"selected":""} ${value?"filled":"pending"}"><span>${seasonLabel(e)}</span><strong>${escapeHTML(value || (e===9&&!currentFifa9Honour()?"Devam ediyor":e===10?"Yeni format":"—"))}</strong></div>`;
+        }).join("")}</div></div>`;
+      }).join("")}</div>
+    </section>`;
+  }
+
+  function renderPlayerMuseum() {
+    const names = museumPlayerNames();
+    if (!museumSelectedPlayerName || !names.includes(museumSelectedPlayerName)) museumSelectedPlayerName = names[0] || "";
+    const record = playerMuseumRecord(museumSelectedPlayerName);
+    const wonSeasons = Object.values(record.byCompetition).flatMap(item=>item.titles).sort((a,b)=>a-b);
+    return `<section class="panel museum-player-history">
+      <div class="panel-header"><div><h3 class="panel-title">Oyuncu Kupa Geçmişi</h3><div class="panel-subtitle">Şampiyonluk, finalistlik ve üçüncülük koleksiyonları.</div></div><select id="museumPlayerSelect" class="select-control">${names.map(name=>`<option value="${escapeHTML(name)}" ${name===museumSelectedPlayerName?"selected":""}>${escapeHTML(name)}</option>`).join("")}</select></div>
+      <div class="museum-player-layout">
+        <div class="museum-player-card"><div class="museum-player-avatar">${escapeHTML(museumSelectedPlayerName.split(/\s+/).map(v=>v[0]).slice(0,2).join(""))}</div><h4>${escapeHTML(museumSelectedPlayerName || "Oyuncu seç")}</h4><span>Kupa Müzesi Profili</span><div class="museum-player-total"><strong>${record.totals.titles}</strong><small>Toplam Şampiyonluk</small></div></div>
+        <div class="museum-player-cabinets">${museumCompetitions.map(comp=>{
+          const item=record.byCompetition[comp.id];
+          return `<div class="museum-mini-cabinet"><img src="${comp.trophy}" alt=""/><strong>${escapeHTML(comp.name)}</strong><div><b>${item.titles.length}</b> şampiyonluk</div><small>${item.titles.length?item.titles.map(seasonLabel).join(" · "):"Henüz yok"}</small></div>`;
+        }).join("")}</div>
+        <div class="museum-player-summary"><div><span>🏆</span><strong>${record.totals.titles}</strong><small>Şampiyonluk</small></div><div><span>◈</span><strong>${record.totals.runners}</strong><small>İkincilik</small></div><div><span>◆</span><strong>${record.totals.thirds}</strong><small>Üçüncülük</small></div></div>
+      </div>
+      <div class="museum-won-seasons"><strong>Kazanılan Sezonlar</strong><div>${wonSeasons.length?wonSeasons.map(e=>`<span>${seasonLabel(e)}</span>`).join(""):`<span class="empty">Henüz şampiyonluk kaydı yok</span>`}</div></div>
+    </section>`;
+  }
+
+  function rankForDraftPlayer(name) {
+    const row = (historical.allTime || []).find(item => normalizeAdministrativeName(item.name) === normalizeAdministrativeName(name));
+    return row ? Number(row.rank) : 9999;
+  }
+
+  function autoAssignFifa10Players(showToast = true) {
+    const draft = seasonSystem().fifa10Draft;
+    const filled = draft.players.filter(item=>item.name?.trim());
+    const sorted = [...filled].sort((a,b)=>rankForDraftPlayer(a.name)-rankForDraftPlayer(b.name) || a.name.localeCompare(b.name,"tr"));
+    const premierIds = new Set(sorted.slice(0, Number(draft.settings?.premierSize)||7).map(item=>item.id));
+    draft.players.forEach(item => item.league = item.name?.trim() && premierIds.has(item.id) ? "premier" : "championship");
+    draft.updatedAt = new Date().toISOString();
+    saveState(false,true);
+    if (showToast) toast("FIFA 10 oyuncuları Tüm Zamanlar sıralamasına göre dağıtıldı.","success");
+  }
+
+  function createFifa10Draft() {
+    if (!canEdit()) return;
+    const system = seasonSystem();
+    if (system.fifa10Draft.status === "draft") { toast("FIFA 10 taslağı zaten aktif.","error"); return; }
+    const currentNames = state.current.participants.map(item=>item.name?.trim()).filter(Boolean);
+    const fallback = (historical.allTime || []).slice(0,16).map(item=>item.name);
+    const names = currentNames.length ? currentNames : fallback;
+    system.fifa10Draft = {
+      ...defaultSeasonSystem().fifa10Draft,
+      status: "draft",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      players: names.map((name,index)=>({ id:`F10P${String(index+1).padStart(2,"0")}`, name, league:"championship" }))
+    };
+    autoAssignFifa10Players(false);
+    saveState(true,true);
+    museumSelectedEdition = 10;
+    renderSeasonMuseum();
+    toast("FIFA 10 test taslağı oluşturuldu. FIFA 09 verileri etkilenmedi.","success");
+  }
+
+  function addFifa10DraftPlayer() {
+    if (!canEdit()) return;
+    const draft = seasonSystem().fifa10Draft;
+    const number = draft.players.length + 1;
+    draft.players.push({id:`F10P${String(number).padStart(2,"0")}-${Date.now()}`,name:"",league:"championship"});
+    draft.updatedAt = new Date().toISOString();
+    saveState(); renderSeasonMuseum();
+  }
+
+  function removeFifa10DraftPlayer(id) {
+    if (!canEdit()) return;
+    const draft=seasonSystem().fifa10Draft;
+    draft.players=draft.players.filter(item=>item.id!==id);
+    draft.updatedAt=new Date().toISOString();
+    saveState(); renderSeasonMuseum();
+  }
+
+  function openCancelFifa10Draft() {
+    if (!canEdit()) return;
+    openModal("FIFA 10 Taslağını İptal Et",`<div class="info-box warning-box">Bu işlem yalnızca FIFA 10 test taslağını, oyuncu dağılımını ve taslak ayarlarını siler. Devam eden FIFA 09 turnuvası ile tarihî kupa kayıtları etkilenmez.</div><div class="modal-actions"><button class="btn btn-ghost" data-action="close-modal">Vazgeç</button><button class="btn btn-danger" data-action="confirm-cancel-fifa10-draft">Taslağı Kalıcı Olarak İptal Et</button></div>`,"DRAFT CONTROL");
+  }
+
+  function cancelFifa10Draft() {
+    if (!canEdit()) return;
+    seasonSystem().fifa10Draft=defaultSeasonSystem().fifa10Draft;
+    saveState(true,true); closeModal(); museumSelectedEdition=9; renderSeasonMuseum();
+    toast("FIFA 10 taslağı iptal edildi. FIFA 09 aynen korunuyor.","success");
+  }
+
+  function openHonourEditor(recordId="") {
+    if (!canEdit()) return;
+    const records=allMuseumHonours();
+    const record=records.find(item=>item.id===recordId)||records.find(item=>item.edition===museumSelectedEdition&&item.competition==="oruc")||{edition:museumSelectedEdition,competition:"oruc",winner:"",runnerUp:"",third:""};
+    const names=museumPlayerNames();
+    const options=(selected)=>`<option value="">— Seçilmedi —</option>${names.map(name=>`<option value="${escapeHTML(name)}" ${name===selected?"selected":""}>${escapeHTML(name)}</option>`).join("")}`;
+    openModal("Kupa Kaydı Düzenle",`<form id="honourRecordForm" class="form-stack"><input type="hidden" name="recordId" value="${escapeHTML(record.source==="custom"?record.id:"")}"><div class="form-grid"><label>Sezon<input class="text-input" name="edition" type="number" min="1" max="99" value="${Number(record.edition)||museumSelectedEdition}" required></label><label>Kupa<select class="select-control" name="competition">${museumCompetitions.map(comp=>`<option value="${comp.id}" ${comp.id===record.competition?"selected":""}>${escapeHTML(comp.name)}</option>`).join("")}</select></label></div><label>Winner / Şampiyon<select class="select-control" name="winner">${options(record.winner)}</select></label><label>Runners-up / İkinci<select class="select-control" name="runnerUp">${options(record.runnerUp)}</select></label><label>Third place / Üçüncü<select class="select-control" name="third">${options(record.third)}</select></label><div class="modal-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">Vazgeç</button><button class="btn btn-gold" type="submit">Kupa Kaydını Kaydet</button></div></form>`,"ADMIN · TROPHY HISTORY");
+  }
+
+  function saveHonourRecord(form) {
+    if (!canEdit()) return;
+    const data=new FormData(form); const system=seasonSystem();
+    const record={id:String(data.get("recordId")||`honour-${Date.now()}`),edition:Number(data.get("edition")),competition:normalizeCompetition(String(data.get("competition")||"oruc")),winner:String(data.get("winner")||"").trim(),runnerUp:String(data.get("runnerUp")||"").trim(),third:String(data.get("third")||"").trim()};
+    if (!record.edition || record.edition<1) { toast("Geçerli bir sezon numarası gir.","error"); return; }
+    const existing=system.customHonours.findIndex(item=>item.id===record.id || (Number(item.edition)===record.edition&&item.competition===record.competition));
+    if (existing>=0) system.customHonours[existing]=record; else system.customHonours.push(record);
+    saveState(true,true); closeModal(); museumSelectedEdition=record.edition; renderSeasonMuseum(); toast("Kupa müzesi kaydı güncellendi.","success");
+  }
+
+  function renderFifa10DraftPanel() {
+    const draft=seasonSystem().fifa10Draft;
+    if (draft.status!=="draft") return `<section class="panel fifa10-draft-empty"><div><span class="badge badge-gold">FIFA 10 HAZIRLIK</span><h3>Yeni sezon arayüzü hazır, aktif turnuva korunuyor</h3><p>FIFA 09 tamamlanmadan FIFA 10 için test taslağı oluşturabilirsin. Taslak ayrı bir alanda tutulur; mevcut maçlara, tablolara ve canlı yayına dokunmaz.</p></div>${canEdit()?`<button class="btn btn-gold" data-action="create-fifa10-draft">FIFA 10 Test Taslağı Oluştur</button>`:`<span class="badge">Yönetici oluşturabilir</span>`}</section>`;
+    const premier=draft.players.filter(item=>item.league==="premier"&&item.name?.trim());
+    const championship=draft.players.filter(item=>item.league!=="premier"&&item.name?.trim());
+    return `<section class="panel fifa10-draft-panel">
+      <div class="panel-header"><div><div class="eyebrow">FIFA 10 · TEST MODU</div><h3 class="panel-title">Sezon Yapılandırması</h3><div class="panel-subtitle">FIFA 09 aktif kalırken bağımsız taslak ortamı.</div></div><div class="draft-actions">${canEdit()?`<button class="btn btn-ghost btn-small" data-action="auto-assign-fifa10">İlk 7’yi Otomatik Belirle</button><button class="btn btn-gold btn-small" data-action="save-fifa10-draft">Taslağı Kaydet</button><button class="btn btn-danger btn-small" data-action="cancel-fifa10-draft">Taslağı İptal Et</button>`:""}</div></div>
+      <div class="fifa10-format-grid"><div><strong>Premier League</strong><span>${premier.length} / 7 oyuncu</span><small>Tüm zamanların en iyi 7 aktif oyuncusu</small></div><div><strong>Championship</strong><span>${championship.length} oyuncu</span><small>Kalan ve yeni katılan oyuncular</small></div><div><strong>3 Devre Sistemi</strong><span>4★ · 4.5★ · 5★</span><small>Her rakiple üç maç</small></div><div><strong>Yükselme / Düşme</strong><span>2 ↑ · 2 ↓</span><small>Sezon sonunda otomatik geçiş</small></div></div>
+      <div class="fifa10-player-editor"><div class="fifa10-player-editor-head"><strong>FIFA 10 Oyuncu Listesi</strong><span>İsimleri yaz; otomatik dağıtım Tüm Zamanlar sıralamasını kullanır.</span></div><div class="fifa10-player-rows">${draft.players.map((item,index)=>`<div class="fifa10-player-row"><span>${String(index+1).padStart(2,"0")}</span><input class="text-input" data-fifa10-name="${item.id}" value="${escapeHTML(item.name)}" placeholder="Oyuncu adı" ${canEdit()?"":"disabled"}><select class="select-control" data-fifa10-league="${item.id}" ${canEdit()?"":"disabled"}><option value="premier" ${item.league==="premier"?"selected":""}>Premier League</option><option value="championship" ${item.league!=="premier"?"selected":""}>Championship</option></select>${canEdit()?`<button class="icon-button danger" data-action="remove-fifa10-player" data-player-id="${item.id}" aria-label="Oyuncuyu sil">×</button>`:""}</div>`).join("")}</div>${canEdit()?`<button class="btn btn-ghost btn-small mt-16" data-action="add-fifa10-player">+ Oyuncu Ekle</button>`:""}</div>
+      <div class="draft-safety-note"><span>✓</span><div><strong>Güvenli taslak modu</strong><p>Bu ekran FIFA 09 fikstürünü, sonuçlarını, oyuncu istatistiklerini veya arşivini değiştirmez. İptal işlemi yalnızca FIFA 10 taslağını kaldırır.</p></div></div>
+    </section>`;
+  }
+
+  function renderSeasonMuseum() {
+    const draftActive=seasonSystem().fifa10Draft.status==="draft";
+    const editions=Array.from({length:10},(_,i)=>i+1);
+    view.innerHTML=`<section class="museum-hero"><div><div class="eyebrow">FIFA SEZON EVRENİ</div><h2>Kupa Müzesi & Sezon Merkezi</h2><p>Oruç Reis Kupası tarihinden Premier League dönemine uzanan kalıcı şampiyonluk arşivi.</p></div><div class="museum-status"><span class="status-live">● FIFA 09 aktif</span><span class="${draftActive?"status-draft":"status-muted"}">${draftActive?"FIFA 10 taslak modu":"FIFA 10 henüz oluşturulmadı"}</span></div></section>
+      <section class="museum-season-switch"><strong>EDİSYON / SEZON SEÇİCİ</strong><div>${editions.map(e=>`<button class="${museumSelectedEdition===e?"active":""} ${e===10?"draft-tab":""}" data-action="set-museum-edition" data-edition="${e}">${seasonLabel(e)}${e===10?`<small>${draftActive?"TASLAK":"HAZIRLIK"}</small>`:""}</button>`).join("")}</div></section>
+      <section class="museum-gallery-wrap"><aside class="museum-gallery-intro"><span>KUPA MÜZESİ</span><h3>Koleksiyon</h3><p>Turnuva tarihinin prestijli kupaları, sezon kayıtları ve oyuncu madalyaları.</p><div class="museum-current-season"><strong>${seasonLabel(museumSelectedEdition)}</strong><small>${museumSelectedEdition===9&&!currentFifa9Honour()?"Turnuva devam ediyor":museumSelectedEdition===10?"Yeni lig sistemi":"Tarihî sezon"}</small></div></aside><div class="museum-trophy-gallery">${museumCompetitions.map(renderMuseumTrophyCard).join("")}</div></section>
+      <div class="museum-lower-grid">${renderHonourBoard()}${renderPlayerMuseum()}</div>
+      ${renderFifa10DraftPanel()}`;
+  }
+
   function navTo(target) {
     if (target !== "livematch" && livePresentationMode !== "standard") exitLivePresentation(false);
     activeView = target;
@@ -656,6 +979,7 @@
       case "knockout": renderKnockout(); break;
       case "print": renderPrintCenter(); break;
       case "archive": renderArchive(); break;
+      case "museum": renderSeasonMuseum(); break;
       case "alltime": renderAllTime(); break;
       case "teams": renderTeamStatistics(); break;
       case "backup": renderBackup(); break;
@@ -7617,6 +7941,19 @@ ${shareData.url}`)}`;
     const action = event.target.closest("[data-action]");
     if (!action) return;
     const type = action.dataset.action;
+    if (["create-fifa10-draft","auto-assign-fifa10","save-fifa10-draft","cancel-fifa10-draft","confirm-cancel-fifa10-draft","add-fifa10-player","remove-fifa10-player","open-honour-editor"].includes(type) && !canEdit()) {
+      toast("Bu işlem yalnızca turnuva yöneticisine açıktır.", "error");
+      return;
+    }
+    if (type === "set-museum-edition") { museumSelectedEdition = Number(action.dataset.edition) || 9; renderSeasonMuseum(); return; }
+    if (type === "create-fifa10-draft") { createFifa10Draft(); return; }
+    if (type === "auto-assign-fifa10") { autoAssignFifa10Players(); renderSeasonMuseum(); return; }
+    if (type === "save-fifa10-draft") { seasonSystem().fifa10Draft.updatedAt = new Date().toISOString(); saveState(true,true); toast("FIFA 10 taslağı kaydedildi.","success"); return; }
+    if (type === "cancel-fifa10-draft") { openCancelFifa10Draft(); return; }
+    if (type === "confirm-cancel-fifa10-draft") { cancelFifa10Draft(); return; }
+    if (type === "add-fifa10-player") { addFifa10DraftPlayer(); return; }
+    if (type === "remove-fifa10-player") { removeFifa10DraftPlayer(action.dataset.playerId); return; }
+    if (type === "open-honour-editor") { openHonourEditor(action.dataset.recordId || ""); return; }
     if (type === "set-intelligence-section") {
       intelligenceSection = action.dataset.intelligenceSection || "matchday";
       if (activeView === "intelligence") renderIntelligenceCentre();
@@ -7781,10 +8118,15 @@ ${shareData.url}`)}`;
     if (type === "export-players") exportPlayers();
     if (type === "share-site") shareSite();
     if (type === "confirm-reset") confirmReset();
-    if (type === "reset-current") { state = defaultState(); saveState(); closeModal(); toast("Güncel turnuva sıfırlandı.", "success"); navTo("setup"); }
+    if (type === "reset-current") { const preservedSeasonSystem = seasonSystem(); state = defaultState(); state.seasonSystem = preservedSeasonSystem; saveState(); closeModal(); toast("Güncel FIFA 09 turnuvası sıfırlandı; Kupa Müzesi ve FIFA 10 taslağı korundu.", "success"); navTo("setup"); }
   });
 
   document.addEventListener("input", event => {
+    if (event.target.dataset.fifa10Name && canEdit()) {
+      const player=seasonSystem().fifa10Draft.players.find(item=>item.id===event.target.dataset.fifa10Name);
+      if (player) { player.name=event.target.value; seasonSystem().fifa10Draft.updatedAt=new Date().toISOString(); saveState(); }
+      return;
+    }
     if (event.target.dataset.liveField && canEdit()) {
       const active = getLiveState().active;
       if (active) { active[event.target.dataset.liveField] = event.target.value; active.updatedAt = new Date().toISOString(); saveState(); }
@@ -7811,6 +8153,7 @@ ${shareData.url}`)}`;
 
   document.addEventListener("submit", event => {
     if (window.FIFA_CHAT_UI?.handleSubmit?.(event)) return;
+    if (event.target.id === "honourRecordForm") { event.preventDefault(); saveHonourRecord(event.target); return; }
     if (event.target.id === "matchForm") {
       event.preventDefault();
       saveMatch(event.target);
@@ -7834,6 +8177,12 @@ ${shareData.url}`)}`;
   });
 
   document.addEventListener("change", event => {
+    if (event.target.dataset.fifa10League && canEdit()) {
+      const player=seasonSystem().fifa10Draft.players.find(item=>item.id===event.target.dataset.fifa10League);
+      if (player) { player.league=event.target.value==="premier"?"premier":"championship"; seasonSystem().fifa10Draft.updatedAt=new Date().toISOString(); saveState(); renderSeasonMuseum(); }
+      return;
+    }
+    if (event.target.id === "museumPlayerSelect") { museumSelectedPlayerName=event.target.value; if(activeView==="museum") renderSeasonMuseum(); return; }
     if ((event.target.dataset.liveField || event.target.dataset.liveNumber) && canEdit()) {
       const active = getLiveState().active;
       if (active) {

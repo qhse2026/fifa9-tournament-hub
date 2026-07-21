@@ -1,0 +1,17 @@
+FIFA 10 V36 TEST KONTROL LİSTESİ
+
+[ ] Kupa Müzesi menüsü açılıyor
+[ ] FIFA01–FIFA08 Oruç Reis kayıtları görünüyor
+[ ] FIFA09 “aktif/devam ediyor” olarak görünüyor
+[ ] Dört kupa görseli yükleniyor
+[ ] Oyuncu kupa geçmişi seçim kutusu çalışıyor
+[ ] Yönetici olmayan kullanıcı düzenleme yapamıyor
+[ ] Yönetici kupa kaydı ekleyebiliyor
+[ ] FIFA10 taslağı oluşturulabiliyor
+[ ] Premier League ilk 7 otomatik atanıyor
+[ ] Oyuncular manuel lig değiştirebiliyor
+[ ] Oyuncu ekleme/silme çalışıyor
+[ ] Taslak kaydediliyor
+[ ] Taslak iptal ediliyor
+[ ] Taslak iptalinden sonra FIFA09 verileri korunuyor
+[ ] Mobil görünümde kartlar düzgün sıralanıyor

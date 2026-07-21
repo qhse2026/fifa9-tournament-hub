@@ -1,4 +1,4 @@
-const CACHE = "fifa9-hub-live-v35-3-respectful-announcement";
+const CACHE = "fifa9-fifa10-season-museum-v36";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -10,6 +10,10 @@ const APP_SHELL = [
   "./community.js",
   "./data/historical-data.js",
   "./assets/f9-mark.svg",
+  "./assets/trophies/premier-league.svg",
+  "./assets/trophies/championship.svg",
+  "./assets/trophies/oruc-reis-cup.svg",
+  "./assets/trophies/super-cup.svg",
   "./manifest.webmanifest"
 ];
 

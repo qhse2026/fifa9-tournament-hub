@@ -1,0 +1,61 @@
+FIFA 9/10 TOURNAMENT HUB — V36.0
+SEZON MERKEZİ + KUPA MÜZESİ + FIFA 10 TEST TASLAĞI
+
+YENİ ÖZELLİKLER
+1. Sol menüye “Sezonlar & Kupa Müzesi” sayfası eklendi.
+2. FIFA01–FIFA10 sezon seçici eklendi.
+3. Dört ayrı kupa koleksiyonu eklendi:
+   - Premier League
+   - Championship
+   - Oruç Reis Kupası
+   - Süper Kupa
+4. FIFA01–FIFA08 tarihî turnuvaları otomatik olarak Oruç Reis Kupası arşivine bağlandı.
+5. FIFA09 tamamlandığında şampiyon ve finalist kaydı otomatik olarak müzeye yansır.
+6. Winner, Runners-up ve Third Place sezon geçmişi eklendi.
+7. Oyuncu bazlı kupa geçmişi ve sezon rozetleri eklendi.
+8. Yönetici kupa kayıtlarını manuel olarak ekleyebilir veya düzeltebilir.
+9. FIFA10 için ayrı test taslağı oluşturma ve iptal etme sistemi eklendi.
+10. FIFA10 taslağı FIFA09 fikstür, sonuç ve canlı maç verilerinden tamamen ayrıdır.
+11. FIFA10 oyuncuları Tüm Zamanlar sıralamasına göre otomatik olarak:
+    - İlk 7: Premier League
+    - Kalanlar: Championship
+    şeklinde dağıtılabilir.
+12. Oyuncu listesi ve lig dağılımı yönetici tarafından manuel değiştirilebilir.
+13. FIFA10 taslağı iptal edildiğinde FIFA09 ve müze kayıtları korunur.
+14. Güncel FIFA09 verisini sıfırlama işlemi artık Kupa Müzesi ve FIFA10 taslağını silmez.
+
+KURULUM — PATCH ONLY
+Aşağıdaki dosya ve klasörleri GitHub ana dizinine yükle:
+- index.html
+- app.js
+- styles.css
+- service-worker.js
+- assets/trophies/premier-league.svg
+- assets/trophies/championship.svg
+- assets/trophies/oruc-reis-cup.svg
+- assets/trophies/super-cup.svg
+- FIFA10_SEASON_MUSEUM_V36_INSTALL_TR.txt
+
+COMMIT ÖNERİSİ
+Add FIFA 10 season hub and trophy museum v36
+
+DEPLOY SONRASI
+1. Vercel deployment tamamlanmasını bekle.
+2. Tarayıcıda Ctrl + F5 yap.
+3. Gerekirse Application > Service Workers > Unregister ve Clear Site Data uygula.
+
+TEST ADIMLARI
+1. Duyuru ekranını “Siteye Devam Et” ile kapat.
+2. Sol menüden “Sezonlar & Kupa Müzesi” sayfasını aç.
+3. FIFA01–FIFA09 sezon kayıtlarını kontrol et.
+4. Yönetici girişi yap.
+5. “FIFA 10 Test Taslağı Oluştur” düğmesine bas.
+6. Oyuncu isimlerini düzenle.
+7. “İlk 7’yi Otomatik Belirle” düğmesini test et.
+8. Manuel Premier League / Championship değişikliğini test et.
+9. “Kupa Kaydı Düzenle” ile örnek kayıt oluştur.
+10. “Taslağı İptal Et” ile FIFA10 taslağını kaldır.
+11. FIFA09 verilerinin değişmediğini doğrula.
+
+VERİTABANI
+Yeni SQL gerekmez. Yeni sezon ve müze verileri mevcut state yapısına eklenir ve mevcut Supabase kayıt sistemi üzerinden saklanır.
