@@ -405,6 +405,7 @@ textarea { min-height:100px;resize:vertical; }
   box-shadow: 0 0 0 4px rgba(108, 123, 137, .12);
 }
 .cloud-chip[data-status="viewer-online"] .cloud-dot,
+.cloud-chip[data-status="player-online"] .cloud-dot,
 .cloud-chip[data-status="admin-online"] .cloud-dot,
 .cloud-chip[data-status="saved"] .cloud-dot {
   background: #39d98a;

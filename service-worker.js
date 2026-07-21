@@ -1,4 +1,4 @@
-const CACHE = "fifa-league-system-v38-season-operations";
+const CACHE = "fifa-league-system-v39-awards-records-membership";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -6,6 +6,8 @@ const APP_SHELL = [
   "./app.js",
   "./season-hub.js",
   "./season-hub.css",
+  "./season-experience.js",
+  "./season-experience.css",
   "./language.js",
   "./cloud.js",
   "./chat.js",

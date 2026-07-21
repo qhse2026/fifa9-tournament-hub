@@ -1,0 +1,105 @@
+FIFA 10 / Çok Sezonlu Lig Sistemi V39.0
+Bireysel Ödüller + Rekorlar Kitabı + Oyuncu Üyeliği
+====================================================
+
+1. GÜNCELLEME İÇERİĞİ
+
+A) Devre Sonu Bireysel Ödülleri
+- Premier League ve Championship ayrı değerlendirilir.
+- Her devrenin bütün maçları tamamlandığında üç ödül hesaplanır:
+  1. Devrenin Oyuncusu
+  2. Gol Kralı
+  3. Defans Ödülü
+- Devreler:
+  1. Devre: 4 yıldız
+  2. Devre: 4,5 yıldız
+  3. Devre: 5 yıldız
+- Yönetici ödülleri kesinleştirir.
+- Kesinleşmiş ödüller oyuncunun Kariyer Pasaportu içindeki Bireysel Ödül Kabinine eklenir.
+
+B) Lig Rekorlar Kitabı
+- Tüm Ligler / Premier League / Championship filtresi
+- Genel / 4 yıldız / 4,5 yıldız / 5 yıldız filtresi
+- Kayıtlar:
+  * En uzun galibiyet serisi
+  * En uzun yenilgi serisi
+  * En uzun kaybetmeme serisi
+  * En uzun kazanamama serisi
+  * Bir sezonda veya devrede en fazla gol
+  * Bir sezonda veya devrede en az gol yiyen
+  * En çok galibiyet
+  * En çok beraberlik
+  * En gollü maç
+  * En farklı maç
+
+C) Oyuncu Uygunluk Panosu
+- Şimdi müsait
+- Bu akşam müsait
+- Bugün uygun değil
+- Maç teklifine açık
+- Oyuncular kendi e-posta ve parolalarıyla giriş yapar.
+- Oyuncular yalnızca kendi uygunluk durumlarını güncelleyebilir.
+- Turnuva sonuçlarını yalnızca yönetici değiştirebilir.
+
+2. GITHUB / VERCEL DOSYALARI
+
+PATCH ONLY paketindeki aşağıdaki dosyaları sitenin ana dizinine yükle:
+- index.html
+- app.js
+- cloud.js
+- season-hub.js
+- season-experience.js
+- season-experience.css
+- service-worker.js
+- supabase/player_membership_v39.sql
+- FIFA_LEAGUE_SYSTEM_V39_INSTALL_TR.txt
+- FIFA_LEAGUE_SYSTEM_V39_TEST_CHECKLIST_TR.txt
+- FIFA_LEAGUE_SYSTEM_V39_FEATURE_MODEL.md
+
+Önerilen commit mesajı:
+Add leg awards record book and player membership v39
+
+3. SUPABASE SQL ZORUNLULUĞU
+
+Bu sürümde oyuncu üyeliği için yeni SQL gereklidir.
+
+Supabase Dashboard > SQL Editor bölümünü aç.
+Aşağıdaki dosyanın tamamını çalıştır:
+
+supabase/player_membership_v39.sql
+
+SQL şu yapıları oluşturur:
+- player_profiles
+- player_availability
+- Oyuncu kendi durumunu değiştirebilir RLS politikaları
+- Yönetici hesap eşleştirme fonksiyonu
+
+4. OYUNCU HESABI OLUŞTURMA
+
+Her oyuncu için:
+1. Supabase > Authentication > Users bölümüne gir.
+2. Add User ile oyuncunun e-posta ve geçici parolasını oluştur.
+3. Siteye yönetici hesabıyla giriş yap.
+4. FIFA Lig Sistemi > Oyuncu Uygunluğu sekmesine gir.
+5. Oyuncu Hesabı Bağla bölümünde e-posta ile oyuncu adını eşleştir.
+6. Oyuncu kendi e-posta/parolasıyla giriş yapabilir.
+
+5. DEVRE ÖDÜLLERİNİN KESİNLEŞMESİ
+
+- Bir devrenin ilgili ligdeki bütün maçları tamamlanmalıdır.
+- Bireysel Ödüller sekmesinde “Ödülleri Kesinleştir” düğmesi görünür.
+- Sonuç sonradan düzeltilirse yönetici “Ödülleri Yeniden Hesapla” düğmesini kullanabilir.
+
+6. CACHE
+
+Vercel deployment tamamlandıktan sonra:
+- Ctrl + F5 yap.
+- Eski dosyalar görünürse tarayıcı site verilerini / service worker cache’ini temizle.
+
+7. VERİ GÜVENLİĞİ
+
+- Mevcut FIFA09 verileri korunur.
+- FIFA10 ve sonraki sezon sonuçları korunur.
+- Kupa Müzesi korunur.
+- Takım havuzları korunur.
+- Yeni tablolar yalnızca oyuncu üyeliği ve uygunluk durumu içindir.

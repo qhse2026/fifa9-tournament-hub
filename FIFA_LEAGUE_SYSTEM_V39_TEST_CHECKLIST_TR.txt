@@ -1,0 +1,49 @@
+FIFA V39.0 TEST KONTROL LİSTESİ
+==============================
+
+A. DEVRE SONU ÖDÜLLERİ
+[ ] Premier League 1. devre maçlarının tamamını test sonucu ile doldur.
+[ ] Bireysel Ödüller sekmesini aç.
+[ ] Devrenin Oyuncusu hesaplanıyor mu?
+[ ] Gol Kralı doğru toplam golü gösteriyor mu?
+[ ] Defans Ödülü en az gol yiyen oyuncuya gidiyor mu?
+[ ] Ödülleri Kesinleştir düğmesi çalışıyor mu?
+[ ] Ödüller Kariyer Pasaportuna ekleniyor mu?
+[ ] Bir sonucu düzeltip Ödülleri Yeniden Hesapla işlemini test et.
+
+B. REKORLAR KİTABI
+[ ] Tüm Ligler filtresi çalışıyor mu?
+[ ] Premier League filtresi çalışıyor mu?
+[ ] Championship filtresi çalışıyor mu?
+[ ] Genel filtresi çalışıyor mu?
+[ ] 4★ filtresi çalışıyor mu?
+[ ] 4.5★ filtresi çalışıyor mu?
+[ ] 5★ filtresi çalışıyor mu?
+[ ] En gollü ve en farklı maç doğru mu?
+[ ] Seriler maçların sonuç giriş sırasına göre güncelleniyor mu?
+
+C. SUPABASE ÜYELİK
+[ ] player_membership_v39.sql hata vermeden çalıştı mı?
+[ ] Authentication içinde test oyuncusu oluşturuldu mu?
+[ ] Yönetici Oyuncu Uygunluğu sayfasından hesabı oyuncuya bağlayabiliyor mu?
+[ ] Test oyuncusu giriş yapabiliyor mu?
+[ ] Oyuncu yalnızca kendi uygunluğunu değiştirebiliyor mu?
+[ ] Oyuncu yönetim ve sonuç giriş araçlarına erişemiyor mu?
+[ ] Çıkış düğmesi çalışıyor mu?
+
+D. UYGUNLUK DURUMLARI
+[ ] Şimdi müsait
+[ ] Bu akşam müsait
+[ ] Bugün uygun değil
+[ ] Maç teklifine açık
+[ ] Kısa not panoda görünüyor mu?
+[ ] Pano Yenile düğmesi güncel veriyi getiriyor mu?
+
+E. REGRESYON
+[ ] FIFA09 ekranları açılıyor mu?
+[ ] FIFA10 sezon merkezi açılıyor mu?
+[ ] Sonuç girişi çalışıyor mu?
+[ ] Kupa Müzesi açılıyor mu?
+[ ] Takım Merkezi açılıyor mu?
+[ ] Kariyer Pasaportu açılıyor mu?
+[ ] Masaüstü sidebar scroll çalışıyor mu?

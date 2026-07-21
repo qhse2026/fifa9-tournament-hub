@@ -17,6 +17,7 @@
   let cloudConfigured = Boolean(cloud?.isConfigured?.());
   let cloudAdmin = !cloudConfigured;
   let cloudUser = null;
+  let cloudPlayerProfile = null;
   let cloudState = cloudConfigured ? "connecting" : "local";
   let cloudUpdatedAt = null;
   let cloudSaveTimer = null;
@@ -85,7 +86,7 @@
 
   function defaultSeasonSystem() {
     return {
-      infrastructureVersion: 37,
+      infrastructureVersion: 39,
       activeEdition: 10,
       seasons: [],
       fifa10Draft: {
@@ -243,6 +244,7 @@
       saved: "Canlı · kaydedildi",
       "admin-online": "Canlı · yönetici",
       "viewer-online": "Canlı · izleyici",
+      "player-online": "Canlı · oyuncu",
       reconnecting: "Yeniden bağlanıyor",
       error: "Bağlantı hatası"
     };
@@ -275,11 +277,16 @@
       button.dataset.action = "admin-signout";
       button.className = "btn btn-gold";
       button.title = cloudUser?.email || "Yönetici";
+    } else if (cloudUser && cloudPlayerProfile) {
+      button.textContent = `${cloudPlayerProfile.player_name} · Çıkış`;
+      button.dataset.action = "admin-signout";
+      button.className = "btn btn-blue";
+      button.title = cloudUser?.email || "Oyuncu hesabı";
     } else {
-      button.textContent = "Yönetici Girişi";
+      button.textContent = "Oyuncu / Yönetici Girişi";
       button.dataset.action = "open-admin-login";
       button.className = "btn btn-gold";
-      button.title = "Sonuç girişi yalnızca yöneticiye açıktır";
+      button.title = "Oyuncu uygunluğu veya turnuva yönetimi için giriş yap";
     }
     setCloudState(cloudState);
   }
@@ -7899,12 +7906,12 @@ ${shareData.url}`)}`;
 
   function openAdminLogin() {
     if (!cloudConfigured) { openCloudHelp(); return; }
-    openModal("Yönetici Girişi", `<form id="adminLoginForm">
-      <div class="info-box">Katılımcılar giriş yapmadan canlı turnuvayı izler. Bu giriş yalnızca sonuç ve fikstür yönetimi içindir.</div>
-      <div class="field mt-16"><label>E-posta</label><input type="email" name="email" autocomplete="username" required placeholder="yonetici@example.com"></div>
+    openModal("Hesap Girişi", `<form id="adminLoginForm">
+      <div class="info-box">Yönetici hesapları turnuvayı yönetir. Oyuncu hesapları yalnızca kendi uygunluk durumunu paylaşabilir.</div>
+      <div class="field mt-16"><label>E-posta</label><input type="email" name="email" autocomplete="username" required placeholder="oyuncu@example.com"></div>
       <div class="field"><label>Parola</label><input type="password" name="password" autocomplete="current-password" required placeholder="••••••••"></div>
       <div class="modal-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">İptal</button><button type="submit" class="btn btn-gold">Giriş Yap</button></div>
-    </form>`, "SECURE ADMIN ACCESS");
+    </form>`, "SECURE MEMBER ACCESS");
   }
 
   function openCloudHelp() {
@@ -7924,12 +7931,12 @@ ${shareData.url}`)}`;
     button.textContent = "Bağlanıyor...";
     try {
       const result = await cloud.signIn(String(data.get("email") || "").trim(), String(data.get("password") || ""));
-      if (!result.isAdmin) {
+      if (!result.isAdmin && !result.playerProfile) {
         await cloud.signOut();
-        throw new Error("Bu hesap turnuva yöneticisi olarak yetkilendirilmemiş.");
+        throw new Error("Bu hesap henüz yönetici veya oyuncu profiline bağlanmamış.");
       }
       closeModal();
-      toast("Yönetici girişi başarılı.", "success");
+      toast(result.isAdmin ? "Yönetici girişi başarılı." : `Hoş geldin, ${result.playerProfile.player_name}.`, "success");
       updateAuthUI();
       render();
     } catch (error) {
@@ -8131,7 +8138,7 @@ ${shareData.url}`)}`;
     if (type === "open-edition") openEdition(action.dataset.edition);
     if (type === "open-admin-login") openAdminLogin();
     if (type === "open-cloud-help") openCloudHelp();
-    if (type === "admin-signout") cloud?.signOut?.().then(() => { toast("Yönetici oturumu kapatıldı."); updateAuthUI(); render(); });
+    if (type === "admin-signout") cloud?.signOut?.().then(() => { toast("Oturum kapatıldı."); updateAuthUI(); render(); });
     if (type === "close-modal") closeModal();
     if (type === "export-json") exportJSON();
     if (type === "export-csv") exportCSV();
@@ -8313,9 +8320,10 @@ ${shareData.url}`)}`;
           if (meta.source === "realtime") toast("Canlı turnuva verisi güncellendi.", "success");
           render();
         },
-        onAuth: ({ user, isAdmin }) => {
+        onAuth: ({ user, isAdmin, playerProfile }) => {
           cloudUser = user || null;
           cloudAdmin = Boolean(isAdmin);
+          cloudPlayerProfile = playerProfile || null;
           const replacementResult = applyConfiguredPhase2Replacement({ silent: true });
           updateAuthUI();
           if (replacementResult.changed && cloudAdmin) saveState(false, true);

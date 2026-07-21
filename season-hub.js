@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = 38;
+  const VERSION = 39;
   const DEFAULT_SETTINGS = Object.freeze({
     premierSize: 7,
     promotion: 2,
@@ -169,6 +169,7 @@
     season.preventTeamReuse = season.preventTeamReuse !== false;
     season.wizardCompleted = Boolean(season.wizardCompleted);
     season.wizardCompletedAt = season.wizardCompletedAt || null;
+    season.individualAwards = season.individualAwards && typeof season.individualAwards === "object" ? season.individualAwards : {};
     return season;
   }
 
@@ -621,6 +622,7 @@
     match.homeTeam = homeTeam;
     match.awayTeam = awayTeam;
     match.sharedTeam = sharedTeam;
+    match.playedAt = match.playedAt || now();
     match.updatedAt = now();
     if (season.status === "scheduled") season.status = "active";
     refreshSeasonProgress(season);
@@ -637,6 +639,7 @@
     match.homeScore = null;
     match.awayScore = null;
     match.winnerId = null;
+    match.playedAt = null;
     match.updatedAt = now();
     closeModal();
     refreshSeasonProgress(season);
@@ -1196,11 +1199,13 @@
     const names = allCareerNames();
     if (!selectedCareerPlayerName || !names.includes(selectedCareerPlayerName)) selectedCareerPlayerName = activePlayers(season)[0]?.name || names[0] || "";
     const data = buildCareerPassport(selectedCareerPlayerName);
+    const individualAwards = window.FIFA_SEASON_EXPERIENCE?.playerAwards?.(data.name) || [];
     const initials = data.name.split(/\s+/).map(item => item[0]).slice(0, 2).join("");
     return `<div class="season-career-passport">
       <section class="season-career-hero"><div class="season-career-avatar">${esc(initials)}</div><div class="season-career-identity"><div class="eyebrow">PLAYER CAREER PASSPORT</div><h2>${esc(data.name || "Oyuncu seç")}</h2><p>${data.allTime ? `Tüm Zamanlar #${data.allTime.rank} · ${data.allTime.points} puan` : "FIFA Lig Sistemi kariyer profili"}</p><select data-season-career-player>${names.map(name => `<option value="${esc(name)}" ${name === data.name ? "selected" : ""}>${esc(name)}</option>`).join("")}</select></div><div class="season-career-legacy"><span>LEGACY</span><strong>${data.wins * 100 + data.runnerUps * 35 + data.thirds * 15}</strong><small>${data.wins} kupa · ${data.runnerUps} final</small></div></section>
       <section class="season-career-stat-grid"><article><span>MAÇ</span><strong>${data.stats.games}</strong></article><article><span>GALİBİYET</span><strong>${data.stats.wins}</strong></article><article><span>GALİBİYET %</span><strong>%${data.winRate}</strong></article><article><span>GOL</span><strong>${data.stats.gf}</strong></article><article><span>AVERJ</span><strong class="${data.stats.gf - data.stats.ga >= 0 ? "positive" : "negative"}">${data.stats.gf - data.stats.ga > 0 ? "+" : ""}${data.stats.gf - data.stats.ga}</strong></article><article><span>ANA RAKİP</span><strong>${esc(data.rival?.[0] || "—")}</strong></article></section>
       <section class="panel"><div class="panel-header"><div><h3 class="panel-title">Kupa ve Madalya Koleksiyonu</h3><div class="panel-subtitle">FIFA01'den güncel sezona kadar resmî başarılar.</div></div><div class="season-medal-summary"><span>🏆 ${data.wins}</span><span>🥈 ${data.runnerUps}</span><span>🥉 ${data.thirds}</span></div></div><div class="season-career-honours">${data.honours.map(item => `<article class="${item.medal}"><div>${item.medal === "winner" ? "🏆" : item.medal === "runner-up" ? "🥈" : "🥉"}</div><strong>${esc(competitionName(item.competition))}</strong><span>${seasonLabel(item.edition)}</span><small>${item.medal === "winner" ? "Şampiyon" : item.medal === "runner-up" ? "İkinci" : "Üçüncü"}</small></article>`).join("") || `<div class="season-empty"><strong>Henüz madalya kaydı yok</strong><p>Resmî sezon başarıları burada görünecek.</p></div>`}</div></section>
+      <section class="panel"><div class="panel-header"><div><h3 class="panel-title">Bireysel Ödül Kabini</h3><div class="panel-subtitle">Devrenin Oyuncusu, Gol Kralı ve Defans Ödülü kayıtları.</div></div><span class="badge">${individualAwards.length} ÖDÜL</span></div>${individualAwards.length ? `<div class="award-history-grid">${individualAwards.map(item => `<article><span>${seasonLabel(item.edition)} · ${esc(competitionName(item.leagueId))} · ${item.leg}. Devre · ${item.stars}★</span><strong>${esc(item.label)}</strong><small>${item.type === "goals" ? `${item.stats.gf} gol` : item.type === "defense" ? `${item.stats.ga} gol yedi · ${item.stats.cleanSheets} clean sheet` : `${item.stats.pts} puan · ${item.stats.w} galibiyet`}</small></article>`).join("")}</div>` : `<div class="season-empty"><strong>Henüz bireysel ödül yok</strong><p>Devre sonu ödülleri kesinleştirildiğinde burada görünecek.</p></div>`}</section>
       <section class="season-career-columns"><article class="panel"><div class="panel-header"><div><h3 class="panel-title">Sezon Yolculuğu</h3><div class="panel-subtitle">Lig, sıralama ve sezon sonucu.</div></div></div><div class="season-career-timeline">${data.timeline.map(item => `<div><b>${seasonLabel(item.edition)}</b><span>${esc(item.league)}</span><strong>${item.rank === "—" ? "—" : `${item.rank}.`}</strong><em>${esc(item.result)}</em></div>`).join("") || `<div class="season-empty">Sezon kaydı bulunmuyor.</div>`}</div></article><article class="panel"><div class="panel-header"><div><h3 class="panel-title">Takım Kimliği</h3><div class="panel-subtitle">Kariyerde en sık kullanılan takımlar.</div></div></div><div class="season-career-teams">${data.favouriteTeams.slice(0, 10).map(([team, uses], index) => `<div><b>${index + 1}</b><span>${esc(team)}</span><strong>${uses} maç</strong></div>`).join("") || `<div class="season-empty">Takım kullanım verisi yok.</div>`}</div></article></section>
     </div>`;
   }
@@ -1306,7 +1311,7 @@
 
   function renderTabs() {
     const tabs = [
-      ["overview", "Sezon Özeti"], ["premier", "Premier League"], ["championship", "Championship"], ["teams", "Takım Merkezi"], ["oruc", "Oruç Reis Kupası"], ["super", "Süper Kupa"], ["career", "Kariyer Pasaportu"], ["admin", "Yönetim"]
+      ["overview", "Sezon Özeti"], ["premier", "Premier League"], ["championship", "Championship"], ["teams", "Takım Merkezi"], ["awards", "Bireysel Ödüller"], ["records", "Rekorlar Kitabı"], ["availability", "Oyuncu Uygunluğu"], ["oruc", "Oruç Reis Kupası"], ["super", "Süper Kupa"], ["career", "Kariyer Pasaportu"], ["admin", "Yönetim"]
     ];
     return `<nav class="season-subnav">${tabs.map(([id, label]) => `<button class="${selectedTab === id ? "active" : ""}" data-season-action="set-tab" data-tab="${id}">${label}</button>`).join("")}</nav>`;
   }
@@ -1432,7 +1437,17 @@
     const season = currentSeason();
     if (!target || !season) return;
     refreshSeasonProgress(season);
-    target.innerHTML = `${renderStatusHero(season)}${renderSeasonSelector(season)}${renderTabs()}<div class="season-hub-content">${selectedTab === "overview" ? renderOverview(season) : selectedTab === "premier" ? renderLeague(season, "premier") : selectedTab === "championship" ? renderLeague(season, "championship") : selectedTab === "teams" ? renderTeamCenter(season) : selectedTab === "oruc" ? renderOrucCup(season) : selectedTab === "super" ? renderSuperCup(season) : selectedTab === "career" ? renderCareerPassport(season) : renderAdmin(season)}</div>`;
+    const experienceTabs = ["awards", "records", "availability"];
+    const content = selectedTab === "overview" ? renderOverview(season)
+      : selectedTab === "premier" ? renderLeague(season, "premier")
+      : selectedTab === "championship" ? renderLeague(season, "championship")
+      : selectedTab === "teams" ? renderTeamCenter(season)
+      : experienceTabs.includes(selectedTab) ? (window.FIFA_SEASON_EXPERIENCE?.render?.(selectedTab, season) || `<section class="panel season-empty"><strong>V39 modülü yükleniyor</strong></section>`)
+      : selectedTab === "oruc" ? renderOrucCup(season)
+      : selectedTab === "super" ? renderSuperCup(season)
+      : selectedTab === "career" ? renderCareerPassport(season)
+      : renderAdmin(season);
+    target.innerHTML = `${renderStatusHero(season)}${renderSeasonSelector(season)}${renderTabs()}<div class="season-hub-content">${content}</div>`;
   }
 
   function rerender() {

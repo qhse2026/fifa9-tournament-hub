@@ -5,6 +5,7 @@
   let client = null;
   let session = null;
   let admin = false;
+  let playerProfile = null;
   let channel = null;
   let callbacks = { onState: () => {}, onAuth: () => {}, onStatus: () => {} };
   let lastRemoteUpdatedAt = null;
@@ -19,7 +20,7 @@
   }
 
   function emitStatus(status, detail = "") {
-    callbacks.onStatus({ status, detail, configured: isConfigured(), admin, user: session?.user || null });
+    callbacks.onStatus({ status, detail, configured: isConfigured(), admin, playerProfile, user: session?.user || null });
   }
 
   async function checkAdmin(user) {
@@ -36,11 +37,26 @@
     return Boolean(data?.user_id);
   }
 
+  async function checkPlayerProfile(user) {
+    if (!client || !user) return null;
+    const { data, error } = await client
+      .from("player_profiles")
+      .select("user_id, player_name, active")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (error) {
+      if (error.code !== "42P01") console.warn("Player profile check failed", error);
+      return null;
+    }
+    return data?.active === false ? null : (data || null);
+  }
+
   async function applySession(nextSession) {
     session = nextSession || null;
-    admin = await checkAdmin(session?.user || null);
-    callbacks.onAuth({ user: session?.user || null, isAdmin: admin });
-    emitStatus(admin ? "admin-online" : "viewer-online");
+    const user = session?.user || null;
+    [admin, playerProfile] = await Promise.all([checkAdmin(user), checkPlayerProfile(user)]);
+    callbacks.onAuth({ user, isAdmin: admin, playerProfile });
+    emitStatus(admin ? "admin-online" : playerProfile ? "player-online" : "viewer-online");
   }
 
   async function fetchState() {
@@ -59,7 +75,7 @@
       lastRemoteUpdatedAt = data.updated_at || null;
       callbacks.onState(data.payload, { source: "initial", updatedAt: data.updated_at || null });
     }
-    emitStatus(admin ? "admin-online" : "viewer-online");
+    emitStatus(admin ? "admin-online" : playerProfile ? "player-online" : "viewer-online");
     return data;
   }
 
@@ -81,11 +97,11 @@
           if (row.updated_at && row.updated_at === lastRemoteUpdatedAt) return;
           lastRemoteUpdatedAt = row.updated_at || null;
           callbacks.onState(row.payload, { source: "realtime", updatedAt: row.updated_at || null });
-          emitStatus(admin ? "admin-online" : "viewer-online");
+          emitStatus(admin ? "admin-online" : playerProfile ? "player-online" : "viewer-online");
         }
       )
       .subscribe(status => {
-        if (status === "SUBSCRIBED") emitStatus(admin ? "admin-online" : "viewer-online");
+        if (status === "SUBSCRIBED") emitStatus(admin ? "admin-online" : playerProfile ? "player-online" : "viewer-online");
         if (["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(status)) emitStatus("reconnecting", status);
       });
   }
@@ -94,12 +110,12 @@
     callbacks = { ...callbacks, ...nextCallbacks };
     if (!isConfigured()) {
       emitStatus("not-configured");
-      callbacks.onAuth({ user: null, isAdmin: false });
-      return { configured: false, isAdmin: false, user: null };
+      callbacks.onAuth({ user: null, isAdmin: false, playerProfile: null });
+      return { configured: false, isAdmin: false, playerProfile: null, user: null };
     }
     if (!window.supabase?.createClient) {
       emitStatus("error", "Supabase client could not be loaded");
-      return { configured: true, isAdmin: false, user: null };
+      return { configured: true, isAdmin: false, playerProfile: null, user: null };
     }
 
     emitStatus("connecting");
@@ -116,7 +132,7 @@
       setTimeout(() => applySession(nextSession).catch(error => console.warn("Auth state refresh failed", error)), 0);
     });
 
-    return { configured: true, isAdmin: admin, user: session?.user || null };
+    return { configured: true, isAdmin: admin, playerProfile, user: session?.user || null };
   }
 
   async function save(payload) {
@@ -154,7 +170,7 @@
       throw error;
     }
     await applySession(data.session || null);
-    return { user: data.user, isAdmin: admin };
+    return { user: data.user, isAdmin: admin, playerProfile };
   }
 
   async function signOut() {
@@ -162,6 +178,52 @@
     const { error } = await client.auth.signOut();
     if (error) throw error;
     await applySession(null);
+  }
+
+  async function fetchAvailability() {
+    if (!client || !isConfigured()) return [];
+    const [{ data: profiles, error: profileError }, { data: availability, error: availabilityError }] = await Promise.all([
+      client.from("player_profiles").select("user_id, player_name, active").eq("active", true),
+      client.from("player_availability").select("user_id, status, note, updated_at")
+    ]);
+    if (profileError) throw profileError;
+    if (availabilityError) throw availabilityError;
+    const availabilityMap = new Map((availability || []).map(item => [item.user_id, item]));
+    return (profiles || []).map(profile => {
+      const row = availabilityMap.get(profile.user_id) || {};
+      return {
+        userId: profile.user_id,
+        playerName: profile.player_name,
+        status: row.status || "unavailable",
+        note: row.note || "",
+        updatedAt: row.updated_at || null
+      };
+    });
+  }
+
+  async function setAvailability(status, note = "") {
+    if (!client || !session?.user) throw new Error("Uygunluk durumunu değiştirmek için oyuncu hesabıyla giriş yapmalısın.");
+    if (!playerProfile) throw new Error("Bu hesap henüz bir oyuncu profiline bağlanmamış.");
+    const allowed = ["now", "evening", "unavailable", "open"];
+    if (!allowed.includes(status)) throw new Error("Geçersiz uygunluk durumu.");
+    const { error } = await client.from("player_availability").upsert({
+      user_id: session.user.id,
+      status,
+      note: String(note || "").trim().slice(0, 120),
+      updated_at: new Date().toISOString()
+    }, { onConflict: "user_id" });
+    if (error) throw error;
+    return true;
+  }
+
+  async function linkPlayerAccount(email, playerName) {
+    if (!client || !admin) throw new Error("Oyuncu hesaplarını yalnızca turnuva yöneticisi bağlayabilir.");
+    const { data, error } = await client.rpc("link_player_account", {
+      p_email: String(email || "").trim(),
+      p_player_name: String(playerName || "").trim()
+    });
+    if (error) throw error;
+    return data;
   }
 
   async function refresh() {
@@ -174,9 +236,13 @@
     signIn,
     signOut,
     refresh,
+    fetchAvailability,
+    setAvailability,
+    linkPlayerAccount,
     isConfigured,
     getClient: () => client,
     getUser: () => session?.user || null,
+    getPlayerProfile: () => playerProfile,
     isAdmin: () => admin
   };
 })();
