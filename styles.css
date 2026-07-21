@@ -3530,3 +3530,13 @@ body.shutdown-mode{overflow:hidden;}
   .tournament-announcement-copy{gap:15px;line-height:1.62}
   .tournament-announcement-thanks{width:100%;border-radius:16px}
 }
+
+
+/* v35.4 Closeable tournament announcement */
+.tournament-announcement-card{position:relative;}
+.tournament-announcement-close{position:absolute;top:18px;right:20px;z-index:3;width:44px;height:44px;border-radius:14px;border:1px solid rgba(225,184,99,.42);background:rgba(5,15,28,.82);color:#efd188;font-size:28px;line-height:1;cursor:pointer;transition:transform .18s ease,background .18s ease,border-color .18s ease;box-shadow:0 10px 28px rgba(0,0,0,.28)}
+.tournament-announcement-close:hover{transform:scale(1.06);background:rgba(39,30,18,.95);border-color:#e3ba63}
+.tournament-announcement-continue{display:inline-flex;align-items:center;justify-content:center;margin:22px auto 0;min-width:220px;min-height:50px;padding:12px 24px;border-radius:16px;border:1px solid rgba(227,186,99,.55);background:linear-gradient(135deg,#e0b55e,#b98a37);color:#07111d;font-size:14px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;box-shadow:0 14px 35px rgba(192,142,48,.22);transition:transform .18s ease,filter .18s ease,box-shadow .18s ease}
+.tournament-announcement-continue:hover{transform:translateY(-2px);filter:brightness(1.08);box-shadow:0 18px 42px rgba(192,142,48,.32)}
+.tournament-announcement-overlay.is-closing{opacity:0;transform:scale(1.015);pointer-events:none;transition:opacity .28s ease,transform .28s ease}
+@media(max-width:700px){.tournament-announcement-close{top:10px;right:10px;width:40px;height:40px}.tournament-announcement-continue{width:100%;min-width:0}}

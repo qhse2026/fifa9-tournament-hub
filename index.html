@@ -11,8 +11,9 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body class="shutdown-mode">
-  <div class="shutdown-overlay tournament-announcement-overlay" role="dialog" aria-modal="true" aria-labelledby="announcementTitle">
+  <div class="shutdown-overlay tournament-announcement-overlay" id="tournamentAnnouncement" role="dialog" aria-modal="true" aria-labelledby="announcementTitle">
     <div class="shutdown-overlay-inner tournament-announcement-card">
+      <button type="button" class="tournament-announcement-close" id="tournamentAnnouncementClose" aria-label="Duyuruyu kapat">×</button>
       <div class="shutdown-kicker">FIFA TURNUVA MERKEZİ</div>
       <h1 class="shutdown-title" id="announcementTitle">Turnuva Organizasyonu Hakkında Duyuru</h1>
       <div class="shutdown-divider"></div>
@@ -24,6 +25,7 @@
         <p class="tournament-announcement-closing">Umarım geriye rekabetten çok birlikte güldüğümüz ve keyif aldığımız güzel anlar kalır.</p>
       </div>
       <div class="tournament-announcement-thanks">Anlayışınız için teşekkür ederim.</div>
+      <button type="button" class="tournament-announcement-continue" id="tournamentAnnouncementContinue">Siteye Devam Et</button>
     </div>
   </div>
 
@@ -114,5 +116,23 @@
   <script src="chat.js"></script>
   <script src="community.js"></script>
   <script src="app.js"></script>
+  <script>
+    (() => {
+      const overlay = document.getElementById('tournamentAnnouncement');
+      const closeButton = document.getElementById('tournamentAnnouncementClose');
+      const continueButton = document.getElementById('tournamentAnnouncementContinue');
+      const closeAnnouncement = () => {
+        if (!overlay) return;
+        overlay.classList.add('is-closing');
+        document.body.classList.remove('shutdown-mode');
+        window.setTimeout(() => overlay.remove(), 280);
+      };
+      closeButton?.addEventListener('click', closeAnnouncement);
+      continueButton?.addEventListener('click', closeAnnouncement);
+      document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && document.getElementById('tournamentAnnouncement')) closeAnnouncement();
+      });
+    })();
+  </script>
 </body>
 </html>

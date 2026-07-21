@@ -1,0 +1,18 @@
+FIFA 9 V35.4 — KAPATILABİLİR DUYURU EKRANI
+
+Yenilikler:
+- Duyuru ekranının sağ üstüne kapatma (×) butonu eklendi.
+- Metnin altına Siteye Devam Et butonu eklendi.
+- Escape tuşuyla da duyuru kapatılabilir.
+- Duyuru kapatılınca tüm menüler ve site normal şekilde kullanılabilir.
+
+Yüklenecek dosyalar:
+- index.html
+- styles.css
+- service-worker.js
+- V35_4_CLOSEABLE_ANNOUNCEMENT_INSTALL_TR.txt
+
+Commit önerisi:
+Add closeable tournament announcement v35.4
+
+Deploy sonrası Ctrl + F5 yapın.

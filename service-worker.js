@@ -1,4 +1,4 @@
-const CACHE = "fifa9-hub-live-v35-1-silver-admin-replacement";
+const CACHE = "fifa9-hub-live-v35-3-respectful-announcement";
 const APP_SHELL = [
   "./",
   "./index.html",
