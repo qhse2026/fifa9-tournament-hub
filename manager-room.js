@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "42.5";
+  const VERSION = "42.5.1";
   const STORAGE_KEY = "fifa-manager-room-v42";
   const CATALOG_URL = "data/manager-team-catalog-fc25.json";
   const BOOTSTRAP_URL = "data/manager-bootstrap-v42.json";

@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "42.5";
+  const VERSION = "42.5.1";
   const TICK_MS = 850;
   const MAX_EVENTS = 180;
   const MAX_DECISIONS = 10;
@@ -300,7 +300,7 @@
 
   function aggregatePlan(plan) {
     const aggregate = { attack: 0, control: 0, defence: 0, fatigue: 1, risk: 0, tags: [] };
-    Object.entries(plan || {}).forEach(([group, id]) => {
+    Object.entries(plan || {}).filter(([group]) => Object.prototype.hasOwnProperty.call(PLAN_GROUPS, group)).forEach(([group, id]) => {
       const item = planItem(group, id);
       aggregate.attack += item.attack || 0;
       aggregate.control += item.control || 0;
