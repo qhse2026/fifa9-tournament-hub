@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "43.3.0";
+  const VERSION = "44.0.0";
   const TICK_MS = 250;
   const PLAYBACK_SPEEDS = [1, 2, 4, 8, 16];
   const MAX_EVENTS = 180;
@@ -181,6 +181,28 @@
     const safe = Math.max(0, Math.min(5400, Math.floor(Number(seconds || 0))));
     return `${String(Math.floor(safe / 60)).padStart(2, "0")}:${String(safe % 60).padStart(2, "0")}`;
   };
+
+  const UEFA_STAT_KEYS = [
+    "shots","onTarget","offTarget","blocked","xg","attacks","dangerous","possession","corners","fouls","yellow","red","passes","passAccuracy","penalties","penaltiesScored","penaltiesMissed","saves","offsides","woodwork","freeKicks","varOverturns",
+    "passesAttempted","passesCompleted","shortPassesAttempted","shortPassesCompleted","mediumPassesAttempted","mediumPassesCompleted","longPassesAttempted","longPassesCompleted","finalThirdPassesAttempted","finalThirdPassesCompleted","crossesAttempted","crossesCompleted","progressivePasses","dribblesAttempted","dribblesCompleted","tacklesAttempted","tacklesWon","interceptions","recoveries","clearances","blocks","duelsTotal","duelsWon","aerialDuelsTotal","aerialDuelsWon","turnovers","highRecoveries","entriesFinalThird","entriesBox","goalsInsideBox","goalsOutsideBox","possessionSeconds"
+  ];
+
+  function emptyUefaStats(possession = 50) {
+    const stats = Object.fromEntries(UEFA_STAT_KEYS.map(key => [key, 0]));
+    stats.possession = possession;
+    return stats;
+  }
+
+  function ensureUefaStats(stats = {}) {
+    UEFA_STAT_KEYS.forEach(key => { stats[key] = Number(stats[key] || 0); });
+    if (!stats.passesAttempted && stats.passes) {
+      stats.passesCompleted = Number(stats.passes || 0);
+      stats.passesAttempted = Math.max(stats.passesCompleted, Math.round(stats.passesCompleted / Math.max(.55, Number(stats.passAccuracy || 78) / 100)));
+    }
+    stats.passes = Number(stats.passesCompleted || stats.passes || 0);
+    stats.passAccuracy = stats.passesAttempted ? Math.round(stats.passesCompleted / stats.passesAttempted * 100) : Number(stats.passAccuracy || 0);
+    return stats;
+  }
 
   const PLAN_GROUPS = {
     mentality: [
@@ -858,10 +880,7 @@
       turningPoints: [],
       events: [{ minute: 0, type: "kickoff", side: "neutral", text: "Hakem düdüğü çaldı. Taktik planlar sahada." }],
       commentary: [{ second:0, minute:0, clock:"00:00", side:"neutral", type:"kickoff", text:"Hakem düdüğü çaldı; iki takım kendi oyun planıyla maça başladı." }],
-      stats: {
-        home: { shots: 0, onTarget: 0, offTarget: 0, blocked: 0, xg: 0, attacks: 0, dangerous: 0, possession: 50, corners: 0, fouls: 0, yellow: 0, red: 0, passes: 0, passAccuracy: 0, penalties: 0, penaltiesScored: 0, penaltiesMissed: 0, saves:0,offsides:0,woodwork:0,freeKicks:0,varOverturns:0 },
-        away: { shots: 0, onTarget: 0, offTarget: 0, blocked: 0, xg: 0, attacks: 0, dangerous: 0, possession: 50, corners: 0, fouls: 0, yellow: 0, red: 0, passes: 0, passAccuracy: 0, penalties: 0, penaltiesScored: 0, penaltiesMissed: 0, saves:0,offsides:0,woodwork:0,freeKicks:0,varOverturns:0 }
-      },
+      stats: { home: emptyUefaStats(50), away: emptyUefaStats(50) },
       report: null
     };
     fixture.matchEngine.motivation = resolveMotivation(fixture.matchEngine, motivationId, sides, plan, career, fixture);
@@ -871,6 +890,7 @@
       away: buildVirtualSquad(fixture.matchEngine, sides.awayTeam, sides.humanIsHome ? aiPlan.formation : plan.formation, sides.humanIsHome ? aiPlan.positionRoles : plan.positionRoles)
     };
     initialize2DState(fixture.matchEngine);
+    initializeMatchFlow(fixture.matchEngine);
     fixture.matchEngine.substitutions = [];
     const humanMods = sides.humanIsHome ? "homeModifiers" : "awayModifiers";
     const motivation = fixture.matchEngine.motivation;
@@ -948,54 +968,180 @@
     return row;
   }
 
-  function motionNarration(career,fixture,side,from,to,action){
-    const sides=getSides(career,fixture),team=side==="home"?sides.homeTeam:sides.awayTeam,name=team?.clubName||"Takım";
-    if(action==="switch")return `${name} oyunun yönünü ${from.key} üzerinden ters kanada çevirdi.`;
-    if(action==="carry")return `${from.key} topla birlikte ilerliyor; ${name} rakip bloğu üzerine çekiyor.`;
-    if(action==="vertical")return `${name}, ${from.key} ile ${to.key} arasındaki dikine bağlantıyı buldu.`;
-    if(action==="reset")return `${name} acele etmiyor; ${from.key} topu güvenli pasla yeniden dolaşıma soktu.`;
-    return `${from.key} topu ${to.key} bölgesine aktardı; ${name} yerleşimini öne taşıyor.`;
+  function initializeMatchFlow(engine) {
+    const state=engine.visual2D||initialize2DState(engine);
+    if(Number(engine.stats?.home?.possessionSeconds||0)+Number(engine.stats?.away?.possessionSeconds||0)===0){engine.stats.home.possessionSeconds=1;engine.stats.away.possessionSeconds=1;}
+    engine.matchFlow ||= {
+      version:4,
+      possession:"home",
+      carrierIndex:5,
+      sequenceId:1,
+      sequence:[],
+      sequenceStartSecond:Number(engine.clockSeconds||0),
+      nextActionSecond:Number(engine.clockSeconds||0)+1.2,
+      lastActionSecond:Number(engine.clockSeconds||0),
+      consecutiveDeepPasses:0,
+      crossedHalf:false,
+      enteredFinalThird:false,
+      enteredBox:false,
+      actionCount:0,
+      logicalBall:{x:50,y:50},
+      rngState:(Number(engine.seed||engine.rngState||1)^0xA5A5F00D)>>>0
+    };
+    engine.matchFlow.logicalBall ||= {x:Number(state.motion?.ballTo?.x??state.ball?.x??50),y:Number(state.motion?.ballTo?.y??state.ball?.y??50)};
+    if(!Number.isFinite(Number(engine.matchFlow.rngState)))engine.matchFlow.rngState=(Number(engine.seed||engine.rngState||1)^0xA5A5F00D)>>>0;
+    state.motion ||= {};
+    state.motion.possession=engine.matchFlow.possession;
+    state.motion.carrierIndex=engine.matchFlow.carrierIndex;
+    return engine.matchFlow;
   }
 
-  function setNextMotionTarget(career,fixture){
-    const engine=fixture.matchEngine,state=engine.visual2D||initialize2DState(engine),motion=state.motion||{},nowSecond=Number(engine.clockSeconds||0);
-    const possession=engine.phaseState?.possession||motion.possession||"home",players=state[possession]||[];
-    if(!players.length)return;
-    const previousSide=motion.possession,currentIndex=clamp(Number(motion.carrierIndex||0),0,players.length-1),from=players[currentIndex]||players[0],direction=possession==="home"?1:-1;
-    const forward=players.filter((player,index)=>index!==currentIndex&&direction*(player.x-from.x)>-7&&Math.abs(player.x-from.x)<39&&Math.abs(player.y-from.y)<48);
-    const fallback=players.filter((_,index)=>index!==currentIndex),pool=forward.length?forward:fallback;
-    let to=pool[Math.floor(visualRandom(engine)*pool.length)]||from;
-    const progress=direction*(to.x-from.x),lateral=Math.abs(to.y-from.y);
-    let action=progress>15?"vertical":progress<-7?"reset":lateral>34?"switch":visualRandom(engine)<.2?"carry":"pass";
-    if(action==="carry")to=from;
-    const ballFrom={x:Number(state.ball?.x||from.x),y:Number(state.ball?.y||from.y)};
-    let ballTo={x:clamp(Number(to.targetX||to.x)+direction*(action==="carry"?5:0),4,96),y:clamp(Number(to.targetY||to.y)+visualNormal(engine)*1.1,5,95)};
-    const distance=Math.hypot(ballTo.x-ballFrom.x,ballTo.y-ballFrom.y),duration=clamp(2.2+distance/13+visualRandom(engine)*1.4,2.2,6.2);
-    motion.sequence=Number(motion.sequence||0)+1;motion.possession=possession;motion.carrierIndex=Math.max(0,players.indexOf(to));motion.action=action;motion.actionStartSecond=nowSecond;motion.actionEndSecond=nowSecond+duration;motion.nextActionSecond=motion.actionEndSecond;motion.ballFrom=ballFrom;motion.ballTo=ballTo;state.motion=motion;
-    ["home","away"].forEach(side=>{
-      (state[side]||[]).forEach(player=>{
-        const anchor=phasePosition(engine,player,side,ballTo.x,ballTo.y),owns=side===possession,pull=owns ? .085 : .055;
-        player.targetX=clamp(anchor.x+(ballTo.x-anchor.x)*pull+visualNormal(engine)*.7,4,96);
-        player.targetY=clamp(anchor.y+(ballTo.y-anchor.y)*pull+visualNormal(engine)*.8,5,95);
-      });
+  function flowTeamName(career,fixture,side){const sides=getSides(career,fixture);return (side==="home"?sides.homeTeam:sides.awayTeam)?.clubName||(side==="home"?"Ev sahibi":"Deplasman");}
+  function canonicalX(side,x){return side==="home"?Number(x):100-Number(x);}
+  function pitchX(side,x){return side==="home"?Number(x):100-Number(x);}
+  function flowPlayer(engine,side,index){const visual=engine.visual2D?.[side]?.[index];const squad=engine.squads?.[side]?.find(item=>item.id===visual?.id)||engine.squads?.[side]?.[index]||{};return {visual,squad,index};}
+  function weightedPick(engine,rows){const valid=rows.filter(row=>Number(row.weight)>0);if(!valid.length)return rows[0]?.value;let cursor=random(engine)*valid.reduce((sum,row)=>sum+row.weight,0);for(const row of valid){cursor-=row.weight;if(cursor<=0)return row.value;}return valid.at(-1)?.value;}
+
+  function syncDistributionStats(stats){
+    stats.passesCompleted=Number(stats.passesCompleted||0);stats.passesAttempted=Number(stats.passesAttempted||0);stats.passes=stats.passesCompleted;
+    stats.passAccuracy=stats.passesAttempted?Math.round(stats.passesCompleted/stats.passesAttempted*100):0;
+  }
+
+  function recordFlowPass(stats,distance,progress,completed,isCross=false,finalThird=false){
+    stats.passesAttempted+=1;if(completed)stats.passesCompleted+=1;
+    const size=distance<15?"short":distance<31?"medium":"long";
+    stats[`${size}PassesAttempted`]+=1;if(completed)stats[`${size}PassesCompleted`]+=1;
+    if(finalThird){stats.finalThirdPassesAttempted+=1;if(completed)stats.finalThirdPassesCompleted+=1;}
+    if(progress>=10&&completed)stats.progressivePasses+=1;
+    if(isCross){stats.crossesAttempted+=1;if(completed)stats.crossesCompleted+=1;}
+    syncDistributionStats(stats);
+  }
+
+  function resetFlowSequence(engine,side,carrierIndex,reason="recovery"){
+    const flow=initializeMatchFlow(engine),previous=flow.possession;
+    if(previous&&previous!==side)engine.stats[previous].turnovers+=1;
+    flow.possession=side;flow.carrierIndex=clamp(Number(carrierIndex||0),0,10);flow.sequenceId+=1;flow.sequence=[];flow.sequenceStartSecond=Number(flow.processingSecond ?? engine.clockSeconds ?? 0);flow.consecutiveDeepPasses=0;flow.crossedHalf=false;flow.enteredFinalThird=false;flow.enteredBox=false;
+    engine.phaseState ||= {};engine.phaseState.previousPossession=previous;engine.phaseState.possession=side;engine.phaseState.transitionSide=side;engine.phaseState.transitionUntil=engine.minute+0.12;
+    if(previous&&previous!==side){engine.stats[side].recoveries+=1;const x=canonicalX(side,flow.logicalBall?.x||50);if(x>58)engine.stats[side].highRecoveries+=1;}
+    flow.sequence.push(reason==="kickoff"?"Başlama vuruşu":reason==="save"?"Kaleci kurtarışı":"Top kazanma");
+    return flow;
+  }
+
+  function setFlowMotion(engine,side,carrierIndex,ballTo,action,duration){
+    const state=engine.visual2D||initialize2DState(engine),flow=initializeMatchFlow(engine),from={x:Number(flow.logicalBall?.x??state.ball?.x??50),y:Number(flow.logicalBall?.y??state.ball?.y??50)},start=Number(flow.processingSecond ?? engine.clockSeconds ?? 0),end=start+duration;
+    state.motion={...(state.motion||{}),sequence:Number(state.motion?.sequence||0)+1,possession:side,carrierIndex,action,actionStartSecond:start,actionEndSecond:end,nextActionSecond:end,ballFrom:from,ballTo:{x:round1(ballTo.x),y:round1(ballTo.y)}};
+    flow.nextActionSecond=end;flow.lastActionSecond=start;flow.actionCount+=1;flow.logicalBall={x:round1(ballTo.x),y:round1(ballTo.y)};
+    ["home","away"].forEach(teamSide=>(state[teamSide]||[]).forEach((player,index)=>{
+      const anchor=phasePosition(engine,player,teamSide,ballTo.x,ballTo.y),owns=teamSide===side,pull=owns ? .11 : .075;
+      player.targetX=clamp(anchor.x+(ballTo.x-anchor.x)*pull+visualNormal(engine)*.55,4,96);
+      player.targetY=clamp(anchor.y+(ballTo.y-anchor.y)*pull+visualNormal(engine)*.65,5,95);
+      if(teamSide===side&&index===carrierIndex){player.targetX=clamp(ballTo.x+(side==="home"?-.8:.8),4,96);player.targetY=ballTo.y;}
+    }));
+    state.trail.push(from);state.trail=state.trail.slice(-10);state.possession=side;
+  }
+
+  function flowActionDuration(engine,metrics,distance=12){
+    const tempo=metrics.plan?.tempo==="high" ? .74 : metrics.plan?.tempo==="low" ? 1.22 : 1;
+    return clamp((2.55+distance/15+randomRange(engine,.15,1.45))*tempo,2.25,6.6);
+  }
+
+  function choosePassTarget(career,fixture,side,currentIndex){
+    const engine=fixture.matchEngine,flow=initializeMatchFlow(engine),state=engine.visual2D,players=state[side]||[],from=players[currentIndex]||players[0],metrics=sideMetrics(career,fixture,side),plan=metrics.plan||{},fromX=canonicalX(side,from.targetX??from.x),forceProgress=flow.consecutiveDeepPasses>=4;
+    const candidates=players.map((player,index)=>{
+      if(index===currentIndex)return {value:index,weight:0};
+      const data=flowPlayer(engine,side,index),group=data.squad.roleGroup||"CM",role=data.squad.roleId||"",toX=canonicalX(side,player.targetX??player.x),progress=toX-fromX,distance=Math.hypot((player.targetX??player.x)-(from.targetX??from.x),(player.targetY??player.y)-(from.targetY??from.y));
+      let weight=18-distance*.22+Math.max(-8,progress*.32);
+      if(plan.buildUp==="patient")weight+=progress>=-7&&progress<=15?13:-5;
+      if(["direct","transition"].includes(plan.buildUp))weight+=progress>14?18:progress<0?-9:0;
+      if(plan.buildUp==="wings")weight+=["WING","FB","WB"].includes(group)?18:-2;
+      if(plan.buildUp==="central")weight+=["DM","CM","AM","ST"].includes(group)?14:-4;
+      if(["playmaker","deep-playmaker","wide-playmaker","false-nine","target"].includes(role))weight+=9;
+      if(group==="GK")weight-=flow.sequence.length>2?28:8;
+      if(forceProgress)weight+=progress>12?42:-34;
+      if(fromX>48&&group==="GK")weight-=42;
+      if(flow.sequence.slice(-3).every(step=>/GK|CB/.test(step))&&["GK","CB"].includes(group))weight-=40;
+      return {value:index,weight:Math.max(.1,weight),progress,distance,group};
     });
-    to.targetX=clamp(ballTo.x-direction*.8,4,96);to.targetY=ballTo.y;
-    state.trail.push(ballFrom);state.trail=state.trail.slice(-9);
-    if(previousSide&&previousSide!==possession)pushCommentary(engine,`${possession==="home"?(getSides(career,fixture).homeTeam?.clubName||"Ev sahibi"):(getSides(career,fixture).awayTeam?.clubName||"Deplasman")} topu kazandı ve hızla yerleşiyor.`,possession,"turnover");
-    else pushCommentary(engine,motionNarration(career,fixture,possession,from,to,action),possession,action);
+    const index=weightedPick(engine,candidates),row=candidates.find(item=>item.value===index)||candidates[0];return {index,...row};
+  }
+
+  function resolveFlowFoul(career,fixture,attackingSide,defendingSide,defence,ballProgress){
+    const engine=fixture.matchEngine,attacking=sideMetrics(career,fixture,attackingSide),defStats=engine.stats[defendingSide],attackStats=engine.stats[attackingSide];
+    defStats.fouls+=1;attackStats.freeKicks+=1;
+    const inBox=ballProgress>82&&random(engine)<clamp(.085+(defence.risk-45)/520,.06,.22);
+    const reckless=clamp(.12+Number(defence.foulRisk||0)/95+(100-defence.fatigue)/360,.09,.34),straightRed=random(engine)<clamp(.003+Math.max(0,defence.risk-72)/1700,.003,.022),secondYellow=!straightRed&&defStats.yellow>0&&random(engine)<clamp(.012+defStats.yellow*.008,.012,.055),yellow=!straightRed&&!secondYellow&&random(engine)<reckless,red=straightRed||secondYellow;
+    if(red||yellow){if(yellow||secondYellow)defStats.yellow+=1;if(red)defStats.red+=1;addEvent(engine,{type:red?"red":"yellow",side:defendingSide,text:`${flowTeamName(career,fixture,defendingSide)} ${straightRed?"kontrolsüz müdahale sonrası doğrudan kırmızı":secondYellow?"ikinci sarı kart sonrası kırmızı":"geç müdahale sonrası sarı"} kart gördü.`});if(red){reactToRedCard(career,fixture,defendingSide);setBroadcast(engine,"red",defendingSide,"KIRMIZI KART",`${flowTeamName(career,fixture,defendingSide)} · ${Math.round(engine.minute)}'`);}}
+    if(inBox){addEvent(engine,{type:"penalty-foul",side:defendingSide,text:`Ceza sahasında geç müdahale: ${flowTeamName(career,fixture,attackingSide)} penaltı kazandı.`});const before=attackingSide==="home"?engine.scoreHome:engine.scoreAway;createPenalty(career,fixture,attackingSide);const scored=(attackingSide==="home"?engine.scoreHome:engine.scoreAway)>before,next=scored?defendingSide:defendingSide,carrier=scored?5:0;resetFlowSequence(engine,next,carrier,scored?"kickoff":"save");setFlowMotion(engine,next,carrier,scored?{x:50,y:50}:{x:next==="home"?7:93,y:50},"penalty",4.8);return true;}
+    addEvent(engine,{type:"foul",side:defendingSide,text:`${flowTeamName(career,fixture,defendingSide)} atağı faulle kesti; oyun gerçek konumundan yeniden başlayacak.`});
+    const carrier=initializeMatchFlow(engine).carrierIndex,player=engine.visual2D?.[attackingSide]?.[carrier]||{x:50,y:50};setFlowMotion(engine,attackingSide,carrier,{x:player.targetX??player.x,y:player.targetY??player.y},"free-kick",flowActionDuration(engine,attacking,4));return true;
+  }
+
+  function maybeResolvePressure(career,fixture,side){
+    const engine=fixture.matchEngine,flow=initializeMatchFlow(engine),other=side==="home"?"away":"home",attack=sideMetrics(career,fixture,side),defence=sideMetrics(career,fixture,other),ballProgress=canonicalX(side,flow.logicalBall?.x||50);
+    let pressure=.075+(defence.plan?.pressing==="high" ? .075 : defence.plan?.pressing==="counterpress" ? .06 : defence.plan?.pressing==="low" ? -.025 : 0)+(ballProgress<38 ? .035 : 0);
+    pressure+=Math.max(0,defence.control-attack.control)/650;pressure*=clamp(defence.fatigue/72,.58,1.14);
+    if(random(engine)>clamp(pressure,.035,.22))return false;
+    const defStats=engine.stats[other],atkStats=engine.stats[side];defStats.tacklesAttempted+=1;defStats.duelsTotal+=1;atkStats.duelsTotal+=1;
+    const foulChance=clamp(.045+Number(defence.foulRisk||0)/165+Math.max(0,defence.risk-65)/430+(100-defence.fatigue)/650,.035,.19);
+    if(random(engine)<foulChance)return resolveFlowFoul(career,fixture,side,other,defence,ballProgress);
+    const carrier=flowPlayer(engine,side,flow.carrierIndex),role=carrier.squad.roleId||"",protect=["target","false-nine","box-to-box","deep-playmaker"].includes(role)?5:0;
+    const keepChance=clamp(.55+(attack.control-defence.defence)/190+protect/100+(attack.fatigue-defence.fatigue)/350,.34,.76);
+    if(random(engine)<keepChance){atkStats.duelsWon+=1;atkStats.dribblesAttempted+=1;atkStats.dribblesCompleted+=1;flow.sequence.push(`${carrier.visual?.key||"Oyuncu"} baskıyı kırdı`);const x=clamp(Number(flow.logicalBall?.x||50)+(side==="home"?2.8:-2.8),4,96),y=clamp(Number(flow.logicalBall?.y||50)+randomRange(engine,-4,4),5,95);setFlowMotion(engine,side,flow.carrierIndex,{x,y},"duel-won",flowActionDuration(engine,attack,5));pushCommentary(engine,`${carrier.visual?.key||"Top sahibi"} ikili mücadeleyi kazandı; ${flowTeamName(career,fixture,side)} yerleşimini korudu.`,side,"duel");return true;}
+    defStats.tacklesWon+=1;defStats.duelsWon+=1;defStats.interceptions+=1;const defenders=engine.visual2D?.[other]||[],ball=flow.logicalBall||{x:50,y:50},nearest=defenders.map((p,index)=>({index,d:Math.hypot((p.targetX??p.x)-ball.x,(p.targetY??p.y)-ball.y)})).sort((a,b)=>a.d-b.d)[0]?.index||5;resetFlowSequence(engine,other,nearest,"tackle");const won=defenders[nearest]||{x:50,y:50};setFlowMotion(engine,other,nearest,{x:won.targetX??won.x,y:won.targetY??won.y},"tackle",flowActionDuration(engine,defence,4));pushCommentary(engine,`${flowTeamName(career,fixture,other)} temiz müdahaleyle topu kazandı; önceki hücum burada bitti.`,other,"turnover");return true;
+  }
+
+  function attemptFlowPass(career,fixture,side,isCross=false){
+    const engine=fixture.matchEngine,flow=initializeMatchFlow(engine),state=engine.visual2D,metrics=sideMetrics(career,fixture,side),from=state[side]?.[flow.carrierIndex]||state[side]?.[0],picked=choosePassTarget(career,fixture,side,flow.carrierIndex),to=state[side]?.[picked.index]||from;
+    const fromX=canonicalX(side,from.targetX??from.x),toX=canonicalX(side,to.targetX??to.x),progress=toX-fromX,distance=Math.hypot((to.targetX??to.x)-(from.targetX??from.x),(to.targetY??to.y)-(from.targetY??from.y)),other=side==="home"?"away":"home",defence=sideMetrics(career,fixture,other),stats=engine.stats[side];
+    let completion=.875+(metrics.control-defence.control)/320-distance*.0031-(100-metrics.fatigue)/420;
+    if(metrics.plan?.buildUp==="patient")completion+=.045;if(["direct","transition"].includes(metrics.plan?.buildUp)&&progress>12)completion-=.075;if(isCross)completion-=.29;if(flow.consecutiveDeepPasses>=4)completion-=.04;
+    const complete=random(engine)<clamp(completion,isCross ? .18 : .48,isCross ? .58 : .965),finalThird=toX>=66;
+    recordFlowPass(stats,distance,progress,complete,isCross,finalThird);
+    if(!complete){const defenders=state[other]||[],targetX=Number(to.targetX??to.x),targetY=Number(to.targetY??to.y),nearest=defenders.map((p,index)=>({index,d:Math.hypot((p.targetX??p.x)-targetX,(p.targetY??p.y)-targetY)})).sort((a,b)=>a.d-b.d)[0]?.index||5;engine.stats[other].interceptions+=1;resetFlowSequence(engine,other,nearest,"interception");const winner=defenders[nearest]||{x:targetX,y:targetY};setFlowMotion(engine,other,nearest,{x:winner.targetX??winner.x,y:winner.targetY??winner.y},isCross?"cross-cleared":"interception",flowActionDuration(engine,metrics,distance));pushCommentary(engine,`${from.key} ${isCross?"ortayı":"pası"} denedi; ${flowTeamName(career,fixture,other)} araya girerek pozisyonu gerçekten sonlandırdı.`,other,"interception");return;}
+    const action=isCross?"cross":progress>14?"progressive-pass":progress<-7?"recycle":Math.abs((to.targetY??to.y)-from.y)>34?"switch":"pass";flow.carrierIndex=picked.index;flow.consecutiveDeepPasses=toX<38&&["GK","CB","FB"].includes(flowPlayer(engine,side,picked.index).squad.roleGroup)?flow.consecutiveDeepPasses+1:0;flow.sequence.push(`${from.key} → ${to.key}`);if(flow.sequence.length>16)flow.sequence=flow.sequence.slice(-16);
+    if(!flow.crossedHalf&&toX>=50){flow.crossedHalf=true;stats.attacks+=1;}if(!flow.enteredFinalThird&&toX>=66){flow.enteredFinalThird=true;stats.entriesFinalThird+=1;}if(!flow.enteredBox&&toX>=84){flow.enteredBox=true;stats.entriesBox+=1;stats.dangerous+=1;}
+    const ballTo={x:clamp(Number(to.targetX??to.x),4,96),y:clamp(Number(to.targetY??to.y),5,95)};setFlowMotion(engine,side,picked.index,ballTo,action,flowActionDuration(engine,metrics,distance));
+    const verb=isCross?"ortayı hedef oyuncuya ulaştırdı":progress>14?"hat kıran pası buldu":progress<-7?"topu güvenle geri dolaştırdı":Math.abs(ballTo.y-from.y)>34?"oyunun yönünü değiştirdi":`${to.key} bağlantısını kurdu`;
+    pushCommentary(engine,`${from.key} ${verb}; ${flowTeamName(career,fixture,side)} pozisyon zincirinde ${stats.passesCompleted}/${stats.passesAttempted} pasa ulaştı.`,side,action);
+  }
+
+  function attemptFlowDribble(career,fixture,side){
+    const engine=fixture.matchEngine,flow=initializeMatchFlow(engine),metrics=sideMetrics(career,fixture,side),stats=engine.stats[side],player=flowPlayer(engine,side,flow.carrierIndex),direction=side==="home"?1:-1;stats.dribblesAttempted+=1;
+    const complete=random(engine)<clamp(.62+(metrics.attack-75)/260-(100-metrics.fatigue)/380,.38,.78);if(!complete){const other=side==="home"?"away":"home",defenders=engine.visual2D?.[other]||[],ball=flow.logicalBall||{x:50,y:50},nearest=defenders.map((p,index)=>({index,d:Math.hypot((p.targetX??p.x)-ball.x,(p.targetY??p.y)-ball.y)})).sort((a,b)=>a.d-b.d)[0]?.index||5;resetFlowSequence(engine,other,nearest,"tackle");setFlowMotion(engine,other,nearest,{x:defenders[nearest]?.targetX??defenders[nearest]?.x??50,y:defenders[nearest]?.targetY??defenders[nearest]?.y??50},"turnover",flowActionDuration(engine,metrics,6));pushCommentary(engine,`${player.visual?.key||"Oyuncu"} adam eksiltmeyi denedi ama topu kaybetti.`,other,"turnover");return;}
+    stats.dribblesCompleted+=1;const x=clamp((flow.logicalBall?.x||50)+direction*randomRange(engine,4,8),4,96),y=clamp((flow.logicalBall?.y||50)+randomRange(engine,-7,7),5,95),progress=canonicalX(side,x);flow.sequence.push(`${player.visual?.key||"Oyuncu"} dripling`);if(!flow.enteredFinalThird&&progress>=66){flow.enteredFinalThird=true;stats.entriesFinalThird+=1;}if(!flow.enteredBox&&progress>=84){flow.enteredBox=true;stats.entriesBox+=1;stats.dangerous+=1;}setFlowMotion(engine,side,flow.carrierIndex,{x,y},"dribble",flowActionDuration(engine,metrics,7));pushCommentary(engine,`${player.visual?.key||"Oyuncu"} topla rakip hattı geçti; savunmanın yerleşimi fiziksel olarak bozuldu.`,side,"dribble");
+  }
+
+  function attemptFlowShot(career,fixture,side){
+    const engine=fixture.matchEngine,flow=initializeMatchFlow(engine),metrics=sideMetrics(career,fixture,side),carrier=flowPlayer(engine,side,flow.carrierIndex),x=canonicalX(side,flow.logicalBall?.x||50),lane=(flow.logicalBall?.y||50)<35?"right":(flow.logicalBall?.y||50)>65?"left":"centre";
+    const chain={id:`flow-${flow.sequenceId}-${flow.actionCount}`,minute:Math.round(engine.minute),side,lane,buildUp:metrics.plan?.buildUp||"balanced",steps:[...flow.sequence,`${carrier.visual?.key||"Oyuncu"} şut`].slice(-10),quality:Math.round(clamp(35+(x-58)*1.25+(metrics.attack-75)*.6,25,96)),outcome:"shot"};engine.possessionChains.push(chain);engine.possessionChains=engine.possessionChains.slice(-100);engine.zoneEntries[side][lane]+=1;
+    const before=side==="home"?engine.scoreHome:engine.scoreAway;createChance(career,fixture,side,chain);const scored=(side==="home"?engine.scoreHome:engine.scoreAway)>before,other=side==="home"?"away":"home";
+    const ballTo={x:side==="home"?96:4,y:clamp((flow.logicalBall?.y||50)+randomRange(engine,-5,5),28,72)};setFlowMotion(engine,side,flow.carrierIndex,ballTo,"shot",4.1);
+    if(scored){resetFlowSequence(engine,other,5,"kickoff");setFlowMotion(engine,other,5,{x:50,y:50},"kickoff",5.2);}else{resetFlowSequence(engine,other,0,"save");flow.nextActionSecond=Number(engine.clockSeconds||0)+3.8;}
+  }
+
+  function processMatchAction(career,fixture){
+    const engine=fixture.matchEngine,flow=initializeMatchFlow(engine),observedSecond=Number(engine.clockSeconds||0),observedMinute=Number(engine.minute||0),macroRngState=engine.rngState;flow.rngState=Number.isFinite(Number(flow.rngState))?Number(flow.rngState):((Number(engine.seed||macroRngState||1)^0xA5A5F00D)>>>0);engine.rngState=flow.rngState;flow.processingSecond=Number(flow.nextActionSecond||observedSecond);engine.clockSeconds=flow.processingSecond;engine.minute=flow.processingSecond/60;
+    try{
+      const side=flow.possession,metrics=sideMetrics(career,fixture,side),state=engine.visual2D,carrier=flowPlayer(engine,side,flow.carrierIndex),progress=canonicalX(side,flow.logicalBall?.x||carrier.visual?.targetX||50),wide=Number(flow.logicalBall?.y||50)<24||Number(flow.logicalBall?.y||50)>76;
+      updateMatchPhaseState(engine);
+      if(maybeResolvePressure(career,fixture,side))return;
+      const role=carrier.squad.roleId||"",shotBias=["poacher","shadow-striker","inverted-winger","complete-forward"].includes(role) ? .026 : 0,shotChance=progress>70 ? clamp(.012+(progress-70)*.0045+shotBias+(metrics.plan?.mentality==="aggressive" ? .015 : 0),.012,.16) : 0;
+      if(flow.sequence.length>=2&&random(engine)<shotChance){attemptFlowShot(career,fixture,side);return;}
+      const crossChance=wide&&progress>61 ? (metrics.plan?.buildUp==="wings" ? .34 : .19) : 0;if(random(engine)<crossChance){attemptFlowPass(career,fixture,side,true);return;}
+      const dribbleChance=.055+(metrics.plan?.buildUp==="transition" ? .04 : 0)+(["inverted-winger","mezzala","complete-forward"].includes(role) ? .04 : 0);if(progress>34&&random(engine)<dribbleChance){attemptFlowDribble(career,fixture,side);return;}
+      attemptFlowPass(career,fixture,side,false);
+    }finally{flow.rngState=engine.rngState;engine.rngState=macroRngState;delete flow.processingSecond;engine.clockSeconds=observedSecond;engine.minute=observedMinute;}
   }
 
   function advanceLiveMotion(career,fixture,deltaSeconds){
-    const engine=fixture.matchEngine,state=engine.visual2D||initialize2DState(engine),motion=state.motion||{};
-    if(!Number.isFinite(Number(motion.nextActionSecond))||Number(engine.clockSeconds||0)>=Number(motion.nextActionSecond))setNextMotionTarget(career,fixture);
-    const active=state.motion||motion,start=Number(active.actionStartSecond||0),end=Math.max(start+.2,Number(active.actionEndSecond||start+3)),raw=clamp((Number(engine.clockSeconds||0)-start)/(end-start),0,1),ease=raw<.5?2*raw*raw:1-Math.pow(-2*raw+2,2)/2;
-    const from=active.ballFrom||state.ball||{x:50,y:50},to=active.ballTo||from;
+    const engine=fixture.matchEngine,state=engine.visual2D||initialize2DState(engine),flow=initializeMatchFlow(engine),currentClock=Number(engine.clockSeconds||0),previousClock=Math.max(0,currentClock-Number(deltaSeconds||0));let cursor=Math.max(previousClock,Math.min(currentClock,Number(flow.accountedClock??previousClock)));
+    const accountUntil=to=>{const end=Math.max(cursor,Math.min(currentClock,Number(to)));engine.stats[flow.possession].possessionSeconds+=end-cursor;cursor=end;};
+    let guard=0;while(currentClock>=Number(flow.nextActionSecond||0)&&guard<12&&engine.status==="live"&&!engine.broadcastEvent){accountUntil(flow.nextActionSecond);processMatchAction(career,fixture);guard+=1;}const settledClock=engine.broadcastEvent?Math.min(currentClock,Number(engine.broadcastEvent.second||currentClock)):currentClock;accountUntil(settledClock);flow.accountedClock=settledClock;if(settledClock<currentClock){engine.clockSeconds=settledClock;engine.minute=settledClock/60;}
+    const total=Math.max(1,engine.stats.home.possessionSeconds+engine.stats.away.possessionSeconds);engine.stats.home.possession=Math.round(engine.stats.home.possessionSeconds/total*100);engine.stats.away.possession=100-engine.stats.home.possession;engine.possessionHome=engine.stats.home.possession;
+    const active=state.motion||{},start=Number(active.actionStartSecond||0),end=Math.max(start+.2,Number(active.actionEndSecond||start+3)),raw=clamp((Number(engine.clockSeconds||0)-start)/(end-start),0,1),ease=raw<.5?2*raw*raw:1-Math.pow(-2*raw+2,2)/2,from=active.ballFrom||state.ball||{x:50,y:50},to=active.ballTo||from;
     state.ball={x:round1(from.x+(to.x-from.x)*ease),y:round1(from.y+(to.y-from.y)*ease)};
-    const follow=clamp(.08+Number(deltaSeconds||0)*.055,.09,.48);
-    ["home","away"].forEach(side=>(state[side]||[]).forEach(player=>{player.x=round1(Number(player.x)+(Number(player.targetX??player.x)-Number(player.x))*follow);player.y=round1(Number(player.y)+(Number(player.targetY??player.y)-Number(player.y))*follow);}));
-    state.possession=active.possession||engine.phaseState?.possession||"home";
-    const labels={inPossession:"YERLEŞİK HÜCUM",outPossession:"SAVUNMA BLOĞU",winTransition:"HIZLI GEÇİŞ",lossTransition:"TOP KAYBI REAKSİYONU"};
-    state.phase=labels[engine.phaseState?.[state.possession]]||"AKAN OYUN";
+    const follow=clamp(.08+Number(deltaSeconds||0)*.055,.09,.48);["home","away"].forEach(side=>(state[side]||[]).forEach(player=>{player.x=round1(Number(player.x)+(Number(player.targetX??player.x)-Number(player.x))*follow);player.y=round1(Number(player.y)+(Number(player.targetY??player.y)-Number(player.y))*follow);}));
+    state.possession=flow.possession;const labels={inPossession:"YERLEŞİK HÜCUM",outPossession:"SAVUNMA BLOĞU",winTransition:"HIZLI GEÇİŞ",lossTransition:"TOP KAYBI REAKSİYONU"};state.phase=active.action==="shot"?"ŞUT ANI":active.action==="cross"?"ORTA":labels[engine.phaseState?.[state.possession]]||"AKAN OYUN";state.shapes={home:shapeFor(engine.squads?.home?.[0]?.formation,engine.phaseState?.home),away:shapeFor(engine.squads?.away?.[0]?.formation,engine.phaseState?.away)};
     return state;
   }
 
@@ -1103,12 +1249,8 @@
 
   function updateMatchPhaseState(engine) {
     engine.phaseState ||= {possession:"home",previousPossession:"home",transitionSide:null,transitionUntil:0,home:"inPossession",away:"outPossession"};
-    const state=engine.phaseState,current=state.possession||"home",chance=(engine.shotMap||[]).find(item=>item.minute===Math.round(engine.minute));
-    let desired=current;
-    if(chance?.side)desired=chance.side;
-    else if(engine.zone>.22)desired="home";
-    else if(engine.zone<-.22)desired="away";
-    else if(engine.minute%4===0&&random(engine)<.18)desired=random(engine)<engine.possessionHome/100?"home":"away";
+    const state=engine.phaseState,current=state.possession||"home";
+    const desired=engine.matchFlow?.possession||current;
     if(desired!==current){state.previousPossession=current;state.possession=desired;state.transitionSide=desired;state.transitionUntil=engine.minute+3;}
     const transition=Number(state.transitionUntil||0)>=engine.minute&&engine.minute>0;
     state.home=transition?(state.transitionSide==="home"?"winTransition":"lossTransition"):(state.possession==="home"?"inPossession":"outPossession");
@@ -1164,7 +1306,7 @@
   }
 
   function setBroadcast(engine, type, side, title, subtitle) {
-    engine.broadcastEvent = { id: `${type}-${engine.minute}-${Date.now()}`, minute: Math.round(engine.minute), type, side, title, subtitle };
+    engine.broadcastEvent = { id: `${type}-${engine.minute}-${Date.now()}`, second:Number(engine.clockSeconds||engine.minute*60||0), minute: Math.round(engine.minute), type, side, title, subtitle };
     if (room()?.getActiveCareer?.()?.managerIdentity?.sound !== false) playAtmosphere(type);
   }
 
@@ -1197,15 +1339,15 @@
     const momentum = attackingSide === "home" ? engine.momentum : -engine.momentum;
     const chain=suppliedChain||buildPossessionChain(career,fixture,attackingSide);
     chain.outcome="shot";
-    const rawXg = 0.075
-      + (attack.attack - defence.defence) / 210
-      + (attack.chanceCreation - 75) / 420
-      + attack.risk / 900
-      + momentum / 1300
-      + (chain.quality-55)/650
-      + (chain.steps.includes("Kilit pas") ? 0.035 : 0)
-      + randomRange(engine, -0.035, 0.12);
-    const xg = clamp(rawXg, 0.035, 0.48);
+    const rawXg = 0.045
+      + (attack.attack - defence.defence) / 300
+      + (attack.chanceCreation - 75) / 650
+      + (attack.risk - 50) / 1200
+      + momentum / 1800
+      + (chain.quality-55)/900
+      + (chain.steps.includes("Kilit pas") ? 0.02 : 0)
+      + randomRange(engine, -0.025, 0.055);
+    const xg = clamp(rawXg, 0.02, 0.42);
     const bigChance = xg >= 0.28;
     stats.shots += 1;
     stats.xg = round1(stats.xg + xg);
@@ -1215,7 +1357,7 @@
     const onTarget = random(engine) < onTargetChance;
     const blocked = !onTarget && random(engine) < 0.31;
     if (onTarget) stats.onTarget += 1;
-    else if (blocked) stats.blocked += 1;
+    else if (blocked) { stats.blocked += 1; engine.stats[defendingSide].blocks+=1; }
     else stats.offTarget += 1;
     if (random(engine) < xg * .42) stats.corners += 1;
     const finishFactor = clamp(0.72 + (attack.attack - defence.defence) / 180 + randomRange(engine, -0.08, 0.08), 0.48, 1.08);
@@ -1228,6 +1370,7 @@
     const attackingActor = attack.actor;
     if(woodwork){addEvent(engine,{type:"woodwork",side:attackingSide,text:`DİREKTEN DÖNDÜ! ${attackingActor.clubName} gole çok yaklaştı.`});setMomentum(engine,attackingSide==="home"?8:-8);chain.outcome="woodwork";return;}
     if (goal) {
+      if(Number(shotX||0)>=82)stats.goalsInsideBox+=1;else stats.goalsOutsideBox+=1;
       if (attackingSide === "home") engine.scoreHome += 1;
       else engine.scoreAway += 1;
       engine.lastGoal = { side: attackingSide, minute: engine.minute };
@@ -1263,6 +1406,7 @@
     const scored = random(engine) < clamp(.73 + (attack.attack - 75) / 240, .62, .86);
     if (scored) {
       stats.penaltiesScored += 1;
+      stats.goalsInsideBox += 1;
       stats.onTarget += 1;
       if (attackingSide === "home") engine.scoreHome += 1; else engine.scoreAway += 1;
       engine.lastGoal = { side: attackingSide, minute: engine.minute, penalty: true };
@@ -1430,65 +1574,21 @@
     engine.homeFatigue = clamp(engine.homeFatigue - homeFatigueCost, 38, 100);
     engine.awayFatigue = clamp(engine.awayFatigue - awayFatigueCost, 38, 100);
 
-    const controlDelta = (home.control - away.control) / 20 + engine.momentum / 65 + normal(engine) * 0.42;
-    engine.zone = clamp(engine.zone + controlDelta * 0.16 + normal(engine) * 0.24, -2.4, 2.4);
-    const possessionTarget = clamp(50 + (home.control - away.control) * 0.85 + engine.momentum * 0.12, 28, 72);
-    engine.possessionHome = engine.possessionHome * 0.92 + possessionTarget * 0.08;
-    engine.stats.home.possession = Math.round(engine.possessionHome);
-    engine.stats.away.possession = 100 - Math.round(engine.possessionHome);
+    const controlDelta = (home.control - away.control) / 20 + engine.momentum / 65;
+    engine.zone = clamp((Number(engine.visual2D?.ball?.x||50)-50)/18, -2.4, 2.4);
+    engine.possessionHome = Number(engine.stats.home.possession||50);
 
     const homeThreatTarget = clamp(25 + engine.zone * 22 + Math.max(0, engine.momentum) * 0.35 + home.attack - away.defence, 0, 100);
     const awayThreatTarget = clamp(25 - engine.zone * 22 + Math.max(0, -engine.momentum) * 0.35 + away.attack - home.defence, 0, 100);
     engine.homeThreat = engine.homeThreat * 0.78 + homeThreatTarget * 0.22;
     engine.awayThreat = engine.awayThreat * 0.78 + awayThreatTarget * 0.22;
-    engine.stats.home.attacks += engine.zone > 0.45 ? 1 : 0;
-    engine.stats.away.attacks += engine.zone < -0.45 ? 1 : 0;
-
-    const homePoss = engine.possessionHome / 100;
-    const passVolume = clamp(8.2 + ((home.tempo + away.tempo) / 2 - 70) * .055 + randomRange(engine, -.7, .7), 6.4, 11.2);
-    engine.stats.home.passes += Math.max(1, Math.round(passVolume * homePoss));
-    engine.stats.away.passes += Math.max(1, Math.round(passVolume * (1 - homePoss)));
-    engine.stats.home.passAccuracy = Math.round(clamp(74 + (home.control - 72) * .35 + homePoss * 9, 66, 94));
-    engine.stats.away.passAccuracy = Math.round(clamp(74 + (away.control - 72) * .35 + (1 - homePoss) * 9, 66, 94));
-    processDiscipline(career,fixture,home,away,homePoss);
-
-    const totalShots = engine.stats.home.shots + engine.stats.away.shots;
-    const projectedShots = totalShots / Math.max(1, engine.minute) * 90;
-    const scoreNeed = engine.minute > 55 && engine.scoreHome === engine.scoreAway ? .025 : engine.minute > 65 ? .018 : 0;
-    const catchup = projectedShots < 13 ? .045 : projectedShots < 17 ? .018 : projectedShots > 25 ? -.035 : 0;
-    const tempoFactor = ((home.tempo + away.tempo) / 2 - 70) / 900;
-    const riskFactor = (Math.max(home.risk, away.risk) - 50) / 850;
-    const chanceProbability = clamp((.155 + scoreNeed + catchup + tempoFactor + riskFactor) * engine.matchVolatility, .075, .34);
-    const canShoot = engine.minute - engine.lastChanceMinute >= (totalShots > 24 ? 2 : 1);
-    if (canShoot && random(engine) < chanceProbability) {
-      const homeWeight = clamp(.5 + engine.zone * .13 + (home.attack - away.attack) / 170 + engine.momentum / 500, .18, .82);
-      const attackSide=random(engine)<homeWeight?"home":"away",attackMetrics=attackSide==="home"?home:away;
-      if(["direct","transition"].includes(attackMetrics.plan?.buildUp)&&random(engine)<.065){engine.stats[attackSide].offsides+=1;const chain=buildPossessionChain(career,fixture,attackSide);chain.outcome="offside";addEvent(engine,{type:"offside",side:attackSide,text:`Savunma çizgisi yakaladı: ${attackMetrics.actor.clubName} ofsaytta.`});}
-      else createChance(career, fixture, attackSide);
-      engine.lastChanceMinute = engine.minute;
-    }
-    if (!engine.broadcastEvent && engine.minute - engine.lastChanceMinute > 1 && random(engine) < .0015) {
-      const penaltyHomeWeight = clamp(.5 + engine.zone * .12 + (home.attack - away.attack) / 190, .22, .78);
-      createPenalty(career, fixture, random(engine) < penaltyHomeWeight ? "home" : "away");
-    }
-    else if (engine.minute % 8 === 0) {
-      const side = controlDelta >= 0 ? "home" : "away";
-      const actorRow = side === "home" ? home.actor : away.actor;
-      const messages = [
-        `${actorRow.clubName} orta sahada pas açısı arıyor.`,
-        `${actorRow.clubName} oyunu rakip yarı alana taşıdı.`,
-        "İki takım da bir sonraki boşluğu bekliyor.",
-        "Tempo kısa süreliğine düştü; taktik mücadele öne çıkıyor."
-      ];
-      addEvent(engine, { type: "flow", side, text: messages[Math.floor(random(engine) * messages.length)] });
-    }
+    ensureUefaStats(engine.stats.home);ensureUefaStats(engine.stats.away);
 
     const naturalMomentumDecay = engine.momentum > 0 ? -0.7 : engine.momentum < 0 ? 0.7 : 0;
     setMomentum(engine, naturalMomentumDecay + controlDelta * 0.65);
     updateMatchPhaseState(engine);
     processConditionalOrders(career,fixture);
     maybeAiAdapt(career, fixture);
-    update2DState(career, fixture);
 
     engine.pulse.push({
       minute: Math.round(engine.minute),
@@ -1538,6 +1638,8 @@
     const speed=Number(engine.playbackSpeed||8);engine.playbackSpeed=PLAYBACK_SPEEDS.includes(speed)?speed:8;
     if(!Number.isFinite(engine.motionRngState))engine.motionRngState=(Number(engine.seed||engine.rngState||1)^0x9E3779B9)>>>0;
     engine.commentary=Array.isArray(engine.commentary)?engine.commentary:[];
+    engine.stats ||= {home:emptyUefaStats(50),away:emptyUefaStats(50)};engine.stats.home=ensureUefaStats(engine.stats.home||emptyUefaStats(50));engine.stats.away=ensureUefaStats(engine.stats.away||emptyUefaStats(50));
+    initializeMatchFlow(engine);
     if(!engine.commentary.length)pushCommentary(engine,"Maç yeniden başladı; iki takım saha yerleşimini koruyor.","neutral","resume");
     return engine;
   }
@@ -1546,15 +1648,14 @@
     const engine=fixture.matchEngine;
     if(!engine||engine.status!=="live")return;
     ensureLiveRuntime(engine);
-    const deltaSeconds=TICK_MS/1000*Number(engine.playbackSpeed||8),previousSecond=Number(engine.clockSeconds||0);
-    engine.clockSeconds=Math.min(5400,previousSecond+deltaSeconds);
-    engine.minute=engine.clockSeconds/60;
-    advanceLiveMotion(career,fixture,deltaSeconds);
-    const currentMinute=Math.floor(engine.clockSeconds/60),lastMinute=Number(engine.lastSimulatedMinute||0);
-    if(currentMinute>lastMinute){
-      engine.lastSimulatedMinute=currentMinute;
-      simulateMinute(career,fixture,currentMinute);
-      engine.minute=engine.clockSeconds/60;
+    const deltaSeconds=TICK_MS/1000*Number(engine.playbackSpeed||8),targetSecond=Math.min(5400,Number(engine.clockSeconds||0)+deltaSeconds);
+    let guard=0;
+    while(Number(engine.clockSeconds||0)<targetSecond&&guard++<4&&engine.status==="live"){
+      const previousSecond=Number(engine.clockSeconds||0),nextBoundary=(Math.floor(previousSecond/60)+1)*60,segmentEnd=Math.min(targetSecond,nextBoundary);
+      engine.clockSeconds=segmentEnd;engine.minute=segmentEnd/60;advanceLiveMotion(career,fixture,segmentEnd-previousSecond);
+      if(engine.broadcastEvent){stopTimer();room()?.saveLocal?.();refreshMount(career,fixture);window.setTimeout(()=>{const activeCareer=room()?.getActiveCareer?.(),activeFixture=activeCareer?.fixtures?.find(item=>item.id===fixture.id);if(!activeFixture?.matchEngine||activeFixture.matchEngine.status!=="live")return;activeFixture.matchEngine.broadcastEvent=null;refreshMount(activeCareer,activeFixture);startTimer(activeCareer,activeFixture);},2200);return;}
+      const reachedMinute=Math.floor(Number(engine.clockSeconds||0)/60),lastMinute=Number(engine.lastSimulatedMinute||0);
+      if(Number(engine.clockSeconds||0)>=nextBoundary&&reachedMinute>lastMinute){engine.lastSimulatedMinute=reachedMinute;simulateMinute(career,fixture,reachedMinute);engine.minute=engine.clockSeconds/60;if(engine.status!=="live"||engine.broadcastEvent)return;}
     }
     paintLiveFrame(engine);
   }
@@ -1959,7 +2060,7 @@
     }
     const defaults = fixture.matchPlan || { mentality: "balanced", pressing: "mid", buildUp: "patient", tempo: "normal", risk: "measured" };
     return `<section id="managerMatchMount" class="manager-match-shell">
-      <div class="manager-war-room-head"><div><span>PRE-MATCH WAR ROOM · MATCHDAY ${fixture.matchday}</span><h2>Maç Planını Kur</h2><p>Formasyon, mevki rolleri, dört oyun fazı ve koşullu emirler Tactical Intelligence tarafından tek bir yaşayan maç planına dönüştürülür.</p></div><div class="manager-match-clock"><strong>V43.3</strong><span>LIVE MOTION</span></div></div>
+      <div class="manager-war-room-head"><div><span>PRE-MATCH WAR ROOM · MATCHDAY ${fixture.matchday}</span><h2>Maç Planını Kur</h2><p>Formasyon, mevki rolleri, dört oyun fazı ve koşullu emirler Tactical Intelligence tarafından tek bir yaşayan maç planına dönüştürülür.</p></div><div class="manager-match-clock"><strong>V44.0</strong><span>MATCH ENGINE 4.0</span></div></div>
       <div class="manager-war-room-versus">
         ${compactTeamCard(sides.humanTeam, human, "SEN", career.managerElo)}
         <div class="manager-war-room-core"><span>TACTICAL</span><b>VS</b><small>${room()?.starText?.(fixture.stars) || `${fixture.stars}★`}</small></div>
@@ -2031,6 +2132,28 @@
     return `<section class="manager-live-commentary ${latest.side||"neutral"}"><header><div><i></i><span>CANLI MAÇ ANLATIMI</span></div><b data-commentary-clock>${esc(latest.clock||formatMatchClock(latest.second))}</b></header><div class="manager-commentary-main"><em>LIVE</em><p data-commentary-text>${esc(latest.text)}</p></div><div class="manager-commentary-history" data-commentary-history>${rows.slice(-4,-1).reverse().map(row=>`<span><time>${esc(row.clock||formatMatchClock(row.second))}</time>${esc(row.text)}</span>`).join("")}</div></section>`;
   }
 
+  function renderUefaStatistics(d,compact=false){
+    const h=ensureUefaStats(d.humanStats),a=ensureUefaStats(d.aiStats),pct=(won,total)=>total?`${Math.round(won/total*100)}%`:"0%",pair=(label,left,right)=>`<div class="uefa-stat-row"><b>${left}</b><span>${label}</span><b>${right}</b></div>`;
+    const categories=[
+      ["ÖNEMLİ",[
+        ["Topla oynama",`${h.possession}%`,`${a.possession}%`],["Toplam şut",h.shots,a.shots],["İsabetli şut",h.onTarget,a.onTarget],["xG",h.xg,a.xg],["Atak",h.attacks,a.attacks],["Korner",h.corners,a.corners],["Pas isabeti",`${h.passAccuracy}%`,`${a.passAccuracy}%`]
+      ]],
+      ["HÜCUM",[
+        ["Ceza sahası girişi",h.entriesBox,a.entriesBox],["Son üçte bir girişi",h.entriesFinalThird,a.entriesFinalThird],["İsabetsiz",h.offTarget,a.offTarget],["Bloklanan şut",h.blocked,a.blocked],["Ofsayt",h.offsides,a.offsides],["Direk",h.woodwork,a.woodwork],["Tehlikeli atak",h.dangerous,a.dangerous]
+      ]],
+      ["PAS",[
+        ["Tamamlanan / denenen",`${h.passesCompleted}/${h.passesAttempted}`,`${a.passesCompleted}/${a.passesAttempted}`],["Kısa pas",`${h.shortPassesCompleted}/${h.shortPassesAttempted}`,`${a.shortPassesCompleted}/${a.shortPassesAttempted}`],["Orta pas",`${h.mediumPassesCompleted}/${h.mediumPassesAttempted}`,`${a.mediumPassesCompleted}/${a.mediumPassesAttempted}`],["Uzun pas",`${h.longPassesCompleted}/${h.longPassesAttempted}`,`${a.longPassesCompleted}/${a.longPassesAttempted}`],["Son üçte bir pası",`${h.finalThirdPassesCompleted}/${h.finalThirdPassesAttempted}`,`${a.finalThirdPassesCompleted}/${a.finalThirdPassesAttempted}`],["Orta",`${h.crossesCompleted}/${h.crossesAttempted}`,`${a.crossesCompleted}/${a.crossesAttempted}`],["Progresif pas",h.progressivePasses,a.progressivePasses]
+      ]],
+      ["SAVUNMA",[
+        ["Top kazanma",h.recoveries,a.recoveries],["Ön alan kazanımı",h.highRecoveries,a.highRecoveries],["Müdahale",`${h.tacklesWon}/${h.tacklesAttempted}`,`${a.tacklesWon}/${a.tacklesAttempted}`],["Pas arası",h.interceptions,a.interceptions],["Blok",h.blocks,a.blocks],["İkili mücadele",`${h.duelsWon}/${h.duelsTotal} · ${pct(h.duelsWon,h.duelsTotal)}`,`${a.duelsWon}/${a.duelsTotal} · ${pct(a.duelsWon,a.duelsTotal)}`]
+      ]],
+      ["KALECİ & DİSİPLİN",[
+        ["Kurtarış",h.saves,a.saves],["Faul",h.fouls,a.fouls],["Sarı kart",h.yellow,a.yellow],["Kırmızı kart",h.red,a.red],["Penaltı",h.penalties,a.penalties],["Penaltı gol / kaçan",`${h.penaltiesScored}/${h.penaltiesMissed}`,`${a.penaltiesScored}/${a.penaltiesMissed}`]
+      ]]
+    ];
+    return `<section class="manager-uefa-stats ${compact?"compact":"full"}"><header><div><span>UEFA-STYLE MATCH DATA</span><h3>Doğrulanmış Maç İstatistikleri</h3></div><small>Yalnızca sahada gerçekleşen aksiyonlar sayılır</small></header><div class="manager-uefa-category-grid">${categories.map((category,index)=>`<details ${index===0||!compact?"open":""}><summary>${category[0]}</summary>${category[1].map(row=>pair(...row)).join("")}</details>`).join("")}</div></section>`;
+  }
+
   function renderLive(career, human, rival, fixture) {
     const engine = fixture.matchEngine;
     ensureLiveRuntime(engine);
@@ -2058,6 +2181,7 @@
             ${metric("Kırmızı", d.humanStats.red, d.aiStats.red)}
             ${metric("Penaltı", d.humanStats.penalties, d.aiStats.penalties)}
           </div>
+          ${renderUefaStatistics(d,true)}
         </article>
         ${engine.eventStreamVisible ? `<aside class="manager-event-feed"><div class="manager-feed-head"><span>LIVE EVENT STREAM</span><button data-match-action="toggle-events">KAPAT</button><b>${engine.events.length}</b></div><div>${engine.events.map(event => `<article class="${event.type} ${event.side}"><time>${event.minute}'</time><p>${esc(event.text)}</p></article>`).join("")}</div></aside>` : ""}
       </div>
@@ -2124,6 +2248,7 @@
     return `<section id="managerMatchMount" class="manager-match-report ${resultClass}">
       <div class="manager-report-hero"><div><span>FULL TIME · MATCHDAY ${fixture.matchday}</span><h2>${report.result === "WIN" ? "GALİBİYET" : report.result === "LOSS" ? "MAĞLUBİYET" : "BERABERLİK"}</h2><p>${esc(d.humanTeam.clubName)} ile ${esc(d.aiTeam.clubName)} arasındaki maç tamamlandı.</p></div><div class="manager-report-score"><span>${esc(career.shortName)}</span><b>${report.humanGoals ?? d.humanGoals}</b><i>—</i><b>${report.aiGoals ?? d.aiGoals}</b><span>${esc(rival.shortName)}</span></div></div>
       ${renderPulseChart(engine, d.humanIsHome)}
+      ${renderUefaStatistics(d,false)}
       ${renderChainIntelligence(engine,d.humanIsHome,true)}
       ${renderShotMap(engine,d.humanIsHome)}
       ${renderTurningPoints(engine)}
@@ -2347,6 +2472,7 @@
     },
     stop: stopTimer,
     calibrate,
+    __diagnostics: { initializeMatch, advanceLiveMotion, simulateMinute, ensureLiveRuntime, tick },
     resume: () => {
       const career = room()?.getActiveCareer?.();
       const fixture = career?.activeMatchFixtureId ? career.fixtures.find(item => item.id === career.activeMatchFixtureId) : null;

@@ -1,4 +1,4 @@
-const CACHE = "fifa-tournament-hub-v43-3-0-live-motion";
+const CACHE = "fifa-tournament-hub-v44-0-0-single-source-engine";
 const APP_SHELL = [
   "./",
   "./index.html",
