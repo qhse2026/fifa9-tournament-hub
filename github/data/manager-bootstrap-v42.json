@@ -1,0 +1,1407 @@
+{
+  "version": "42.1",
+  "generatedAt": "2026-07-22T13:46:26.433Z",
+  "sourceBackup": {
+    "file": "FIFA_9_Backup_2026-07-22.json",
+    "exportedAt": "2026-07-22T13:46:26.433Z",
+    "schemaVersion": 1,
+    "infrastructureVersion": 39,
+    "activeEdition": 10
+  },
+  "readiness": {
+    "currentFifa09Participants": 16,
+    "historicalPlayers": 20,
+    "combinedAiPlayers": 25,
+    "premierAiTeams": 10,
+    "championshipAiTeams": 15,
+    "championshipWithHumanClub": 16,
+    "fifa10SeasonStatus": "scheduled",
+    "fifa10SeasonPhase": "oruc-ready",
+    "finalChapterVersion": 41,
+    "finalChapterEnabled": false,
+    "teamDrawEngine": true,
+    "teamCatalogClubs": 65
+  },
+  "competitionRules": {
+    "premier": {
+      "aiTeams": 10,
+      "relegation": 2,
+      "legs": [
+        4,
+        4.5,
+        5
+      ]
+    },
+    "championship": {
+      "aiTeams": 15,
+      "humanClubAdded": true,
+      "directPromotion": 1,
+      "playoffRanks": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "playoffBestOf": 3,
+      "playoffStars": 4.5,
+      "legs": [
+        4,
+        4.5,
+        5
+      ]
+    },
+    "orucReisCup": {
+      "premierQualifiers": 5,
+      "championshipQualifiers": 3,
+      "allRoundsBestOf": 3,
+      "stars": 4.5
+    },
+    "superCup": {
+      "enabled": true
+    }
+  },
+  "premierPlayerNames": [
+    "Kerim Özmen",
+    "Ercan Köseoğlu",
+    "Çağlar Can Tatar",
+    "Sultan Atasaral",
+    "Oğuzhan Dindar",
+    "Ersin Darıcı",
+    "Fırat Berk",
+    "Aziz Sarıoğlu",
+    "Sergei Smirnov",
+    "Denar Batuhan"
+  ],
+  "championshipPlayerNames": [
+    "Emre Çınar",
+    "Asen Sabuncu",
+    "Soyhan Belen",
+    "Emre Babaoğlu",
+    "Emrullah Gök",
+    "Abdülkadir Yıldız",
+    "Samet Nemli",
+    "Denar Mehmet",
+    "Şafak Denar",
+    "Ömer Gülhaş",
+    "Mohd Khairull Muzammil Bin Ramly",
+    "Denar Hüseyin Celik",
+    "Denar Aleksandr Shulev",
+    "Denar Ilia Zelentsov",
+    "Affan Volkan Akbal"
+  ],
+  "aiProfiles": [
+    {
+      "id": "AI-01",
+      "name": "Kerim Özmen",
+      "historicalRank": 1,
+      "historical": {
+        "rank": 1,
+        "name": "Kerim Özmen",
+        "games": 93,
+        "wins": 56,
+        "draws": 12,
+        "losses": 25,
+        "gf": 362,
+        "ga": 252,
+        "gd": 110,
+        "points": 180,
+        "winRate": 60.2,
+        "ppg": 1.94
+      },
+      "fifa09Current": {
+        "id": "P12",
+        "name": "Kerim Özmen",
+        "mp": 10,
+        "w": 4,
+        "d": 1,
+        "l": 5,
+        "gf": 45,
+        "ga": 30,
+        "pts": 13,
+        "gd": 15,
+        "ppg": 1.3,
+        "winRate": 40.0
+      },
+      "honours": {
+        "name": "Kerim Özmen",
+        "titles": 3,
+        "finals": 5,
+        "podiums": 7
+      },
+      "powerSeed": 1722,
+      "powerClass": "Elite",
+      "hiddenStyle": {
+        "tempo": 52,
+        "pressing": 50,
+        "directness": 45,
+        "width": 57,
+        "risk": 59,
+        "control": 65,
+        "resilience": 68,
+        "adaptation": 51,
+        "clutch": 75,
+        "volatility": 44
+      },
+      "source": "historical+fifa09"
+    },
+    {
+      "id": "AI-02",
+      "name": "Ercan Köseoğlu",
+      "historicalRank": 2,
+      "historical": {
+        "rank": 2,
+        "name": "Ercan Köseoğlu",
+        "games": 79,
+        "wins": 41,
+        "draws": 7,
+        "losses": 31,
+        "gf": 260,
+        "ga": 253,
+        "gd": 7,
+        "points": 130,
+        "winRate": 51.9,
+        "ppg": 1.65
+      },
+      "fifa09Current": {
+        "id": "P03",
+        "name": "Ercan Köseoğlu",
+        "mp": 10,
+        "w": 7,
+        "d": 1,
+        "l": 2,
+        "gf": 36,
+        "ga": 22,
+        "pts": 22,
+        "gd": 14,
+        "ppg": 2.2,
+        "winRate": 70.0
+      },
+      "honours": {
+        "titles": 0,
+        "finals": 0,
+        "podiums": 0
+      },
+      "powerSeed": 1352,
+      "powerClass": "Strong",
+      "hiddenStyle": {
+        "tempo": 53,
+        "pressing": 57,
+        "directness": 61,
+        "width": 80,
+        "risk": 56,
+        "control": 68,
+        "resilience": 42,
+        "adaptation": 63,
+        "clutch": 48,
+        "volatility": 41
+      },
+      "source": "historical+fifa09"
+    },
+    {
+      "id": "AI-03",
+      "name": "Çağlar Can Tatar",
+      "historicalRank": 3,
+      "historical": {
+        "rank": 3,
+        "name": "Çağlar Can Tatar",
+        "games": 85,
+        "wins": 38,
+        "draws": 11,
+        "losses": 36,
+        "gf": 258,
+        "ga": 228,
+        "gd": 30,
+        "points": 125,
+        "winRate": 44.7,
+        "ppg": 1.47
+      },
+      "fifa09Current": {
+        "id": "P16",
+        "name": "Çağlar Can Tatar",
+        "mp": 11,
+        "w": 6,
+        "d": 3,
+        "l": 2,
+        "gf": 40,
+        "ga": 25,
+        "pts": 21,
+        "gd": 15,
+        "ppg": 1.909,
+        "winRate": 54.5
+      },
+      "honours": {
+        "name": "Çağlar Can Tatar",
+        "titles": 1,
+        "finals": 2,
+        "podiums": 3
+      },
+      "powerSeed": 1407,
+      "powerClass": "Strong",
+      "hiddenStyle": {
+        "tempo": 43,
+        "pressing": 63,
+        "directness": 67,
+        "width": 65,
+        "risk": 58,
+        "control": 60,
+        "resilience": 48,
+        "adaptation": 67,
+        "clutch": 66,
+        "volatility": 43
+      },
+      "source": "historical+fifa09"
+    },
+    {
+      "id": "AI-04",
+      "name": "Sultan Atasaral",
+      "historicalRank": 4,
+      "historical": {
+        "rank": 4,
+        "name": "Sultan Atasaral",
+        "games": 69,
+        "wins": 39,
+        "draws": 7,
+        "losses": 23,
+        "gf": 238,
+        "ga": 177,
+        "gd": 61,
+        "points": 124,
+        "winRate": 56.5,
+        "ppg": 1.8
+      },
+      "fifa09Current": {
+        "id": "P07",
+        "name": "Sultan Atasaral",
+        "mp": 10,
+        "w": 4,
+        "d": 2,
+        "l": 4,
+        "gf": 28,
+        "ga": 24,
+        "pts": 14,
+        "gd": 4,
+        "ppg": 1.4,
+        "winRate": 40.0
+      },
+      "honours": {
+        "name": "Sultan Atasaral",
+        "titles": 1,
+        "finals": 3,
+        "podiums": 4
+      },
+      "powerSeed": 1506,
+      "powerClass": "Strong",
+      "hiddenStyle": {
+        "tempo": 52,
+        "pressing": 53,
+        "directness": 55,
+        "width": 34,
+        "risk": 63,
+        "control": 62,
+        "resilience": 61,
+        "adaptation": 55,
+        "clutch": 55,
+        "volatility": 54
+      },
+      "source": "historical+fifa09"
+    },
+    {
+      "id": "AI-05",
+      "name": "Oğuzhan Dindar",
+      "historicalRank": 5,
+      "historical": {
+        "rank": 5,
+        "name": "Oğuzhan Dindar",
+        "games": 55,
+        "wins": 33,
+        "draws": 6,
+        "losses": 16,
+        "gf": 198,
+        "ga": 124,
+        "gd": 74,
+        "points": 105,
+        "winRate": 60.0,
+        "ppg": 1.91
+      },
+      "fifa09Current": {
+        "id": "P09",
+        "name": "Oğuzhan Dindar",
+        "mp": 11,
+        "w": 8,
+        "d": 1,
+        "l": 2,
+        "gf": 44,
+        "ga": 23,
+        "pts": 25,
+        "gd": 21,
+        "ppg": 2.273,
+        "winRate": 72.7
+      },
+      "honours": {
+        "name": "Oğuzhan Dindar",
+        "titles": 1,
+        "finals": 2,
+        "podiums": 3
+      },
+      "powerSeed": 1518,
+      "powerClass": "Strong",
+      "hiddenStyle": {
+        "tempo": 61,
+        "pressing": 64,
+        "directness": 72,
+        "width": 71,
+        "risk": 49,
+        "control": 70,
+        "resilience": 49,
+        "adaptation": 45,
+        "clutch": 54,
+        "volatility": 38
+      },
+      "source": "historical+fifa09"
+    },
+    {
+      "id": "AI-06",
+      "name": "Ersin Darıcı",
+      "historicalRank": 6,
+      "historical": {
+        "rank": 6,
+        "name": "Ersin Darıcı",
+        "games": 74,
+        "wins": 31,
+        "draws": 11,
+        "losses": 32,
+        "gf": 161,
+        "ga": 176,
+        "gd": -15,
+        "points": 104,
+        "winRate": 41.9,
+        "ppg": 1.41
+      },
+      "fifa09Current": {
+        "id": "P11",
+        "name": "Ersin Darıcı",
+        "mp": 6,
+        "w": 1,
+        "d": 1,
+        "l": 4,
+        "gf": 11,
+        "ga": 16,
+        "pts": 4,
+        "gd": -5,
+        "ppg": 0.667,
+        "winRate": 16.7
+      },
+      "honours": {
+        "titles": 0,
+        "finals": 0,
+        "podiums": 0
+      },
+      "powerSeed": 1264,
+      "powerClass": "Competitive",
+      "hiddenStyle": {
+        "tempo": 48,
+        "pressing": 33,
+        "directness": 40,
+        "width": 66,
+        "risk": 30,
+        "control": 53,
+        "resilience": 53,
+        "adaptation": 74,
+        "clutch": 39,
+        "volatility": 51
+      },
+      "source": "historical+fifa09"
+    },
+    {
+      "id": "AI-07",
+      "name": "Fırat Berk",
+      "historicalRank": 7,
+      "historical": {
+        "rank": 7,
+        "name": "Fırat Berk",
+        "games": 25,
+        "wins": 15,
+        "draws": 3,
+        "losses": 7,
+        "gf": 87,
+        "ga": 54,
+        "gd": 33,
+        "points": 48,
+        "winRate": 60.0,
+        "ppg": 1.92
+      },
+      "fifa09Current": {
+        "mp": 0,
+        "w": 0,
+        "d": 0,
+        "l": 0,
+        "gf": 0,
+        "ga": 0,
+        "gd": 0,
+        "pts": 0,
+        "ppg": 0,
+        "winRate": 0
+      },
+      "honours": {
+        "name": "Fırat Berk",
+        "titles": 1,
+        "finals": 1,
+        "podiums": 2
+      },
+      "powerSeed": 1487,
+      "powerClass": "Strong",
+      "hiddenStyle": {
+        "tempo": 64,
+        "pressing": 40,
+        "directness": 60,
+        "width": 85,
+        "risk": 40,
+        "control": 58,
+        "resilience": 44,
+        "adaptation": 63,
+        "clutch": 52,
+        "volatility": 49
+      },
+      "source": "historical"
+    },
+    {
+      "id": "AI-08",
+      "name": "Aziz Sarıoğlu",
+      "historicalRank": 8,
+      "historical": {
+        "rank": 8,
+        "name": "Aziz Sarıoğlu",
+        "games": 31,
+        "wins": 10,
+        "draws": 6,
+        "losses": 15,
+        "gf": 108,
+        "ga": 112,
+        "gd": -4,
+        "points": 36,
+        "winRate": 32.3,
+        "ppg": 1.16
+      },
+      "fifa09Current": {
+        "id": "P14",
+        "name": "Aziz Sarıoğlu",
+        "mp": 10,
+        "w": 7,
+        "d": 2,
+        "l": 1,
+        "gf": 37,
+        "ga": 20,
+        "pts": 23,
+        "gd": 17,
+        "ppg": 2.3,
+        "winRate": 70.0
+      },
+      "honours": {
+        "titles": 0,
+        "finals": 0,
+        "podiums": 0
+      },
+      "powerSeed": 1196,
+      "powerClass": "Competitive",
+      "hiddenStyle": {
+        "tempo": 60,
+        "pressing": 65,
+        "directness": 69,
+        "width": 36,
+        "risk": 50,
+        "control": 59,
+        "resilience": 41,
+        "adaptation": 37,
+        "clutch": 47,
+        "volatility": 40
+      },
+      "source": "historical+fifa09"
+    },
+    {
+      "id": "AI-09",
+      "name": "Sergei Smirnov",
+      "historicalRank": 9,
+      "historical": {
+        "rank": 9,
+        "name": "Sergei Smirnov",
+        "games": 31,
+        "wins": 9,
+        "draws": 6,
+        "losses": 16,
+        "gf": 67,
+        "ga": 86,
+        "gd": -19,
+        "points": 33,
+        "winRate": 29.0,
+        "ppg": 1.06
+      },
+      "fifa09Current": {
+        "id": "P04",
+        "name": "Sergei Smirnov",
+        "mp": 9,
+        "w": 3,
+        "d": 0,
+        "l": 6,
+        "gf": 26,
+        "ga": 41,
+        "pts": 9,
+        "gd": -15,
+        "ppg": 1.0,
+        "winRate": 33.3
+      },
+      "honours": {
+        "titles": 0,
+        "finals": 0,
+        "podiums": 0
+      },
+      "powerSeed": 1159,
+      "powerClass": "Competitive",
+      "hiddenStyle": {
+        "tempo": 52,
+        "pressing": 47,
+        "directness": 50,
+        "width": 61,
+        "risk": 35,
+        "control": 42,
+        "resilience": 52,
+        "adaptation": 37,
+        "clutch": 50,
+        "volatility": 33
+      },
+      "source": "historical+fifa09"
+    },
+    {
+      "id": "AI-10",
+      "name": "Denar Batuhan",
+      "historicalRank": 10,
+      "historical": {
+        "rank": 10,
+        "name": "Denar Batuhan",
+        "games": 11,
+        "wins": 10,
+        "draws": 1,
+        "losses": 0,
+        "gf": 61,
+        "ga": 21,
+        "gd": 40,
+        "points": 31,
+        "winRate": 90.9,
+        "ppg": 2.82
+      },
+      "fifa09Current": {
+        "mp": 0,
+        "w": 0,
+        "d": 0,
+        "l": 0,
+        "gf": 0,
+        "ga": 0,
+        "gd": 0,
+        "pts": 0,
+        "ppg": 0,
+        "winRate": 0
+      },
+      "honours": {
+        "name": "Denar Batuhan",
+        "titles": 1,
+        "finals": 1,
+        "podiums": 1
+      },
+      "powerSeed": 1698,
+      "powerClass": "Elite",
+      "hiddenStyle": {
+        "tempo": 68,
+        "pressing": 29,
+        "directness": 85,
+        "width": 71,
+        "risk": 68,
+        "control": 71,
+        "resilience": 38,
+        "adaptation": 35,
+        "clutch": 64,
+        "volatility": 51
+      },
+      "source": "historical"
+    },
+    {
+      "id": "AI-11",
+      "name": "Emre Çınar",
+      "historicalRank": 11,
+      "historical": {
+        "rank": 11,
+        "name": "Emre Çınar",
+        "games": 24,
+        "wins": 8,
+        "draws": 4,
+        "losses": 12,
+        "gf": 62,
+        "ga": 93,
+        "gd": -31,
+        "points": 28,
+        "winRate": 33.3,
+        "ppg": 1.17
+      },
+      "fifa09Current": {
+        "id": "P06",
+        "name": "Emre Çınar",
+        "mp": 10,
+        "w": 5,
+        "d": 2,
+        "l": 3,
+        "gf": 32,
+        "ga": 34,
+        "pts": 17,
+        "gd": -2,
+        "ppg": 1.7,
+        "winRate": 50.0
+      },
+      "honours": {
+        "titles": 0,
+        "finals": 0,
+        "podiums": 0
+      },
+      "powerSeed": 1185,
+      "powerClass": "Competitive",
+      "hiddenStyle": {
+        "tempo": 47,
+        "pressing": 56,
+        "directness": 50,
+        "width": 28,
+        "risk": 49,
+        "control": 62,
+        "resilience": 55,
+        "adaptation": 59,
+        "clutch": 47,
+        "volatility": 50
+      },
+      "source": "historical+fifa09"
+    },
+    {
+      "id": "AI-12",
+      "name": "Asen Sabuncu",
+      "historicalRank": 12,
+      "historical": {
+        "rank": 12,
+        "name": "Asen Sabuncu",
+        "games": 32,
+        "wins": 9,
+        "draws": 1,
+        "losses": 22,
+        "gf": 77,
+        "ga": 121,
+        "gd": -44,
+        "points": 28,
+        "winRate": 28.1,
+        "ppg": 0.88
+      },
+      "fifa09Current": {
+        "id": "P08",
+        "name": "Asen Sabuncu",
+        "mp": 10,
+        "w": 3,
+        "d": 1,
+        "l": 6,
+        "gf": 33,
+        "ga": 41,
+        "pts": 10,
+        "gd": -8,
+        "ppg": 1.0,
+        "winRate": 30.0
+      },
+      "honours": {
+        "titles": 0,
+        "finals": 0,
+        "podiums": 0
+      },
+      "powerSeed": 1109,
+      "powerClass": "Challenger",
+      "hiddenStyle": {
+        "tempo": 35,
+        "pressing": 48,
+        "directness": 35,
+        "width": 27,
+        "risk": 52,
+        "control": 34,
+        "resilience": 42,
+        "adaptation": 44,
+        "clutch": 48,
+        "volatility": 41
+      },
+      "source": "historical+fifa09"
+    },
+    {
+      "id": "AI-13",
+      "name": "Soyhan Belen",
+      "historicalRank": 13,
+      "historical": {
+        "rank": 13,
+        "name": "Soyhan Belen",
+        "games": 31,
+        "wins": 7,
+        "draws": 6,
+        "losses": 18,
+        "gf": 60,
+        "ga": 105,
+        "gd": -45,
+        "points": 27,
+        "winRate": 22.6,
+        "ppg": 0.87
+      },
+      "fifa09Current": {
+        "mp": 0,
+        "w": 0,
+        "d": 0,
+        "l": 0,
+        "gf": 0,
+        "ga": 0,
+        "gd": 0,
+        "pts": 0,
+        "ppg": 0,
+        "winRate": 0
+      },
+      "honours": {
+        "titles": 0,
+        "finals": 0,
+        "podiums": 0
+      },
+      "powerSeed": 1092,
+      "powerClass": "Challenger",
+      "hiddenStyle": {
+        "tempo": 45,
+        "pressing": 36,
+        "directness": 44,
+        "width": 51,
+        "risk": 49,
+        "control": 49,
+        "resilience": 43,
+        "adaptation": 56,
+        "clutch": 39,
+        "volatility": 40
+      },
+      "source": "historical"
+    },
+    {
+      "id": "AI-14",
+      "name": "Emre Babaoğlu",
+      "historicalRank": 14,
+      "historical": {
+        "rank": 14,
+        "name": "Emre Babaoğlu",
+        "games": 29,
+        "wins": 7,
+        "draws": 5,
+        "losses": 17,
+        "gf": 68,
+        "ga": 104,
+        "gd": -36,
+        "points": 26,
+        "winRate": 24.1,
+        "ppg": 0.9
+      },
+      "fifa09Current": {
+        "mp": 0,
+        "w": 0,
+        "d": 0,
+        "l": 0,
+        "gf": 0,
+        "ga": 0,
+        "gd": 0,
+        "pts": 0,
+        "ppg": 0,
+        "winRate": 0
+      },
+      "honours": {
+        "titles": 0,
+        "finals": 0,
+        "podiums": 0
+      },
+      "powerSeed": 1097,
+      "powerClass": "Challenger",
+      "hiddenStyle": {
+        "tempo": 48,
+        "pressing": 40,
+        "directness": 56,
+        "width": 78,
+        "risk": 50,
+        "control": 45,
+        "resilience": 44,
+        "adaptation": 49,
+        "clutch": 41,
+        "volatility": 43
+      },
+      "source": "historical"
+    },
+    {
+      "id": "AI-15",
+      "name": "Emrullah Gök",
+      "historicalRank": 15,
+      "historical": {
+        "rank": 15,
+        "name": "Emrullah Gök",
+        "games": 30,
+        "wins": 7,
+        "draws": 5,
+        "losses": 18,
+        "gf": 55,
+        "ga": 109,
+        "gd": -54,
+        "points": 26,
+        "winRate": 23.3,
+        "ppg": 0.87
+      },
+      "fifa09Current": {
+        "mp": 0,
+        "w": 0,
+        "d": 0,
+        "l": 0,
+        "gf": 0,
+        "ga": 0,
+        "gd": 0,
+        "pts": 0,
+        "ppg": 0,
+        "winRate": 0
+      },
+      "honours": {
+        "titles": 0,
+        "finals": 0,
+        "podiums": 0
+      },
+      "powerSeed": 1085,
+      "powerClass": "Challenger",
+      "hiddenStyle": {
+        "tempo": 40,
+        "pressing": 39,
+        "directness": 55,
+        "width": 68,
+        "risk": 30,
+        "control": 46,
+        "resilience": 36,
+        "adaptation": 39,
+        "clutch": 42,
+        "volatility": 45
+      },
+      "source": "historical"
+    },
+    {
+      "id": "AI-16",
+      "name": "Abdülkadir Yıldız",
+      "historicalRank": 16,
+      "historical": {
+        "rank": 16,
+        "name": "Abdülkadir Yıldız",
+        "games": 15,
+        "wins": 4,
+        "draws": 2,
+        "losses": 9,
+        "gf": 42,
+        "ga": 56,
+        "gd": -14,
+        "points": 14,
+        "winRate": 26.7,
+        "ppg": 0.93
+      },
+      "fifa09Current": {
+        "mp": 0,
+        "w": 0,
+        "d": 0,
+        "l": 0,
+        "gf": 0,
+        "ga": 0,
+        "gd": 0,
+        "pts": 0,
+        "ppg": 0,
+        "winRate": 0
+      },
+      "honours": {
+        "titles": 0,
+        "finals": 0,
+        "podiums": 0
+      },
+      "powerSeed": 1100,
+      "powerClass": "Challenger",
+      "hiddenStyle": {
+        "tempo": 41,
+        "pressing": 47,
+        "directness": 46,
+        "width": 78,
+        "risk": 60,
+        "control": 36,
+        "resilience": 46,
+        "adaptation": 54,
+        "clutch": 31,
+        "volatility": 39
+      },
+      "source": "historical"
+    },
+    {
+      "id": "AI-17",
+      "name": "Samet Nemli",
+      "historicalRank": 17,
+      "historical": {
+        "rank": 17,
+        "name": "Samet Nemli",
+        "games": 18,
+        "wins": 3,
+        "draws": 5,
+        "losses": 10,
+        "gf": 31,
+        "ga": 56,
+        "gd": -25,
+        "points": 14,
+        "winRate": 16.7,
+        "ppg": 0.78
+      },
+      "fifa09Current": {
+        "mp": 0,
+        "w": 0,
+        "d": 0,
+        "l": 0,
+        "gf": 0,
+        "ga": 0,
+        "gd": 0,
+        "pts": 0,
+        "ppg": 0,
+        "winRate": 0
+      },
+      "honours": {
+        "titles": 0,
+        "finals": 0,
+        "podiums": 0
+      },
+      "powerSeed": 1049,
+      "powerClass": "Challenger",
+      "hiddenStyle": {
+        "tempo": 44,
+        "pressing": 47,
+        "directness": 48,
+        "width": 55,
+        "risk": 27,
+        "control": 45,
+        "resilience": 34,
+        "adaptation": 45,
+        "clutch": 52,
+        "volatility": 39
+      },
+      "source": "historical"
+    },
+    {
+      "id": "AI-18",
+      "name": "Denar Mehmet",
+      "historicalRank": 18,
+      "historical": {
+        "rank": 18,
+        "name": "Denar Mehmet",
+        "games": 10,
+        "wins": 4,
+        "draws": 0,
+        "losses": 6,
+        "gf": 30,
+        "ga": 39,
+        "gd": -9,
+        "points": 12,
+        "winRate": 40.0,
+        "ppg": 1.2
+      },
+      "fifa09Current": {
+        "mp": 0,
+        "w": 0,
+        "d": 0,
+        "l": 0,
+        "gf": 0,
+        "ga": 0,
+        "gd": 0,
+        "pts": 0,
+        "ppg": 0,
+        "winRate": 0
+      },
+      "honours": {
+        "titles": 0,
+        "finals": 0,
+        "podiums": 0
+      },
+      "powerSeed": 1170,
+      "powerClass": "Competitive",
+      "hiddenStyle": {
+        "tempo": 44,
+        "pressing": 36,
+        "directness": 59,
+        "width": 51,
+        "risk": 67,
+        "control": 61,
+        "resilience": 49,
+        "adaptation": 59,
+        "clutch": 36,
+        "volatility": 47
+      },
+      "source": "historical"
+    },
+    {
+      "id": "AI-19",
+      "name": "Şafak Denar",
+      "historicalRank": 19,
+      "historical": {
+        "rank": 19,
+        "name": "Şafak Denar",
+        "games": 7,
+        "wins": 0,
+        "draws": 2,
+        "losses": 5,
+        "gf": 11,
+        "ga": 22,
+        "gd": -11,
+        "points": 2,
+        "winRate": 0.0,
+        "ppg": 0.29
+      },
+      "fifa09Current": {
+        "id": "P15",
+        "name": "Şafak Denar",
+        "mp": 6,
+        "w": 1,
+        "d": 0,
+        "l": 5,
+        "gf": 10,
+        "ga": 24,
+        "pts": 3,
+        "gd": -14,
+        "ppg": 0.5,
+        "winRate": 16.7
+      },
+      "honours": {
+        "titles": 0,
+        "finals": 0,
+        "podiums": 0
+      },
+      "powerSeed": 912,
+      "powerClass": "Challenger",
+      "hiddenStyle": {
+        "tempo": 32,
+        "pressing": 45,
+        "directness": 29,
+        "width": 31,
+        "risk": 42,
+        "control": 43,
+        "resilience": 42,
+        "adaptation": 31,
+        "clutch": 38,
+        "volatility": 55
+      },
+      "source": "historical+fifa09"
+    },
+    {
+      "id": "AI-20",
+      "name": "Ömer Gülhaş",
+      "historicalRank": 20,
+      "historical": {
+        "rank": 20,
+        "name": "Ömer Gülhaş",
+        "games": 15,
+        "wins": 0,
+        "draws": 2,
+        "losses": 13,
+        "gf": 11,
+        "ga": 59,
+        "gd": -48,
+        "points": 2,
+        "winRate": 0.0,
+        "ppg": 0.13
+      },
+      "fifa09Current": {
+        "mp": 0,
+        "w": 0,
+        "d": 0,
+        "l": 0,
+        "gf": 0,
+        "ga": 0,
+        "gd": 0,
+        "pts": 0,
+        "ppg": 0,
+        "winRate": 0
+      },
+      "honours": {
+        "titles": 0,
+        "finals": 0,
+        "podiums": 0
+      },
+      "powerSeed": 900,
+      "powerClass": "Challenger",
+      "hiddenStyle": {
+        "tempo": 29,
+        "pressing": 40,
+        "directness": 19,
+        "width": 29,
+        "risk": 41,
+        "control": 27,
+        "resilience": 50,
+        "adaptation": 40,
+        "clutch": 37,
+        "volatility": 63
+      },
+      "source": "historical"
+    },
+    {
+      "id": "AI-21",
+      "name": "Mohd Khairull Muzammil Bin Ramly",
+      "historicalRank": null,
+      "historical": {
+        "games": 0,
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+        "gf": 0,
+        "ga": 0,
+        "gd": 0,
+        "points": 0,
+        "winRate": 0,
+        "ppg": 0
+      },
+      "fifa09Current": {
+        "id": "P01",
+        "name": "Mohd Khairull Muzammil Bin Ramly",
+        "mp": 9,
+        "w": 4,
+        "d": 0,
+        "l": 5,
+        "gf": 32,
+        "ga": 39,
+        "pts": 12,
+        "gd": -7,
+        "ppg": 1.333,
+        "winRate": 44.4
+      },
+      "honours": {
+        "titles": 0,
+        "finals": 0,
+        "podiums": 0
+      },
+      "powerSeed": 1287,
+      "powerClass": "Competitive",
+      "hiddenStyle": {
+        "tempo": 52,
+        "pressing": 57,
+        "directness": 66,
+        "width": 38,
+        "risk": 58,
+        "control": 56,
+        "resilience": 49,
+        "adaptation": 41,
+        "clutch": 44,
+        "volatility": 51
+      },
+      "source": "fifa09"
+    },
+    {
+      "id": "AI-22",
+      "name": "Denar Hüseyin Celik",
+      "historicalRank": null,
+      "historical": {
+        "games": 0,
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+        "gf": 0,
+        "ga": 0,
+        "gd": 0,
+        "points": 0,
+        "winRate": 0,
+        "ppg": 0
+      },
+      "fifa09Current": {
+        "id": "P02",
+        "name": "Denar Hüseyin Celik",
+        "mp": 6,
+        "w": 0,
+        "d": 0,
+        "l": 6,
+        "gf": 1,
+        "ga": 26,
+        "pts": 0,
+        "gd": -25,
+        "ppg": 0.0,
+        "winRate": 0.0
+      },
+      "honours": {
+        "titles": 0,
+        "finals": 0,
+        "podiums": 0
+      },
+      "powerSeed": 900,
+      "powerClass": "Challenger",
+      "hiddenStyle": {
+        "tempo": 41,
+        "pressing": 32,
+        "directness": 15,
+        "width": 82,
+        "risk": 41,
+        "control": 21,
+        "resilience": 42,
+        "adaptation": 32,
+        "clutch": 44,
+        "volatility": 69
+      },
+      "source": "fifa09"
+    },
+    {
+      "id": "AI-23",
+      "name": "Denar Aleksandr Shulev",
+      "historicalRank": null,
+      "historical": {
+        "games": 0,
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+        "gf": 0,
+        "ga": 0,
+        "gd": 0,
+        "points": 0,
+        "winRate": 0,
+        "ppg": 0
+      },
+      "fifa09Current": {
+        "id": "P05",
+        "name": "Denar Aleksandr Shulev",
+        "mp": 6,
+        "w": 1,
+        "d": 1,
+        "l": 4,
+        "gf": 10,
+        "ga": 17,
+        "pts": 4,
+        "gd": -7,
+        "ppg": 0.667,
+        "winRate": 16.7
+      },
+      "honours": {
+        "titles": 0,
+        "finals": 0,
+        "podiums": 0
+      },
+      "powerSeed": 1068,
+      "powerClass": "Challenger",
+      "hiddenStyle": {
+        "tempo": 50,
+        "pressing": 46,
+        "directness": 46,
+        "width": 65,
+        "risk": 44,
+        "control": 32,
+        "resilience": 38,
+        "adaptation": 42,
+        "clutch": 53,
+        "volatility": 45
+      },
+      "source": "fifa09"
+    },
+    {
+      "id": "AI-24",
+      "name": "Denar Ilia Zelentsov",
+      "historicalRank": null,
+      "historical": {
+        "games": 0,
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+        "gf": 0,
+        "ga": 0,
+        "gd": 0,
+        "points": 0,
+        "winRate": 0,
+        "ppg": 0
+      },
+      "fifa09Current": {
+        "id": "P10",
+        "name": "Denar Ilia Zelentsov",
+        "mp": 6,
+        "w": 2,
+        "d": 0,
+        "l": 4,
+        "gf": 13,
+        "ga": 20,
+        "pts": 6,
+        "gd": -7,
+        "ppg": 1.0,
+        "winRate": 33.3
+      },
+      "honours": {
+        "titles": 0,
+        "finals": 0,
+        "podiums": 0
+      },
+      "powerSeed": 1178,
+      "powerClass": "Competitive",
+      "hiddenStyle": {
+        "tempo": 39,
+        "pressing": 57,
+        "directness": 45,
+        "width": 46,
+        "risk": 34,
+        "control": 58,
+        "resilience": 45,
+        "adaptation": 34,
+        "clutch": 42,
+        "volatility": 49
+      },
+      "source": "fifa09"
+    },
+    {
+      "id": "AI-25",
+      "name": "Affan Volkan Akbal",
+      "historicalRank": null,
+      "historical": {
+        "games": 0,
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+        "gf": 0,
+        "ga": 0,
+        "gd": 0,
+        "points": 0,
+        "winRate": 0,
+        "ppg": 0
+      },
+      "fifa09Current": {
+        "id": "P13",
+        "name": "Affan Volkan Akbal",
+        "mp": 10,
+        "w": 6,
+        "d": 1,
+        "l": 3,
+        "gf": 31,
+        "ga": 27,
+        "pts": 19,
+        "gd": 4,
+        "ppg": 1.9,
+        "winRate": 60.0
+      },
+      "honours": {
+        "titles": 0,
+        "finals": 0,
+        "podiums": 0
+      },
+      "powerSeed": 1476,
+      "powerClass": "Strong",
+      "hiddenStyle": {
+        "tempo": 55,
+        "pressing": 46,
+        "directness": 42,
+        "width": 46,
+        "risk": 60,
+        "control": 59,
+        "resilience": 36,
+        "adaptation": 52,
+        "clutch": 37,
+        "volatility": 38
+      },
+      "source": "fifa09"
+    }
+  ],
+  "teamCatalog": {
+    "version": "42.1",
+    "file": "data/manager-team-catalog-fc25.json",
+    "clubs": 65,
+    "pools": {
+      "4": 30,
+      "4.5": 25,
+      "5": 10
+    }
+  }
+}

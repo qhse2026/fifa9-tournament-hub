@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="tr" data-language="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#06111f" />
+  <meta name="description" content="FIFA Turnuva Merkezi — canlı skor, Elo gücü, Power Exchange, mental baskı analizi, Destiny Path, Live Match Pulse, Broadcast Mode, TV / projektör görünümü, canlı xT, oyuncu ısı rozetleri, AI Tournament Director ve dinamik turnuva simülasyonu." />
+  <title>FIFA Turnuva Merkezi</title>
+  <link rel="icon" href="assets/f9-mark.svg" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="styles.css?v=44.2.0" />
+  <link rel="stylesheet" href="season-hub.css" />
+  <link rel="stylesheet" href="season-experience.css" />
+  <link rel="stylesheet" href="manager-room.css?v=44.2.0" />
+  <link rel="stylesheet" href="manager-v42-4.css?v=44.2.0" />
+  <link rel="stylesheet" href="manager-v42-5.css?v=44.2.0" />
+  <link rel="stylesheet" href="manager-v42-5-levels.css?v=44.2.0" />
+</head>
+<body>
+  <div class="ambient ambient-one"></div>
+  <div class="ambient ambient-two"></div>
+
+  <div id="app" class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand" data-nav="dashboard" role="button" tabindex="0">
+        <img src="assets/f9-mark.svg" alt="F9" class="brand-mark" />
+        <div>
+          <div class="brand-title">FIFA 9</div>
+          <div class="brand-subtitle">TOURNAMENT HUB</div>
+        </div>
+      </div>
+
+      <nav class="main-nav" aria-label="Ana menü">
+        <button class="nav-item" data-nav="dashboard"><span class="nav-icon">◈</span><span>Dashboard</span></button>
+        <button class="nav-item" data-nav="livematch"><span class="nav-icon live-nav-icon">●</span><span>Canlı Maç</span></button>
+        <button class="nav-item" data-nav="livestats"><span class="nav-icon">⌁</span><span>Canlı İstatistikler</span></button>
+        <button class="nav-item" data-nav="form"><span class="nav-icon form-nav-icon">↗</span><span>Form Merkezi</span></button>
+        <button class="nav-item" data-nav="odds"><span class="nav-icon odds-nav-icon">1X2</span><span>Maç Oranları</span></button>
+        <button class="nav-item intelligence-nav" data-nav="intelligence"><span class="nav-icon">✦</span><span>Zekâ Merkezi</span></button>
+        <button class="nav-item" data-nav="chat"><span class="nav-icon chat-nav-icon">✦</span><span>Sohbet</span></button>
+        <button class="nav-item" data-nav="setup"><span class="nav-icon">◎</span><span>Kura & Oyuncular</span></button>
+        <button class="nav-item" data-nav="league"><span class="nav-icon">▦</span><span>League Phase</span></button>
+        <button class="nav-item" data-nav="gold"><span class="nav-icon gold-dot">●</span><span>Altın Grup</span></button>
+        <button class="nav-item" data-nav="silver"><span class="nav-icon silver-dot">●</span><span>Gümüş Grup</span></button>
+        <button class="nav-item" data-nav="knockout"><span class="nav-icon">⌁</span><span>FIFA09 Final Chapter</span></button>
+        <button class="nav-item" data-nav="print"><span class="nav-icon">▤</span><span>Çıktı Merkezi</span></button>
+        <div class="nav-divider"></div>
+        <button class="nav-item active" data-nav="finalpoll"><span class="nav-icon">✓</span><span>FIFA09 Final Chapter Kararı</span></button>
+        <div class="nav-divider"></div>
+        <button class="nav-item" data-nav="seasonhub"><span class="nav-icon">⚽</span><span>FIFA Lig Sistemi</span></button>
+        <button class="nav-item" data-nav="managerroom"><span class="nav-icon">♟</span><span>The Manager's Room</span></button>
+        <button class="nav-item" data-nav="managerhall"><span class="nav-icon">♛</span><span>Manager Hall</span></button>
+        <button class="nav-item" data-nav="museum"><span class="nav-icon">♜</span><span>Sezonlar & Kupa Müzesi</span></button>
+        <button class="nav-item" data-nav="archive"><span class="nav-icon">◇</span><span>Turnuva Arşivi</span></button>
+        <button class="nav-item" data-nav="alltime"><span class="nav-icon">♛</span><span>Tüm Zamanlar</span></button>
+        <button class="nav-item" data-nav="teams"><span class="nav-icon">◉</span><span>Takım İstatistikleri</span></button>
+        <button class="nav-item" data-nav="backup"><span class="nav-icon">⇩</span><span>Veri & Yedek</span></button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="save-indicator" id="sidebarCloudStatus"><span class="status-dot"></span> Canlı bağlantı hazırlanıyor</div>
+        <div class="sidebar-version">FIFA 09 · Manager Room v44.2.0</div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <button class="mobile-menu" id="mobileMenu" aria-label="Menüyü aç">☰</button>
+        <div>
+          <div class="eyebrow">FIFA TURNUVA MERKEZİ</div>
+          <h1 id="pageTitle">FIFA09 Final Chapter Kararı</h1>
+        </div>
+        <div class="topbar-actions">
+          <div class="language-switch" id="languageSwitch" role="group" aria-label="Dil seçimi">
+            <button type="button" class="language-option" data-language-option="tr" aria-label="Türkçe">TR</button>
+            <button type="button" class="language-option" data-language-option="en" aria-label="English">EN</button>
+          </div>
+          <div class="edition-chip"><span>EDITION</span><strong>09</strong></div>
+          <div class="cloud-chip" id="cloudChip"><span class="cloud-dot"></span><span id="cloudStatusText">Bağlanıyor</span></div>
+          <button class="btn btn-ghost" id="quickBackupBtn">Yedek Al</button>
+          <button class="btn btn-gold" id="adminAuthBtn" data-action="open-admin-login">Yönetici Girişi</button>
+        </div>
+      </header>
+
+      <section id="view" class="view" aria-live="polite"></section>
+      <footer class="site-footer">FIFA 9 Tournament Hub is an independent private gaming tournament and is not affiliated with FIFA or EA Sports.</footer>
+    </main>
+  </div>
+
+  <div class="modal-backdrop hidden" id="modalBackdrop">
+    <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-header">
+        <div>
+          <div class="eyebrow" id="modalEyebrow">MATCH CENTRE</div>
+          <h2 id="modalTitle">Maç Sonucu</h2>
+        </div>
+        <button class="modal-close" id="modalClose" aria-label="Kapat">×</button>
+      </div>
+      <div id="modalBody" class="modal-body"></div>
+    </div>
+  </div>
+
+  <div class="toast-stack" id="toastStack" aria-live="assertive"></div>
+
+  <script src="data/historical-data.js"></script>
+  <script src="language.js?v=44.2.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="cloud-config.js"></script>
+  <script src="cloud.js"></script>
+  <script src="chat.js"></script>
+  <script src="community.js"></script>
+  <script src="app.js?v=44.2.0"></script>
+  <script src="season-hub.js"></script>
+  <script src="season-experience.js"></script>
+  <script src="manager-room.js?v=44.2.0"></script>
+  <script src="manager-match-engine.js?v=44.2.0"></script>
+</body>
+</html>

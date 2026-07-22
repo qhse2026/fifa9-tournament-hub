@@ -1,15 +1,32 @@
-FIFA 9 TOURNAMENT HUB — BURADAN BAŞLA
+FIFA TOURNAMENT HUB V44.2.0
+GERÇEK OYUN MODU + ÇIKIŞ DÜZELTMESİ + İNGİLİZCE PAKET
 
-1) Supabase'de yeni proje oluştur.
-2) supabase/schema.sql dosyasının tamamını SQL Editor'da çalıştır.
-3) Authentication > Users bölümünde kendi e-posta/parolanla yönetici kullanıcı oluştur.
-4) supabase/add_admin_by_email.sql dosyasındaki e-postayı değiştirip SQL Editor'da çalıştır.
-5) Supabase Project URL ve Publishable Key'i kopyala.
-6) cloud-config.js içindeki iki PASTE_... alanını bu bilgilerle değiştir.
-7) Bu klasörün kökünde index.html görünecek şekilde klasörü veya ZIP'i Vercel Drop'a yükle.
-8) Vercel adresini aç: önce izleyici, sonra Yönetici Girişi ile test et.
-9) Gizli sekmede veya telefonda açıp aynı sonuçların göründüğünü doğrula.
-10) Linki WhatsApp grubunda paylaş ve ilk JSON yedeğini al.
+GITHUB KURULUMU
+1. ZIP dosyasını açın.
+2. github klasörünün içeriğini repository köküne yükleyin.
+3. Aynı adlı dosyaları Replace / Overwrite edin.
+4. data klasöründeki iki JSON dosyasını kendi data klasörünüze yükleyin.
+5. GitHub Pages deploy tamamlandıktan sonra Ctrl+F5 yapın.
+6. Gerekirse tarayıcı Site Settings > Clear data ve Service Worker unregister işlemi uygulayın.
 
-ASLA cloud-config.js içine Secret Key / service_role anahtarı yazma.
-Sadece sb_publishable_... (veya legacy anon/public) anahtarı kullan.
+EN KRİTİK DOSYALAR
+- manager-room.js
+- manager-room.css
+- language.js
+- index.html
+- service-worker.js
+
+DÜZELTİLEN HATA
+Eski activeCareer() fonksiyonu activeCareerId null olsa bile ilk kariyeri otomatik döndürüyordu. Bu nedenle Kariyerden Çık sonrası aynı kariyer yeniden açılıyordu. V44.2 bu fallback davranışını kaldırır ve kayıtlı kariyer seçim ekranını açar.
+
+YENİ AKIŞ
+- Gerçek Oyun Modunu Aç
+- Test Laboratuvarını Aç
+- Kayıtlı kariyer kartından devam et
+- Kariyeri kaydet ve ana ekrana dön
+- Bulut kariyerini Manager PIN ile aç
+- TR / EN düğmesi ile dinamik arayüz çevirisi
+
+VERİ GÜVENLİĞİ
+Kariyer kayıt anahtarı değiştirilmemiştir: fifa-manager-room-v42
+Mevcut kariyer, sonuç, ELO, Tactical IQ, takım kurası ve maç geçmişi korunur.
