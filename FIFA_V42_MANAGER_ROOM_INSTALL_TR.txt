@@ -1,0 +1,81 @@
+FIFA TOURNAMENT HUB V42.0 — THE MANAGER'S ROOM FOUNDATION
+==========================================================
+
+BU SÜRÜM NEDİR?
+
+Bu paket, The Manager's Room oyununun resmî geliştirme başlangıcıdır.
+Mevcut FIFA09, Final Chapter, FIFA10, kupa müzesi ve turnuva verilerine dokunmaz.
+Manager kariyerleri ayrı bir modül ve ayrı Supabase tablolarında çalışır.
+
+1. SUPABASE
+
+Supabase Dashboard > SQL Editor > New Query aç.
+Aşağıdaki dosyanın tamamını çalıştır:
+
+supabase/manager_room_v42_foundation.sql
+
+SQL şunları kurar:
+- manager_careers
+- manager_ai_profiles
+- manager_team_catalog
+- manager_match_records
+- manager_leaderboard_public
+- kariyer oluşturma / açma / kaydetme RPC fonksiyonları
+- 25 başlangıç AI profili
+
+Başarılı sonuçta "Success. No rows returned" benzeri mesaj görünür.
+
+2. GITHUB / VERCEL
+
+Aşağıdaki dosyaları repository ana dizinine yükle:
+
+index.html
+app.js
+service-worker.js
+manager-room.js
+manager-room.css
+data/manager-bootstrap-v42.json
+
+SQL ve belgeleri de repository içinde tutmak istersen:
+
+supabase/manager_room_v42_foundation.sql
+FIFA_V42_MANAGER_ROOM_INSTALL_TR.txt
+FIFA_V42_MANAGER_ROOM_TEST_CHECKLIST_TR.txt
+FIFA_V42_MANAGER_ROOM_BUILD_REPORT.md
+
+3. ÖNERİLEN COMMIT
+
+Add The Manager's Room foundation v42
+
+4. DEPLOY SONRASI
+
+Vercel deployment tamamlandıktan sonra Ctrl + F5 yap.
+Eski cache görünürse:
+
+DevTools > Application > Service Workers > Unregister
+DevTools > Application > Storage > Clear site data
+
+Yeni cache adı:
+
+fifa-tournament-hub-v42-manager-room-foundation
+
+5. İLK TEST
+
+Sol menüden The Manager's Room aç.
+Kariyeri Başlat seç.
+Oyuncu adını seç.
+Kulüp adını, kısa adını, renklerini ve 6 haneli Manager PIN'i gir.
+İlk testte "Test Kariyeri" kullan.
+
+Kulüp oluşturulduğunda:
+- Kullanıcı Championship'e ilave takım olarak katılmalı
+- Premier League 10 AI takımdan oluşmalı
+- Championship 15 AI + 1 kullanıcı kulübü olmalı
+- Üç devreli fikstür oluşturulmalı
+- İlk rakip Next Matchday kartında görünmeli
+
+6. RESMÎ KARİYER
+
+Supabase SQL başarıyla kurulduktan sonra Resmî Kariyer seçilebilir.
+Resmî kariyer Manager Hall ortak tablosuna bağlanır.
+PIN'i unutma; PIN veritabanında hash olarak saklanır ve geri okunamaz.

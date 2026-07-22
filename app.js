@@ -63,6 +63,8 @@
     alltime: "Tüm Zamanlar",
     teams: "Takım İstatistikleri",
     backup: "Veri & Yedek",
+    managerroom: "The Manager's Room",
+    managerhall: "Manager Hall",
     playeraccess: "Oyuncu Girişi",
     finalpoll: "FIFA09 Final Chapter Kararı"
   };
@@ -1475,6 +1477,8 @@
       case "alltime": renderAllTime(); break;
       case "teams": renderTeamStatistics(); break;
       case "backup": renderBackup(); break;
+      case "managerroom": window.FIFA_MANAGER_ROOM?.render?.(view); break;
+      case "managerhall": window.FIFA_MANAGER_ROOM?.renderHall?.(view); break;
       case "playeraccess": renderPlayerAccessPage(); break;
       case "finalpoll": renderFinalPollPage(); break;
       default: renderDashboard();

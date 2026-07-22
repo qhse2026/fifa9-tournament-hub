@@ -1,0 +1,47 @@
+FIFA V42.0 MANAGER ROOM TEST CHECKLIST
+======================================
+
+A. REGRESYON
+[ ] FIFA09 Final Chapter ekranı açılıyor
+[ ] FIFA09 oylama ekranı açılıyor
+[ ] FIFA Lig Sistemi açılıyor
+[ ] Kupa Müzesi açılıyor
+[ ] Mevcut sonuçlar ve yedek verisi değişmedi
+
+B. MANAGER ROOM ARAYÜZÜ
+[ ] Sol menüde The Manager's Room görünüyor
+[ ] Sol menüde Manager Hall görünüyor
+[ ] Landing hero ve readiness kartları düzgün görünüyor
+[ ] Mobil görünümde tek sütuna geçiyor
+
+C. TEST KARİYERİ
+[ ] Oyuncu seçimi açılıyor
+[ ] Kulüp adı girilebiliyor
+[ ] Kısa ad girilebiliyor
+[ ] Renkler seçilebiliyor
+[ ] 6 haneli PIN kontrolü çalışıyor
+[ ] Test kariyeri oluşturuluyor
+[ ] Kullanıcı kulübü Championship içinde görünüyor
+[ ] Premier League 10 AI kulübü gösteriyor
+[ ] Championship 16 kulüp gösteriyor
+[ ] Next Matchday rakibi oluşuyor
+
+D. AI EVRENİ
+[ ] 25 AI menajer profili yükleniyor
+[ ] Güç değeri görünüyor
+[ ] Oyun tarzı gizli görünüyor
+[ ] Tarihî ilk 10 Premier League'e atanıyor
+
+E. SUPABASE
+[ ] manager_room_v42_foundation.sql hata vermeden çalıştı
+[ ] 25 AI profil satırı oluştu
+[ ] Resmî kariyer RPC ile oluşturuluyor
+[ ] PIN hash olarak saklanıyor
+[ ] manager_leaderboard_public PIN veya snapshot göstermiyor
+[ ] Manager Hall resmî kariyeri gösteriyor
+
+F. SERVICE WORKER
+[ ] Yeni cache adı aktif
+[ ] manager-room.js cache listesinde
+[ ] manager-room.css cache listesinde
+[ ] manager-bootstrap-v42.json cache listesinde
