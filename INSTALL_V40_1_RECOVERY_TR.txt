@@ -1,0 +1,69 @@
+FIFA TOURNAMENT HUB V40.1 RECOVERY
+==================================
+
+AMAÇ
+- Eski turnuva iptal/kapanış duyurusunu kaldırmak.
+- FIFA09 mevcut formatının devamı için üye oylaması oluşturmak.
+- Oyunculara e-posta + şifre ile üyelik/giriş sağlamak.
+- Oyuncu hesabının etkinleşmesi için FIFA09 kayıtlı oyuncu ismini seçmeyi zorunlu yapmak.
+- Misafir ve normal izleyicilerin siteyi giriş yapmadan kullanmasını sürdürmek.
+
+1) SUPABASE
+Supabase > SQL Editor'da şu dosyanın tamamını çalıştır:
+  fifa_v40_1_player_access_and_poll.sql
+
+SQL mevcut tournament_state içindeki current.participants listesini otomatik olarak
+fifa09_registered_players tablosuna aktarır.
+
+Supabase > Authentication > Providers > Email bölümünde Email provider açık olmalıdır.
+Hesapların anında açılmasını istiyorsan "Confirm email" seçeneğini kapatabilirsin.
+Confirm email açık kalırsa kullanıcı e-posta doğrulamasından sonra giriş yapar.
+
+2) GITHUB
+Projenin ana dizinine şunları yükle:
+  fifa-player-access-v40-1.css
+  fifa-player-access-v40-1.js
+
+3) INDEX.HTML
+INDEX_V40_1_CHANGES.html dosyasındaki iki satırı index.html'e ekle.
+Eski final-chapter-v40.js ve final-chapter-v40.css referanslarını sil.
+
+4) ESKİ İPTAL DUYURUSU
+Yeni CSS eski duyuruyu sayfa çizilmeden gizler; yeni JS de ilgili HTML öğesini DOM'dan kaldırır.
+Bu nedenle eski blok index.html içinde kalsa dahi kullanıcıya görünmez.
+
+5) SERVICE WORKER / CACHE
+service-worker.js içinde CACHE sabiti varsa sürüm adını değiştir:
+  fifa-hub-v40-1-player-access-poll
+
+Deploy sonrası:
+- Vercel deployment tamamlanana kadar bekle.
+- Ctrl + F5 yap.
+- Hâlâ eski sayfa gelirse DevTools > Application > Service Workers > Unregister,
+  ardından Storage > Clear site data.
+
+6) TEST
+A) Gizli/Incognito pencere aç:
+   - Site giriş istemeden açılmalı.
+   - İptal duyurusu görünmemeli.
+   - FIFA09 Devam Oylaması menüsü görünmeli.
+   - Misafir oy kullanamamalı.
+
+B) Oyuncu hesabı:
+   - Oyuncu Girişi > Yeni Hesap.
+   - E-posta ve şifre gir.
+   - Kayıtlı oyuncu ismini seç.
+   - Aynı oyuncu adı ikinci hesap tarafından seçilememeli.
+
+C) Oylama:
+   - Bağlı oyuncu hesabıyla Evet/Hayır/Çekimser kullanılmalı.
+   - Oy açıkken tercih değiştirilebilmeli.
+   - Sonuç dağılımı oylama kapatılıncaya kadar gizli olmalı.
+
+D) Yönetici:
+   - Oylamayı aç/kapat/iptal et/sıfırla butonları görünmeli.
+   - Kura & Oyuncular listesi değişirse Oyuncu Hesabı ekranındaki
+     "Oyuncu Listesini Yenile" düğmesine basılmalı.
+
+COMMIT
+  Recover player login and FIFA09 continuation poll v40.1
