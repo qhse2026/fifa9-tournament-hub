@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "43.1.0";
+  const VERSION = "43.2.0";
   const TICK_MS = 850;
   const MAX_EVENTS = 180;
   const MAX_DECISIONS = 10;
@@ -109,6 +109,64 @@
       { id:"complete-forward", label:"Komple Forvet", note:"Koşu, bağlantı ve bitiricilik dengesi", attack:4,control:2,defence:0,risk:2,fatigue:.4,tags:["balance"] }
     ]
   };
+
+  const PHASE_GROUPS = {
+    inPossession: {
+      label:"TOP BİZDEYKEN", defaultId:"positional",
+      options:[
+        {id:"patient",label:"Sabırlı Dolaşım",note:"Boşluğu bekle, pas bağlantısını koru",attack:-1,control:6,defence:2,risk:-3,fatigue:.88,tags:["control","patient"]},
+        {id:"positional",label:"Pozisyon Oyunu",note:"Hatlar ve koridorlar arasında dengeli yerleş",attack:2,control:4,defence:1,risk:0,fatigue:1,tags:["control","balance"]},
+        {id:"vertical",label:"Dikine İlerleme",note:"İlk fırsatta hat kıran pası ara",attack:6,control:-2,defence:-1,risk:4,fatigue:1.08,tags:["direct","attack"]},
+        {id:"overload",label:"Beşli Hücum Hattı",note:"Son hatta sayıyı artır; geride alan bırak",attack:7,control:1,defence:-5,risk:7,fatigue:1.18,tags:["attack","overload"]}
+      ]
+    },
+    outPossession: {
+      label:"TOP RAKİPTEYKEN", defaultId:"mid-block",
+      options:[
+        {id:"low-block",label:"Kompakt Derin Blok",note:"Ceza sahası çevresini ve merkezi kapat",attack:-4,control:-3,defence:7,risk:-4,fatigue:.82,tags:["protect"]},
+        {id:"mid-block",label:"Orta Blok",note:"Mesafeleri koru, merkezde karşıla",attack:0,control:2,defence:4,risk:-1,fatigue:.95,tags:["balance"]},
+        {id:"high-press",label:"Önde Baskı",note:"Kurulumu boz; pres kırılırsa alan bırak",attack:3,control:4,defence:-4,risk:6,fatigue:1.28,foulRisk:2,tags:["press"]},
+        {id:"man-oriented",label:"Adam Odaklı Baskı",note:"Pas istasyonlarını takip et; yapı esneyebilir",attack:1,control:0,defence:3,risk:5,fatigue:1.2,foulRisk:3,tags:["press","aggression"]}
+      ]
+    },
+    winTransition: {
+      label:"TOPU KAZANINCA", defaultId:"secure",
+      options:[
+        {id:"secure",label:"Önce Güvence",note:"İlk pası koru ve yeniden yerleş",attack:-1,control:6,defence:2,risk:-3,fatigue:.9,tags:["control"]},
+        {id:"counter",label:"Hızlı Kontra",note:"Boş alana ilk üç pasla hücum et",attack:7,control:-3,defence:0,risk:5,fatigue:1.15,tags:["counter","tempo"]},
+        {id:"wide-release",label:"Kanada Çık",note:"Topu baskının uzağındaki koridora taşı",attack:5,control:2,defence:-1,risk:2,fatigue:1.08,tags:["wide"]},
+        {id:"direct-release",label:"Direkt Çıkış",note:"İlk baskı hattını tek pasla geç",attack:6,control:-5,defence:1,risk:6,fatigue:1.04,tags:["direct"]}
+      ]
+    },
+    lossTransition: {
+      label:"TOPU KAYBEDİNCE", defaultId:"regroup",
+      options:[
+        {id:"regroup",label:"Hızla Yerleş",note:"Koşu yolunu kapat ve blok halinde geri dön",attack:-2,control:1,defence:6,risk:-3,fatigue:1,tags:["protect"]},
+        {id:"counterpress",label:"Beş Saniye Baskı",note:"Yakındaki oyuncularla topu hemen geri ara",attack:3,control:5,defence:-2,risk:5,fatigue:1.3,foulRisk:2,tags:["press","tempo"]},
+        {id:"screen-centre",label:"Merkezi Perdele",note:"İlk olarak dikine pas kanalını kapat",attack:-1,control:2,defence:5,risk:-1,fatigue:1.02,tags:["central","protect"]},
+        {id:"tactical-foul",label:"Geçişi Faulle Kes",note:"Kontrayı durdurur; kart riskini belirgin artırır",attack:-1,control:-1,defence:4,risk:4,fatigue:.96,foulRisk:10,tags:["aggression"]}
+      ]
+    }
+  };
+
+  const FORMATION_SHAPES = {
+    "4-3-3": {inPossession:"3-2-5",outPossession:"4-1-4-1",winTransition:"2-3-5",lossTransition:"4-3-3"},
+    "4-2-3-1": {inPossession:"3-2-4-1",outPossession:"4-4-1-1",winTransition:"3-2-5",lossTransition:"4-2-3-1"},
+    "4-4-2": {inPossession:"3-1-4-2",outPossession:"4-4-2",winTransition:"2-4-4",lossTransition:"4-4-2"},
+    "3-5-2": {inPossession:"3-2-5",outPossession:"5-3-2",winTransition:"3-3-4",lossTransition:"5-3-2"},
+    "3-4-3": {inPossession:"3-2-5",outPossession:"5-4-1",winTransition:"3-2-5",lossTransition:"5-2-3"},
+    "5-3-2": {inPossession:"3-2-5",outPossession:"5-3-2",winTransition:"3-3-4",lossTransition:"5-3-2"}
+  };
+
+  const AUTO_ORDERS = [
+    {id:"trailing-60",label:"60'tan sonra gerideysek yüklen",note:"Hücum ve tempo artar; geçiş güvenliği azalır",minute:60,effects:{attack:8,control:1,defence:-5,risk:7,duration:31},tags:["attack"]},
+    {id:"leading-70",label:"70'ten sonra öndeysek koru",note:"Blok ve top kontrolü güçlenir",minute:70,effects:{attack:-4,control:6,defence:8,risk:-5,duration:21},tags:["protect"]},
+    {id:"fatigue-60",label:"Fizik %60 altına düşerse sakinleş",note:"Tempo ve pres maliyetini otomatik azaltır",minute:45,effects:{attack:-3,control:6,defence:3,risk:-4,fatigue:7,duration:18},tags:["control"]},
+    {id:"opponent-red",label:"Rakip kırmızı görürse sahayı genişlet",note:"Sayısal üstünlükte alan ve pas açısı üretir",minute:1,effects:{attack:6,control:5,defence:-1,risk:2,duration:90},tags:["wide"]},
+    {id:"own-red",label:"Biz kırmızı görürsek kompaktlaş",note:"Merkezi kapatır ve risk seviyesini düşürür",minute:1,effects:{attack:-6,control:1,defence:8,risk:-6,duration:90},tags:["protect"]},
+    {id:"deadlock-75",label:"75'te skor eşitse kontrollü risk al",note:"Son bölümde ölçülü bir hücum dalgası",minute:75,effects:{attack:6,control:2,defence:-3,risk:4,duration:16},tags:["attack","balance"]}
+  ];
+  const DEFAULT_AUTO_ORDERS = ["trailing-60","leading-70","fatigue-60","own-red"];
 
   const room = () => window.FIFA_MANAGER_ROOM;
   const app = () => window.FIFA_APP_CONTEXT;
@@ -391,6 +449,83 @@
     return Object.fromEntries(formationSlots(formation).map(slot => [slot.key, roleDefinition(slot.group, roles?.[slot.key]).id]));
   }
 
+  function phaseOption(group, id) {
+    const definition = PHASE_GROUPS[group] || PHASE_GROUPS.inPossession;
+    return definition.options.find(item => item.id === id) || definition.options.find(item => item.id === definition.defaultId) || definition.options[0];
+  }
+
+  function normalizePhaseBehaviors(behaviors = {}) {
+    return Object.fromEntries(Object.keys(PHASE_GROUPS).map(group => [group, phaseOption(group, behaviors?.[group]).id]));
+  }
+
+  function readPhaseSetup(formData, plan) {
+    plan.phaseBehaviors = Object.fromEntries(Object.keys(PHASE_GROUPS).map(group => [group, phaseOption(group, String(formData.get(`phase_${group}`) || "")).id]));
+    return plan;
+  }
+
+  function readAutoOrders(formData, plan) {
+    const selected = formData.getAll("autoOrder").map(String).filter(id => AUTO_ORDERS.some(item => item.id === id));
+    plan.autoOrders = [...new Set(selected)].slice(0, 6);
+    return plan;
+  }
+
+  function shapeFor(formation, phase) {
+    return FORMATION_SHAPES[formation]?.[phase] || formation || "4-3-3";
+  }
+
+  function aiPhaseBehaviors(style = {}, personality = {}) {
+    const risk=Number(personality.risk||style.risk||50),control=Number(personality.control||style.control||50),press=Number(style.pressing||personality.aggression||50),width=Number(style.width||50),direct=Number(style.directness||50),aggression=Number(personality.aggression||50);
+    return {
+      inPossession: risk>72?"overload":direct>64?"vertical":control>63?"patient":"positional",
+      outPossession: press>70?"high-press":risk<38?"low-block":aggression>68?"man-oriented":"mid-block",
+      winTransition: direct>67?"direct-release":risk>62?"counter":width>64?"wide-release":"secure",
+      lossTransition: press>67?"counterpress":aggression>75?"tactical-foul":risk<42?"regroup":"screen-centre"
+    };
+  }
+
+  function analyzeTacticalPlan(plan = {}) {
+    const formation = FORMATIONS.includes(plan.formation) ? plan.formation : "4-3-3";
+    const slots = formationSlots(formation);
+    const roles = normalizePositionRoles(formation, plan.positionRoles);
+    const phaseBehaviors = normalizePhaseBehaviors(plan.phaseBehaviors);
+    const roleByKey = key => {
+      const slot=slots.find(item=>item.key===key);return slot?roleDefinition(slot.group,roles[key]):null;
+    };
+    const allRoles = slots.map(slot => roleDefinition(slot.group, roles[slot.key]));
+    const synergies=[], contradictions=[];
+    let chemistry=58, transitionSecurity=68, width=50, centralControl=50, physicalLoad=35;
+    const linkFlank=(backKeys,wingKeys,label)=>{
+      const back=backKeys.map(roleByKey).find(Boolean),wing=wingKeys.map(roleByKey).find(Boolean);
+      if(!back||!wing)return;
+      const attackingBack=["overlap","attacking-wingback"].includes(back.id);
+      if(attackingBack&&wing.id==="inverted-winger"){synergies.push(`${label}: bindirme + iç koridor dengesi`);chemistry+=9;width+=7;centralControl+=4;transitionSecurity-=4;}
+      if(attackingBack&&wing.id==="touchline"){contradictions.push(`${label}: iki rol aynı dış koridoru kullanıyor`);chemistry-=7;width+=10;transitionSecurity-=6;}
+      if(["stay-back","defensive-wingback"].includes(back.id)&&wing.id==="touchline"){synergies.push(`${label}: geride güvenlik + çizgi genişliği`);chemistry+=5;transitionSecurity+=5;width+=6;}
+    };
+    linkFlank(["RB","RWB"],["RW","RM"],"Sağ kanat");
+    linkFlank(["LB","LWB"],["LW","LM"],"Sol kanat");
+    const ids=allRoles.map(item=>item.id),attackRoles=allRoles.filter(item=>Number(item.attack||0)>=4).length,protectRoles=allRoles.filter(item=>Number(item.defence||0)>=4).length;
+    const playmakers=ids.filter(id=>["distributor","ball-playing","deep-playmaker","playmaker","classic-ten","wide-playmaker","free-role","false-nine"].includes(id)).length;
+    if(ids.includes("false-nine")&&ids.includes("shadow-striker")){synergies.push("Sahte 9, gölge forvetin koşu koridorunu açıyor");chemistry+=10;centralControl+=8;}
+    if(ids.includes("target")&&ids.includes("touchline")){synergies.push("Hedef oyuncu çizgi servisleri için ceza sahası referansı oluşturuyor");chemistry+=7;width+=5;}
+    if(ids.filter(id=>id==="ball-playing").length>=2&&ids.includes("distributor")){synergies.push("Pasör kaleci ve top kullanan stoperler temiz ilk hat kuruyor");chemistry+=8;centralControl+=6;}
+    if(["3-5-2","3-4-3","5-3-2"].includes(formation)&&ids.includes("attacking-wingback")){synergies.push("Üç stoper, hücumcu kanat bekin çıkışını dengeliyor");chemistry+=6;width+=8;transitionSecurity+=2;}
+    if(playmakers>=4){contradictions.push("Fazla oyun kurucu dikine koşu sayısını azaltabilir");chemistry-=5;centralControl+=10;}
+    if(attackRoles>=5){contradictions.push("Çok sayıda hücumcu rol rest-defence yapısını zayıflatıyor");transitionSecurity-=attackRoles*4;physicalLoad+=12;}
+    if(protectRoles>=5&&["aggressive","possession"].includes(plan.mentality)){contradictions.push("Ana mentalite ile korumacı rol dağılımı aynı mesajı vermiyor");chemistry-=6;}
+    if(ids.filter(id=>["ball-winner","stopper"].includes(id)).length>=3){contradictions.push("Temas odaklı roller kart ve pozisyon kaybı riskini büyütüyor");transitionSecurity-=5;physicalLoad+=8;}
+    if(plan.pressing==="low"&&phaseBehaviors.outPossession==="high-press"){contradictions.push("Pres yapısı derin, topsuz faz emri ise önde baskı istiyor");chemistry-=9;physicalLoad+=7;}
+    if(plan.pressing==="high"&&phaseBehaviors.lossTransition==="regroup"){contradictions.push("Yüksek pres ile top kaybında geri çekilme birbirini kesiyor");chemistry-=7;}
+    if(phaseBehaviors.lossTransition==="counterpress"){physicalLoad+=12;transitionSecurity+=3;}
+    if(phaseBehaviors.inPossession==="overload"){transitionSecurity-=10;physicalLoad+=7;width+=4;}
+    if(phaseBehaviors.outPossession==="low-block")transitionSecurity+=9;
+    physicalLoad += Math.round(allRoles.reduce((sum,item)=>sum+Number(item.fatigue||0),0)*4);
+    chemistry=clamp(Math.round(chemistry+synergies.length*2-contradictions.length),20,96);
+    transitionSecurity=clamp(Math.round(transitionSecurity+protectRoles*2-attackRoles*1.5),18,95);
+    width=clamp(Math.round(width),22,94);centralControl=clamp(Math.round(centralControl+playmakers*2),25,96);physicalLoad=clamp(Math.round(physicalLoad),20,96);
+    return {formation,shapeIn:shapeFor(formation,"inPossession"),shapeOut:shapeFor(formation,"outPossession"),chemistry,transitionSecurity,width,centralControl,physicalLoad,synergies:synergies.slice(0,4),contradictions:contradictions.slice(0,4),grade:chemistry>=78&&transitionSecurity>=55?"UYUMLU":chemistry<48||transitionSecurity<38?"RİSKLİ":"DENGELİ"};
+  }
+
   function readPositionSetup(formData, plan) {
     const formation = FORMATIONS.includes(String(formData.get("formation") || "")) ? String(formData.get("formation")) : "4-3-3";
     plan.formation = formation;
@@ -484,6 +619,13 @@
     aggregate.foulRisk += positional.foulRisk;
     aggregate.tags.push(...positional.tags);
     aggregate.positionRoleLabels = positional.labels;
+    const tacticalAnalysis = analyzeTacticalPlan(plan);
+    aggregate.control += (tacticalAnalysis.chemistry - 58) / 14 + (tacticalAnalysis.centralControl - 50) / 28;
+    aggregate.defence += (tacticalAnalysis.transitionSecurity - 60) / 12;
+    aggregate.attack += (tacticalAnalysis.width - 50) / 32;
+    aggregate.risk += tacticalAnalysis.contradictions.length * 1.4;
+    aggregate.fatigue *= 1 + Math.max(0, tacticalAnalysis.physicalLoad - 45) / 260;
+    aggregate.tacticalAnalysis = tacticalAnalysis;
     const overload=[plan?.mentality==="aggressive",plan?.pressing==="high",plan?.tempo==="high",plan?.risk==="bold"].filter(Boolean).length;
     if(overload>=2){const excess=overload-1;aggregate.attack-=excess*2.2;aggregate.control-=excess*2;aggregate.defence-=excess*3.4;aggregate.fatigue*=1+excess*.14;aggregate.risk+=excess*5;aggregate.transitionExposure=excess*8;aggregate.foulRisk+=excess*7;}
     aggregate.attack=clamp(aggregate.attack,-18,24);aggregate.control=clamp(aggregate.control,-20,25);aggregate.defence=clamp(aggregate.defence,-28,25);aggregate.risk=clamp(aggregate.risk,-20,38);
@@ -599,7 +741,8 @@
   }
 
   function planSignature(plan={}) {
-    const parts=[plan.formation,plan.mentality,plan.buildUp,plan.pressing,plan.tempo,plan.risk].filter(Boolean);
+    const phases=normalizePhaseBehaviors(plan.phaseBehaviors);
+    const parts=[plan.formation,plan.mentality,plan.buildUp,plan.pressing,plan.tempo,plan.risk,phases.inPossession,phases.outPossession,phases.winTransition,phases.lossTransition].filter(Boolean);
     return parts.length?parts.join(" · "):"balanced";
   }
 
@@ -620,6 +763,8 @@
     if (!sides.homeTeam || !sides.awayTeam) throw new Error("Maç başlamadan önce takım kurası tamamlanmalıdır.");
     plan.formation = FORMATIONS.includes(plan.formation) ? plan.formation : "4-3-3";
     plan.positionRoles = normalizePositionRoles(plan.formation, plan.positionRoles);
+    plan.phaseBehaviors = normalizePhaseBehaviors(plan.phaseBehaviors);
+    plan.autoOrders = Array.isArray(plan.autoOrders) ? plan.autoOrders.filter(id=>AUTO_ORDERS.some(item=>item.id===id)).slice(0,6) : [...DEFAULT_AUTO_ORDERS];
     const aiStyle = sides.aiActor.styleSeed || {};
     const aiMemory=sides.aiActor.managerMemory||{};
     const aiPlan = counterPlanFromMemory(aiPlanFromStyle(aiStyle),aiMemory);
@@ -632,6 +777,8 @@
     const seed = hashString(`${fixture.id}|${fixture.teamDraw?.id || "draw"}|${Date.now()}`);
     aiPlan.formation = aiFormationFromStyle(aiStyle);
     aiPlan.positionRoles = aiPositionRoles(aiPlan.formation, aiStyle);
+    aiPlan.phaseBehaviors = aiPhaseBehaviors(aiStyle, aiPersonality);
+    aiPlan.autoOrders = Number(aiPersonality.risk||50)>65?["trailing-60","deadlock-75","fatigue-60","own-red"]:["leading-70","fatigue-60","opponent-red","own-red"];
     fixture.status = "in-progress";
     fixture.matchPlan = plan;
     fixture.decisions = [];
@@ -654,6 +801,7 @@
       awayThreat: 0,
       homeModifiers: [],
       awayModifiers: [],
+      humanSide: sides.humanIsHome?"home":"away",
       userPlan: plan,
       aiPlan,
       aiStyle,
@@ -674,6 +822,10 @@
       matchVolatility: clamp(0.82 + random(enginePlaceholder(seed)) * 0.52, 0.82, 1.34),
       broadcastEvent: null,
       eventStreamVisible: false,
+      phaseState: {possession:"home",previousPossession:"home",transitionSide:null,transitionUntil:0,home:"inPossession",away:"outPossession"},
+      phaseUsage: {home:{inPossession:0,outPossession:0,winTransition:0,lossTransition:0},away:{inPossession:0,outPossession:0,winTransition:0,lossTransition:0}},
+      triggeredOrders: {human:[],ai:[]},
+      tacticalIntelligenceStart: {human:analyzeTacticalPlan(plan),ai:analyzeTacticalPlan(aiPlan)},
       pulse: [],
       possessionChains: [],
       shotMap: [],
@@ -747,13 +899,35 @@
     return engine.visual2D;
   }
 
+  function phasePosition(engine, player, side, ballX, ballY) {
+    const squad=(side==="home"?engine.squads?.home:engine.squads?.away)||[],squadPlayer=squad.find(item=>item.id===player.id)||{},group=squadPlayer.roleGroup||"CM",role=roleDefinition(group,squadPlayer.roleId),plan=side===(engine.humanSide||"home")?engine.userPlan:engine.aiPlan;
+    const phase=activePhase(engine,side),behavior=phaseOption(phase,normalizePhaseBehaviors(plan?.phaseBehaviors)[phase]);
+    let x=side==="home"?player.baseX:100-player.baseX,y=player.baseY;
+    const shifts={inPossession:{GK:0,CB:2,FB:5,WB:8,DM:4,CM:7,AM:9,WING:7,ST:3},outPossession:{GK:0,CB:-1,FB:-3,WB:-9,DM:-4,CM:-8,AM:-11,WING:-14,ST:-8},winTransition:{GK:0,CB:2,FB:5,WB:9,DM:5,CM:10,AM:12,WING:13,ST:9},lossTransition:{GK:0,CB:-2,FB:-5,WB:-8,DM:-4,CM:-5,AM:-7,WING:-9,ST:-7}};
+    x+=Number(shifts[phase]?.[group]||0);
+    if(["overlap","attacking-wingback"].includes(role.id)&&["inPossession","winTransition"].includes(phase))x+=7;
+    if(["stay-back","defensive-wingback"].includes(role.id))x-=4;
+    if(role.id==="shadow-striker"&&phase!=="outPossession")x+=6;
+    if(role.id==="false-nine")x-=7;
+    if(role.id==="poacher"&&phase!=="outPossession")x+=3;
+    if(["inverted","inverted-winger"].includes(role.id))y=50+(y-50)*.68;
+    if(["touchline","overlap","attacking-wingback"].includes(role.id)&&phase==="inPossession")y=50+(y-50)*1.08;
+    if(phase==="outPossession"){y=50+(y-50)*.82;if(behavior.id==="low-block")x-=6;if(behavior.id==="high-press")x+=7;if(behavior.id==="man-oriented")y+=(ballY-y)*.08;}
+    if(phase==="inPossession"){if(behavior.id==="overload"&&["CM","AM","WING","ST","FB","WB"].includes(group))x+=4;if(behavior.id==="patient"&&["WING","ST","AM"].includes(group))x-=3;}
+    if(phase==="winTransition"){if(behavior.id==="counter"||behavior.id==="direct-release")x+=4;if(behavior.id==="wide-release")y=50+(y-50)*1.08;}
+    if(phase==="lossTransition"){if(behavior.id==="counterpress"){const canonicalBallX=side==="home"?ballX:100-ballX;x+=(canonicalBallX-x)*.14;y+=(ballY-y)*.14;}if(behavior.id==="screen-centre")y=50+(y-50)*.72;}
+    const canonicalBallX=side==="home"?ballX:100-ballX,pull=phase==="winTransition"?.1:phase==="inPossession"?.075:.045;x+=(canonicalBallX-x)*pull;
+    x=clamp(x+normal(engine)*.45,4,96);y=clamp(y+normal(engine)*.6,5,95);
+    return {x:side==="home"?x:100-x,y,phase,shape:shapeFor(plan?.formation,phase),behavior:behavior.label};
+  }
+
   function update2DState(career, fixture) {
     const engine = fixture.matchEngine;
+    engine.humanSide ||= fixture.homeId===career.humanActorId?"home":"away";
     const state = engine.visual2D || initialize2DState(engine);
     const chance = (engine.shotMap || []).find(item => item.minute === Math.round(engine.minute));
     const recentEvent = (engine.events || []).find(item => item.minute === Math.round(engine.minute));
-    let possession = engine.zone > .18 ? "home" : engine.zone < -.18 ? "away" : random(engine) < engine.possessionHome / 100 ? "home" : "away";
-    if (chance?.side) possession = chance.side;
+    const possession = chance?.side || engine.phaseState?.possession || (engine.zone>=0?"home":"away");
     let ballX = clamp(50 + engine.zone * 17 + normal(engine) * 4.2, 6, 94);
     let ballY = clamp(50 + normal(engine) * 21, 8, 92);
     if (chance) {
@@ -761,25 +935,13 @@
       ballY = clamp(Number(chance.y || 50), 12, 88);
     }
     const lastChain = (engine.possessionChains || []).at(-1);
-    if (!chance && lastChain?.minute === Math.round(engine.minute)) {
-      ballY = lastChain.lane === "left" ? 76 : lastChain.lane === "right" ? 24 : 50;
-    }
-    const phase = recentEvent?.type === "goal" || recentEvent?.type === "penalty-goal" ? "GOL" : chance ? "ŞUT ANI" : Math.abs(engine.zone) > 1.25 ? "SON ÜÇTE BİR" : Math.abs(engine.momentum) > 30 ? "HIZLI GEÇİŞ" : "YERLEŞİK OYUN";
-    const move = (player, side) => {
-      const attacking = side === possession;
-      const direction = side === "home" ? 1 : -1;
-      const squadPlayer = (side === "home" ? engine.squads?.home : engine.squads?.away)?.find(item => item.id === player.id);
-      const role = roleDefinition(squadPlayer?.roleGroup || "CM", squadPlayer?.roleId);
-      const rolePush = (Number(role.attack || 0) - Number(role.defence || 0)) * .45 * direction;
-      const teamShift = (ballX - 50) * (attacking ? .20 : .12);
-      const ballPull = (ballX - player.baseX) * (attacking ? .10 : .055);
-      player.x = clamp(player.baseX + teamShift + ballPull + rolePush + normal(engine) * .55, 4, 96);
-      player.y = clamp(player.baseY + (ballY - player.baseY) * (attacking ? .14 : .08) + normal(engine) * .75, 5, 95);
-    };
-    state.home.forEach(player => move(player, "home"));
-    state.away.forEach(player => move(player, "away"));
+    if (!chance && lastChain?.minute === Math.round(engine.minute)) ballY = lastChain.lane === "left" ? 76 : lastChain.lane === "right" ? 24 : 50;
+    const labels={inPossession:"YERLEŞİK HÜCUM",outPossession:"SAVUNMA BLOĞU",winTransition:"TOP KAZANMA GEÇİŞİ",lossTransition:"TOP KAYBI REAKSİYONU"};
+    const displayPhase = recentEvent?.type === "goal" || recentEvent?.type === "penalty-goal" ? "GOL" : chance ? "ŞUT ANI" : labels[engine.phaseState?.[possession]]||"YERLEŞİK OYUN";
+    ["home","away"].forEach(side=>state[side].forEach(player=>{const next=phasePosition(engine,player,side,ballX,ballY);player.x=next.x;player.y=next.y;player.phase=next.phase;player.shape=next.shape;player.behavior=next.behavior;}));
     state.possession = possession;
-    state.phase = phase;
+    state.phase = displayPhase;
+    state.shapes={home:shapeFor(engine.squads?.home?.[0]?.formation,engine.phaseState?.home),away:shapeFor(engine.squads?.away?.[0]?.formation,engine.phaseState?.away)};
     state.ball = { x:round1(ballX), y:round1(ballY) };
     state.trail.push(state.ball);
     state.trail = state.trail.slice(-7);
@@ -798,6 +960,10 @@
     return { active, totals };
   }
 
+  function activePhase(engine, side) {
+    return engine.phaseState?.[side] || (engine.phaseState?.possession === side ? "inPossession" : "outPossession");
+  }
+
   function sideMetrics(career, fixture, side) {
     const engine = fixture.matchEngine;
     const sides = getSides(career, fixture);
@@ -808,6 +974,8 @@
     const plan = isHuman ? engine.userPlan : engine.aiPlan;
     const aggregate = aggregatePlan(plan);
     const base = effectiveBase(team, actorRow, aggregate);
+    const phase = activePhase(engine, side);
+    const phaseEffect = phaseOption(phase, normalizePhaseBehaviors(plan.phaseBehaviors)[phase]);
     const fatigue = isHome ? engine.homeFatigue : engine.awayFatigue;
     const modsKey = isHome ? "homeModifiers" : "awayModifiers";
     const { active, totals } = modifierTotals(engine[modsKey], engine.minute);
@@ -817,16 +985,70 @@
     const sideMomentum = isHome ? engine.momentum : -engine.momentum;
     return {
       ...base,
-      attack: base.attack + totals.attack + sideMomentum * 0.06 - fatiguePenalty,
-      control: base.control + totals.control + sideMomentum * 0.05 - fatiguePenalty * 0.75,
-      defence: base.defence + totals.defence + sideMomentum * 0.03 - fatiguePenalty * 0.8,
-      risk: clamp(base.risk + totals.risk, 15, 95),
+      attack: base.attack + totals.attack + Number(phaseEffect.attack||0) + sideMomentum * 0.06 - fatiguePenalty,
+      control: base.control + totals.control + Number(phaseEffect.control||0) + sideMomentum * 0.05 - fatiguePenalty * 0.75,
+      defence: base.defence + totals.defence + Number(phaseEffect.defence||0) + sideMomentum * 0.03 - fatiguePenalty * 0.8,
+      risk: clamp(base.risk + totals.risk + Number(phaseEffect.risk||0), 15, 95),
+      fatigueRate: clamp(base.fatigueRate*Number(phaseEffect.fatigue||1),.45,2.8),
+      foulRisk: Number(base.foulRisk||0)+Number(phaseEffect.foulRisk||0),
       fatigue,
       team,
       actor: actorRow,
       isHuman,
-      plan
+      plan,
+      phase,
+      phaseEffect,
+      shape:shapeFor(plan.formation,phase)
     };
+  }
+
+  function updateMatchPhaseState(engine) {
+    engine.phaseState ||= {possession:"home",previousPossession:"home",transitionSide:null,transitionUntil:0,home:"inPossession",away:"outPossession"};
+    const state=engine.phaseState,current=state.possession||"home",chance=(engine.shotMap||[]).find(item=>item.minute===Math.round(engine.minute));
+    let desired=current;
+    if(chance?.side)desired=chance.side;
+    else if(engine.zone>.22)desired="home";
+    else if(engine.zone<-.22)desired="away";
+    else if(engine.minute%4===0&&random(engine)<.18)desired=random(engine)<engine.possessionHome/100?"home":"away";
+    if(desired!==current){state.previousPossession=current;state.possession=desired;state.transitionSide=desired;state.transitionUntil=engine.minute+3;}
+    const transition=Number(state.transitionUntil||0)>=engine.minute&&engine.minute>0;
+    state.home=transition?(state.transitionSide==="home"?"winTransition":"lossTransition"):(state.possession==="home"?"inPossession":"outPossession");
+    state.away=transition?(state.transitionSide==="away"?"winTransition":"lossTransition"):(state.possession==="away"?"inPossession":"outPossession");
+    engine.phaseUsage||={home:{},away:{}};
+    ["home","away"].forEach(side=>{engine.phaseUsage[side]||={};engine.phaseUsage[side][state[side]]=Number(engine.phaseUsage[side][state[side]]||0)+1;});
+    return state;
+  }
+
+  function orderTriggered(orderId, context) {
+    if(orderId==="trailing-60")return context.goals<context.opponentGoals;
+    if(orderId==="leading-70")return context.goals>context.opponentGoals;
+    if(orderId==="fatigue-60")return context.fatigue<60;
+    if(orderId==="opponent-red")return context.opponentRed>0;
+    if(orderId==="own-red")return context.red>0;
+    if(orderId==="deadlock-75")return context.goals===context.opponentGoals;
+    return false;
+  }
+
+  function processConditionalOrders(career,fixture){
+    const engine=fixture.matchEngine,sides=getSides(career,fixture),humanSide=sides.humanIsHome?"home":"away",aiSide=humanSide==="home"?"away":"home";
+    engine.triggeredOrders||={human:[],ai:[]};
+    const run=(owner,side,plan)=>{
+      const other=side==="home"?"away":"home",goals=side==="home"?engine.scoreHome:engine.scoreAway,opponentGoals=other==="home"?engine.scoreHome:engine.scoreAway;
+      const context={goals,opponentGoals,fatigue:side==="home"?engine.homeFatigue:engine.awayFatigue,red:Number(engine.stats?.[side]?.red||0),opponentRed:Number(engine.stats?.[other]?.red||0)};
+      for(const id of (plan.autoOrders||[])){
+        if(engine.triggeredOrders[owner].some(item=>item.id===id))continue;
+        const order=AUTO_ORDERS.find(item=>item.id===id);if(!order||engine.minute<order.minute||!orderTriggered(id,context))continue;
+        const effects=order.effects||{},key=side==="home"?"homeModifiers":"awayModifiers";
+        engine[key].push({until:Math.min(91,engine.minute+Number(effects.duration||15)),attack:Number(effects.attack||0),control:Number(effects.control||0),defence:Number(effects.defence||0),risk:Number(effects.risk||0),source:`auto-${id}`});
+        if(Number(effects.fatigue||0)){if(side==="home")engine.homeFatigue=clamp(engine.homeFatigue+Number(effects.fatigue),35,100);else engine.awayFatigue=clamp(engine.awayFatigue+Number(effects.fatigue),35,100);}
+        const row={id,label:order.label,minute:Math.round(engine.minute),side,owner};engine.triggeredOrders[owner].push(row);
+        if(owner==="ai")engine.aiAdaptations+=1;
+        addEvent(engine,{type:"auto-order",side,text:owner==="human"?`Otomatik emir çalıştı: ${order.label}.`:`Rakip teknik direktör skor ve saha durumuna bağlı önceden hazırlanmış planını devreye aldı.`});
+        engine.managerBattle||=[];engine.managerBattle.push({minute:row.minute,type:"auto-order",text:owner==="human"?`${order.label} koşulu doğru zamanda etkinleşti.`:"AI koşullu maç planını otomatik çalıştırdı."});
+        break;
+      }
+    };
+    run("human",humanSide,engine.userPlan||{});run("ai",aiSide,engine.aiPlan||{});
   }
 
   function applyCounterMatrix(home,away){
@@ -837,7 +1059,7 @@
     const row = { minute: Math.max(0, Math.round(engine.minute)), ...event };
     engine.events.unshift(row);
     engine.events = engine.events.slice(0, MAX_EVENTS);
-    if(["goal","penalty","penalty-goal","penalty-miss","red","var-overturn","woodwork","tactics","deception"].includes(row.type)){engine.turningPoints||=[];engine.turningPoints.push({minute:row.minute,type:row.type,side:row.side,text:row.text,momentum:Math.round(engine.momentum||0),score:`${engine.scoreHome||0}-${engine.scoreAway||0}`});engine.turningPoints=engine.turningPoints.slice(-18);}
+    if(["goal","penalty","penalty-goal","penalty-miss","red","var-overturn","woodwork","tactics","deception","auto-order"].includes(row.type)){engine.turningPoints||=[];engine.turningPoints.push({minute:row.minute,type:row.type,side:row.side,text:row.text,momentum:Math.round(engine.momentum||0),score:`${engine.scoreHome||0}-${engine.scoreAway||0}`});engine.turningPoints=engine.turningPoints.slice(-18);}
     return row;
   }
 
@@ -967,8 +1189,9 @@
     const persona=engine.aiPersonality||{};
     const adaptation = (Number(style.adaptation || 50)+Number(persona.adaptation||50))/2;
     if(engine.minute>=Number(engine.nextDeceptionMinute||99)&&engine.tacticalDeceptions<2&&random(engine)<.32+Number(persona.unpredictability||40)/150){
-      const plan={...engine.aiPlan},routes=["wings","central","direct","transition"].filter(x=>x!==plan.buildUp);plan.buildUp=routes[Math.floor(random(engine)*routes.length)];
+      const plan={...engine.aiPlan,phaseBehaviors:{...engine.aiPlan.phaseBehaviors}},routes=["wings","central","direct","transition"].filter(x=>x!==plan.buildUp);plan.buildUp=routes[Math.floor(random(engine)*routes.length)];
       if(Number(persona.unpredictability||0)>70&&random(engine)<.55)plan.tempo=plan.tempo==="high"?"low":"high";
+      if(random(engine)<.55)plan.phaseBehaviors.winTransition=plan.phaseBehaviors.winTransition==="wide-release"?"direct-release":"wide-release";
       engine.aiPlan=plan;engine.tacticalDeceptions+=1;engine.aiAdaptations+=1;engine.nextDeceptionMinute=engine.minute+18+Math.floor(randomRange(engine,0,13));
       addEvent(engine,{type:"deception",side:sides.humanIsHome?"away":"home",text:"Rakibin saha yerleşimi sessizce değişti; hücum çıkışları farklı bir koridora kayıyor."});
       engine.managerBattle ||= [];engine.managerBattle.push({minute:Math.round(engine.minute),type:"deception",text:"AI hücum yönünü maskeleyerek değiştirdi."});return;
@@ -977,19 +1200,22 @@
     if (engine.minute < thresholds[engine.aiAdaptations]) return;
     const urgent = aiGoals < humanGoals || (engine.minute >= 45 && Math.abs(engine.momentum) > 22);
     if (!urgent && random(engine) > 0.52 + adaptation / 180) return;
-    const plan = { ...engine.aiPlan };
+    const plan = { ...engine.aiPlan,phaseBehaviors:{...engine.aiPlan.phaseBehaviors} };
     if (aiGoals < humanGoals) {
       plan.mentality = Number(persona.risk||style.risk||50) > 64 ? "aggressive" : "balanced";
       plan.tempo = "high";
       plan.risk = engine.minute > 72 ? "bold" : "measured";
       plan.buildUp = Number(style.directness || 50) > 52 ? "direct" : Number(persona.unpredictability||0)>70&&random(engine)<.5?"wings":"transition";
+      plan.phaseBehaviors.inPossession=engine.minute>70?"overload":"vertical";plan.phaseBehaviors.outPossession="high-press";plan.phaseBehaviors.winTransition="counter";plan.phaseBehaviors.lossTransition="counterpress";
     } else if (aiGoals > humanGoals) {
       plan.mentality = Number(persona.patience||style.control||50) > 62 ? "controlled" : "counter";
       plan.pressing = Number(style.pressing || 50) > 65 ? "counterpress" : "mid";
       plan.risk = "safe";
+      plan.phaseBehaviors.inPossession="patient";plan.phaseBehaviors.outPossession="low-block";plan.phaseBehaviors.winTransition="secure";plan.phaseBehaviors.lossTransition="regroup";
     } else {
       plan.buildUp = Number(style.width || 50) > 55 ? "wings" : "central";
       plan.tempo = Number(style.tempo || 50) > 55 ? "high" : "normal";
+      plan.phaseBehaviors.inPossession=Number(style.control||50)>60?"positional":"vertical";plan.phaseBehaviors.winTransition=Number(style.width||50)>60?"wide-release":"counter";
     }
     engine.aiPlan = plan;
     engine.aiAdaptations += 1;
@@ -1159,6 +1385,8 @@
 
     const naturalMomentumDecay = engine.momentum > 0 ? -0.7 : engine.momentum < 0 ? 0.7 : 0;
     setMomentum(engine, naturalMomentumDecay + controlDelta * 0.65);
+    updateMatchPhaseState(engine);
+    processConditionalOrders(career,fixture);
     maybeAiAdapt(career, fixture);
     update2DState(career, fixture);
 
@@ -1449,6 +1677,10 @@
     const expected = 1 / (1 + Math.pow(10, (aiRating - humanRating) / 400));
     const eloDelta = Math.round(28 * (result - expected));
     const analysis = reportLines(career, fixture);
+    const tacticalIntelligence=analyzeTacticalPlan(engine.userPlan||{});
+    analysis.avgQuality=clamp(Math.round(analysis.avgQuality*.72+tacticalIntelligence.chemistry*.18+tacticalIntelligence.transitionSecurity*.1),20,96);
+    if(tacticalIntelligence.contradictions.length)analysis.lines.push(`${tacticalIntelligence.contradictions.length} taktik çelişki plan verimliliğini ve geçiş güvenliğini etkiledi.`);
+    if((engine.triggeredOrders?.human?.length||0)>0)analysis.lines.push(`${engine.triggeredOrders.human.length} koşullu taktik emri maç durumuna göre otomatik çalıştı.`);
     const humanFinalFatigue=sides.humanIsHome?engine.homeFatigue:engine.awayFatigue;
     const humanAggregate=aggregatePlan(engine.userPlan||{}),overAggressive=humanAggregate.tags.filter(x=>x==="attack"||x==="press"||x==="aggression").length>=3;
     career.managerAttributes ||= {adaptation:50,gameReading:50,riskManagement:50,bigMatch:50,consistency:50,mentality:50};
@@ -1520,6 +1752,7 @@
       lines: analysis.lines,
       motivation: engine.motivation,
       pressConference: engine.pressConference,
+      tacticalIntelligence:{opening:engine.tacticalIntelligenceStart?.human||tacticalIntelligence,final:tacticalIntelligence,phaseUsage:engine.phaseUsage,orders:engine.triggeredOrders},
       totalShots: engine.stats.home.shots + engine.stats.away.shots,
       totalXg: round1(engine.stats.home.xg + engine.stats.away.xg),
       revealedStyleHint: revealStyleHint(engine.aiStyle)
@@ -1575,6 +1808,21 @@
     return `<section class="manager-role-command ${compact ? "compact" : ""}" data-role-system><header><div><span>POSITIONAL ROLE COMMAND</span><h3>Mevkiye Özel Roller</h3><p>Bu bir kadro kurma ekranı değildir. 11 düğüm, FIFA maçındaki taktik pozisyonları temsil eder; her rol motorun güç, risk ve fizik hesabına girer.</p></div><label>DİZİLİŞ<select name="formation" data-role-formation>${FORMATIONS.map(value => `<option value="${value}" ${activeFormation === value ? "selected" : ""}>${value}</option>`).join("")}</select></label></header>${panels}</section>`;
   }
 
+  function renderPhaseCommand(plan = {}, compact = false) {
+    const selected=normalizePhaseBehaviors(plan.phaseBehaviors);
+    return `<section class="manager-phase-command ${compact?"compact":""}"><header><div><span>FOUR PHASE GAME MODEL</span><h3>Dört Maç Fazı</h3></div><p>Takım tek bir talimatla oynamaz. Topun kimde olduğuna ve geçiş anına göre davranış, motor etkisi ve 2D yerleşim değişir.</p></header><div>${Object.entries(PHASE_GROUPS).map(([group,definition])=>`<fieldset><legend>${definition.label}</legend>${definition.options.map(item=>`<label><input type="radio" name="phase_${group}" value="${item.id}" ${selected[group]===item.id?"checked":""}><span><b>${item.label}</b><small>${item.note}</small></span></label>`).join("")}</fieldset>`).join("")}</div></section>`;
+  }
+
+  function renderConditionalOrders(plan = {}, compact = false) {
+    const selected=Array.isArray(plan.autoOrders)?plan.autoOrders:DEFAULT_AUTO_ORDERS;
+    return `<section class="manager-auto-orders ${compact?"compact":""}"><header><div><span>IF / THEN MATCH COMMANDS</span><h3>Koşullu Taktik Emirleri</h3></div><small>Seçilen emir, koşul ilk kez gerçekleştiğinde otomatik ve yalnızca bir kez çalışır.</small></header><div>${AUTO_ORDERS.map(order=>`<label><input type="checkbox" name="autoOrder" value="${order.id}" ${selected.includes(order.id)?"checked":""}><span><b>${order.label}</b><small>${order.note}</small></span></label>`).join("")}</div></section>`;
+  }
+
+  function renderTacticalAnalysis(plan = {}) {
+    const analysis=analyzeTacticalPlan(plan),meter=(label,value)=>`<article><span>${label}</span><i><b style="width:${value}%"></b></i><strong>${value}</strong></article>`;
+    return `<section class="manager-tactical-coherence grade-${analysis.grade.toLowerCase().replace("ı","i")}" data-tactical-live-analysis><header><div><span>LIVE TACTICAL DIAGNOSTIC</span><h3>${analysis.formation} → ${analysis.shapeIn} / ${analysis.shapeOut}</h3></div><b>${analysis.grade}</b></header><div class="manager-coherence-meters">${meter("Rol Uyumu",analysis.chemistry)}${meter("Geçiş Güvenliği",analysis.transitionSecurity)}${meter("Genişlik",analysis.width)}${meter("Merkez Kontrolü",analysis.centralControl)}${meter("Fizik Yükü",analysis.physicalLoad)}</div><div class="manager-coherence-notes"><section><b>UYUMLAR</b>${analysis.synergies.length?analysis.synergies.map(item=>`<p>+ ${esc(item)}</p>`).join(""):`<p>Belirgin bir rol bağlantısı oluşmadı.</p>`}</section><section><b>ÇELİŞKİLER</b>${analysis.contradictions.length?analysis.contradictions.map(item=>`<p>! ${esc(item)}</p>`).join(""):`<p>Kritik taktik çelişki bulunmadı.</p>`}</section></div></section>`;
+  }
+
   function renderSetup(career, human, rival, fixture) {
     const sides = getSides(career, fixture);
     if (!sides.humanTeam || !sides.aiTeam) {
@@ -1582,7 +1830,7 @@
     }
     const defaults = fixture.matchPlan || { mentality: "balanced", pressing: "mid", buildUp: "patient", tempo: "normal", risk: "measured" };
     return `<section id="managerMatchMount" class="manager-match-shell">
-      <div class="manager-war-room-head"><div><span>PRE-MATCH WAR ROOM · MATCHDAY ${fixture.matchday}</span><h2>Maç Planını Kur</h2><p>Rakibin Manager gücü görünür; oyun tarzı gizlidir. Formasyon, her mevkiye özel rol ve takım planı Match Engine 3.0 tarafından birlikte çözülür.</p></div><div class="manager-match-clock"><strong>≈ 3–5 DK</strong><span>MATCH ENGINE 3.0</span></div></div>
+      <div class="manager-war-room-head"><div><span>PRE-MATCH WAR ROOM · MATCHDAY ${fixture.matchday}</span><h2>Maç Planını Kur</h2><p>Formasyon, mevki rolleri, dört oyun fazı ve koşullu emirler Tactical Intelligence tarafından tek bir yaşayan maç planına dönüştürülür.</p></div><div class="manager-match-clock"><strong>V43.2</strong><span>TACTICAL INTELLIGENCE</span></div></div>
       <div class="manager-war-room-versus">
         ${compactTeamCard(sides.humanTeam, human, "SEN", career.managerElo)}
         <div class="manager-war-room-core"><span>TACTICAL</span><b>VS</b><small>${room()?.starText?.(fixture.stars) || `${fixture.stars}★`}</small></div>
@@ -1591,6 +1839,9 @@
       <section class="manager-persona-preview"><div><span>AI MANAGER CHARACTER</span><strong>${esc((rival.personality?.traits||["DENGELİ STRATEJİST"]).join(" · "))}</strong><small>Karakter ipucu görünür; gerçek plan, aldatma ve değişiklik zamanı gizlidir.</small></div><div><span>MANAGER DUEL</span><strong>ELO ${rival.power} · IQ ${rival.tacticalIQ||50}</strong><small>${rival.managerMemory?.meetings||0} geçmiş karşılaşma hafızası</small></div></section>
       <form id="managerMatchPlanForm" class="manager-plan-form" data-fixture-id="${esc(fixture.id)}">
         ${renderPositionRoleSystem(defaults)}
+        ${renderPhaseCommand(defaults)}
+        ${renderTacticalAnalysis(defaults)}
+        ${renderConditionalOrders(defaults)}
         <div class="manager-plan-grid">
           ${renderPlanSelector("mentality", defaults.mentality)}
           ${renderPlanSelector("pressing", defaults.pressing)}
@@ -1636,8 +1887,9 @@
     const state = engine.visual2D || initialize2DState(engine);
     const humanSide = d.humanIsHome ? "home" : "away";
     const teamName = state.possession === "neutral" ? "ORTADA" : state.possession === humanSide ? "SENDE" : "RAKİPTE";
-    const players = side => (state[side] || []).map(player => `<span class="match-player ${side === humanSide ? "human" : "rival"}" style="left:${player.x}%;top:${player.y}%" title="${esc(`${player.key} · ${player.role}`)}"><b>${player.number}</b><small>${player.key}</small></span>`).join("");
-    return `<section class="manager-2d-view"><header><div><span>MATCH ENGINE 3.0 · 11v11 TACTICAL VIEW</span><strong>${esc(state.phase || "YERLEŞİK OYUN")}</strong></div><div><small>TOP</small><b>${teamName}</b></div></header><div class="manager-2d-pitch"><div class="manager-2d-lines"><i class="centre-circle"></i><i class="box home"></i><i class="box away"></i><i class="goal home"></i><i class="goal away"></i></div>${(state.trail || []).slice(0,-1).map((point,index,rows)=>`<i class="ball-trail" style="left:${point.x}%;top:${point.y}%;opacity:${round1((index+1)/(rows.length+1)*.42)}"></i>`).join("")}${players("home")}${players("away")}<span class="match-ball ${state.possession}" style="left:${state.ball.x}%;top:${state.ball.y}%">⚽</span><b class="pitch-team home">${esc(d.humanIsHome ? career.shortName : rival.shortName)}</b><b class="pitch-team away">${esc(d.humanIsHome ? rival.shortName : career.shortName)}</b></div><footer><span>22 TAKTİK DÜĞÜM</span><small>Top ve blok hareketi her simülasyon dakikasında güncellenir.</small><span>${esc(d.humanTeam.clubName)} · ${esc(engine.userPlan?.formation || "4-3-3")}</span></footer></section>`;
+    const players = side => (state[side] || []).map(player => `<span class="match-player ${side === humanSide ? "human" : "rival"}" style="left:${player.x}%;top:${player.y}%" title="${esc(`${player.key} · ${player.role} · ${player.behavior||""}`)}"><b>${player.number}</b><small>${player.key}</small></span>`).join("");
+    const humanPhase=activePhase(engine,humanSide),aiSide=humanSide==="home"?"away":"home",humanBehavior=phaseOption(humanPhase,normalizePhaseBehaviors(engine.userPlan?.phaseBehaviors)[humanPhase]);
+    return `<section class="manager-2d-view"><header><div><span>TACTICAL INTELLIGENCE 3.2 · 11v11</span><strong>${esc(state.phase || "YERLEŞİK OYUN")}</strong></div><div><small>TOP</small><b>${teamName}</b></div></header><div class="manager-shape-ribbon"><article><small>SEN · ${esc(PHASE_GROUPS[humanPhase]?.label||humanPhase)}</small><b>${esc(state.shapes?.[humanSide]||shapeFor(engine.userPlan?.formation,humanPhase))}</b><span>${esc(humanBehavior.label)}</span></article><i>⇄</i><article><small>RAKİP BLOK</small><b>${esc(state.shapes?.[aiSide]||shapeFor(engine.aiPlan?.formation,activePhase(engine,aiSide)))}</b><span>Davranış saha sinyallerinden okunur</span></article></div><div class="manager-2d-pitch"><div class="manager-2d-lines"><i class="centre-circle"></i><i class="box home"></i><i class="box away"></i><i class="goal home"></i><i class="goal away"></i></div>${(state.trail || []).slice(0,-1).map((point,index,rows)=>`<i class="ball-trail" style="left:${point.x}%;top:${point.y}%;opacity:${round1((index+1)/(rows.length+1)*.42)}"></i>`).join("")}${players("home")}${players("away")}<span class="match-ball ${state.possession}" style="left:${state.ball.x}%;top:${state.ball.y}%">⚽</span><b class="pitch-team home">${esc(d.humanIsHome ? career.shortName : rival.shortName)}</b><b class="pitch-team away">${esc(d.humanIsHome ? rival.shortName : career.shortName)}</b></div><footer><span>22 TAKTİK DÜĞÜM</span><small>Rol, oyun fazı ve top konumu her simülasyon dakikasında yeni saha şeklini üretir.</small><span>${esc(d.humanTeam.clubName)} · ${esc(engine.userPlan?.formation || "4-3-3")}</span></footer></section>`;
   }
 
   function renderLive(career, human, rival, fixture) {
@@ -1646,7 +1898,7 @@
     const momentumPos = clamp((d.humanMomentum + 100) / 2, 0, 100);
     const isRunning = runtime.fixtureId === fixture.id && Boolean(runtime.timer);
     return `<section id="managerMatchMount" class="manager-live-match level-${career.managerIdentity?.level||"manager"} ${engine.status === "decision" ? "decision-active" : ""}">
-      <header class="manager-live-header"><div><span>LIVE MATCH ENGINE 3.0 · 2X</span><strong>${Math.min(90, Math.round(engine.minute))}'</strong></div><div class="manager-live-score"><article><span>${esc(d.humanTeam.clubName)}</span><b>${d.humanGoals}</b><small>${esc(career.clubName)}</small></article><i>—</i><article><b>${d.aiGoals}</b><span>${esc(d.aiTeam.clubName)}</span><small>${esc(rival.clubName)}</small></article></div><div class="manager-live-controls"><span>${engine.status === "decision" ? "TACTICAL PAUSE" : isRunning ? "LIVE" : "PAUSED"}</span>${engine.status === "live" ? `<button data-match-action="${isRunning ? "pause" : "resume"}">${isRunning ? "Duraklat" : "Devam Et"}</button>${!isRunning ? `<button data-match-action="change-tactics">Taktik Değiştir</button>` : ""}` : ""}</div></header>
+      <header class="manager-live-header"><div><span>TACTICAL INTELLIGENCE 3.2 · 2X</span><strong>${Math.min(90, Math.round(engine.minute))}'</strong></div><div class="manager-live-score"><article><span>${esc(d.humanTeam.clubName)}</span><b>${d.humanGoals}</b><small>${esc(career.clubName)}</small></article><i>—</i><article><b>${d.aiGoals}</b><span>${esc(d.aiTeam.clubName)}</span><small>${esc(rival.clubName)}</small></article></div><div class="manager-live-controls"><span>${engine.status === "decision" ? "TACTICAL PAUSE" : isRunning ? "LIVE" : "PAUSED"}</span>${engine.status === "live" ? `<button data-match-action="${isRunning ? "pause" : "resume"}">${isRunning ? "Duraklat" : "Devam Et"}</button>${!isRunning ? `<button data-match-action="change-tactics">Taktik Değiştir</button>` : ""}` : ""}</div></header>
       ${renderPulseChart(engine, d.humanIsHome)}
       ${renderChainIntelligence(engine,d.humanIsHome,false)}
       <div class="manager-match-main-grid ${engine.eventStreamVisible ? "events-open" : "events-closed"}">
@@ -1670,7 +1922,7 @@
         </article>
         ${engine.eventStreamVisible ? `<aside class="manager-event-feed"><div class="manager-feed-head"><span>LIVE EVENT STREAM</span><button data-match-action="toggle-events">KAPAT</button><b>${engine.events.length}</b></div><div>${engine.events.map(event => `<article class="${event.type} ${event.side}"><time>${event.minute}'</time><p>${esc(event.text)}</p></article>`).join("")}</div></aside>` : ""}
       </div>
-      <footer class="manager-live-footer"><div><span>PLAN</span><strong>${esc(planItem("mentality", engine.userPlan.mentality).label)} · ${esc(planItem("pressing", engine.userPlan.pressing).label)}</strong></div><div><span>DECISIONS</span><strong>${fixture.decisions.length}/${MAX_DECISIONS}</strong></div><div><span>AI ADAPTATION</span><strong>${engine.aiAdaptations ? "DETECTED" : "HIDDEN"}</strong></div><div><span>SEED</span><strong>${engine.seed.toString(16).toUpperCase()}</strong></div></footer>
+      <footer class="manager-live-footer"><div><span>PLAN</span><strong>${esc(planItem("mentality", engine.userPlan.mentality).label)} · ${esc(engine.userPlan.formation||"4-3-3")}</strong></div><div><span>CANLI ŞEKİL</span><strong>${esc(shapeFor(engine.userPlan.formation,activePhase(engine,d.humanIsHome?"home":"away")))}</strong></div><div><span>OTOMATİK EMİR</span><strong>${engine.triggeredOrders?.human?.length||0}/${engine.userPlan.autoOrders?.length||0} ÇALIŞTI</strong></div><div><span>AI ADAPTATION</span><strong>${engine.aiAdaptations ? `${engine.aiAdaptations} DETECTED` : "HIDDEN"}</strong></div></footer>
       <nav class="manager-match-command-dock"><div><span>${Math.min(90, Math.round(engine.minute))}'</span><b>${isRunning ? "CANLI" : engine.status === "decision" ? "KARAR ANI" : "DURAKLATILDI"}</b></div>${engine.status === "live" ? `<button data-match-action="${isRunning ? "pause" : "resume"}">${isRunning ? "Ⅱ Duraklat" : "▶ Devam"}</button><button data-match-action="change-tactics">▦ Taktik</button>` : ""}<button data-match-action="toggle-events">${engine.eventStreamVisible ? "Olay Akışını Kapat" : `Olay Akışını Aç · ${engine.events.length}`}</button><button class="exit" data-match-action="exit-centre">Maç Merkezinden Çık</button></nav>
       ${engine.currentDecision ? renderDecision(engine.currentDecision) : ""}
       ${engine.tacticalEditing ? renderTacticalEditor(engine.userPlan, engine) : ""}
@@ -1681,14 +1933,14 @@
   function renderPulseChart(engine, humanIsHome) {
     const pulse = engine.pulse || [];
     const points = Array.from({ length: 90 }, (_, index) => pulse.find(item => item.minute === index + 1) || null);
-    const markerTypes = { goal: "⚽", "penalty-goal": "●", "penalty-miss": "⊘", red: "■", tactics: "◆", decision: "◇" };
+    const markerTypes = { goal: "⚽", "penalty-goal": "●", "penalty-miss": "⊘", red: "■", tactics: "◆", "auto-order":"△", decision: "◇" };
     return `<section class="manager-pulse"><header><div><span>MATCH PULSE</span><strong>Oyun Temposu & Attack Momentum</strong></div><div><b>${Math.round(pulse.at(-1)?.tempo || 0)}</b><small>TEMPO</small></div></header><div class="manager-pulse-chart"><div class="pulse-half-line"><span>İY</span></div>${points.map((point, index) => { const minute=index+1; const human=point?(humanIsHome?point.home:point.away):0; const rival=point?(humanIsHome?point.away:point.home):0; const events=engine.events.filter(event=>event.minute===minute&&markerTypes[event.type]); const marker=events[0]?markerTypes[events[0].type]:""; return `<i class="pulse-minute ${point?"active":""}" title="${minute}' · Sen ${human} · Rakip ${rival}${point?` · Tempo ${point.tempo}`:""}"><b style="height:${human}%"></b><em style="height:${rival}%"></em>${marker?`<span>${marker}</span>`:""}</i>`; }).join("")}</div><footer><span>${humanIsHome?"HOME":"AWAY"} · SEN</span><small>45' İLK YARI</small><span>RAKİP · ${humanIsHome?"AWAY":"HOME"}</span></footer></section>`;
   }
 
   function renderChainIntelligence(engine,humanIsHome,reportMode=false){
     const chains=engine.possessionChains||[], humanSide=humanIsHome?"home":"away", human=chains.filter(x=>x.side===humanSide),ai=chains.filter(x=>x.side!==humanSide),last=chains.at(-1);
     const zones=engine.zoneEntries||{home:{left:0,centre:0,right:0},away:{left:0,centre:0,right:0}},hz=zones[humanSide]||{},az=zones[humanIsHome?"away":"home"]||{};
-    return `<section class="manager-chain-intel ${reportMode?"report":""}"><header><div><span>MATCH ENGINE 2.0</span><strong>Pozisyon Zinciri & Hücum Yolları</strong></div><small>${chains.length} işlenen hücum sekansı</small></header><div class="manager-chain-kpis"><article><span>SEN</span><b>${human.length}</b><small>${human.filter(x=>x.outcome==="shot"||x.outcome==="goal").length} şuta ulaştı</small></article><article><span>RAKİP</span><b>${ai.length}</b><small>${ai.filter(x=>x.outcome==="shot"||x.outcome==="goal").length} şuta ulaştı</small></article><article><span>HÜCUM YOLUN</span><b>${Number(hz.left||0)>Number(hz.centre||0)&&Number(hz.left||0)>Number(hz.right||0)?"SOL":Number(hz.right||0)>Number(hz.centre||0)?"SAĞ":"MERKEZ"}</b><small>${hz.left||0} · ${hz.centre||0} · ${hz.right||0}</small></article><article><span>RAKİP YOLU</span><b>${Number(az.left||0)>Number(az.centre||0)&&Number(az.left||0)>Number(az.right||0)?"SOL":Number(az.right||0)>Number(az.centre||0)?"SAĞ":"MERKEZ"}</b><small>${az.left||0} · ${az.centre||0} · ${az.right||0}</small></article></div>${last?`<div class="manager-last-chain"><time>${last.minute}'</time>${last.steps.map((s,i)=>`<span>${esc(s)}${i<last.steps.length-1?" → ":""}</span>`).join("")}<b>${last.outcome.toUpperCase()} · Q${last.quality}</b></div>`:""}</section>`;
+    return `<section class="manager-chain-intel ${reportMode?"report":""}"><header><div><span>MATCH ENGINE 3.2</span><strong>Pozisyon Zinciri & Hücum Yolları</strong></div><small>${chains.length} işlenen hücum sekansı</small></header><div class="manager-chain-kpis"><article><span>SEN</span><b>${human.length}</b><small>${human.filter(x=>x.outcome==="shot"||x.outcome==="goal").length} şuta ulaştı</small></article><article><span>RAKİP</span><b>${ai.length}</b><small>${ai.filter(x=>x.outcome==="shot"||x.outcome==="goal").length} şuta ulaştı</small></article><article><span>HÜCUM YOLUN</span><b>${Number(hz.left||0)>Number(hz.centre||0)&&Number(hz.left||0)>Number(hz.right||0)?"SOL":Number(hz.right||0)>Number(hz.centre||0)?"SAĞ":"MERKEZ"}</b><small>${hz.left||0} · ${hz.centre||0} · ${hz.right||0}</small></article><article><span>RAKİP YOLU</span><b>${Number(az.left||0)>Number(az.centre||0)&&Number(az.left||0)>Number(az.right||0)?"SOL":Number(az.right||0)>Number(az.centre||0)?"SAĞ":"MERKEZ"}</b><small>${az.left||0} · ${az.centre||0} · ${az.right||0}</small></article></div>${last?`<div class="manager-last-chain"><time>${last.minute}'</time>${last.steps.map((s,i)=>`<span>${esc(s)}${i<last.steps.length-1?" → ":""}</span>`).join("")}<b>${last.outcome.toUpperCase()} · Q${last.quality}</b></div>`:""}</section>`;
   }
 
   function renderManagerBattle(report={}){const attrs=report.managerAttributes||{},rows=report.managerBattle||[];return `<section class="manager-battle-report"><header><div><span>MANAGER BATTLE</span><h3>Teknik Direktör Düellosu</h3></div><strong>${report.managerRating||50}<small>MANAGER RATING</small></strong></header><div class="manager-battle-attributes">${[["Oyun Okuma",attrs.gameReading],["Adaptasyon",attrs.adaptation],["Risk Yönetimi",attrs.riskManagement],["Büyük Maç",attrs.bigMatch],["İstikrar",attrs.consistency],["Mentalite",attrs.mentality]].map(([k,v])=>`<article><span>${k}</span><b>${v||50}</b></article>`).join("")}</div><div class="manager-battle-events">${rows.length?rows.map(x=>`<div><time>${x.minute}'</time><b>${esc(String(x.type||"battle").toUpperCase())}</b><span>${esc(x.text)}</span></div>`).join(""):`<p>Bu maçta belirgin bir menajer düellosu kırılması oluşmadı.</p>`}</div></section>`;}
@@ -1708,7 +1960,7 @@
   function smartAssistant(engine){const career=room()?.getActiveCareer?.(),level=career?.managerIdentity?.level||"manager",reading=Number(career?.managerAttributes?.gameReading||50),accuracy=clamp(48+reading*.42-(engine.aiPersonality?.unpredictability||40)*.16,45,88),correct=((engine.seed+Math.round(engine.minute)*17)%100)<accuracy;let signal=engine.aiPlan?.buildUp||"patient";if(!correct)signal=signal==="wings"?"central":signal==="central"?"wings":signal==="direct"?"patient":"direct";const route=signal==="wings"?"kanat":signal==="central"?"merkez":signal==="direct"?"direkt çıkış":"sabırlı pas";if(level==="casual")return {confidence:Math.round(accuracy),text:`Rakip ${route} üzerinden üretim arıyor olabilir. ${engine.momentum<-20?"Önce kontrolü ve savunma güvenliğini artır.":"Karşı koridoru ve fizik maliyetini değerlendir."}`};if(level==="analyst")return {confidence:Math.round(accuracy),text:`Sinyal: ${route} · AI adaptasyon ${engine.aiAdaptations} · aldatma ${engine.tacticalDeceptions} · momentum ${Math.round(engine.momentum)} · fizik H${Math.round(engine.homeFatigue)}/A${Math.round(engine.awayFatigue)}.`};return {confidence:Math.round(accuracy),text:`Saha davranışı ${route} ihtimalini güçlendiriyor; bunun aldatma sinyali olabileceğini unutma.`};}
 
   function renderTacticalEditor(plan, engine) {
-    const tip=smartAssistant(engine);return `<div class="manager-decision-overlay"><form id="managerTacticalAdjustForm" class="manager-decision-card manager-tactical-editor"><header><div><span>MANUAL TACTICAL PAUSE</span><h2>Manager Tablet</h2></div><b>SAAT DURDU</b></header><div class="manager-assistant-tip"><b>SMART ASSISTANT 3.0 · %${tip.confidence}</b><span>${tip.text}</span><small>Asistanın doğruluğu Oyun Okuma seviyene bağlıdır; çıkarım kesin bilgi değildir.</small></div><div class="manager-sub-presets"><button type="button" data-match-action="substitution" data-sub-type="pace">⚡ Hücum Enerjisi</button><button type="button" data-match-action="substitution" data-sub-type="control">◎ Orta Saha Kontrolü</button><button type="button" data-match-action="substitution" data-sub-type="defence">▣ Savunma Takviyesi</button><small>${engine.substitutions?.length||0}/5 değişiklik</small></div>${renderPositionRoleSystem(plan,true)}<div class="manager-plan-grid">${Object.keys(PLAN_GROUPS).map(group => renderPlanSelector(group, plan[group])).join("")}</div><div class="manager-tactical-actions"><button type="button" data-match-action="cancel-tactics">Vazgeç</button><button class="btn btn-gold" type="submit">Değişiklikleri Uygula</button></div></form></div>`;
+    const tip=smartAssistant(engine);return `<div class="manager-decision-overlay"><form id="managerTacticalAdjustForm" class="manager-decision-card manager-tactical-editor"><header><div><span>MANUAL TACTICAL PAUSE</span><h2>Manager Tablet</h2></div><b>SAAT DURDU</b></header><div class="manager-assistant-tip"><b>SMART ASSISTANT 3.2 · %${tip.confidence}</b><span>${tip.text}</span><small>Asistanın doğruluğu Oyun Okuma seviyene bağlıdır; çıkarım kesin bilgi değildir.</small></div><div class="manager-sub-presets"><button type="button" data-match-action="substitution" data-sub-type="pace">⚡ Hücum Enerjisi</button><button type="button" data-match-action="substitution" data-sub-type="control">◎ Orta Saha Kontrolü</button><button type="button" data-match-action="substitution" data-sub-type="defence">▣ Savunma Takviyesi</button><small>${engine.substitutions?.length||0}/5 değişiklik</small></div>${renderPositionRoleSystem(plan,true)}${renderPhaseCommand(plan,true)}${renderTacticalAnalysis(plan)}${renderConditionalOrders(plan,true)}<div class="manager-plan-grid">${Object.keys(PLAN_GROUPS).map(group => renderPlanSelector(group, plan[group])).join("")}</div><div class="manager-tactical-actions"><button type="button" data-match-action="cancel-tactics">Vazgeç</button><button class="btn btn-gold" type="submit">Değişiklikleri Uygula</button></div></form></div>`;
   }
 
   function metric(label, home, away) {
@@ -1717,6 +1969,11 @@
 
   function renderDecision(decision) {
     return `<div class="manager-decision-overlay"><div class="manager-decision-card"><header><div><span>TACTICAL DECISION · ${decision.minute}'</span><h2>${esc(decision.title)}</h2></div><b>MAÇ DURDU</b></header><p>${esc(decision.prompt)}</p><div class="manager-decision-options">${decision.options.map(item => `<button data-match-action="decision" data-option-id="${esc(item.id)}"><strong>${esc(item.label)}</strong><span>${esc(item.note)}</span><small>Mutlak doğru cevap yoktur; etki mevcut maç state’ine göre çözülür.</small></button>`).join("")}</div></div></div>`;
+  }
+
+  function renderTacticalIntelligenceReport(engine,d){
+    const intel=engine.report?.tacticalIntelligence||{},analysis=intel.final||analyzeTacticalPlan(engine.userPlan||{}),humanSide=d.humanIsHome?"home":"away",usage=intel.phaseUsage?.[humanSide]||engine.phaseUsage?.[humanSide]||{},total=Math.max(1,Object.values(usage).reduce((sum,value)=>sum+Number(value||0),0)),behaviors=normalizePhaseBehaviors(engine.userPlan?.phaseBehaviors),orders=intel.orders?.human||engine.triggeredOrders?.human||[];
+    return `<section class="manager-tactical-intel-report"><header><div><span>TACTICAL INTELLIGENCE 3.2</span><h3>Maç Planı Otopsisi</h3><p>${analysis.formation} başlangıç yapısı, hücumda ${analysis.shapeIn}, savunmada ${analysis.shapeOut} olarak dönüştü.</p></div><strong>${analysis.chemistry}<small>ROL UYUMU</small></strong></header><div class="manager-phase-usage">${Object.keys(PHASE_GROUPS).map(group=>`<article><span>${PHASE_GROUPS[group].label}</span><b>${Math.round(Number(usage[group]||0)/total*90)}'</b><i><em style="width:${Number(usage[group]||0)/total*100}%"></em></i><small>${esc(phaseOption(group,behaviors[group]).label)}</small></article>`).join("")}</div><div class="manager-intel-report-grid"><article><span>GEÇİŞ GÜVENLİĞİ</span><b>${analysis.transitionSecurity}</b><small>Rest-defence ve rol dağılımı</small></article><article><span>MERKEZ KONTROLÜ</span><b>${analysis.centralControl}</b><small>Pas ve bağlantı kapasitesi</small></article><article><span>FİZİK YÜKÜ</span><b>${analysis.physicalLoad}</b><small>Rol ve faz yoğunluğu</small></article><article><span>OTOMATİK EMİRLER</span><b>${orders.length}</b><small>${orders.length?orders.map(item=>`${item.minute}' ${item.label}`).join(" · "):"Koşul gerçekleşmedi"}</small></article></div><div class="manager-intel-findings"><section><b>İŞLEYEN BAĞLANTILAR</b>${analysis.synergies.length?analysis.synergies.map(item=>`<p>+ ${esc(item)}</p>`).join(""):`<p>Belirgin bir rol sinerjisi oluşmadı.</p>`}</section><section><b>GELİŞTİRİLECEK NOKTALAR</b>${analysis.contradictions.length?analysis.contradictions.map(item=>`<p>! ${esc(item)}</p>`).join(""):`<p>Kritik taktik çelişki bulunmadı.</p>`}</section></div></section>`;
   }
 
   function renderReport(career, human, rival, fixture, archiveMode = false) {
@@ -1734,6 +1991,7 @@
       ${renderManagerBattle(report)}
       ${renderMatchDna(engine, d)}
       ${renderFormationAnalysis(engine, d)}
+      ${renderTacticalIntelligenceReport(engine,d)}
       <div class="manager-report-grid">
         <article class="manager-report-rating"><span>TAKTİK PERFORMANS</span><strong>${report.tacticalQuality || 50}</strong><small>/ 100</small><div><b>ELO ${report.eloDelta >= 0 ? "+" : ""}${report.eloDelta || 0}</b><b>IQ ${report.tacticalDelta >= 0 ? "+" : ""}${report.tacticalDelta || 0}</b><b>+${report.careerPointsEarned || 0} CP</b></div></article>
         <article class="manager-report-stats"><h3>Gelişmiş Maç Verisi</h3>${metric("xG", d.humanStats.xg, d.aiStats.xg)}${metric("Şut", d.humanStats.shots, d.aiStats.shots)}${metric("İsabet", d.humanStats.onTarget, d.aiStats.onTarget)}${metric("Kurtarış", d.humanStats.saves, d.aiStats.saves)}${metric("Direk", d.humanStats.woodwork, d.aiStats.woodwork)}${metric("Ofsayt", d.humanStats.offsides, d.aiStats.offsides)}${metric("Serbest V.", d.humanStats.freeKicks, d.aiStats.freeKicks)}${metric("VAR İptal", d.humanStats.varOverturns, d.aiStats.varOverturns)}${metric("İsabetsiz", d.humanStats.offTarget, d.aiStats.offTarget)}${metric("Blok", d.humanStats.blocked, d.aiStats.blocked)}${metric("Top %", Math.round(d.humanPossession), 100 - Math.round(d.humanPossession))}${metric("Pas", d.humanStats.passes, d.aiStats.passes)}${metric("Pas %", d.humanStats.passAccuracy, d.aiStats.passAccuracy)}${metric("Korner", d.humanStats.corners, d.aiStats.corners)}${metric("Faul", d.humanStats.fouls, d.aiStats.fouls)}${metric("Sarı", d.humanStats.yellow, d.aiStats.yellow)}${metric("Kırmızı", d.humanStats.red, d.aiStats.red)}${metric("Penaltı", d.humanStats.penalties, d.aiStats.penalties)}${metric("Pen. Kaçtı", d.humanStats.penaltiesMissed, d.aiStats.penaltiesMissed)}</article>
@@ -1803,6 +2061,8 @@
       const data = new FormData(event.target);
       const plan = selectedPlan(data);
       readPositionSetup(data, plan);
+      readPhaseSetup(data, plan);
+      readAutoOrders(data, plan);
       plan.pressAnswer = String(data.get("pressAnswer") || "confident");
       plan.diagnosis = String(data.get("diagnosis") || "control");
       const engine = initializeMatch(career, fixture, plan, String(data.get("motivation") || "belief"));
@@ -1829,6 +2089,8 @@
     const before = sideDisplay(career, fixture);
     const tacticalData = new FormData(event.target);
     const nextPlan = readPositionSetup(tacticalData, selectedPlan(tacticalData));
+    readPhaseSetup(tacticalData,nextPlan);
+    readAutoOrders(tacticalData,nextPlan);
     nextPlan.pressAnswer = engine.userPlan.pressAnswer;
     nextPlan.diagnosis = engine.userPlan.diagnosis;
     engine.userPlan = nextPlan;
@@ -1899,14 +2161,17 @@
   document.addEventListener("click", handleClick);
   document.addEventListener("change", event => {
     const select = event.target.closest?.("[data-role-formation]");
-    if (!select) return;
-    const system = select.closest("[data-role-system]");
-    system?.querySelectorAll("[data-formation-panel]").forEach(panel => {
-      const active = panel.dataset.formationPanel === select.value;
-      panel.hidden = !active;
-      panel.classList.toggle("active", active);
-      panel.querySelectorAll("select").forEach(input => { input.disabled = !active; });
-    });
+    if(select){
+      const system = select.closest("[data-role-system]");
+      system?.querySelectorAll("[data-formation-panel]").forEach(panel => {
+        const active = panel.dataset.formationPanel === select.value;
+        panel.hidden = !active;
+        panel.classList.toggle("active", active);
+        panel.querySelectorAll("select").forEach(input => { input.disabled = !active; });
+      });
+    }
+    const form=event.target.closest?.("#managerMatchPlanForm,#managerTacticalAdjustForm"),analysis=form?.querySelector?.("[data-tactical-live-analysis]");
+    if(form&&analysis){const data=new FormData(form),plan=selectedPlan(data);readPositionSetup(data,plan);readPhaseSetup(data,plan);readAutoOrders(data,plan);analysis.outerHTML=renderTacticalAnalysis(plan);}
   });
   window.addEventListener("beforeunload", stopTimer);
 

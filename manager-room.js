@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "43.1.0";
+  const VERSION = "43.2.0";
   const STORAGE_KEY = "fifa-manager-room-v42";
   const RECOVERY_KEY = "fifa-manager-room-recovery-v43";
   const CATALOG_URL = "data/manager-team-catalog-fc25.json";
@@ -93,11 +93,22 @@
       if (fixture.awayTeam === "") fixture.awayTeam = null;
       fixture.teamDraw ||= null;
       fixture.matchPlan ||= null;
+      if(fixture.matchPlan){fixture.matchPlan.phaseBehaviors ||= {inPossession:"positional",outPossession:"mid-block",winTransition:"secure",lossTransition:"regroup"};fixture.matchPlan.autoOrders=Array.isArray(fixture.matchPlan.autoOrders)?fixture.matchPlan.autoOrders:["trailing-60","leading-70","fatigue-60","own-red"];}
       fixture.matchEngine ||= null;
       fixture.stats ||= null;
       fixture.decisions = Array.isArray(fixture.decisions) ? fixture.decisions : [];
       if (fixture.matchEngine) {
         fixture.matchEngine.version = VERSION;
+        fixture.matchEngine.userPlan ||= fixture.matchPlan || {};
+        fixture.matchEngine.userPlan.phaseBehaviors ||= {inPossession:"positional",outPossession:"mid-block",winTransition:"secure",lossTransition:"regroup"};
+        fixture.matchEngine.userPlan.autoOrders=Array.isArray(fixture.matchEngine.userPlan.autoOrders)?fixture.matchEngine.userPlan.autoOrders:["trailing-60","leading-70","fatigue-60","own-red"];
+        fixture.matchEngine.aiPlan ||= {};
+        fixture.matchEngine.aiPlan.phaseBehaviors ||= {inPossession:"positional",outPossession:"mid-block",winTransition:"counter",lossTransition:"regroup"};
+        fixture.matchEngine.aiPlan.autoOrders=Array.isArray(fixture.matchEngine.aiPlan.autoOrders)?fixture.matchEngine.aiPlan.autoOrders:["leading-70","fatigue-60","opponent-red","own-red"];
+        fixture.matchEngine.humanSide ||= fixture.homeId===career.humanActorId?"home":"away";
+        fixture.matchEngine.phaseState ||= {possession:"home",previousPossession:"home",transitionSide:null,transitionUntil:0,home:"inPossession",away:"outPossession"};
+        fixture.matchEngine.phaseUsage ||= {home:{inPossession:0,outPossession:0,winTransition:0,lossTransition:0},away:{inPossession:0,outPossession:0,winTransition:0,lossTransition:0}};
+        fixture.matchEngine.triggeredOrders ||= {human:[],ai:[]};
         fixture.matchEngine.matchVolatility ||= 1;
         fixture.matchEngine.lastChanceMinute = Number.isFinite(fixture.matchEngine.lastChanceMinute) ? fixture.matchEngine.lastChanceMinute : -5;
         ["home", "away"].forEach(side => {
@@ -694,7 +705,7 @@
     const premierCount = career.actors.filter(item => item.division === "premier").length;
     const championshipCount = career.actors.filter(item => item.division === "championship").length;
     const legInfo = LEGS.find(item => item.id === Number(next?.leg || 1)) || LEGS[0];
-    const tabs = [["overview", "Bugün"], ["calendar", "Football Calendar"], ["universe", "Lig Evreni"], ["oruc", "Oruç Reis Kupası"], ["intelligence", "Career Intelligence"], ["rivalry", "Rivalry History"], ["stories", "Season Stories"], ["statistics", "İstatistik Merkezi"], ["identity", "Manager Identity"], ["draw", "Team Draw Theatre"], ["match", "Canlı Maç"], ["scouting", "AI Rakipler"], ["engine", "V43.1 Lab"]];
+    const tabs = [["overview", "Bugün"], ["calendar", "Football Calendar"], ["universe", "Lig Evreni"], ["oruc", "Oruç Reis Kupası"], ["intelligence", "Career Intelligence"], ["rivalry", "Rivalry History"], ["stories", "Season Stories"], ["statistics", "İstatistik Merkezi"], ["identity", "Manager Identity"], ["draw", "Team Draw Theatre"], ["match", "Canlı Maç"], ["scouting", "AI Rakipler"], ["engine", "V43.2 Lab"]];
     const slots=managerState.saveSlots?.[career.id]||{};
     view.innerHTML = `
       <section class="manager-club-hero" style="--club-primary:${esc(career.primaryColor)};--club-secondary:${esc(career.secondaryColor)}">
@@ -721,9 +732,9 @@
         <div class="manager-match-lock"><span>TEAM DRAW STATUS</span><strong>${drawReady ? `${esc(userTeam.clubName)} vs ${esc(rivalTeam.clubName)}` : "Takım kurası bekleniyor"}</strong><small>${drawReady ? `Kura ${next.teamDraw?.locked ? "resmî olarak kilitli" : "test modunda açık"}.` : `${starText(next.stars)} havuzundan iki farklı Avrupa kulübü çekilecek.`}</small></div>
         <button class="btn btn-gold btn-wide" data-manager-action="set-tab" data-tab="${drawReady ? "match" : "draw"}">${drawReady ? (next.matchEngine?.status === "finished" ? "Maç Raporunu Aç" : next.matchEngine ? "Canlı Maça Dön" : "Taktik Odasına Geç") : "Takım Kurasına Geç"}</button>` : `<div class="empty-state">Yeni sezon oluşturulması gerekiyor.</div>`}
       </article>
-      <article class="manager-progress-panel"><div class="manager-panel-head"><div><span>MANAGER DEVELOPMENT</span><h3>Performance Lab</h3></div><em>V43.1</em></div>${[["Manager ELO", career.managerElo, 2200], ["Manager Rating", career.managerRating||50, 100], ["Taktik IQ", career.tacticalIQ, 100], ["Oyun Okuma", career.managerAttributes?.gameReading||50, 100], ["Adaptasyon", career.managerAttributes?.adaptation||50, 100], ["Risk Yönetimi", career.managerAttributes?.riskManagement||50, 100]].map(row => `<div class="manager-meter"><span>${row[0]}</span><i><b style="width:${Math.max(3, Math.min(100, row[1] / row[2] * 100))}%"></b></i><strong>${row[1]}</strong></div>`).join("")}<div class="manager-dev-kpis"><div><span>FORM</span><b>${(career.matchHistory || []).slice(0,5).map(item => item.result).join(" · ") || "—"}</b></div><div><span>OYUNCU TARZI</span><b>${esc(career.playerStyle?.label||"ANALİZ BEKLİYOR")}</b></div><div><span>KARAR / MAÇ</span><b>${career.matchEngineStats?.matches ? (career.matchEngineStats.decisions / career.matchEngineStats.matches).toFixed(1) : "0.0"}</b></div><div><span>GOL FARKI</span><b>${(career.matchEngineStats?.goalsFor || 0) - (career.matchEngineStats?.goalsAgainst || 0)}</b></div></div><div class="manager-baseline-note">Gelişim; sonuçtan tek başına değil, rakip gücü, oyun okuma, rol uyumu, risk yönetimi ve maç içi karar kalitesinden hesaplanır.</div></article>
+      <article class="manager-progress-panel"><div class="manager-panel-head"><div><span>MANAGER DEVELOPMENT</span><h3>Performance Lab</h3></div><em>V43.2</em></div>${[["Manager ELO", career.managerElo, 2200], ["Manager Rating", career.managerRating||50, 100], ["Taktik IQ", career.tacticalIQ, 100], ["Oyun Okuma", career.managerAttributes?.gameReading||50, 100], ["Adaptasyon", career.managerAttributes?.adaptation||50, 100], ["Risk Yönetimi", career.managerAttributes?.riskManagement||50, 100]].map(row => `<div class="manager-meter"><span>${row[0]}</span><i><b style="width:${Math.max(3, Math.min(100, row[1] / row[2] * 100))}%"></b></i><strong>${row[1]}</strong></div>`).join("")}<div class="manager-dev-kpis"><div><span>FORM</span><b>${(career.matchHistory || []).slice(0,5).map(item => item.result).join(" · ") || "—"}</b></div><div><span>OYUNCU TARZI</span><b>${esc(career.playerStyle?.label||"ANALİZ BEKLİYOR")}</b></div><div><span>KARAR / MAÇ</span><b>${career.matchEngineStats?.matches ? (career.matchEngineStats.decisions / career.matchEngineStats.matches).toFixed(1) : "0.0"}</b></div><div><span>GOL FARKI</span><b>${(career.matchEngineStats?.goalsFor || 0) - (career.matchEngineStats?.goalsAgainst || 0)}</b></div></div><div class="manager-baseline-note">Gelişim; sonuçtan tek başına değil, rakip gücü, oyun okuma, rol uyumu, risk yönetimi ve maç içi karar kalitesinden hesaplanır.</div></article>
       <article class="manager-trophy-panel"><div class="manager-panel-head"><div><span>CLUB MUSEUM</span><h3>Kupa Kabini</h3></div></div><div class="manager-mini-trophies">${[["Premier", career.trophies.premier], ["Championship", career.trophies.championship], ["Oruç Reis", career.trophies.oruc], ["Süper Kupa", career.trophies.super]].map(row => `<div><span>♜</span><strong>${row[1]}</strong><small>${row[0]}</small></div>`).join("")}</div></article>
-      <article class="manager-status-panel"><div class="manager-panel-head"><div><span>ENGINE STATUS</span><h3>Match Intelligence Build</h3></div><em>V43.1</em></div><ul><li class="done">22 düğümlü 2D Match Engine 3.0</li><li class="done">Mevkiye özel ve motor etkili roller</li><li class="done">Bağlamsal motivasyon ve basın etkisi</li><li class="done">İsteğe bağlı Live Event Stream</li><li class="done">Yapışkan canlı maç kumandası</li><li class="done">Kalıcı gelişmiş maç arşivi</li></ul></article>
+      <article class="manager-status-panel"><div class="manager-panel-head"><div><span>ENGINE STATUS</span><h3>Tactical Intelligence Build</h3></div><em>V43.2</em></div><ul><li class="done">Dört fazlı Match Engine 3.2</li><li class="done">Canlı diziliş morph sistemi</li><li class="done">Rol sinerjisi ve çelişki analizi</li><li class="done">Koşullu insan ve AI emirleri</li><li class="done">Faza göre 22 düğümlü 2D hareket</li><li class="done">Kalıcı taktik zekâ maç raporu</li></ul></article>
     </section>`;
   }
 
@@ -886,12 +897,12 @@
       ["Competition Engine", 70, "Üç devreli fikstür ve canlı puan tabloları"],
       ["Opponent Engine", 75, "AI power seed, gizli stil ve adaptasyon"],
       ["Team Draw Engine", 100, "65 Avrupa kulübü ve resmî kura kilidi"],
-      ["Live Match Simulation", 72, "90 dakikalık hızlandırılmış saha state motoru"],
-      ["Momentum Engine", 70, "Saha hâkimiyeti, yorgunluk ve skor baskısı"],
-      ["Decision Intelligence", 45, "Bağlamsal karar aileleri ve outcome resolver"],
-      ["Balance Telemetry", 15, "Deterministik seed ve maç raporu verisi"]
+      ["Live Match Simulation", 82, "90 dakikalık dört fazlı saha state motoru"],
+      ["Shape Morph Engine", 80, "Toplu, topsuz ve geçiş dizilişleri"],
+      ["Decision Intelligence", 68, "Koşullu emirler, rol sinerjileri ve AI cevapları"],
+      ["Balance Telemetry", 25, "Deterministik seed ve taktik zekâ raporu"]
     ];
-    const cal=career?.calibrationReport;return `<section class="manager-engine-lab"><div class="manager-engine-core"><div class="manager-core-ring"><span>V43.1</span><strong>ENGINE 3.0</strong></div><div><span>LIVING FOOTBALL UNIVERSE</span><h3>PlayStation maçlarını yaşayan taktik gerçeklik, psikoloji, rekabet ve sezon hikâyesi içinde birleştiren kariyer çekirdeği</h3><p>Kadro/transfer yoktur. 11v11 2D taktik görünüm, mevkiye özel roller, bağlamsal konuşmalar, Fog of War ve AI psikolojisi gerçek oyuncuların FIFA maçlarını çevreler.</p></div></div><div class="manager-module-grid">${modules.map(row => `<article><div><span>${row[0]}</span><strong>${row[1]}%</strong></div><i><b style="width:${row[1]}%"></b></i><p>${row[2]}</p></article>`).join("")}</div><section class="manager-calibration-lab"><div><span>10.000 MATCH SIMULATION</span><h3>Calibration Lab</h3><p>Gol, şut, beraberlik, disiplin ve güç dengesi dağılımını deterministik seed ile test eder.</p></div><button class="btn btn-gold" data-manager-action="run-calibration">10.000 MAÇ TEST ET</button>${cal?`<div class="manager-calibration-results">${[["Gol / Maç",cal.goalsPerMatch],["Şut / Maç",cal.shotsPerMatch],["Beraberlik",`${cal.drawRate}%`],["Kırmızı",`${cal.redEvery} maçta 1`],["Penaltı",`${cal.penaltyEvery} maçta 1`],["Güçlü Taraf",`${cal.strongSideWinRate}%`]].map(([k,v])=>`<article><span>${k}</span><strong>${v}</strong></article>`).join("")}</div>`:""}</section><div class="manager-engine-contract"><strong>V43.1 MATCH ENGINE 3.0</strong><span>22 taktik düğüm, pozisyon rolleri, canlı 2D top hareketi, bağlamsal medya ve yapışkan maç kumandaları aktiftir.</span></div></section>`;
+    const cal=career?.calibrationReport;return `<section class="manager-engine-lab"><div class="manager-engine-core"><div class="manager-core-ring"><span>V43.2</span><strong>ENGINE 3.2</strong></div><div><span>TACTICAL INTELLIGENCE</span><h3>PlayStation maçlarını yaşayan taktik gerçeklik, psikoloji, rekabet ve sezon hikâyesi içinde birleştiren kariyer çekirdeği</h3><p>Kadro/transfer yoktur. Dört oyun fazı, canlı şekil değişimi, rol bağlantıları, koşullu emirler ve rakibe cevap veren AI gerçek oyuncuların FIFA maçlarını çevreler.</p></div></div><div class="manager-module-grid">${modules.map(row => `<article><div><span>${row[0]}</span><strong>${row[1]}%</strong></div><i><b style="width:${row[1]}%"></b></i><p>${row[2]}</p></article>`).join("")}</div><section class="manager-calibration-lab"><div><span>10.000 MATCH SIMULATION</span><h3>Calibration Lab</h3><p>Gol, şut, beraberlik, disiplin ve güç dengesi dağılımını deterministik seed ile test eder.</p></div><button class="btn btn-gold" data-manager-action="run-calibration">10.000 MAÇ TEST ET</button>${cal?`<div class="manager-calibration-results">${[["Gol / Maç",cal.goalsPerMatch],["Şut / Maç",cal.shotsPerMatch],["Beraberlik",`${cal.drawRate}%`],["Kırmızı",`${cal.redEvery} maçta 1`],["Penaltı",`${cal.penaltyEvery} maçta 1`],["Güçlü Taraf",`${cal.strongSideWinRate}%`]].map(([k,v])=>`<article><span>${k}</span><strong>${v}</strong></article>`).join("")}</div>`:""}</section><div class="manager-engine-contract"><strong>V43.2 MATCH ENGINE 3.2</strong><span>Dört fazlı diziliş morphları, motor etkili rol sinerjileri, koşullu emirler, canlı 2D şekiller ve kalıcı analiz aktiftir.</span></div></section>`;
   }
 
   function render(view) {
