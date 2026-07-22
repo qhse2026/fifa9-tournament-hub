@@ -1,4 +1,4 @@
-const CACHE = "fifa-tournament-hub-v42-4-match-intelligence";
+const CACHE = "fifa-tournament-hub-v42-5-masterpiece-universe";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -12,6 +12,8 @@ const APP_SHELL = [
   "./manager-match-engine.js",
   "./manager-room.css",
   "./manager-v42-4.css",
+  "./manager-v42-5.css",
+  "./manager-v42-5-levels.css",
   "./data/manager-bootstrap-v42.json",
   "./data/manager-team-catalog-fc25.json",
   "./language.js",

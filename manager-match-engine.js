@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "42.4";
+  const VERSION = "42.5";
   const TICK_MS = 850;
   const MAX_EVENTS = 180;
   const MAX_DECISIONS = 10;
@@ -15,6 +15,8 @@
     { id: "prove", label: "Onlara Kim Olduğumuzu Gösterin", note: "Duygusal ve yüksek varyanslı", tags: ["attack", "underdog"] },
     { id: "pressure-off", label: "Baskı Yok, Oyunun Keyfini Çıkarın", note: "Rahatlık sağlayabilir veya odağı düşürebilir", tags: ["balanced"] }
   ];
+  const FORMATIONS = ["4-3-3","4-2-3-1","4-4-2","3-5-2","3-4-3","5-3-2"];
+  const ROLE_OPTIONS = ["Dengeli","Oyun Kurucu","Sahte Dokuz","Kanat İçeri Kat","Çizgi Oyuncusu","Box-to-Box","Ön Libero","Bindiren Bek","Geride Kalan Bek"];
 
   const room = () => window.FIFA_MANAGER_ROOM;
   const app = () => window.FIFA_APP_CONTEXT;
@@ -432,6 +434,8 @@
       report: null
     };
     fixture.matchEngine.motivation = resolveMotivation(fixture.matchEngine, motivationId, sides, plan);
+    fixture.matchEngine.squads = { home: buildVirtualSquad(fixture.matchEngine, sides.homeTeam, plan.formation), away: buildVirtualSquad(fixture.matchEngine, sides.awayTeam, "4-3-3") };
+    fixture.matchEngine.substitutions = [];
     const humanMods = sides.humanIsHome ? "homeModifiers" : "awayModifiers";
     const motivation = fixture.matchEngine.motivation;
     fixture.matchEngine[humanMods].push({ until: 22, attack: motivation.strength, control: motivation.strength * .55, defence: motivation.strength * .35, risk: motivation.outcome === "negative" ? 4 : 0, source: "motivation" });
@@ -443,6 +447,11 @@
   }
 
   function enginePlaceholder(seed) { return { rngState: seed }; }
+
+  function buildVirtualSquad(engine, team, formation) {
+    const positions = ["GK","RB","CB","CB","LB","CDM","CM","CAM","RW","ST","LW","SUB","SUB","SUB","SUB","SUB"];
+    return positions.map((position,index)=>({ id:`${team.id}-p${index+1}`, name:`${team.clubName.split(" ")[0]} ${index+1}`, position, rating:clamp(Number(team.overall||75)+Math.round(randomRange(engine,-4,4)),65,94), form:Math.round(randomRange(engine,45,85)), fatigue:100, status:index<11?"XI":"BENCH", formation }));
+  }
 
   function modifierTotals(modifiers, minute) {
     const active = (modifiers || []).filter(item => item.until > minute);
@@ -495,7 +504,10 @@
 
   function setBroadcast(engine, type, side, title, subtitle) {
     engine.broadcastEvent = { id: `${type}-${engine.minute}-${Date.now()}`, minute: Math.round(engine.minute), type, side, title, subtitle };
+    if (room()?.getActiveCareer?.()?.managerIdentity?.sound !== false) playAtmosphere(type);
   }
+
+  function playAtmosphere(type){try{const C=window.AudioContext||window.webkitAudioContext;if(!C)return;const c=new C(),o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.value=type.includes("goal")?523:type.includes("penalty")?330:type==="red"?180:260;g.gain.setValueAtTime(.045,c.currentTime);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+.32);o.start();o.stop(c.currentTime+.34);}catch(_){}}
 
   function setMomentum(engine, delta) {
     engine.momentum = clamp(engine.momentum + delta, -100, 100);
@@ -586,9 +598,10 @@
     const aiGoals = sides.humanIsHome ? engine.scoreAway : engine.scoreHome;
     const style = engine.aiStyle || {};
     const adaptation = Number(style.adaptation || 50);
-    const thresholds = [32, 58, 76];
+    const thresholds = [24, 45, 67, 80];
     if (engine.minute < thresholds[engine.aiAdaptations]) return;
-    if (random(engine) > 0.35 + adaptation / 160) return;
+    const urgent = aiGoals < humanGoals || (engine.minute >= 45 && Math.abs(engine.momentum) > 22);
+    if (!urgent && random(engine) > 0.52 + adaptation / 180) return;
     const plan = { ...engine.aiPlan };
     if (aiGoals < humanGoals) {
       plan.mentality = Number(style.risk || 50) > 55 ? "aggressive" : "balanced";
@@ -704,8 +717,9 @@
     engine.stats.away.attacks += engine.zone < -0.45 ? 1 : 0;
 
     const homePoss = engine.possessionHome / 100;
-    engine.stats.home.passes += Math.round(3 + homePoss * 5 + randomRange(engine, 0, 3));
-    engine.stats.away.passes += Math.round(3 + (1 - homePoss) * 5 + randomRange(engine, 0, 3));
+    const passVolume = clamp(8.2 + ((home.tempo + away.tempo) / 2 - 70) * .055 + randomRange(engine, -.7, .7), 6.4, 11.2);
+    engine.stats.home.passes += Math.max(1, Math.round(passVolume * homePoss));
+    engine.stats.away.passes += Math.max(1, Math.round(passVolume * (1 - homePoss)));
     engine.stats.home.passAccuracy = Math.round(clamp(74 + (home.control - 72) * .35 + homePoss * 9, 66, 94));
     engine.stats.away.passAccuracy = Math.round(clamp(74 + (away.control - 72) * .35 + (1 - homePoss) * 9, 66, 94));
     if (random(engine) < .14) {
@@ -769,9 +783,17 @@
     });
     engine.pulse = engine.pulse.slice(-90);
 
+    if (engine.minute === 45) {
+      setBroadcast(engine, "half-time", "neutral", "İLK YARI", `${engine.scoreHome} — ${engine.scoreAway} · Devre arası taktik değerlendirmesi`);
+    }
+
     if (engine.minute % 5 === 0) room()?.saveLocal?.();
     if (engine.minute >= 90) {
-      finishMatch(career, fixture);
+      engine.status = "full-time";
+      setBroadcast(engine, "full-time", "neutral", "MAÇ SONU", `${engine.scoreHome} — ${engine.scoreAway}`);
+      stopTimer();
+      refreshMount(career, fixture);
+      window.setTimeout(() => { engine.broadcastEvent = null; finishMatch(career, fixture); }, 2400);
       return;
     }
     if (engine.broadcastEvent) {
@@ -886,7 +908,7 @@
   }
 
   function applyTableResult(career, fixture, homeScore, awayScore) {
-    if (fixture.tableApplied) return;
+    if (fixture.tableApplied || fixture.competition === "oruc") return;
     const home = ensureTableRow(career, fixture.division, fixture.homeId);
     const away = ensureTableRow(career, fixture.division, fixture.awayId);
     home.mp += 1; away.mp += 1;
@@ -939,7 +961,7 @@
     fixture.status = "played";
     fixture.updatedAt = now();
     fixture.simulated = true;
-    fixture.stats = { simulation: "manager-v42.4", homeXg: round1(homeLambda), awayXg: round1(awayLambda) };
+    fixture.stats = { simulation: "manager-v42.5", homeXg: round1(homeLambda), awayXg: round1(awayLambda) };
     applyTableResult(career, fixture, homeScore, awayScore);
     applyActorElo(career, fixture, homeScore, awayScore);
   }
@@ -967,7 +989,7 @@
     const engine = completedFixture.matchEngine;
     const matchday = completedFixture.matchday;
     career.fixtures
-      .filter(item => item.id !== completedFixture.id && item.status === "scheduled" && Number(item.matchday) === Number(matchday))
+      .filter(item => item.id !== completedFixture.id && item.status === "scheduled" && Number(item.matchday) === Number(matchday) && ![item.homeId,item.awayId].includes(career.humanActorId))
       .forEach(item => simulateAiFixture(career, item, engine));
   }
 
@@ -999,6 +1021,7 @@
     engine.minute = 90;
     engine.status = "finished";
     engine.finishedAt = now();
+    Object.values(engine.squads||{}).flat().forEach(player=>{ player.form=clamp(Math.round(player.form+randomRange(engine,-4,6)+(player.status==="XI"?2:0)),20,99); player.development=round1((player.development||0)+(player.form-50)/100); });
     (engine.tacticalSnapshots || []).forEach(item => {
       const current = sideDisplay(career, fixture);
       const minutes = Math.max(1, 90 - item.minute);
@@ -1013,6 +1036,7 @@
     applyTableResult(career, fixture, engine.scoreHome, engine.scoreAway);
     applyActorElo(career, fixture, engine.scoreHome, engine.scoreAway);
     simulateMatchday(career, fixture);
+    room()?.advanceOrucCup?.(career);
 
     const sides = getSides(career, fixture);
     const humanGoals = sides.humanIsHome ? engine.scoreHome : engine.scoreAway;
@@ -1120,6 +1144,7 @@
         ${compactTeamCard(sides.aiTeam, rival, "RAKİP", rival.power, true)}
       </div>
       <form id="managerMatchPlanForm" class="manager-plan-form" data-fixture-id="${esc(fixture.id)}">
+        <section class="manager-formation-room"><label>DİZİLİŞ<select name="formation">${FORMATIONS.map(value=>`<option ${defaults.formation===value?"selected":""}>${value}</option>`).join("")}</select></label><label>HÜCUM ROLÜ<select name="attackRole">${ROLE_OPTIONS.map(value=>`<option ${defaults.attackRole===value?"selected":""}>${value}</option>`).join("")}</select></label><label>ORTA SAHA ROLÜ<select name="midfieldRole">${ROLE_OPTIONS.map(value=>`<option ${defaults.midfieldRole===value?"selected":""}>${value}</option>`).join("")}</select></label><label>SAVUNMA ROLÜ<select name="defenceRole">${ROLE_OPTIONS.map(value=>`<option ${defaults.defenceRole===value?"selected":""}>${value}</option>`).join("")}</select></label></section>
         <div class="manager-plan-grid">
           ${renderPlanSelector("mentality", defaults.mentality)}
           ${renderPlanSelector("pressing", defaults.pressing)}
@@ -1128,6 +1153,7 @@
           ${renderPlanSelector("risk", defaults.risk)}
         </div>
         <fieldset class="manager-motivation-group"><legend>MAÇ ÖNCESİ MOTİVASYON KONUŞMASI</legend><div>${MOTIVATION_TALKS.map((item, index) => `<label><input type="radio" name="motivation" value="${item.id}" ${index === 0 ? "checked" : ""}><span><b>${item.label}</b><small>${item.note}</small></span></label>`).join("")}</div><small>Konuşma doğru bağlamda pozitif etki yaratabilir; etkisiz kalabilir veya ters tepebilir. Sonuç maç başladığında açıklanır.</small></fieldset>
+        <fieldset class="manager-press-conference"><legend>BASIN TOPLANTISI</legend><label><input type="radio" name="pressAnswer" value="confident" checked><span>“Hazırız ve kazanmak için buradayız.”</span></label><label><input type="radio" name="pressAnswer" value="respect"><span>“Rakibimize saygı duyuyoruz.”</span></label><label><input type="radio" name="pressAnswer" value="protect"><span>“Baskıyı oyuncularımdan uzak tutuyorum.”</span></label></fieldset>
         <div class="manager-plan-footer"><div><span>RAKİP PROFİLİ</span><strong>GÜÇ ${rival.power} · STİL GİZLİ</strong><small>Rakibin davranışı maç içindeki sinyallerden okunmalıdır.</small></div><button class="btn btn-gold manager-kickoff-btn" type="submit">Maçı Başlat</button></div>
       </form>
     </section>`;
@@ -1166,7 +1192,7 @@
     const zoneHuman = d.humanIsHome ? engine.zone : -engine.zone;
     const pitchMarker = clamp(50 + zoneHuman * 18, 7, 93);
     const isRunning = runtime.fixtureId === fixture.id && Boolean(runtime.timer);
-    return `<section id="managerMatchMount" class="manager-live-match ${engine.status === "decision" ? "decision-active" : ""}">
+    return `<section id="managerMatchMount" class="manager-live-match level-${career.managerIdentity?.level||"manager"} ${engine.status === "decision" ? "decision-active" : ""}">
       <header class="manager-live-header"><div><span>LIVE MATCH ENGINE · 2X</span><strong>${Math.min(90, Math.round(engine.minute))}'</strong></div><div class="manager-live-score"><article><span>${esc(d.humanTeam.clubName)}</span><b>${d.humanGoals}</b><small>${esc(career.clubName)}</small></article><i>—</i><article><b>${d.aiGoals}</b><span>${esc(d.aiTeam.clubName)}</span><small>${esc(rival.clubName)}</small></article></div><div class="manager-live-controls"><span>${engine.status === "decision" ? "TACTICAL PAUSE" : isRunning ? "LIVE" : "PAUSED"}</span>${engine.status === "live" ? `<button data-match-action="${isRunning ? "pause" : "resume"}">${isRunning ? "Duraklat" : "Devam Et"}</button>${!isRunning ? `<button data-match-action="change-tactics">Taktik Değiştir</button>` : ""}` : ""}</div></header>
       ${renderPulseChart(engine, d.humanIsHome)}
       <div class="manager-match-main-grid">
@@ -1190,7 +1216,7 @@
       </div>
       <footer class="manager-live-footer"><div><span>PLAN</span><strong>${esc(planItem("mentality", engine.userPlan.mentality).label)} · ${esc(planItem("pressing", engine.userPlan.pressing).label)}</strong></div><div><span>DECISIONS</span><strong>${fixture.decisions.length}/${MAX_DECISIONS}</strong></div><div><span>AI ADAPTATION</span><strong>${engine.aiAdaptations ? "DETECTED" : "HIDDEN"}</strong></div><div><span>SEED</span><strong>${engine.seed.toString(16).toUpperCase()}</strong></div></footer>
       ${engine.currentDecision ? renderDecision(engine.currentDecision) : ""}
-      ${engine.tacticalEditing ? renderTacticalEditor(engine.userPlan) : ""}
+      ${engine.tacticalEditing ? renderTacticalEditor(engine.userPlan, engine) : ""}
       ${engine.broadcastEvent ? renderBroadcastEvent(engine.broadcastEvent, d) : ""}
     </section>`;
   }
@@ -1208,8 +1234,8 @@
     return `<div class="manager-broadcast-overlay ${tone} ${isHuman?"human":"rival"}"><div class="broadcast-rings"></div><article><span>${event.minute}' · LIVE EVENT</span><h2>${esc(event.title)}</h2><p>${esc(event.subtitle)}</p><div><strong>${d.humanGoals}</strong><i>—</i><strong>${d.aiGoals}</strong></div><small>${isHuman?"SENİN TAKIMIN":"RAKİP TAKIM"}</small></article></div>`;
   }
 
-  function renderTacticalEditor(plan) {
-    return `<div class="manager-decision-overlay"><form id="managerTacticalAdjustForm" class="manager-decision-card manager-tactical-editor"><header><div><span>MANUAL TACTICAL PAUSE</span><h2>Oyun Planını Değiştir</h2></div><b>SAAT DURDU</b></header><div class="manager-plan-grid">${Object.keys(PLAN_GROUPS).map(group => renderPlanSelector(group, plan[group])).join("")}</div><div class="manager-tactical-actions"><button type="button" data-match-action="cancel-tactics">Vazgeç</button><button class="btn btn-gold" type="submit">Değişiklikleri Uygula</button></div></form></div>`;
+  function renderTacticalEditor(plan, engine) {
+    return `<div class="manager-decision-overlay"><form id="managerTacticalAdjustForm" class="manager-decision-card manager-tactical-editor"><header><div><span>MANUAL TACTICAL PAUSE</span><h2>Manager Tablet</h2></div><b>SAAT DURDU</b></header><div class="manager-assistant-tip"><b>SMART ASSISTANT</b><span>${engine.momentum<-25?"Momentum rakipte; orta saha kontrolünü veya savunma direncini artır.":engine.homeFatigue<65||engine.awayFatigue<65?"Fizik seviyesi düşüyor; taze oyuncu öneriliyor.":"Maç dengede. Müdahalenin risk ve fizik maliyetini değerlendir."}</span></div><div class="manager-sub-presets"><button type="button" data-match-action="substitution" data-sub-type="pace">⚡ Hızlı Hücumcu</button><button type="button" data-match-action="substitution" data-sub-type="control">◎ Orta Saha Kontrolü</button><button type="button" data-match-action="substitution" data-sub-type="defence">▣ Savunma Takviyesi</button><small>${engine.substitutions?.length||0}/5 değişiklik</small></div><div class="manager-plan-grid">${Object.keys(PLAN_GROUPS).map(group => renderPlanSelector(group, plan[group])).join("")}</div><div class="manager-tactical-actions"><button type="button" data-match-action="cancel-tactics">Vazgeç</button><button class="btn btn-gold" type="submit">Değişiklikleri Uygula</button></div></form></div>`;
   }
 
   function metric(label, home, away) {
@@ -1229,6 +1255,7 @@
       <div class="manager-report-hero"><div><span>FULL TIME · MATCHDAY ${fixture.matchday}</span><h2>${report.result === "WIN" ? "GALİBİYET" : report.result === "LOSS" ? "MAĞLUBİYET" : "BERABERLİK"}</h2><p>${esc(d.humanTeam.clubName)} ile ${esc(d.aiTeam.clubName)} arasındaki maç tamamlandı.</p></div><div class="manager-report-score"><span>${esc(career.shortName)}</span><b>${report.humanGoals ?? d.humanGoals}</b><i>—</i><b>${report.aiGoals ?? d.aiGoals}</b><span>${esc(rival.shortName)}</span></div></div>
       ${renderPulseChart(engine, d.humanIsHome)}
       ${renderMatchDna(engine, d)}
+      ${renderFormationAnalysis(engine, d)}
       <div class="manager-report-grid">
         <article class="manager-report-rating"><span>TAKTİK PERFORMANS</span><strong>${report.tacticalQuality || 50}</strong><small>/ 100</small><div><b>ELO ${report.eloDelta >= 0 ? "+" : ""}${report.eloDelta || 0}</b><b>IQ ${report.tacticalDelta >= 0 ? "+" : ""}${report.tacticalDelta || 0}</b><b>+${report.careerPointsEarned || 0} CP</b></div></article>
         <article class="manager-report-stats"><h3>Gelişmiş Maç Verisi</h3>${metric("xG", d.humanStats.xg, d.aiStats.xg)}${metric("Şut", d.humanStats.shots, d.aiStats.shots)}${metric("İsabet", d.humanStats.onTarget, d.aiStats.onTarget)}${metric("İsabetsiz", d.humanStats.offTarget, d.aiStats.offTarget)}${metric("Blok", d.humanStats.blocked, d.aiStats.blocked)}${metric("Top %", Math.round(d.humanPossession), 100 - Math.round(d.humanPossession))}${metric("Pas", d.humanStats.passes, d.aiStats.passes)}${metric("Pas %", d.humanStats.passAccuracy, d.aiStats.passAccuracy)}${metric("Korner", d.humanStats.corners, d.aiStats.corners)}${metric("Faul", d.humanStats.fouls, d.aiStats.fouls)}${metric("Sarı", d.humanStats.yellow, d.aiStats.yellow)}${metric("Kırmızı", d.humanStats.red, d.aiStats.red)}${metric("Penaltı", d.humanStats.penalties, d.aiStats.penalties)}${metric("Pen. Kaçtı", d.humanStats.penaltiesMissed, d.aiStats.penaltiesMissed)}</article>
@@ -1237,7 +1264,7 @@
       </div>
       ${renderTacticalImpact(engine)}
       <section class="manager-full-timeline"><h3>Tam Olay Akışı</h3>${[...engine.events].reverse().map(event=>`<article class="${event.type}"><time>${event.minute}'</time><b>${esc(event.type.replaceAll("-"," ").toUpperCase())}</b><span>${esc(event.text)}</span></article>`).join("")}</section>
-      <div class="manager-report-actions"><button class="btn btn-ghost" data-manager-action="set-tab" data-tab="${archiveMode?"fixtures":"universe"}">${archiveMode?"Fikstürlere Dön":"Puan Tablosunu Gör"}</button>${archiveMode?"":`<button class="btn btn-gold" data-match-action="continue-career">Sonraki Matchday</button>`}</div>
+      <div class="manager-report-actions"><button class="btn btn-ghost" data-match-action="share-card" data-fixture-id="${esc(fixture.id)}">Maç Kartını Paylaş</button><button class="btn btn-ghost" data-manager-action="set-tab" data-tab="${archiveMode?"fixtures":"universe"}">${archiveMode?"Fikstürlere Dön":"Puan Tablosunu Gör"}</button>${archiveMode?"":`<button class="btn btn-gold" data-match-action="continue-career">Sonraki Matchday</button>`}</div>
     </section>`;
   }
 
@@ -1250,6 +1277,13 @@
     const tactical = clamp(45+(engine.aiAdaptations||0)*8+(engine.tacticalSnapshots?.length||0)*9,0,100);
     const quality = clamp(Math.round((d.humanStats.xg+d.aiStats.xg)*18),0,100);
     return `<section class="manager-match-dna"><header><span>MATCH DNA</span><strong>${tempo>75?"YÜKSEK TEMPO":chaos>68?"KAOTİK MÜCADELE":tactical>68?"TAKTİK SAVAŞ":drama>65?"DRAMATİK MAÇ":"DENGELİ MÜCADELE"}</strong></header><div>${[["Tempo",tempo],["Drama",drama],["Kaos",chaos],["Taktik",tactical],["Pozisyon",quality]].map(([label,value])=>`<article><span>${label}</span><i><b style="width:${value}%"></b></i><strong>${value}</strong></article>`).join("")}</div></section>`;
+  }
+
+  function renderFormationAnalysis(engine, d) {
+    const coords=[[8,50],[24,16],[23,38],[23,62],[24,84],[45,28],[46,50],[45,72],[70,18],[78,50],[70,82]];
+    const humanSquad=(d.humanIsHome?engine.squads?.home:engine.squads?.away)||[]; const rivalSquad=(d.humanIsHome?engine.squads?.away:engine.squads?.home)||[];
+    const pitch=(squad,label,shift)=>`<article><header><b>${label}</b><span>${shift}</span></header><div class="manager-position-pitch"><i class="heat-zone" style="left:${shift.includes("3-")?48:38}%"></i>${coords.map((point,index)=>`<span style="left:${point[0]}%;top:${point[1]}%" title="${esc(squad[index]?.name||"")}">${index+1}<small>${squad[index]?.position||""}</small></span>`).join("")}</div></article>`;
+    return `<section class="manager-formation-analysis"><div class="manager-section-head"><div><span>POSITIONAL INTELLIGENCE</span><h3>Isı Haritası & Ortalama Pozisyonlar</h3></div><small>Formasyon, saha hâkimiyeti ve maç temposundan üretilir.</small></div><div>${pitch(humanSquad,"SEN",engine.userPlan?.formation||"4-3-3")}${pitch(rivalSquad,"RAKİP",engine.aiPlan?.formation||"4-3-3")}</div></section>`;
   }
 
   function renderTacticalImpact(engine) {
@@ -1291,10 +1325,16 @@
     try {
       const data = new FormData(event.target);
       const plan = selectedPlan(data);
-      initializeMatch(career, fixture, plan, String(data.get("motivation") || "belief"));
+      plan.formation = String(data.get("formation") || "4-3-3");
+      plan.attackRole = String(data.get("attackRole") || "Dengeli");
+      plan.midfieldRole = String(data.get("midfieldRole") || "Dengeli");
+      plan.defenceRole = String(data.get("defenceRole") || "Dengeli");
+      plan.pressAnswer = String(data.get("pressAnswer") || "confident");
+      const engine = initializeMatch(career, fixture, plan, String(data.get("motivation") || "belief"));
+      setBroadcast(engine, "kickoff", "neutral", "MAÇ BAŞLIYOR", `${getSides(career, fixture).homeTeam.clubName} — ${getSides(career, fixture).awayTeam.clubName}`);
       await room()?.persistCareer?.(career, { silent: true });
       refreshMount(career, fixture);
-      startTimer(career, fixture);
+      window.setTimeout(() => { engine.broadcastEvent = null; refreshMount(career, fixture); startTimer(career, fixture); }, 2200);
       app()?.toast?.("Maç başladı. Kritik anlarda motor oyunu otomatik durduracak.", "success");
     } catch (error) {
       app()?.toast?.(error.message, "error");
@@ -1328,7 +1368,7 @@
     const target = event.target.closest("[data-match-action]");
     if (!target) return;
     const career = room()?.getActiveCareer?.();
-    const fixture = career?.activeMatchFixtureId ? career.fixtures.find(item => item.id === career.activeMatchFixtureId) : room()?.getNextHumanFixture?.(career);
+    const fixture = target.dataset.fixtureId ? career?.fixtures?.find(item=>item.id===target.dataset.fixtureId) : career?.activeMatchFixtureId ? career.fixtures.find(item => item.id === career.activeMatchFixtureId) : room()?.getNextHumanFixture?.(career);
     if (!career || !fixture) return;
     const action = target.dataset.matchAction;
     if (action === "pause") {
@@ -1341,6 +1381,11 @@
     }
     if (action === "change-tactics") { fixture.matchEngine.tacticalEditing = true; refreshMount(career, fixture); }
     if (action === "cancel-tactics") { fixture.matchEngine.tacticalEditing = false; refreshMount(career, fixture); }
+    if (action === "substitution") {
+      const engine=fixture.matchEngine; engine.substitutions ||= []; if(engine.substitutions.length>=5){app()?.toast?.("Değişiklik hakkı doldu.","warning");return;}
+      const type=target.dataset.subType; const effects=type==="pace"?{attack:9,control:0,defence:-2}:type==="control"?{attack:2,control:10,defence:2}:{attack:-2,control:2,defence:10}; const humanHome=getSides(career,fixture).humanIsHome; const key=humanHome?"homeModifiers":"awayModifiers";
+      engine[key].push({until:91,...effects,risk:0,source:`sub-${type}`}); engine.substitutions.push({minute:Math.round(engine.minute),type}); addEvent(engine,{type:"substitution",side:humanHome?"home":"away",text:`Oyuncu değişikliği: ${type==="pace"?"hız ve hücum":type==="control"?"orta saha kontrolü":"savunma direnci"} güçlendirildi.`}); room()?.saveLocal?.(); refreshMount(career,fixture);
+    }
     if (action === "decision") {
       if (runtime.busy) return;
       runtime.busy = true;
@@ -1354,6 +1399,7 @@
       await room()?.persistCareer?.(career, { silent: true }).catch(() => {});
       room()?.setActiveTab?.("overview");
     }
+    if (action === "share-card") { const e=fixture.matchEngine,s=getSides(career,fixture),text=`FIFA 9 · ${s.homeTeam.clubName} ${e.scoreHome}-${e.scoreAway} ${s.awayTeam.clubName}\nMatchday ${fixture.matchday} · ${round1(e.stats.home.xg)}-${round1(e.stats.away.xg)} xG · ${e.stats.home.shots}-${e.stats.away.shots} şut`; if(navigator.share)navigator.share({title:"FIFA 9 Maç Kartı",text}).catch(()=>{});else navigator.clipboard?.writeText(text).then(()=>app()?.toast?.("Maç kartı panoya kopyalandı.","success")); }
   }
 
   document.addEventListener("submit", handleSubmit);
