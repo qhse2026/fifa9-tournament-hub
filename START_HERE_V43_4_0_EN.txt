@@ -1,0 +1,40 @@
+FIFA TOURNAMENT HUB — V43.4.0
+OFFICIAL GAME SHELL + FULL ENGLISH BRIDGE
+
+WHAT THIS PACKAGE DOES
+- Replaces the legacy shutdown/announcement entry state with a proper game title screen.
+- Adds “Start Real Game Mode”, “Test Laboratory” and “Exit Game” flows.
+- Exit Game saves progress and safely returns to the title screen.
+- Browser security may prevent a website from forcibly closing its own tab.
+- Official Career Mode locks redraw, force-result, debug and similar test controls.
+- Marks the active season and detected Manager career state as official.
+- Uses the existing TR/EN system and translates remaining Turkish strings across season, awards, team-pool, notification, modal and dynamic screens.
+- Language and game mode are persisted locally.
+- Existing careers, fixtures, results, Manager ELO and cloud data are not deleted.
+
+AUTOMATIC INSTALLATION
+1. Back up the current website and career data.
+2. Extract this package.
+3. Run from a terminal or command prompt:
+   python install_v43_4.py "PATH_TO_EXISTING_SITE_ROOT"
+4. Publish the changed files to GitHub / hosting.
+5. Perform one Ctrl+F5 hard refresh.
+
+MANUAL INSTALLATION
+1. Copy github/v43-4-game-shell.css and github/v43-4-game-shell.js to the website root.
+2. Add the two references from INDEX_INTEGRATION_SNIPPET.html to index.html.
+3. Apply SERVICE_WORKER_INTEGRATION.txt.
+4. Publish and hard-refresh once.
+
+ACCEPTANCE TEST
+- The new bilingual title screen appears on launch.
+- Start Real Game Mode dismisses the legacy shutdown announcement.
+- The top bar displays an OFFICIAL CAREER chip.
+- Exit Game is available below the sidebar navigation.
+- Redraw / test / force-result controls are hidden or blocked in Official Mode.
+- Exit Game pauses an active match and returns to the title screen.
+- Selecting EN translates navigation, Manager Room, live match, Season Hub, awards, team pools, modal copy and notifications.
+- Language persists after a page reload.
+
+TECHNICAL NOTE
+This is an additive integration layer for the V43.3.0 codebase. It requires no database migration. It activates the existing language.js and intelligenceCopy(TR, EN) mechanisms when available, then completes remaining hard-coded interface strings through a MutationObserver-based translation bridge.

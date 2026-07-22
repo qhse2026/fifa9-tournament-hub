@@ -1,0 +1,13 @@
+FIFA V43.4.0 VALIDATION REPORT
+
+PASS — v43-4-game-shell.js parsed with Node.js --check.
+PASS — install_v43_4.py compiled with Python py_compile.
+PASS — installer copied assets into a clean mock V43.3-style site.
+PASS — installer inserted one CSS reference and one JavaScript reference.
+PASS — installer updated the V43.3 service-worker cache namespace to V43.4.
+PASS — installer added both new assets to the mock pre-cache list.
+PASS — second installer run remained idempotent for index.html references.
+PASS — required Official Mode, Test Mode, Exit Game, language bridge, MutationObserver and coverage-audit entry points are present.
+
+LIMITATION
+A pixel screenshot was not produced because the container's headless Chromium process could not initialize its system bus. This does not affect the JavaScript syntax or installer smoke tests. Final visual acceptance should be performed in the deployed browser using the checklist in START_HERE_V43_4_0_TR.txt.

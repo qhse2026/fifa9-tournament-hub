@@ -1,0 +1,11 @@
+V43.4.0 SERVICE WORKER INTEGRATION
+
+1. Change the cache key to:
+   fifa-tournament-hub-v43-4-0-official-english
+
+2. Add these files to the pre-cache/app-shell list when the service worker has one:
+   ./v43-4-game-shell.css
+   ./v43-4-game-shell.js
+
+3. The HTML references include ?v=43.4.0 as an additional cache-busting measure.
+4. After publishing, perform one Ctrl+F5 hard refresh. If an older app shell remains visible, clear the site's service-worker cache once.

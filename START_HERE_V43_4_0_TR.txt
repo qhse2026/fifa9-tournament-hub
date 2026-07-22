@@ -1,0 +1,40 @@
+FIFA TOURNAMENT HUB — V43.4.0
+OFFICIAL GAME SHELL + FULL ENGLISH BRIDGE
+
+BU PAKET NE YAPAR?
+- Eski turnuva kapatma/duyuru ekranını kaldırarak gerçek oyun başlangıç ekranını açar.
+- “Gerçek Oyun Modunu Aç”, “Test Laboratuvarı” ve “Oyundan Çık” akışlarını ekler.
+- Oyundan Çık seçeneği ilerlemeyi kaydeder ve güvenli biçimde başlangıç ekranına döner.
+- Tarayıcı güvenliği nedeniyle web sitesi sekmeyi zorla kapatmaz.
+- Resmî Kariyer Modunda yeniden kura, force-result, debug ve benzeri test kontrollerini kilitler.
+- Aktif sezonu ve bulunan Manager kariyer alanlarını official olarak işaretler.
+- Mevcut TR/EN altyapısını kullanır; sezon, ödül, takım havuzu, bildirim, modal ve dinamik ekranlarda kalan Türkçe metinleri İngilizceye çevirir.
+- Dil ve oyun modu cihazda kalıcı olarak saklanır.
+- Mevcut kariyer, fikstür, sonuç, Manager ELO ve bulut verisi silinmez.
+
+OTOMATİK KURULUM
+1. Mevcut sitenin ve kariyer verisinin yedeğini al.
+2. Bu paketi aç.
+3. Terminal / Komut İstemi içinde çalıştır:
+   python install_v43_4.py "SITENIN_KOK_KLASORU"
+4. Oluşan değişiklikleri GitHub'a yükle / yayınla.
+5. Tarayıcıda bir kez Ctrl+F5 yap.
+
+MANUEL KURULUM
+1. github/v43-4-game-shell.css ve github/v43-4-game-shell.js dosyalarını sitenin köküne kopyala.
+2. INDEX_INTEGRATION_SNIPPET.html içindeki iki satırı index.html'e ekle.
+3. SERVICE_WORKER_INTEGRATION.txt adımlarını uygula.
+4. Yayınla ve Ctrl+F5 yap.
+
+İLK KABUL TESTİ
+- Açılışta TR/EN seçilebilir yeni oyun başlangıç ekranı görünmeli.
+- “Gerçek Oyun Modunu Aç” sonrası eski kapatma duyurusu görünmemeli.
+- Üst çubukta RESMÎ KARİYER rozeti görünmeli.
+- Sol menünün altında Oyundan Çık düğmesi bulunmalı.
+- Resmî modda yeniden kura / test / force-result kontrolleri görünmemeli veya çalışmamalı.
+- Oyundan Çık seçildiğinde canlı maç duraklatılmalı ve başlangıç ekranı açılmalı.
+- EN seçildiğinde ana menü, Manager Room, maç ekranı, sezon merkezi, ödüller, takım havuzları, modal metinleri ve bildirimler İngilizce görünmeli.
+- Dil sayfa yenilendikten sonra korunmalı.
+
+TEKNİK NOT
+Bu paket V43.3.0 dosyalarının üzerine eklenen bağımsız bir entegrasyon katmanıdır. Veritabanı migration'ı gerektirmez. Mevcut language.js ve intelligenceCopy(TR, EN) sistemi varsa onları devreye alır; kalan sabit metinleri MutationObserver tabanlı çeviri köprüsüyle tamamlar.
