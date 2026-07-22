@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "42.5.1";
+  const VERSION = "42.5.2";
   const TICK_MS = 850;
   const MAX_EVENTS = 180;
   const MAX_DECISIONS = 10;
@@ -979,6 +979,12 @@
     const delta = Math.round(stageK * goalFactor * (actualHome - expectedHome));
     home.power = clamp(homeBefore + delta, 700, 2200);
     away.power = clamp(awayBefore - delta, 700, 2200);
+    home.tacticalIQ = clamp(Number(home.tacticalIQ||50)+(actualHome===1?1:actualHome===0?-1:0),20,99);
+    away.tacticalIQ = clamp(Number(away.tacticalIQ||50)+(actualHome===0?1:actualHome===1?-1:0),20,99);
+    home.reputation = clamp(Number(home.reputation||50)+(actualHome===1?1:0),20,100);
+    away.reputation = clamp(Number(away.reputation||50)+(actualHome===0?1:0),20,100);
+    home.formRating = clamp(Number(home.formRating||50)+(actualHome===1?5:actualHome===0?-4:1),0,100);
+    away.formRating = clamp(Number(away.formRating||50)+(actualHome===0?5:actualHome===1?-4:1),0,100);
     home.powerClass = room()?.powerLabel?.(home.power) || home.powerClass;
     away.powerClass = room()?.powerLabel?.(away.power) || away.powerClass;
     fixture.eloChange = { homeBefore, awayBefore, homeAfter: home.power, awayAfter: away.power, homeDelta: delta, awayDelta: -delta };
