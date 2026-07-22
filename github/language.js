@@ -1,6 +1,6 @@
 (() => {
   "use strict";
-  const VERSION = "44.2.0";
+  const VERSION = "44.2.1";
   const STORAGE_KEY = "fifa-language-v44";
   const originalText = new WeakMap();
   const originalAttributes = new WeakMap();
@@ -8,6 +8,16 @@
   let observer = null;
 
   const exact = new Map(Object.entries({
+
+    "KAYIT KURTARMA MERKEZİ": "SAVE RECOVERY CENTRE",
+    "KAYITLARI TARA VE KURTAR": "SCAN AND RECOVER SAVES",
+    "JSON YEDEĞİ YÜKLE": "IMPORT JSON BACKUP",
+    "MANAGER YEDEĞİ AL": "EXPORT MANAGER BACKUP",
+    "TURNUVA MERKEZİNE DÖN": "RETURN TO TOURNAMENT HUB",
+    "Kariyer kaydedildi. Ana oyun ekranına dönüldü.": "Career saved. Returned to the game title screen.",
+    "Kurtarılabilir ek Manager kaydı bulunamadı.": "No additional recoverable Manager save was found.",
+    "Manager yedeği indirildi.": "Manager backup exported.",
+    "Hiçbir kariyeri silmez.": "It does not delete any career.",
     "Ana menü": "Main menu",
     "Menüyü aç": "Open menu",
     "Duyuruyu kapat": "Close announcement",

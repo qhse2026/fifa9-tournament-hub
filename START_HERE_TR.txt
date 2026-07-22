@@ -1,32 +1,28 @@
-FIFA TOURNAMENT HUB V44.2.0
-GERÇEK OYUN MODU + ÇIKIŞ DÜZELTMESİ + İNGİLİZCE PAKET
+FIFA TOURNAMENT HUB V44.2.1 — CRITICAL HOTFIX
 
-GITHUB KURULUMU
-1. ZIP dosyasını açın.
-2. github klasörünün içeriğini repository köküne yükleyin.
-3. Aynı adlı dosyaları Replace / Overwrite edin.
-4. data klasöründeki iki JSON dosyasını kendi data klasörünüze yükleyin.
-5. GitHub Pages deploy tamamlandıktan sonra Ctrl+F5 yapın.
-6. Gerekirse tarayıcı Site Settings > Clear data ve Service Worker unregister işlemi uygulayın.
+BU PAKET NEDEN VAR?
+V44.2.0 ana ekrana dönüyordu ancak bazı eski Manager kayıtlarını okuyamadığı için “Kariyerlerim: 0” gösterebiliyordu. Ayrıca Manager kaynakları yüklenmeden butona basıldığında yeni kariyer penceresi sessizce açılmayabiliyordu.
 
-EN KRİTİK DOSYALAR
-- manager-room.js
-- manager-room.css
-- language.js
-- index.html
-- service-worker.js
+YÜKLENECEK SADECE 5 DOSYA
+Paket içindeki github klasöründen aşağıdaki dosyaları repository köküne yükleyin ve mevcut dosyaların üzerine yazın:
+1. index.html
+2. manager-room.js
+3. manager-room.css
+4. language.js
+5. service-worker.js
 
-DÜZELTİLEN HATA
-Eski activeCareer() fonksiyonu activeCareerId null olsa bile ilk kariyeri otomatik döndürüyordu. Bu nedenle Kariyerden Çık sonrası aynı kariyer yeniden açılıyordu. V44.2 bu fallback davranışını kaldırır ve kayıtlı kariyer seçim ekranını açar.
+BAŞKA DOSYA SİLMEYİN.
+Repository içindeki data, assets, cloud.js, app.js, manager-match-engine.js ve diğer dosyalar aynen kalmalıdır.
 
-YENİ AKIŞ
-- Gerçek Oyun Modunu Aç
-- Test Laboratuvarını Aç
-- Kayıtlı kariyer kartından devam et
-- Kariyeri kaydet ve ana ekrana dön
-- Bulut kariyerini Manager PIN ile aç
-- TR / EN düğmesi ile dinamik arayüz çevirisi
+YÜKLEME SONRASI
+1. GitHub Pages deploy tamamlanmasını bekleyin.
+2. Siteyi açın.
+3. Ctrl + Shift + R veya Ctrl + F5 yapın.
+4. Ana ekranda eski kariyer görünmüyorsa “KAYITLARI TARA VE KURTAR” butonuna basın.
+5. Elinizde JSON yedeği varsa “JSON YEDEĞİ YÜKLE” ile içeri aktarın.
 
-VERİ GÜVENLİĞİ
-Kariyer kayıt anahtarı değiştirilmemiştir: fifa-manager-room-v42
-Mevcut kariyer, sonuç, ELO, Tactical IQ, takım kurası ve maç geçmişi korunur.
+ÖNEMLİ
+- “Kariyerden Çık” artık activeCareerId değerini silmez. Yalnızca ana oyun ekranını açar.
+- Kariyer localStorage, recovery anahtarı, last-good yedeği ve save-slot alanlarından taranır.
+- Yeni kayıt yapılmadan önce son sağlam Manager state ayrıca korunur.
+- Bu paket mevcut kariyeri, maçları, ELO, Tactical IQ veya fikstürü sıfırlamaz.

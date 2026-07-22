@@ -1,12 +1,14 @@
 (() => {
   "use strict";
 
-  const VERSION = "44.2.0";
+  const VERSION = "44.2.1";
   const STORAGE_KEY = "fifa-manager-room-v42";
   const RECOVERY_KEY = "fifa-manager-room-recovery-v43";
   const CATALOG_URL = "data/manager-team-catalog-fc25.json";
   const BOOTSTRAP_URL = "data/manager-bootstrap-v42.json";
   const PIN_SESSION_PREFIX = "fifa-manager-pin:";
+  const LAST_GOOD_KEY = "fifa-manager-room-last-good-v44";
+  const STORAGE_SCAN_LIMIT = 12 * 1024 * 1024;
   const LEGS = [
     { id: 1, label: "1. Devre", stars: 4 },
     { id: 2, label: "2. Devre", stars: 4.5 },
@@ -16,6 +18,7 @@
   let bootstrap = null;
   let teamCatalog = null;
   let resourcesLoading = false;
+  let resourcesPromise = null;
   let activeTab = "overview";
   let poolFilter = "all";
   let drawAnimating = false;
@@ -57,15 +60,100 @@
   const now = () => new Date().toISOString();
   const uid = prefix => `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2, 9)}`;
 
-  function loadLocal() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      const parsed = raw ? JSON.parse(raw) : null;
-      return parsed && typeof parsed === "object" ? parsed : { version: VERSION, careers: [], activeCareerId: null };
-    } catch (_) {
-      try{const recovery=JSON.parse(localStorage.getItem(RECOVERY_KEY)||"null");if(recovery&&typeof recovery==="object")return recovery;}catch(__){}
-      return { version: VERSION, careers: [], activeCareerId: null };
+  function safeParse(raw) {
+    if (typeof raw !== "string" || !raw.trim()) return null;
+    try { return JSON.parse(raw); } catch (_) { return null; }
+  }
+
+  function isCareerLike(value) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+    if (!Array.isArray(value.actors) || !Array.isArray(value.fixtures)) return false;
+    if (!value.actors.length) return false;
+    const hasIdentity = Boolean(value.humanActorId || value.playerName || value.clubName || value.shortName);
+    const hasCareerData = Boolean(value.id || value.seasonNo || value.managerElo || value.tacticalIQ || value.matchday);
+    return hasIdentity && hasCareerData;
+  }
+
+  function collectCareerCandidates(value, out = [], seen = new WeakSet(), depth = 0) {
+    if (!value || typeof value !== "object" || depth > 9) return out;
+    if (seen.has(value)) return out;
+    seen.add(value);
+    if (isCareerLike(value)) { out.push(value); return out; }
+    if (Array.isArray(value)) {
+      for (const item of value) collectCareerCandidates(item, out, seen, depth + 1);
+      return out;
     }
+    const priority = ["careers", "career", "snapshot", "saveSlots", "managerState", "payload", "data", "backup"];
+    const visited = new Set();
+    for (const key of priority) {
+      if (!(key in value)) continue;
+      visited.add(key);
+      collectCareerCandidates(value[key], out, seen, depth + 1);
+    }
+    for (const [key, item] of Object.entries(value)) {
+      if (visited.has(key)) continue;
+      collectCareerCandidates(item, out, seen, depth + 1);
+    }
+    return out;
+  }
+
+  function careerSignature(career) {
+    if (career?.id) return `id:${career.id}`;
+    return [career?.playerName, career?.clubName, career?.createdAt, career?.seasonNo].map(value => String(value || "").trim().toLocaleLowerCase("tr-TR")).join("|");
+  }
+
+  function uniqueCareerCandidates(rows = []) {
+    const map = new Map();
+    for (const row of rows) {
+      if (!isCareerLike(row)) continue;
+      const signature = careerSignature(row);
+      const previous = map.get(signature);
+      const previousDate = Date.parse(previous?.updatedAt || previous?.createdAt || 0) || 0;
+      const rowDate = Date.parse(row.updatedAt || row.createdAt || 0) || 0;
+      if (!previous || rowDate >= previousDate) map.set(signature, row);
+    }
+    return [...map.values()];
+  }
+
+  function discoverStoredCareers(extraValue = null) {
+    const rows = [];
+    const sources = [];
+    const scanValue = (value, source) => {
+      const before = rows.length;
+      collectCareerCandidates(value, rows);
+      if (rows.length > before) sources.push(source);
+    };
+    if (extraValue) scanValue(extraValue, "import");
+    try {
+      for (let index = 0; index < localStorage.length; index++) {
+        const key = localStorage.key(index);
+        if (!key) continue;
+        const raw = localStorage.getItem(key);
+        if (!raw || raw.length > STORAGE_SCAN_LIMIT) continue;
+        const parsed = safeParse(raw);
+        if (parsed) scanValue(parsed, key);
+      }
+    } catch (_) {}
+    return { careers: uniqueCareerCandidates(rows), sources: [...new Set(sources)] };
+  }
+
+  function loadLocal() {
+    const primaryRaw = (() => { try { return localStorage.getItem(STORAGE_KEY); } catch (_) { return null; } })();
+    const parsed = safeParse(primaryRaw);
+    let state = parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed
+      : { version: VERSION, careers: [], activeCareerId: null };
+    if (isCareerLike(state)) state = { version: VERSION, careers: [state], activeCareerId: state.id || null };
+    if (!Array.isArray(state.careers)) state.careers = [];
+    if (!state.careers.length) {
+      const discovery = discoverStoredCareers(parsed);
+      if (discovery.careers.length) {
+        state.careers = discovery.careers;
+        state.recoveryMeta = { restoredAt: now(), count: discovery.careers.length, sources: discovery.sources };
+      }
+    }
+    state.ui = { launcherOpen: !state.activeCareerId, ...(state.ui || {}) };
+    return state;
   }
 
   let managerState = loadLocal();
@@ -87,6 +175,8 @@
     career.matchEngineStats ||= { matches: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, decisions: 0 };
     career.managerIdentity ||= { level:"manager", sound:true, reputation:50, dna:{ attack:50, control:50, adaptability:50, motivation:50, bigMatch:50 }, skills:{ tacticalReading:0, motivation:0, fitness:0, scouting:0 } };
     career.rivalries ||= {};
+    career.actors = Array.isArray(career.actors) ? career.actors : [];
+    career.fixtures = Array.isArray(career.fixtures) ? career.fixtures : [];
     career.actors.forEach(item=>{ item.tacticalIQ=Number(item.tacticalIQ||Math.max(42,Math.min(92,Math.round(48+(item.power-900)/18)))); item.reputation=Number(item.reputation||Math.max(35,Math.min(95,Math.round(45+(item.power-900)/16)))); item.formRating=Number(item.formRating||50); item.managerMemory ||= { meetings:0,wins:0,draws:0,losses:0,plans:{},lastPlan:null,confidence:50,notes:[] }; item.managerMemory.patterns ||= {formations:{},buildUps:{},pressing:{},mentalities:{},phaseBehaviors:{},responses:{}}; item.personality ||= buildManagerPersonality(item); item.managerAttributes ||= {adaptation:item.tacticalIQ,gameReading:item.tacticalIQ,riskManagement:50,bigMatch:50,consistency:50,mentality:50}; item.psychology ||= {confidence:50,pressure:35,composure:55,streak:0,mood:"DENGELİ"}; });
     career.intelligence ||= { version:VERSION, humanPatterns:{}, insights:[] };
     career.managerAttributes ||= {adaptation:career.tacticalIQ||50,gameReading:career.tacticalIQ||50,riskManagement:50,bigMatch:50,consistency:50,mentality:50};
@@ -150,18 +240,73 @@
     return career;
   }
 
-  managerState.careers = Array.isArray(managerState.careers) ? managerState.careers.map(migrateCareer) : [];
+  managerState.careers = Array.isArray(managerState.careers) ? managerState.careers.filter(isCareerLike).map(migrateCareer) : [];
   managerState.version = VERSION;
+  managerState.ui = { launcherOpen: !managerState.activeCareerId, ...(managerState.ui || {}) };
+  if (!managerState.careers.some(item => item.id === managerState.activeCareerId)) {
+    managerState.activeCareerId = managerState.careers[0]?.id || null;
+    managerState.ui.launcherOpen = true;
+  }
+
+  function stateCareerCount(raw) {
+    const parsed = safeParse(raw);
+    return parsed ? uniqueCareerCandidates(collectCareerCandidates(parsed)).length : 0;
+  }
 
   function saveLocal() {
     managerState.version = VERSION;
-    const previous=localStorage.getItem(STORAGE_KEY);if(previous)try{JSON.parse(previous);localStorage.setItem(RECOVERY_KEY,previous);}catch(_){}
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(managerState));
+    managerState.ui ||= { launcherOpen: false };
+    let previous = null;
+    try { previous = localStorage.getItem(STORAGE_KEY); } catch (_) {}
+    try {
+      if (previous && stateCareerCount(previous) > 0) localStorage.setItem(RECOVERY_KEY, previous);
+      const serialized = JSON.stringify(managerState);
+      localStorage.setItem(STORAGE_KEY, serialized);
+      if (managerState.careers.length) localStorage.setItem(LAST_GOOD_KEY, serialized);
+    } catch (error) {
+      console.warn("Manager state could not be saved", error);
+    }
   }
 
   function activeCareer() {
     if (!managerState.activeCareerId) return null;
     return managerState.careers.find(item => item.id === managerState.activeCareerId) || null;
+  }
+
+  function mergeRecoveredCareers(rows, source = "storage") {
+    const incoming = uniqueCareerCandidates(rows).map(item => migrateCareer(JSON.parse(JSON.stringify(item))));
+    let added = 0;
+    let updated = 0;
+    for (const career of incoming) {
+      career.id ||= uid("career-recovered");
+      const signature = careerSignature(career);
+      const index = managerState.careers.findIndex(item => careerSignature(item) === signature);
+      if (index < 0) { managerState.careers.push(career); added++; continue; }
+      const currentDate = Date.parse(managerState.careers[index].updatedAt || managerState.careers[index].createdAt || 0) || 0;
+      const incomingDate = Date.parse(career.updatedAt || career.createdAt || 0) || 0;
+      if (incomingDate > currentDate) { managerState.careers[index] = career; updated++; }
+    }
+    if (!managerState.activeCareerId && managerState.careers.length) managerState.activeCareerId = managerState.careers[0].id;
+    managerState.ui ||= {};
+    managerState.ui.launcherOpen = true;
+    managerState.recoveryMeta = { restoredAt: now(), count: added + updated, source };
+    if (added || updated) saveLocal();
+    return { added, updated, total: managerState.careers.length };
+  }
+
+  function recoverCareersFromStorage() {
+    const discovery = discoverStoredCareers();
+    return { ...mergeRecoveredCareers(discovery.careers, discovery.sources.join(", ") || "storage"), sources: discovery.sources };
+  }
+
+  function exportManagerBackup() {
+    const payload = { type:"fifa-manager-room-backup", version:VERSION, exportedAt:now(), managerState };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type:"application/json" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `FIFA_Manager_Backup_${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(anchor); anchor.click(); anchor.remove(); URL.revokeObjectURL(url);
   }
 
   function setSessionPin(career, pin) {
@@ -175,27 +320,33 @@
   }
 
   async function ensureResources() {
-    if ((bootstrap && teamCatalog) || resourcesLoading) return;
+    if (bootstrap && teamCatalog) return true;
+    if (resourcesPromise) return resourcesPromise;
     resourcesLoading = true;
-    try {
-      const [bootstrapResponse, catalogResponse] = await Promise.all([
-        fetch(BOOTSTRAP_URL, { cache: "no-store" }),
-        fetch(CATALOG_URL, { cache: "no-store" })
-      ]);
-      if (!bootstrapResponse.ok) throw new Error("Manager başlangıç verisi yüklenemedi.");
-      if (!catalogResponse.ok) throw new Error("FC 25 takım kataloğu yüklenemedi.");
-      bootstrap = await bootstrapResponse.json();
-      teamCatalog = await catalogResponse.json();
-    } catch (error) {
-      console.warn("Manager resource fallback", error);
-      bootstrap ||= buildRuntimeBootstrap();
-      teamCatalog ||= buildCatalogFallback();
-    } finally {
-      resourcesLoading = false;
-      managerState.careers.forEach(career => {
-        career.teamCatalogVersion ||= teamCatalog?.version || VERSION;
-      });
-      saveLocal();
+    resourcesPromise = (async () => {
+      try {
+        const [bootstrapResponse, catalogResponse] = await Promise.all([
+          fetch(BOOTSTRAP_URL, { cache: "no-store" }),
+          fetch(CATALOG_URL, { cache: "no-store" })
+        ]);
+        if (!bootstrapResponse.ok) throw new Error("Manager başlangıç verisi yüklenemedi.");
+        if (!catalogResponse.ok) throw new Error("FC 25 takım kataloğu yüklenemedi.");
+        bootstrap = await bootstrapResponse.json();
+        teamCatalog = await catalogResponse.json();
+      } catch (error) {
+        console.warn("Manager resource fallback", error);
+        bootstrap ||= buildRuntimeBootstrap();
+        teamCatalog ||= buildCatalogFallback();
+      } finally {
+        resourcesLoading = false;
+        managerState.careers.forEach(career => { career.teamCatalogVersion ||= teamCatalog?.version || VERSION; });
+        saveLocal();
+      }
+      return Boolean(bootstrap && teamCatalog);
+    })();
+    try { return await resourcesPromise; }
+    finally {
+      resourcesPromise = null;
       if (["managerroom", "managerhall"].includes(ctx()?.getActiveView?.())) ctx()?.refreshView?.();
     }
   }
@@ -503,6 +654,8 @@
     if (existingIndex >= 0) managerState.careers[existingIndex] = career;
     else managerState.careers.push(career);
     managerState.activeCareerId = career.id;
+    managerState.ui ||= {};
+    managerState.ui.launcherOpen = false;
     setSessionPin(career, pin);
     saveLocal();
     return career;
@@ -527,8 +680,9 @@
     }
   }
 
-  function openCareerModal(preferredMode = "official") {
-    if (!bootstrap) return;
+  async function openCareerModal(preferredMode = "official") {
+    await ensureResources();
+    if (!bootstrap) throw new Error("Manager başlangıç verisi hazırlanamadı.");
     const selectedMode = preferredMode === "test" ? "test" : "official";
     const options = bootstrap.aiProfiles.map(profile => `<option value="${esc(profile.name)}">${esc(profile.name)}</option>`).join("");
     ctx()?.openModal?.("Yeni Manager Kariyeri", `
@@ -551,7 +705,8 @@
     `, "CAREER + TEAM DRAW FOUNDATION");
   }
 
-  function openUnlockModal() {
+  async function openUnlockModal() {
+    await ensureResources();
     const options = (bootstrap?.aiProfiles || []).map(profile => `<option value="${esc(profile.name)}">${esc(profile.name)}</option>`).join("");
     ctx()?.openModal?.("Manager Kariyerini Aç", `
       <form id="managerUnlockForm" class="manager-career-form">
@@ -696,7 +851,7 @@
     view.innerHTML = `
       <section class="manager-hero manager-title-hero">
         <div class="manager-hero-copy">
-          <div class="eyebrow">V44.2.0 · REAL GAME ACCESS</div>
+          <div class="eyebrow">V44.2.1 · RECOVERY HOTFIX</div>
           <h2>The Manager's Room</h2>
           <p>Resmî kariyer ile test çalışmalarını birbirinden ayır. Kariyerini güvenli biçimde kaydet, ana ekrana çık ve daha sonra kaldığın yerden devam et.</p>
           <div class="manager-foundation-tags"><span>Match Engine 4.1</span><span>Gerçek Oyun Modu</span><span>Test Laboratuvarı</span><span>TR / EN Full Interface</span></div>
@@ -725,13 +880,18 @@
         <div class="manager-section-head"><div><span>KAYITLI KARİYERLER</span><h3>Kaldığın Yerden Devam Et</h3></div><small>Kariyerden Çık işlemi veriyi silmez; aktif kariyeri kapatıp bu ekrana döndürür.</small></div>
         <div class="manager-saved-grid">${careerCards}</div>
         <div class="manager-cloud-access"><div><b>Başka cihazdaki resmî kariyer</b><span>Oyuncu adı ve altı haneli Manager PIN ile Supabase kaydını aç.</span></div><button class="btn btn-ghost" data-manager-action="open-unlock">BULUT KARİYERİMİ AÇ</button></div>
+      <div class="manager-recovery-access">
+        <div><b>KAYIT KURTARMA MERKEZİ</b><span>Eski localStorage, recovery anahtarı, save-slot veya JSON yedeği içindeki Manager kariyerlerini tarar. Hiçbir kariyeri silmez.</span></div>
+        <div class="manager-recovery-actions"><button class="btn btn-blue" data-manager-action="recover-careers">KAYITLARI TARA VE KURTAR</button><button class="btn btn-ghost" data-manager-action="import-career-backup">JSON YEDEĞİ YÜKLE</button><button class="btn btn-ghost" data-manager-action="export-career-backup">MANAGER YEDEĞİ AL</button><button class="btn btn-ghost" data-manager-action="return-hub">TURNUVA MERKEZİNE DÖN</button></div>
+        <input id="managerRecoveryFile" type="file" accept="application/json,.json" hidden>
+      </div>
       </section>
 
       <section class="manager-readiness-grid">
         <article><span>AI MENAJER EVRENİ</span><strong>${ready.combinedAiPlayers ?? "—"}</strong><small>Tarihî + FIFA09 aktif oyuncular</small></article>
         <article><span>FC 25 KULÜP HAVUZU</span><strong>${catalogCounts.total ?? "—"}</strong><small>${catalogCounts["4"] || 0} × 4★ · ${catalogCounts["4.5"] || 0} × 4.5★ · ${catalogCounts["5"] || 0} × 5★</small></article>
         <article><span>CHAMPIONSHIP</span><strong>${ready.championshipWithHumanClub ?? "—"}</strong><small>AI kulüpleri + senin kulübün</small></article>
-        <article><span>ALTYAPI DURUMU</span><strong>V44.2</strong><small>Real Game Access aktif</small></article>
+        <article><span>ALTYAPI DURUMU</span><strong>V44.2.1</strong><small>Recovery Hotfix aktif</small></article>
       </section>
       ${renderRulesStrip()}
       ${renderBuildRoadmap()}
@@ -980,7 +1140,7 @@
       return;
     }
     const career = activeCareer();
-    if (!career) renderLanding(view); else renderCareer(view, career);
+    if (managerState.ui?.launcherOpen || !career) renderLanding(view); else renderCareer(view, career);
   }
 
   function localLeaderboard() {
@@ -1016,6 +1176,8 @@
         }
         managerState.careers.push(career);
         managerState.activeCareerId = career.id;
+        managerState.ui ||= {};
+        managerState.ui.launcherOpen = false;
         setSessionPin(career, pin);
         saveLocal();
         ctx()?.closeModal?.();
@@ -1040,22 +1202,32 @@
     const action = event.target.closest("[data-manager-action]");
     if (!action) return;
     const type = action.dataset.managerAction;
-    if (type === "open-career") openCareerModal(action.dataset.mode || "official");
+    if (type === "open-career") {
+      try { await openCareerModal(action.dataset.mode || "official"); }
+      catch (error) { ctx()?.toast?.(error.message, "error"); }
+    }
     if (type === "start-mode") {
       const mode = action.dataset.mode === "test" ? "test" : "official";
       const career = [...managerState.careers].reverse().find(item => (item.mode === "official" ? "official" : "test") === mode);
       if (career) {
         managerState.activeCareerId = career.id;
+        managerState.ui ||= {};
+        managerState.ui.launcherOpen = false;
         activeTab = "overview";
         saveLocal();
         ctx()?.toast?.(mode === "official" ? "Gerçek Oyun Modu açıldı." : "Test Laboratuvarı açıldı.", "success");
         ctx()?.refreshView?.();
-      } else openCareerModal(mode);
+      } else {
+        try { await openCareerModal(mode); }
+        catch (error) { ctx()?.toast?.(error.message, "error"); }
+      }
     }
     if (type === "continue-career") {
       const career = managerState.careers.find(item => item.id === action.dataset.careerId);
       if (career) {
         managerState.activeCareerId = career.id;
+        managerState.ui ||= {};
+        managerState.ui.launcherOpen = false;
         activeTab = "overview";
         saveLocal();
         ctx()?.toast?.(`${career.clubName} kariyeri açıldı.`, "success");
@@ -1069,13 +1241,22 @@
         try { await persistCareer(career, { silent:true }); }
         catch (error) { ctx()?.toast?.(`${error.message} Yerel kayıt korunarak ana ekrana dönülüyor.`, "warning"); }
       }
-      managerState.activeCareerId = null;
+      managerState.ui ||= {};
+      managerState.ui.launcherOpen = true;
       activeTab = "overview";
       saveLocal();
-      ctx()?.toast?.("Kariyer kaydedildi ve gerçek oyun ana ekranına dönüldü.", "success");
+      ctx()?.toast?.("Kariyer kaydedildi. Ana oyun ekranına dönüldü.", "success");
       ctx()?.refreshView?.();
     }
-    if (type === "open-unlock") openUnlockModal();
+    if (type === "open-unlock") { try { await openUnlockModal(); } catch (error) { ctx()?.toast?.(error.message, "error"); } }
+    if (type === "recover-careers") {
+      const result = recoverCareersFromStorage();
+      ctx()?.toast?.(result.added || result.updated ? `${result.added + result.updated} kariyer kaydı kurtarıldı.` : "Kurtarılabilir ek Manager kaydı bulunamadı.", result.added || result.updated ? "success" : "warning");
+      ctx()?.refreshView?.();
+    }
+    if (type === "import-career-backup") document.getElementById("managerRecoveryFile")?.click();
+    if (type === "export-career-backup") { exportManagerBackup(); ctx()?.toast?.("Manager yedeği indirildi.", "success"); }
+    if (type === "return-hub") ctx()?.navigate?.("dashboard");
     if (type === "open-match") { activeTab = "match"; ctx()?.refreshView?.(); }
     if (type === "open-archive") { selectedArchiveFixtureId = action.dataset.fixtureId || null; activeTab = "archive"; ctx()?.refreshView?.(); }
     if (type === "fixture-matchday") { selectedFixtureMatchday=action.dataset.matchday||"all"; ctx()?.refreshView?.(); }
@@ -1120,8 +1301,24 @@
     }
   }
 
+  async function handleManagerFileImport(event) {
+    if (event.target?.id !== "managerRecoveryFile") return;
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    try {
+      const parsed = JSON.parse(await file.text());
+      const rows = uniqueCareerCandidates(collectCareerCandidates(parsed));
+      const result = mergeRecoveredCareers(rows, file.name);
+      if (!result.added && !result.updated) throw new Error("Bu JSON dosyasında geçerli Manager kariyeri bulunamadı.");
+      ctx()?.toast?.(`${result.added + result.updated} kariyer JSON yedeğinden geri yüklendi.`, "success");
+      ctx()?.refreshView?.();
+    } catch (error) { ctx()?.toast?.(error.message || "JSON yedeği okunamadı.", "error"); }
+  }
+
   document.addEventListener("click", handleClick);
   document.addEventListener("submit", handleSubmit);
+  document.addEventListener("change", handleManagerFileImport);
 
   window.FIFA_MANAGER_ROOM = {
     render,
@@ -1143,6 +1340,9 @@
     starText,
     powerLabel
     ,advanceOrucCup,
-    __diagnostics:{roundRobin,assignThreeLeagueDivisions,buildLeagueFixtures,ensureOrucCup,advanceOrucCup}
+    recoverCareers: recoverCareersFromStorage,
+    exportManagerBackup,
+    getState: () => managerState,
+    __diagnostics:{roundRobin,assignThreeLeagueDivisions,buildLeagueFixtures,ensureOrucCup,advanceOrucCup,discoverStoredCareers}
   };
 })();
