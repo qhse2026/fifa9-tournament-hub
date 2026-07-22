@@ -12,25 +12,7 @@
   <link rel="stylesheet" href="season-hub.css" />
   <link rel="stylesheet" href="season-experience.css" />
 </head>
-<body class="shutdown-mode">
-  <div class="shutdown-overlay tournament-announcement-overlay" id="tournamentAnnouncement" role="dialog" aria-modal="true" aria-labelledby="announcementTitle">
-    <div class="shutdown-overlay-inner tournament-announcement-card">
-      <button type="button" class="tournament-announcement-close" id="tournamentAnnouncementClose" aria-label="Duyuruyu kapat">×</button>
-      <div class="shutdown-kicker">FIFA TURNUVA MERKEZİ</div>
-      <h1 class="shutdown-title" id="announcementTitle">Turnuva Organizasyonu Hakkında Duyuru</h1>
-      <div class="shutdown-divider"></div>
-      <div class="tournament-announcement-copy">
-        <p>Bu organizasyon; herkesin yoğun çalışma temposu içinde keyifli vakit geçirebileceği, dostça rekabet edebileceği ve birlikte güzel anılar biriktirebileceği bir ortam oluşturmak amacıyla planlandı. Aynı anlayışla, turnuvayı keyifle takip edebileceğiniz ve sizlere yakışan kapsamlı bir platform hazırlamak için büyük bir emek ve zaman harcandı.</p>
-        <p>Ancak süreç içerisinde organizasyonun başlangıçtaki eğlence ve birliktelik amacından uzaklaşmaya başladığını; bazı arkadaşlarımızın kendisini rahatsız, huzursuz veya keyifsiz hissettiğini gözlemledim. Bir etkinliğin insanları bir araya getirmesi gerekirken aramızdaki güzel arkadaşlık ortamını olumsuz etkileme ihtimali benim için turnuvanın devamından daha önemlidir.</p>
-        <p>Bu nedenle, herhangi bir arkadaşımızı hedef göstermeden veya kimseyi kırmadan, turnuva organizasyonunu bu noktada sonlandırma ve bundan sonraki FIFA turnuvalarının organizasyon sorumluluğunu üstlenmeme kararı aldım.</p>
-        <p>Bu karar herhangi bir kişiye karşı alınmış değildir. Tek amacım, gemide birlikte geçirdiğimiz zamanı, karşılıklı saygımızı ve arkadaşlık bağlarımızı korumaktır. Bugüne kadar turnuvaya katılan, destek veren, maçları takip eden ve organizasyona renk katan herkese içtenlikle teşekkür ederim.</p>
-        <p class="tournament-announcement-closing">Umarım geriye rekabetten çok birlikte güldüğümüz ve keyif aldığımız güzel anlar kalır.</p>
-      </div>
-      <div class="tournament-announcement-thanks">Anlayışınız için teşekkür ederim.</div>
-      <button type="button" class="tournament-announcement-continue" id="tournamentAnnouncementContinue">Siteye Devam Et</button>
-    </div>
-  </div>
-
+<body>
   <div class="ambient ambient-one"></div>
   <div class="ambient ambient-two"></div>
 
@@ -59,6 +41,9 @@
         <button class="nav-item" data-nav="knockout"><span class="nav-icon">⌁</span><span>Eleme Aşaması</span></button>
         <button class="nav-item" data-nav="print"><span class="nav-icon">▤</span><span>Çıktı Merkezi</span></button>
         <div class="nav-divider"></div>
+        <button class="nav-item" data-nav="playeraccess"><span class="nav-icon">♙</span><span>Oyuncu Girişi</span></button>
+        <button class="nav-item" data-nav="finalpoll"><span class="nav-icon">✓</span><span>FIFA09 Devam Oylaması</span></button>
+        <div class="nav-divider"></div>
         <button class="nav-item" data-nav="seasonhub"><span class="nav-icon">⚽</span><span>FIFA Lig Sistemi</span></button>
         <button class="nav-item" data-nav="museum"><span class="nav-icon">♜</span><span>Sezonlar & Kupa Müzesi</span></button>
         <button class="nav-item" data-nav="archive"><span class="nav-icon">◇</span><span>Turnuva Arşivi</span></button>
@@ -69,7 +54,7 @@
 
       <div class="sidebar-footer">
         <div class="save-indicator" id="sidebarCloudStatus"><span class="status-dot"></span> Canlı bağlantı hazırlanıyor</div>
-        <div class="sidebar-version">FIFA 10 · Awards, Records & Membership v39.0</div>
+        <div class="sidebar-version">FIFA 09 · Player Access & Continuation Poll v40.0</div>
       </div>
     </aside>
 
@@ -88,12 +73,13 @@
           <div class="edition-chip"><span>EDITION</span><strong>09</strong></div>
           <div class="cloud-chip" id="cloudChip"><span class="cloud-dot"></span><span id="cloudStatusText">Bağlanıyor</span></div>
           <button class="btn btn-ghost" id="quickBackupBtn">Yedek Al</button>
+          <button class="btn btn-blue" id="playerAuthBtn" data-nav="playeraccess">Oyuncu Girişi</button>
           <button class="btn btn-gold" id="adminAuthBtn" data-action="open-admin-login">Yönetici Girişi</button>
         </div>
       </header>
 
       <section id="view" class="view" aria-live="polite"></section>
-      <footer class="site-footer">FIFA 9 Tournament Hub — tournament cancelled notice active.</footer>
+      <footer class="site-footer">FIFA 9 Tournament Hub is an independent private gaming tournament and is not affiliated with FIFA or EA Sports.</footer>
     </main>
   </div>
 
@@ -122,23 +108,5 @@
   <script src="app.js"></script>
   <script src="season-hub.js"></script>
   <script src="season-experience.js"></script>
-  <script>
-    (() => {
-      const overlay = document.getElementById('tournamentAnnouncement');
-      const closeButton = document.getElementById('tournamentAnnouncementClose');
-      const continueButton = document.getElementById('tournamentAnnouncementContinue');
-      const closeAnnouncement = () => {
-        if (!overlay) return;
-        overlay.classList.add('is-closing');
-        document.body.classList.remove('shutdown-mode');
-        window.setTimeout(() => overlay.remove(), 280);
-      };
-      closeButton?.addEventListener('click', closeAnnouncement);
-      continueButton?.addEventListener('click', closeAnnouncement);
-      document.addEventListener('keydown', event => {
-        if (event.key === 'Escape' && document.getElementById('tournamentAnnouncement')) closeAnnouncement();
-      });
-    })();
-  </script>
 </body>
 </html>

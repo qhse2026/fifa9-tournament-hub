@@ -180,6 +180,103 @@
     await applySession(null);
   }
 
+
+  async function fetchRegistrationPlayers() {
+    if (!client || !isConfigured()) return [];
+    const { data, error } = await client.rpc("get_fifa09_registration_players", {
+      p_tournament_id: config.tournamentRowId || "fifa-9"
+    });
+    if (error) throw error;
+    return (data || []).map(item => ({
+      playerName: item.player_name,
+      claimed: Boolean(item.claimed)
+    }));
+  }
+
+  async function signUpPlayer(email, password, playerName) {
+    if (!client) throw new Error("Cloud connection is not configured.");
+    const cleanEmail = String(email || "").trim();
+    const cleanName = String(playerName || "").trim();
+    if (!cleanEmail || !cleanName) throw new Error("E-posta ve oyuncu seçimi zorunludur.");
+    if (String(password || "").length < 8) throw new Error("Parola en az 8 karakter olmalıdır.");
+
+    const { data, error } = await client.auth.signUp({
+      email: cleanEmail,
+      password: String(password),
+      options: {
+        data: {
+          account_type: "player",
+          player_name: cleanName,
+          tournament_id: config.tournamentRowId || "fifa-9"
+        }
+      }
+    });
+    if (error) throw error;
+
+    if (data?.session) {
+      await applySession(data.session);
+      if (!playerProfile) {
+        await claimPlayerIdentity(cleanName);
+      }
+    }
+
+    return {
+      user: data?.user || null,
+      session: data?.session || null,
+      playerProfile,
+      requiresEmailConfirmation: Boolean(data?.user && !data?.session)
+    };
+  }
+
+  async function claimPlayerIdentity(playerName) {
+    if (!client || !session?.user) throw new Error("Oyuncu kimliğini seçmek için giriş yapmalısın.");
+    const { data, error } = await client.rpc("claim_player_identity", {
+      p_player_name: String(playerName || "").trim(),
+      p_tournament_id: config.tournamentRowId || "fifa-9"
+    });
+    if (error) throw error;
+    await applySession(session);
+    return data;
+  }
+
+  async function fetchPollStatus(slug = "fifa09-format-continuation") {
+    if (!client || !isConfigured()) return null;
+    const { data, error } = await client.rpc("get_fifa_poll_status", {
+      p_slug: slug,
+      p_tournament_id: config.tournamentRowId || "fifa-9"
+    });
+    if (error) throw error;
+    return data || null;
+  }
+
+  async function fetchMyPollVote(slug = "fifa09-format-continuation") {
+    if (!client || !session?.user) return null;
+    const { data, error } = await client.rpc("get_my_fifa_poll_vote", { p_slug: slug });
+    if (error) throw error;
+    return data || null;
+  }
+
+  async function submitPollVote(slug, choice) {
+    if (!client || !session?.user) throw new Error("Oy kullanmak için oyuncu hesabıyla giriş yapmalısın.");
+    if (!playerProfile) throw new Error("Hesabın kayıtlı bir FIFA09 oyuncusuna bağlı değil.");
+    const { data, error } = await client.rpc("submit_fifa_poll_vote", {
+      p_slug: slug,
+      p_choice: choice
+    });
+    if (error) throw error;
+    return data;
+  }
+
+  async function managePoll(slug, action) {
+    if (!client || !admin) throw new Error("Oylamayı yalnızca turnuva yöneticisi yönetebilir.");
+    const { data, error } = await client.rpc("admin_manage_fifa_poll", {
+      p_slug: slug,
+      p_action: action
+    });
+    if (error) throw error;
+    return data;
+  }
+
   async function fetchAvailability() {
     if (!client || !isConfigured()) return [];
     const [{ data: profiles, error: profileError }, { data: availability, error: availabilityError }] = await Promise.all([
@@ -235,6 +332,13 @@
     save,
     signIn,
     signOut,
+    signUpPlayer,
+    claimPlayerIdentity,
+    fetchRegistrationPlayers,
+    fetchPollStatus,
+    fetchMyPollVote,
+    submitPollVote,
+    managePoll,
     refresh,
     fetchAvailability,
     setAvailability,

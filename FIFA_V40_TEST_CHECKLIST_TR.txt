@@ -1,0 +1,71 @@
+FIFA V40.0 TEST KONTROL LİSTESİ
+================================
+
+A. İPTAL DUYURUSU TEMİZLİĞİ
+[ ] Site doğrudan Dashboard ile açılıyor.
+[ ] Turnuva Organizasyonu Hakkında Duyuru ekranı görünmüyor.
+[ ] Sayfa body üzerinde shutdown-mode sınıfı bulunmuyor.
+[ ] Mobil ve masaüstünde menüler kullanılabiliyor.
+
+B. MİSAFİR / İZLEYİCİ
+[ ] Site giriş istemeden açılıyor.
+[ ] Dashboard, League Phase, Altın, Gümüş ve diğer sayfalar görüntüleniyor.
+[ ] Misafir FIFA09 Devam Oylamasını görebiliyor.
+[ ] Misafir oy kullanamıyor ve Oyuncu Girişine Git düğmesini görüyor.
+
+C. YENİ OYUNCU HESABI
+[ ] Oyuncu Girişi sayfası açılıyor.
+[ ] E-posta, parola, parola tekrar ve oyuncu seçimi zorunlu.
+[ ] Oyuncu isimleri tournament_state içindeki FIFA09 katılımcılarından geliyor.
+[ ] Serbest oyuncu adı yazılamıyor.
+[ ] Parolalar eşleşmediğinde hesap oluşturulmuyor.
+[ ] 8 karakterden kısa parola engelleniyor.
+[ ] Hesap oluşturma başarılı.
+[ ] Confirm Email açıksa doğrulama mesajı gösteriliyor.
+[ ] Doğrulamadan sonra oyuncu giriş yapabiliyor.
+
+D. OYUNCU İSMİ TEKİLLİĞİ
+[ ] İlk hesap oyuncu adına başarıyla bağlanıyor.
+[ ] Aynı oyuncu adı ikinci hesapta pasif/hesaba bağlı görünüyor.
+[ ] Sunucu ikinci hesabın aynı ismi almasını engelliyor.
+[ ] Mevcut profili olmayan Auth hesabı Hesabı Tamamla alanını görüyor.
+
+E. OYUNCU OTURUMU
+[ ] Üst barda oyuncu adı görünüyor.
+[ ] Oyuncu turnuva düzenleme butonlarını kullanamıyor.
+[ ] Oyuncu kendi uygunluk durumunu değiştirebiliyor.
+[ ] Çıkış düğmesi çalışıyor.
+
+F. FIFA09 DEVAM OYLAMASI
+[ ] Varsayılan anket açık geliyor.
+[ ] Soru doğru: FIFA09 turnuvası mevcut formatıyla devam etsin mi?
+[ ] Evet oyu kaydediliyor.
+[ ] Aynı oyuncu daha sonra Hayır seçtiğinde eski oy güncelleniyor.
+[ ] Veritabanında aynı oyuncu için yalnızca tek oy satırı bulunuyor.
+[ ] Katılım sayısı doğru artıyor.
+[ ] Oy açıkken sonuç toplamları normal oyuncuya gösterilmiyor.
+
+G. YÖNETİCİ KONTROLLERİ
+[ ] Yönetici Girişi yalnızca tournament_admins kullanıcısını kabul ediyor.
+[ ] Oyuncu hesabı yönetici modalından giriş yapamıyor.
+[ ] Oylamayı Kapat çalışıyor.
+[ ] Sonuçları Yayımla çalışıyor.
+[ ] Evet/Hayır/Çekimser toplamları kapalı+yayımlanmış durumda görünüyor.
+[ ] Sonuçları Gizle çalışıyor.
+[ ] Oylamayı Aç çalışıyor.
+[ ] Oyları Sıfırla onay istiyor ve bütün oyları siliyor.
+[ ] Oylamayı İptal Et onay istiyor.
+
+H. REGRESYON
+[ ] FIFA09 mevcut maç sonuçları korunuyor.
+[ ] Canlı maç sistemi çalışıyor.
+[ ] FIFA Lig Sistemi açılıyor.
+[ ] Sezonlar & Kupa Müzesi açılıyor.
+[ ] Oyuncu Uygunluk Panosu çalışıyor.
+[ ] Yönetici skor ve fikstür işlemlerini yapabiliyor.
+[ ] V39 ödüller ve rekorlar sistemi çalışıyor.
+
+I. CACHE
+[ ] service-worker.js cache adı V40 olarak güncel.
+[ ] Ctrl + F5 sonrası yeni menüler görünüyor.
+[ ] Service Worker unregister + Clear site data sonrası eski iptal ekranı geri gelmiyor.

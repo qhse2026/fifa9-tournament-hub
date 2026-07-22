@@ -1,0 +1,135 @@
+FIFA TOURNAMENT HUB V40.0
+TEMİZ OYUNCU ÜYELİĞİ + FIFA09 DEVAM OYLAMASI
+================================================
+
+BU PAKETİN AMACI
+----------------
+- V39 çalışan site temel alınmıştır.
+- Eski turnuva iptal/kapanış duyurusu HTML, JavaScript ve CSS içinden tamamen kaldırılmıştır.
+- Misafirler ve normal izleyiciler siteyi giriş yapmadan kullanmaya devam eder.
+- Oyuncular için ayrı Oyuncu Giriş Merkezi eklenmiştir.
+- Yeni oyuncu hesabı e-posta + parola ile oluşturulur.
+- Hesap oluştururken mevcut FIFA09 oyuncu listesinden isim seçmek zorunludur.
+- Bir oyuncu adı yalnızca tek hesaba bağlanabilir.
+- FIFA09 mevcut formatıyla devam etsin mi? anketi eklenmiştir.
+- Yalnızca kayıtlı oyuncu hesabı oy kullanabilir.
+- Yönetici oylamayı açabilir, kapatabilir, sonuçları yayımlayabilir, gizleyebilir, sıfırlayabilir veya iptal edebilir.
+
+ÖNEMLİ
+------
+Bu sürüm bağımsız final-chapter-v40.js veya fifa-player-access-v40-1.js eklentisi kullanmaz.
+Bütün özellikler gerçek V39 dosyalarının içine entegre edilmiştir.
+
+1. ÖNCE SUPABASE SQL
+--------------------
+Supabase Dashboard > SQL Editor bölümünü aç.
+
+Şu dosyanın tamamını çalıştır:
+
+supabase/FIFA_V40_PLAYER_AUTH_AND_CONTINUATION_POLL.sql
+
+Bu migration mevcut FIFA09 maçlarını, skorlarını, turnuva state verisini ve V39 uygunluk kayıtlarını silmez.
+
+2. SUPABASE AUTH AYARLARI
+------------------------
+Supabase > Authentication > Providers > Email:
+- Email provider açık olmalıdır.
+- Confirm email açık kalabilir. Bu durumda oyuncu, e-posta doğrulamasından sonra giriş yapar.
+- Confirm email kapalıysa hesap oluşturulduktan sonra oturum doğrudan açılır.
+
+Supabase > Authentication > URL Configuration:
+- Site URL: canlı Vercel adresin
+- Redirect URLs: canlı Vercel adresin ve gerekiyorsa preview adreslerin
+
+3. GITHUB DOSYALARI
+-------------------
+Aşağıdaki dosyaları repository ana dizinindeki mevcut dosyaların üzerine yükle:
+
+index.html
+app.js
+cloud.js
+styles.css
+season-experience.js
+service-worker.js
+
+Önerilen commit mesajı:
+
+Recover player login and FIFA09 continuation poll v40
+
+4. ESKİ BAŞARISIZ V40 DOSYALARINI SİL
+------------------------------------
+Repository içinde aşağıdaki dosyalar varsa kaldır:
+
+final-chapter-v40.js
+final-chapter-v40.css
+fifa-player-access-v40-1.js
+fifa-player-access-v40-1.css
+
+Yeni index.html bu dosyalara referans vermez.
+
+5. DEPLOY SONRASI CACHE TEMİZLİĞİ
+--------------------------------
+Vercel deployment tamamlandıktan sonra önce Ctrl + F5 uygula.
+
+Eski iptal ekranı yine görünürse:
+- Chrome DevTools > Application
+- Service Workers > Unregister
+- Storage > Clear site data
+- Sayfayı yeniden aç
+
+V40 service worker cache adı:
+
+fifa-tournament-hub-v40-player-access-poll
+
+6. KULLANICI AKIŞI
+------------------
+MİSAFİR / NORMAL İZLEYİCİ
+- Siteyi doğrudan açar.
+- Giriş yapmak zorunda değildir.
+- Dashboard, sonuçlar, canlı maçlar ve diğer herkese açık sayfalar çalışır.
+- Ankete oy veremez.
+
+YENİ OYUNCU
+- Oyuncu Girişi sayfasını açar.
+- E-posta ve en az 8 karakter parola girer.
+- FIFA09 kayıtlı oyuncu listesinden kendi adını seçer.
+- Hesabı oluşturur.
+- E-posta doğrulaması açıksa doğrulama bağlantısına tıklar.
+- Oyuncu hesabıyla giriş yapar.
+- FIFA09 Devam Oylaması sayfasından oyunu kullanır.
+
+MEVCUT AUTH HESABI / PROFİLSİZ OYUNCU
+- Oyuncu Girişi sayfasından giriş yapar.
+- Hesabı Tamamla bölümünde boşta olan kayıtlı oyuncu adını seçer.
+- Oyuncu profili hesabına bağlanır.
+
+YÖNETİCİ
+- Üst menüdeki Yönetici Girişi düğmesini kullanır.
+- Oylama sayfasında yönetici kontrollerini görür.
+
+7. ANKET MANTIĞI
+----------------
+Soru:
+FIFA09 turnuvası mevcut formatıyla devam etsin mi?
+
+Seçenekler:
+- Evet, devam etsin
+- Hayır, devam etmesin
+- Çekimserim
+
+Kurallar:
+- Her oyuncunun tek oyu vardır.
+- Oy açıkken tercih değiştirilebilir.
+- Yeni oy satırı oluşturulmaz; mevcut oy güncellenir.
+- Oy açıkken Evet/Hayır/Çekimser sayıları oyunculara gösterilmez.
+- Katılım sayısı gösterilir.
+- Yönetici oylamayı kapatıp sonuçları yayımladığında toplamlar görünür.
+
+8. VERİ GÜVENLİĞİ
+-----------------
+- Oyuncu adı serbest metinle yazılamaz.
+- İsimler canlı tournament_state içindeki FIFA09 participants listesinden okunur.
+- Aynı oyuncu adı iki farklı hesaba bağlanamaz.
+- Oyuncu turnuva sonucunu veya fikstürü değiştiremez.
+- Turnuva state kaydı yalnızca yönetici tarafından değiştirilebilir.
+- Oyuncu yalnızca kendi oyunu ve kendi uygunluk bilgisi üzerinde işlem yapar.

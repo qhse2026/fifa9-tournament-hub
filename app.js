@@ -21,6 +21,14 @@
   let cloudState = cloudConfigured ? "connecting" : "local";
   let cloudUpdatedAt = null;
   let cloudSaveTimer = null;
+  const FINAL_POLL_SLUG = "fifa09-format-continuation";
+  let registrationPlayers = [];
+  let registrationPlayersLoading = false;
+  let registrationPlayersLoadedAt = 0;
+  let finalPollSnapshot = null;
+  let finalPollMyVote = null;
+  let finalPollLoading = false;
+  let finalPollLoadedAt = 0;
 
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -51,7 +59,9 @@
     seasonhub: "FIFA Lig Sistemi",
     alltime: "Tüm Zamanlar",
     teams: "Takım İstatistikleri",
-    backup: "Veri & Yedek"
+    backup: "Veri & Yedek",
+    playeraccess: "Oyuncu Girişi",
+    finalpoll: "FIFA09 Devam Oylaması"
   };
 
   let activeView = "dashboard";
@@ -266,27 +276,45 @@
 
   function updateAuthUI() {
     document.body.classList.toggle("viewer-mode", cloudConfigured && !cloudAdmin);
-    const button = $("#adminAuthBtn");
-    if (!button) return;
+    const playerButton = $("#playerAuthBtn");
+    const adminButton = $("#adminAuthBtn");
+
+    if (playerButton) {
+      playerButton.dataset.nav = "playeraccess";
+      playerButton.removeAttribute("data-action");
+      playerButton.className = "btn btn-blue";
+      if (cloudPlayerProfile) {
+        playerButton.textContent = `${cloudPlayerProfile.player_name} · Oyuncu`;
+        playerButton.title = cloudUser?.email || "Oyuncu hesabı";
+      } else if (cloudUser && !cloudAdmin) {
+        playerButton.textContent = "Hesabı Tamamla";
+        playerButton.title = "Kayıtlı oyuncu adını seç";
+      } else {
+        playerButton.textContent = cloudAdmin ? "Oyuncu Merkezi" : "Oyuncu Girişi";
+        playerButton.title = "Oyuncu hesabı oluştur veya giriş yap";
+      }
+    }
+
+    if (!adminButton) return;
     if (!cloudConfigured) {
-      button.textContent = "Bulut Kurulumu";
-      button.dataset.action = "open-cloud-help";
-      button.className = "btn btn-blue";
+      adminButton.textContent = "Bulut Kurulumu";
+      adminButton.dataset.action = "open-cloud-help";
+      adminButton.className = "btn btn-blue";
     } else if (cloudAdmin) {
-      button.textContent = "Yönetici · Çıkış";
-      button.dataset.action = "admin-signout";
-      button.className = "btn btn-gold";
-      button.title = cloudUser?.email || "Yönetici";
-    } else if (cloudUser && cloudPlayerProfile) {
-      button.textContent = `${cloudPlayerProfile.player_name} · Çıkış`;
-      button.dataset.action = "admin-signout";
-      button.className = "btn btn-blue";
-      button.title = cloudUser?.email || "Oyuncu hesabı";
+      adminButton.textContent = "Yönetici · Çıkış";
+      adminButton.dataset.action = "admin-signout";
+      adminButton.className = "btn btn-gold";
+      adminButton.title = cloudUser?.email || "Yönetici";
+    } else if (cloudUser) {
+      adminButton.textContent = "Oturumu Kapat";
+      adminButton.dataset.action = "admin-signout";
+      adminButton.className = "btn btn-ghost";
+      adminButton.title = cloudUser?.email || "Aktif oturum";
     } else {
-      button.textContent = "Oyuncu / Yönetici Girişi";
-      button.dataset.action = "open-admin-login";
-      button.className = "btn btn-gold";
-      button.title = "Oyuncu uygunluğu veya turnuva yönetimi için giriş yap";
+      adminButton.textContent = "Yönetici Girişi";
+      adminButton.dataset.action = "open-admin-login";
+      adminButton.className = "btn btn-gold";
+      adminButton.title = "Turnuva yönetimi için giriş yap";
     }
     setCloudState(cloudState);
   }
@@ -1009,6 +1037,8 @@
       case "alltime": renderAllTime(); break;
       case "teams": renderTeamStatistics(); break;
       case "backup": renderBackup(); break;
+      case "playeraccess": renderPlayerAccessPage(); break;
+      case "finalpoll": renderFinalPollPage(); break;
       default: renderDashboard();
     }
   }
@@ -7904,14 +7934,244 @@ ${shareData.url}`)}`;
     reader.readAsText(file, "utf-8");
   }
 
+
+  function accountInitials(name) {
+    return String(name || "OY").trim().split(/\s+/).map(part => part[0] || "").join("").slice(0, 2).toLocaleUpperCase("tr-TR");
+  }
+
+  function friendlyAccountError(error) {
+    const message = String(error?.message || error || "İşlem tamamlanamadı.");
+    if (/already registered|already been registered|User already registered/i.test(message)) return "Bu e-posta adresiyle daha önce hesap oluşturulmuş.";
+    if (/Database error saving new user/i.test(message)) return "Hesap oluşturulamadı. Seçtiğin oyuncu adı başka bir hesaba bağlanmış olabilir.";
+    if (/Invalid login credentials/i.test(message)) return "E-posta veya parola hatalı.";
+    if (/Email not confirmed/i.test(message)) return "Giriş yapmadan önce e-posta adresini doğrulamalısın.";
+    return message;
+  }
+
+  async function refreshRegistrationPlayers(force = false) {
+    if (!cloudConfigured || !cloud?.fetchRegistrationPlayers) return;
+    if (registrationPlayersLoading || (!force && registrationPlayersLoadedAt && Date.now() - registrationPlayersLoadedAt < 30000)) return;
+    registrationPlayersLoading = true;
+    try {
+      registrationPlayers = await cloud.fetchRegistrationPlayers();
+      registrationPlayersLoadedAt = Date.now();
+    } catch (error) {
+      console.warn("Registration player list could not be loaded", error);
+      if (force) toast(friendlyAccountError(error), "error");
+    } finally {
+      registrationPlayersLoading = false;
+      if (activeView === "playeraccess") renderPlayerAccessPage();
+    }
+  }
+
+  function registrationPlayerOptions() {
+    const rows = registrationPlayers.length
+      ? registrationPlayers
+      : state.current.participants.filter(item => item.name?.trim()).map(item => ({ playerName: item.name.trim(), claimed: false }));
+    return rows.map(item => `<option value="${escapeHTML(item.playerName)}" ${item.claimed ? "disabled" : ""}>${escapeHTML(item.playerName)}${item.claimed ? " · hesaba bağlı" : ""}</option>`).join("");
+  }
+
+  async function refreshFinalPoll(force = false) {
+    if (!cloudConfigured || !cloud?.fetchPollStatus) return;
+    if (finalPollLoading || (!force && finalPollLoadedAt && Date.now() - finalPollLoadedAt < 20000)) return;
+    finalPollLoading = true;
+    try {
+      finalPollSnapshot = await cloud.fetchPollStatus(FINAL_POLL_SLUG);
+      finalPollMyVote = cloudUser && cloudPlayerProfile ? await cloud.fetchMyPollVote(FINAL_POLL_SLUG) : null;
+      finalPollLoadedAt = Date.now();
+    } catch (error) {
+      console.warn("Poll could not be loaded", error);
+      if (force) toast(friendlyAccountError(error), "error");
+    } finally {
+      finalPollLoading = false;
+      if (activeView === "finalpoll") renderFinalPollPage();
+    }
+  }
+
+  function renderPlayerAccessPage() {
+    if (cloudConfigured && (!registrationPlayersLoadedAt || Date.now() - registrationPlayersLoadedAt > 30000) && !registrationPlayersLoading) {
+      setTimeout(() => refreshRegistrationPlayers(), 0);
+    }
+
+    const configured = cloudConfigured;
+    const user = cloudUser;
+    const profile = cloudPlayerProfile;
+    const availableCount = registrationPlayers.filter(item => !item.claimed).length;
+    const totalCount = registrationPlayers.length || filledParticipants().length;
+
+    let content = "";
+    if (!configured) {
+      content = `<section class="panel account-panel"><div class="eyebrow">KURULUM GEREKLİ</div><h3>Supabase bağlantısı bulunamadı</h3><p>Oyuncu üyeliğini kullanmak için önce V40 SQL dosyasını çalıştır ve cloud-config.js bağlantısını doğrula.</p><button class="btn btn-blue" data-action="open-cloud-help">Canlı Site Kurulumunu Aç</button></section>`;
+    } else if (user) {
+      const display = profile?.player_name || (cloudAdmin ? "Turnuva Yöneticisi" : "Oyuncu kimliği bekleniyor");
+      content = `<section class="panel account-session">
+        <div class="account-avatar">${escapeHTML(accountInitials(display))}</div>
+        <div><div class="eyebrow">AKTİF OTURUM</div><h3>${escapeHTML(display)}</h3><p>${escapeHTML(user.email || "")}${profile ? " · Kayıtlı FIFA09 oyuncusu" : cloudAdmin ? " · Yönetici hesabı" : " · Oyuncu adı henüz seçilmedi"}</p></div>
+        <div class="account-session-actions"><button class="btn btn-blue" data-nav="finalpoll">Devam Oylamasına Git</button><button class="btn btn-ghost" data-action="admin-signout">Çıkış Yap</button></div>
+      </section>`;
+      if (!profile && !cloudAdmin) {
+        content += `<section class="panel account-panel"><div class="eyebrow">HESABI TAMAMLA</div><h3>Kayıtlı oyuncu adını seç</h3><p>Oyuncu hesabının etkinleşmesi için FIFA09 katılımcı listesinden kendi adını seçmen zorunludur. Bir oyuncu adı yalnızca bir hesaba bağlanabilir.</p>
+          <form id="playerClaimForm" class="account-form"><label>Oyuncu adı<select name="playerName" required><option value="">Oyuncu seç</option>${registrationPlayerOptions()}</select></label><button class="btn btn-gold" type="submit">Oyuncu Kimliğimi Bağla</button></form></section>`;
+      }
+    } else {
+      content = `<div class="player-access-grid">
+        <section class="panel account-panel"><div class="eyebrow">OYUNCU GİRİŞİ</div><h3>Hesabına giriş yap</h3><p>Daha önce oluşturduğun oyuncu hesabınla giriş yap. Misafirlerin ve normal izleyicilerin giriş yapması gerekmez.</p>
+          <form id="playerPageLoginForm" class="account-form"><label>E-posta<input type="email" name="email" required autocomplete="username" placeholder="oyuncu@example.com"></label><label>Parola<input type="password" name="password" required autocomplete="current-password" placeholder="••••••••"></label><button class="btn btn-blue" type="submit">Oyuncu Girişi Yap</button></form></section>
+        <section class="panel account-panel"><div class="eyebrow">YENİ OYUNCU HESABI</div><h3>Üyelik hesabı oluştur</h3><p>E-posta ve parola belirle; ardından kayıtlı FIFA09 oyuncuları arasından kendi adını seç. Serbest oyuncu adı yazılamaz.</p>
+          <form id="playerSignupForm" class="account-form"><label>E-posta<input type="email" name="email" required autocomplete="email" placeholder="oyuncu@example.com"></label><label>Parola<input type="password" name="password" minlength="8" required autocomplete="new-password" placeholder="En az 8 karakter"></label><label>Parola tekrar<input type="password" name="passwordConfirm" minlength="8" required autocomplete="new-password" placeholder="Parolayı tekrar yaz"></label><label>Kayıtlı oyuncu<select name="playerName" required><option value="">Oyuncu seç</option>${registrationPlayerOptions()}</select></label><div class="account-note">${registrationPlayersLoading ? "Oyuncu listesi güncelleniyor…" : `${availableCount || 0} / ${totalCount || 16} oyuncu adı hesap oluşturmaya uygun.`}</div><button class="btn btn-gold" type="submit">Oyuncu Hesabı Oluştur</button></form></section>
+      </div>`;
+    }
+
+    view.innerHTML = `<div class="player-access-page"><section class="member-hero"><div><div class="eyebrow">FIFA09 · OYUNCU ÜYELİĞİ</div><h2>Oyuncu Giriş Merkezi</h2><p>Oyuncu hesabı yalnızca ankete katılmak, uygunluk durumunu paylaşmak ve ileride oyuncuya özel işlemleri kullanmak içindir. Siteyi izleyen misafirlerden üyelik veya giriş istenmez.</p></div><div class="member-hero-badge"><strong>${totalCount || 16}</strong><span>Kayıtlı Oyuncu</span></div></section>${content}</div>`;
+  }
+
+  function pollStatusText(status) {
+    return ({ open: "Oylama Açık", closed: "Oylama Kapalı", cancelled: "Oylama İptal", draft: "Taslak" })[status] || "Hazırlanıyor";
+  }
+
+  function pollChoiceText(choice) {
+    return ({ yes: "Evet, devam etsin", no: "Hayır, devam etmesin", abstain: "Çekimserim" })[choice] || "Henüz oy kullanılmadı";
+  }
+
+  function renderFinalPollPage() {
+    if (cloudConfigured && (!finalPollLoadedAt || Date.now() - finalPollLoadedAt > 20000) && !finalPollLoading) {
+      setTimeout(() => refreshFinalPoll(), 0);
+    }
+
+    if (!cloudConfigured) {
+      view.innerHTML = `<div class="final-poll-page"><section class="poll-hero"><div><div class="eyebrow">FIFA09 · DEVAM KARARI</div><h2>FIFA09 Devam Oylaması</h2><p>Oylama sistemi için Supabase bağlantısı ve V40 SQL kurulumu gereklidir.</p></div></section><section class="panel poll-loading">Cloud bağlantısı yapılandırılmamış.</section></div>`;
+      return;
+    }
+
+    const poll = finalPollSnapshot;
+    if (!poll) {
+      view.innerHTML = `<div class="final-poll-page"><section class="poll-hero"><div><div class="eyebrow">FIFA09 · DEVAM KARARI</div><h2>FIFA09 Devam Oylaması</h2><p>Kayıtlı oyuncuların ortak kararı için güvenli oylama alanı.</p></div></section><section class="panel poll-loading">${finalPollLoading ? "Oylama yükleniyor…" : "Oylama bulunamadı. V40 SQL dosyasını çalıştır."}</section></div>`;
+      return;
+    }
+
+    const eligible = Number(poll.eligible_count) || 0;
+    const votes = Number(poll.vote_count) || 0;
+    const progress = eligible ? Math.round(votes / eligible * 100) : 0;
+    const status = poll.status || "draft";
+    const resultsVisible = Boolean(poll.results_visible) && status === "closed";
+    const canVote = Boolean(cloudPlayerProfile && status === "open");
+
+    const voteArea = canVote ? `<section class="panel poll-vote-panel"><div class="eyebrow">OYUNU KULLAN</div><h3>${escapeHTML(cloudPlayerProfile.player_name)}</h3><p>Oylama açık olduğu sürece tercihini değiştirebilirsin. Sistemde yalnızca son oyun geçerli kalır.</p><div class="poll-choice-grid">
+      <button class="poll-choice yes ${finalPollMyVote === "yes" ? "active" : ""}" data-action="submit-final-poll-vote" data-choice="yes"><strong>✓ Evet</strong><span>FIFA09 mevcut formatıyla devam etsin</span></button>
+      <button class="poll-choice no ${finalPollMyVote === "no" ? "active" : ""}" data-action="submit-final-poll-vote" data-choice="no"><strong>× Hayır</strong><span>FIFA09 mevcut formatıyla devam etmesin</span></button>
+      <button class="poll-choice abstain ${finalPollMyVote === "abstain" ? "active" : ""}" data-action="submit-final-poll-vote" data-choice="abstain"><strong>— Çekimser</strong><span>Kararı diğer oyunculara bırakıyorum</span></button>
+      </div>${finalPollMyVote ? `<div class="poll-current-vote">Kayıtlı tercihin: ${escapeHTML(pollChoiceText(finalPollMyVote))}</div>` : ""}</section>`
+      : `<section class="panel poll-guest-panel"><div><div class="eyebrow">OY KULLANMA YETKİSİ</div><h3>${status !== "open" ? "Oylama şu anda oy kabul etmiyor" : cloudUser ? "Oyuncu kimliğini tamamlamalısın" : "Yalnızca kayıtlı oyuncular oy kullanabilir"}</h3><p>Misafirler ve normal izleyiciler siteyi giriş yapmadan kullanmaya devam eder; oy kullanabilmek için e-posta hesabının FIFA09 oyuncu adına bağlı olması gerekir.</p></div>${status === "open" ? `<button class="btn btn-blue" data-nav="playeraccess">Oyuncu Girişine Git</button>` : ""}</section>`;
+
+    const results = resultsVisible ? `<section class="poll-results-grid"><article class="panel poll-result yes"><span>Evet</span><strong>${Number(poll.yes_count) || 0}</strong></article><article class="panel poll-result no"><span>Hayır</span><strong>${Number(poll.no_count) || 0}</strong></article><article class="panel poll-result abstain"><span>Çekimser</span><strong>${Number(poll.abstain_count) || 0}</strong></article></section>` : "";
+
+    const adminArea = cloudAdmin ? `<section class="panel poll-admin-panel"><div class="eyebrow">YÖNETİCİ KONTROLLERİ</div><h3>Oylama Yönetimi</h3><p>Oylama açıkken sayısal sonuçlar oyunculara gösterilmez. Oylamayı kapattıktan sonra sonuçları ayrıca yayımlayabilirsin.</p><div class="poll-admin-actions"><button class="btn btn-blue" data-action="manage-final-poll" data-poll-action="open">Oylamayı Aç</button><button class="btn btn-ghost" data-action="manage-final-poll" data-poll-action="close">Oylamayı Kapat</button><button class="btn btn-gold" data-action="manage-final-poll" data-poll-action="publish">Sonuçları Yayımla</button><button class="btn btn-ghost" data-action="manage-final-poll" data-poll-action="hide">Sonuçları Gizle</button><button class="btn btn-danger" data-action="manage-final-poll" data-poll-action="reset">Oyları Sıfırla</button><button class="btn btn-danger" data-action="manage-final-poll" data-poll-action="cancel">Oylamayı İptal Et</button></div></section>` : "";
+
+    view.innerHTML = `<div class="final-poll-page"><section class="poll-hero"><div><div class="eyebrow">FIFA09 · ORTAK KARAR</div><h2>Turnuva Devam Oylaması</h2><p>Bu anket FIFA09 turnuvasının mevcut formatıyla devam edip etmeyeceğini kayıtlı oyuncuların görüşüne sunar.</p></div><div class="poll-hero-badge"><strong>${votes}/${eligible}</strong><span>Oy Kullanıldı</span></div></section><section class="panel poll-question-card"><div class="eyebrow">ANKET SORUSU</div><h3>${escapeHTML(poll.question || "FIFA09 turnuvası mevcut formatıyla devam etsin mi?")}</h3><p>Oyuncuların tercihleri oylama kapanana kadar gizli tutulur. Her oyuncu tek oy hakkına sahiptir ve oylama açıkken tercihini değiştirebilir.</p><div class="poll-status-strip"><span class="poll-status-pill ${escapeHTML(status)}">${escapeHTML(pollStatusText(status))}</span><span class="poll-status-pill">${votes} / ${eligible} katılım</span><button class="btn btn-ghost btn-small" data-action="refresh-final-poll">Yenile</button></div><div class="poll-progress"><div class="poll-progress-head"><span>Katılım</span><strong>%${progress}</strong></div><div class="poll-progress-track"><span style="width:${Math.min(100, Math.max(0, progress))}%"></span></div></div></section>${voteArea}${results}${adminArea}</div>`;
+  }
+
+  async function handlePlayerPageLogin(form) {
+    const data = new FormData(form);
+    const button = form.querySelector("button[type=submit]");
+    button.disabled = true;
+    button.textContent = "Bağlanıyor…";
+    try {
+      const result = await cloud.signIn(String(data.get("email") || "").trim(), String(data.get("password") || ""));
+      registrationPlayersLoadedAt = 0;
+      finalPollLoadedAt = 0;
+      await refreshRegistrationPlayers(true);
+      if (result.isAdmin) toast("Yönetici oturumu açıldı.", "success");
+      else if (result.playerProfile) toast(`Hoş geldin, ${result.playerProfile.player_name}.`, "success");
+      else toast("Giriş başarılı. Şimdi kayıtlı oyuncu adını seçerek hesabını tamamla.", "success");
+      renderPlayerAccessPage();
+    } catch (error) {
+      toast(friendlyAccountError(error), "error");
+      button.disabled = false;
+      button.textContent = "Oyuncu Girişi Yap";
+    }
+  }
+
+  async function handlePlayerSignup(form) {
+    const data = new FormData(form);
+    const password = String(data.get("password") || "");
+    const confirmPassword = String(data.get("passwordConfirm") || "");
+    if (password !== confirmPassword) { toast("Parolalar birbiriyle eşleşmiyor.", "error"); return; }
+    const button = form.querySelector("button[type=submit]");
+    button.disabled = true;
+    button.textContent = "Hesap oluşturuluyor…";
+    try {
+      const result = await cloud.signUpPlayer(String(data.get("email") || "").trim(), password, String(data.get("playerName") || "").trim());
+      registrationPlayersLoadedAt = 0;
+      await refreshRegistrationPlayers(true);
+      form.reset();
+      if (result.requiresEmailConfirmation) {
+        toast("Hesap oluşturuldu. E-posta adresine gönderilen doğrulama bağlantısına tıkla, ardından giriş yap.", "success");
+      } else {
+        toast(`Oyuncu hesabı oluşturuldu${result.playerProfile ? `: ${result.playerProfile.player_name}` : ""}.`, "success");
+        renderPlayerAccessPage();
+      }
+    } catch (error) {
+      toast(friendlyAccountError(error), "error");
+      button.disabled = false;
+      button.textContent = "Oyuncu Hesabı Oluştur";
+    }
+  }
+
+  async function handlePlayerClaim(form) {
+    const data = new FormData(form);
+    const button = form.querySelector("button[type=submit]");
+    button.disabled = true;
+    button.textContent = "Bağlanıyor…";
+    try {
+      const result = await cloud.claimPlayerIdentity(String(data.get("playerName") || "").trim());
+      registrationPlayersLoadedAt = 0;
+      finalPollLoadedAt = 0;
+      await refreshRegistrationPlayers(true);
+      toast(`Oyuncu hesabı ${result?.player_name || "seçilen oyuncu"} adına bağlandı.`, "success");
+      renderPlayerAccessPage();
+    } catch (error) {
+      toast(friendlyAccountError(error), "error");
+      button.disabled = false;
+      button.textContent = "Oyuncu Kimliğimi Bağla";
+    }
+  }
+
+  async function submitFinalPollVote(choice) {
+    try {
+      await cloud.submitPollVote(FINAL_POLL_SLUG, choice);
+      finalPollLoadedAt = 0;
+      await refreshFinalPoll(true);
+      toast(`Oyun kaydedildi: ${pollChoiceText(choice)}.`, "success");
+    } catch (error) {
+      toast(friendlyAccountError(error), "error");
+    }
+  }
+
+  async function manageFinalPoll(action) {
+    if (!cloudAdmin) { toast("Bu işlem yalnızca turnuva yöneticisine açıktır.", "error"); return; }
+    if (["reset", "cancel"].includes(action)) {
+      const message = action === "reset" ? "Mevcut bütün oylar silinecek ve oylama yeniden açılacak. Devam edilsin mi?" : "Oylama iptal durumuna alınacak. Devam edilsin mi?";
+      if (!window.confirm(message)) return;
+    }
+    try {
+      await cloud.managePoll(FINAL_POLL_SLUG, action);
+      finalPollLoadedAt = 0;
+      await refreshFinalPoll(true);
+      toast("Oylama durumu güncellendi.", "success");
+    } catch (error) {
+      toast(friendlyAccountError(error), "error");
+    }
+  }
+
   function openAdminLogin() {
     if (!cloudConfigured) { openCloudHelp(); return; }
-    openModal("Hesap Girişi", `<form id="adminLoginForm">
-      <div class="info-box">Yönetici hesapları turnuvayı yönetir. Oyuncu hesapları yalnızca kendi uygunluk durumunu paylaşabilir.</div>
-      <div class="field mt-16"><label>E-posta</label><input type="email" name="email" autocomplete="username" required placeholder="oyuncu@example.com"></div>
+    if (cloudUser && !cloudAdmin) { toast("Yönetici hesabına geçmek için önce mevcut oyuncu oturumunu kapat.", "error"); return; }
+    openModal("Yönetici Girişi", `<form id="adminLoginForm">
+      <div class="info-box">Bu ekran yalnızca turnuva yönetimi içindir. Oyuncular sol menüdeki <strong>Oyuncu Girişi</strong> sayfasını kullanmalıdır.</div>
+      <div class="field mt-16"><label>Yönetici e-postası</label><input type="email" name="email" autocomplete="username" required placeholder="admin@example.com"></div>
       <div class="field"><label>Parola</label><input type="password" name="password" autocomplete="current-password" required placeholder="••••••••"></div>
-      <div class="modal-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">İptal</button><button type="submit" class="btn btn-gold">Giriş Yap</button></div>
-    </form>`, "SECURE MEMBER ACCESS");
+      <div class="modal-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">İptal</button><button type="submit" class="btn btn-gold">Yönetici Girişi</button></div>
+    </form>`, "SECURE ADMIN ACCESS");
   }
 
   function openCloudHelp() {
@@ -7931,12 +8191,12 @@ ${shareData.url}`)}`;
     button.textContent = "Bağlanıyor...";
     try {
       const result = await cloud.signIn(String(data.get("email") || "").trim(), String(data.get("password") || ""));
-      if (!result.isAdmin && !result.playerProfile) {
+      if (!result.isAdmin) {
         await cloud.signOut();
-        throw new Error("Bu hesap henüz yönetici veya oyuncu profiline bağlanmamış.");
+        throw new Error("Bu hesap yönetici yetkisine sahip değil. Oyuncu hesapları Oyuncu Girişi sayfasını kullanmalıdır.");
       }
       closeModal();
-      toast(result.isAdmin ? "Yönetici girişi başarılı." : `Hoş geldin, ${result.playerProfile.player_name}.`, "success");
+      toast("Yönetici girişi başarılı.", "success");
       updateAuthUI();
       render();
     } catch (error) {
@@ -7968,6 +8228,9 @@ ${shareData.url}`)}`;
     const action = event.target.closest("[data-action]");
     if (!action) return;
     const type = action.dataset.action;
+    if (type === "refresh-final-poll") { finalPollLoadedAt = 0; refreshFinalPoll(true); return; }
+    if (type === "submit-final-poll-vote") { submitFinalPollVote(action.dataset.choice); return; }
+    if (type === "manage-final-poll") { manageFinalPoll(action.dataset.pollAction); return; }
     if (["create-fifa10-draft","auto-assign-fifa10","save-fifa10-draft","cancel-fifa10-draft","confirm-cancel-fifa10-draft","add-fifa10-player","remove-fifa10-player","open-honour-editor"].includes(type) && !canEdit()) {
       toast("Bu işlem yalnızca turnuva yöneticisine açıktır.", "error");
       return;
@@ -8138,7 +8401,7 @@ ${shareData.url}`)}`;
     if (type === "open-edition") openEdition(action.dataset.edition);
     if (type === "open-admin-login") openAdminLogin();
     if (type === "open-cloud-help") openCloudHelp();
-    if (type === "admin-signout") cloud?.signOut?.().then(() => { toast("Oturum kapatıldı."); updateAuthUI(); render(); });
+    if (type === "admin-signout") cloud?.signOut?.().then(() => { registrationPlayersLoadedAt = 0; finalPollLoadedAt = 0; finalPollMyVote = null; toast("Oturum kapatıldı."); updateAuthUI(); render(); });
     if (type === "close-modal") closeModal();
     if (type === "export-json") exportJSON();
     if (type === "export-csv") exportCSV();
@@ -8182,6 +8445,9 @@ ${shareData.url}`)}`;
   document.addEventListener("submit", event => {
     if (window.FIFA_CHAT_UI?.handleSubmit?.(event)) return;
     if (window.FIFA_SEASON_HUB?.handleSubmit?.(event)) return;
+    if (event.target.id === "playerPageLoginForm") { event.preventDefault(); handlePlayerPageLogin(event.target); return; }
+    if (event.target.id === "playerSignupForm") { event.preventDefault(); handlePlayerSignup(event.target); return; }
+    if (event.target.id === "playerClaimForm") { event.preventDefault(); handlePlayerClaim(event.target); return; }
     if (event.target.id === "honourRecordForm") { event.preventDefault(); saveHonourRecord(event.target); return; }
     if (event.target.id === "matchForm") {
       event.preventDefault();
@@ -8324,6 +8590,9 @@ ${shareData.url}`)}`;
           cloudUser = user || null;
           cloudAdmin = Boolean(isAdmin);
           cloudPlayerProfile = playerProfile || null;
+          registrationPlayersLoadedAt = 0;
+          finalPollLoadedAt = 0;
+          finalPollMyVote = null;
           const replacementResult = applyConfiguredPhase2Replacement({ silent: true });
           updateAuthUI();
           if (replacementResult.changed && cloudAdmin) saveState(false, true);

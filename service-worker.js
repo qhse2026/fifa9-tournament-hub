@@ -1,4 +1,4 @@
-const CACHE = "fifa-league-system-v39-awards-records-membership";
+const CACHE = "fifa-tournament-hub-v40-player-access-poll";
 const APP_SHELL = [
   "./",
   "./index.html",
