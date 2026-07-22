@@ -1,4 +1,4 @@
-const CACHE = "fifa-tournament-hub-v43-2-0-tactical-intelligence";
+const CACHE = "fifa-tournament-hub-v43-3-0-live-motion";
 const APP_SHELL = [
   "./",
   "./index.html",
