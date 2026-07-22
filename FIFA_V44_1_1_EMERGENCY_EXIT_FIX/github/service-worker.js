@@ -1,0 +1,71 @@
+const CACHE = "fifa-tournament-hub-v44-1-1-emergency-exit";
+const APP_SHELL = [
+  "./",
+  "./index.html",
+  "./styles.css",
+  "./app.js",
+  "./season-hub.js",
+  "./season-hub.css",
+  "./season-experience.js",
+  "./season-experience.css",
+  "./manager-room.js",
+  "./manager-match-engine.js",
+  "./manager-room.css",
+  "./manager-v42-4.css",
+  "./manager-v42-5.css",
+  "./manager-v42-5-levels.css",
+  "./data/manager-bootstrap-v42.json",
+  "./data/manager-team-catalog-fc25.json",
+  "./language.js",
+  "./cloud.js",
+  "./chat.js",
+  "./community.js",
+  "./data/historical-data.js",
+  "./assets/f9-mark.svg",
+  "./assets/trophies/premier-league.svg",
+  "./assets/trophies/championship.svg",
+  "./assets/trophies/oruc-reis-cup.svg",
+  "./assets/trophies/super-cup.svg",
+  "./manifest.webmanifest"
+];
+
+self.addEventListener("install", event => {
+  self.skipWaiting();
+  event.waitUntil(caches.open(CACHE).then(cache => Promise.allSettled(APP_SHELL.map(url => cache.add(url)))));
+});
+
+self.addEventListener("activate", event => {
+  event.waitUntil(
+    Promise.all([
+      caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key)))),
+      self.clients.claim()
+    ])
+  );
+});
+
+self.addEventListener("fetch", event => {
+  const request = event.request;
+  if (request.method !== "GET") return;
+
+  const url = new URL(request.url);
+  if (url.hostname.includes("supabase.co")) return;
+
+  // Configuration must always be read fresh after a redeploy.
+  if (url.pathname.endsWith("/cloud-config.js")) {
+    event.respondWith(fetch(request, { cache: "no-store" }).catch(() => caches.match(request)));
+    return;
+  }
+
+  // Network-first keeps future website updates visible, with offline fallback.
+  event.respondWith(
+    fetch(request)
+      .then(response => {
+        if (response && response.ok && response.type === "basic") {
+          const copy = response.clone();
+          caches.open(CACHE).then(cache => cache.put(request, copy));
+        }
+        return response;
+      })
+      .catch(() => caches.match(request).then(hit => hit || caches.match("./index.html")))
+  );
+});

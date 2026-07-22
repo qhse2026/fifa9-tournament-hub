@@ -1,0 +1,10 @@
+V44.1.1 Emergency Exit Fix
+
+- manager-room.js syntax: PASS
+- service-worker.js syntax: PASS
+- Exit no longer depends on successful localStorage write.
+- QuotaExceededError is caught and does not stop navigation.
+- Manager launcher state is held in sessionStorage.
+- Existing activeCareerId is preserved.
+- Continue Career action restores the career view.
+- Tournament Hub escape action added.

@@ -1,0 +1,17 @@
+V44.1.1 ACİL ÇIKIŞ DÜZELTMESİ
+
+GitHub repository kökünde yalnızca şu iki dosyayı değiştirin:
+- manager-room.js
+- service-worker.js
+
+Deploy tamamlandıktan sonra:
+1. Siteyi açın.
+2. Ctrl + Shift + R yapın.
+3. Kariyer ekranında "Kariyerden Çık" düğmesine basın.
+
+Bu düzeltmede çıkış, localStorage kaydı başarısız olsa bile çalışır.
+Ekrandaki quota hatasının sebebi, tarayıcı yerel depolamasının dolmuş olmasıdır.
+Düzeltme recovery kopyasının çıkışı engellemesini önler ve çıkışı sessionStorage üzerinden gerçekleştirir.
+
+Acil olarak mevcut siteden hemen çıkmak için tarayıcı geliştirici konsoluna şunu yazabilirsiniz:
+window.FIFA_APP_CONTEXT.navigate('dashboard')
