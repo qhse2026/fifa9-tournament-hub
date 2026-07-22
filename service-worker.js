@@ -1,4 +1,4 @@
-const CACHE = "fifa-tournament-hub-v43-0-0-living-universe";
+const CACHE = "fifa-tournament-hub-v43-1-0-match-engine-3";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -31,7 +31,7 @@ const APP_SHELL = [
 
 self.addEventListener("install", event => {
   self.skipWaiting();
-  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(APP_SHELL)));
+  event.waitUntil(caches.open(CACHE).then(cache => Promise.allSettled(APP_SHELL.map(url => cache.add(url)))));
 });
 
 self.addEventListener("activate", event => {
