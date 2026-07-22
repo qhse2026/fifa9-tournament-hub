@@ -1,0 +1,5 @@
+1) V42.1 kuruluysa GitHub Patch paketindeki 5 dosyayı yükleyin.
+2) V42.1 kurulu değilse Full paket içindeki github klasörünün tamamını yükleyin ve mevcut V42 SQL'lerini çalıştırın.
+3) V42.2 için ilave SQL yoktur.
+4) Deploy sonrası Ctrl + F5 yapın.
+5) Önce Test Kariyerinde bir maç tamamlayın.

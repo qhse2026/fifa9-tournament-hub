@@ -1,0 +1,58 @@
+V42.2 LIVE MATCH ENGINE — TEST CHECKLIST
+
+A. YÜKLEME
+[ ] The Manager's Room açılıyor.
+[ ] Sidebar sürümü V42.2 görünüyor.
+[ ] Live Match sekmesi görünüyor.
+[ ] Console'da SyntaxError / ReferenceError yok.
+
+B. TAKIM KURASI
+[ ] Sıradaki maçın iki takımı daha önce çekilmiş.
+[ ] 4★ / 4.5★ / 5★ havuzu devreye göre doğru.
+[ ] Takım kartlarındaki OVR/ATK/MID/DEF değerleri görünüyor.
+
+C. MAÇ ÖNCESİ
+[ ] Ana yaklaşım seçilebiliyor.
+[ ] Pres yapısı seçilebiliyor.
+[ ] Hücum kurulumu seçilebiliyor.
+[ ] Tempo seçilebiliyor.
+[ ] Risk profili seçilebiliyor.
+[ ] Rakip güç değeri görünüyor, gizli stil görünmüyor.
+
+D. CANLI MAÇ
+[ ] Maç dakikası ilerliyor.
+[ ] Skor tabelası çalışıyor.
+[ ] Saha hâkimiyeti top işareti hareket ediyor.
+[ ] Momentum çubuğu değişiyor.
+[ ] xG, şut, isabet, tehdit ve fizik değerleri güncelleniyor.
+[ ] Canlı olay akışı yeni olaylar gösteriyor.
+[ ] Duraklat / devam et çalışıyor.
+
+E. KARAR MOTORU
+[ ] Maç motoru kritik anda otomatik duruyor.
+[ ] Dört bağlamsal seçenek gösteriliyor.
+[ ] Seçimden sonra maç devam ediyor.
+[ ] Karar sayısı maç durumuna göre değişiyor.
+[ ] Son on dakika kararı gerektiğinde oluşuyor.
+
+F. MAÇ SONU
+[ ] Maç 90. dakikada bitiyor.
+[ ] Skor fikstüre kaydediliyor.
+[ ] Puan tablosu O/G/B/M/AV/P alanlarıyla güncelleniyor.
+[ ] Aynı matchday'deki AI maçları simüle ediliyor.
+[ ] Manager ELO güncelleniyor.
+[ ] Taktik IQ güncelleniyor.
+[ ] Kariyer puanı güncelleniyor.
+[ ] Maç sonu taktik raporu gösteriliyor.
+[ ] Karar kalitesi listeleniyor.
+[ ] Rakip hakkında yeni scouting ipucu gösteriliyor.
+
+G. BULUT
+[ ] Resmî kariyerde snapshot Supabase'e kaydediliyor.
+[ ] Manager Hall kariyer puanını ve ELO'yu gösteriyor.
+[ ] Başka cihazda PIN ile açıldığında oynanan maç korunuyor.
+
+H. MOBİL
+[ ] Taktik seçim kartları tek sütuna geçiyor.
+[ ] Live Match ekranı yatay taşma yapmıyor.
+[ ] Karar ekranındaki seçenekler rahat seçiliyor.

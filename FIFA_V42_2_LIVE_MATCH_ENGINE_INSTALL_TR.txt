@@ -1,0 +1,43 @@
+FIFA TOURNAMENT HUB V42.2 — LIVE MATCH ENGINE ALPHA
+KURULUM
+
+ÖN KOŞUL
+- V42.1 Team Draw Theatre kurulu olmalıdır.
+- Mevcut Manager Room Supabase SQL tabloları çalışıyor olmalıdır.
+- V42.2 için yeni SQL çalıştırılması gerekmez.
+
+GITHUB DOSYALARI
+Mevcut dosyaların üzerine yükleyin:
+1. index.html
+2. manager-room.js
+3. manager-match-engine.js  (YENİ)
+4. manager-room.css
+5. service-worker.js
+
+Tam paket kullanılıyorsa data/ klasöründeki iki JSON dosyasını da koruyun:
+- data/manager-bootstrap-v42.json
+- data/manager-team-catalog-fc25.json
+
+ÖNERİLEN COMMIT
+Add V42.2 playable live match engine
+
+DEPLOY SONRASI
+1. Vercel/GitHub Pages deploy tamamlanmasını bekleyin.
+2. Ctrl + F5 yapın.
+3. Eski sürüm görünürse Service Worker kaydını kaldırıp site verisini temizleyin.
+
+YENİ CACHE
+fifa-tournament-hub-v42-2-live-match-engine
+
+İLK TEST
+1. Test kariyeri açın.
+2. Team Draw Theatre üzerinden sıradaki maçın iki takımını çekin.
+3. Live Match sekmesine girin.
+4. Beş taktik alanından birer seçim yapın.
+5. Maçı başlatın.
+6. Karar ekranı çıktığında bir hamle seçin.
+7. Maç sonunda skor, ELO, Taktik IQ, kariyer puanı ve puan tablosunun güncellendiğini kontrol edin.
+
+NOT
+- Resmî kariyerlerde sonuçlar mevcut PIN doğrulamalı Supabase snapshot sistemine kaydedilir.
+- V42.2, lig sezon geçişi ve kupa bracket ilerlemesini henüz otomatik tamamlamaz.

@@ -1,0 +1,1133 @@
+(() => {
+  "use strict";
+
+  const VERSION = "42.2";
+  const TICK_MS = 850;
+  const MAX_EVENTS = 34;
+  const MAX_DECISIONS = 7;
+  const MIN_DECISIONS = 3;
+  const runtime = { timer: null, fixtureId: null, busy: false };
+
+  const room = () => window.FIFA_MANAGER_ROOM;
+  const app = () => window.FIFA_APP_CONTEXT;
+  const esc = value => app()?.escapeHTML
+    ? app().escapeHTML(String(value ?? ""))
+    : String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+  const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+  const round1 = value => Math.round(Number(value || 0) * 10) / 10;
+  const now = () => new Date().toISOString();
+
+  const PLAN_GROUPS = {
+    mentality: [
+      { id: "controlled", label: "Kontrollü", note: "Oyunu sakinleştir, boşluğu bekle", attack: -2, control: 8, defence: 4, fatigue: 0.7, risk: -5, tags: ["control"] },
+      { id: "balanced", label: "Dengeli", note: "Hatlar arası dengeyi koru", attack: 2, control: 2, defence: 2, fatigue: 1, risk: 0, tags: ["balance"] },
+      { id: "aggressive", label: "Agresif", note: "Rakibi sürekli geriye zorla", attack: 9, control: -1, defence: -5, fatigue: 1.5, risk: 8, tags: ["attack"] },
+      { id: "counter", label: "Kontratak", note: "Alan bırak, geçiş anını cezalandır", attack: 4, control: -4, defence: 6, fatigue: 0.9, risk: 2, tags: ["counter"] },
+      { id: "possession", label: "Topa Sahip Ol", note: "Tempo ve konum üstünlüğü kur", attack: 1, control: 10, defence: 1, fatigue: 1.1, risk: -2, tags: ["control", "patient"] }
+    ],
+    pressing: [
+      { id: "low", label: "Derin Blok", note: "Alan daralt, arkayı koru", attack: -4, control: -4, defence: 10, fatigue: 0.65, risk: -5, tags: ["protect"] },
+      { id: "mid", label: "Orta Blok", note: "Merkezde temas ve denge", attack: 0, control: 3, defence: 5, fatigue: 0.9, risk: -1, tags: ["balance"] },
+      { id: "high", label: "Yüksek Pres", note: "Rakibi çıkışta boğ", attack: 6, control: 5, defence: -5, fatigue: 1.65, risk: 7, tags: ["press"] },
+      { id: "counterpress", label: "Karşı Pres", note: "Top kaybında kısa ve sert baskı", attack: 5, control: 7, defence: -2, fatigue: 1.45, risk: 4, tags: ["press", "tempo"] }
+    ],
+    buildUp: [
+      { id: "patient", label: "Sabırlı Kurulum", note: "Pas açılarını çoğalt", attack: 0, control: 8, defence: 2, fatigue: 1, risk: -3, tags: ["patient", "control"] },
+      { id: "direct", label: "Direkt Oyun", note: "Az pasla son bölgeye git", attack: 7, control: -6, defence: -1, fatigue: 1.1, risk: 6, tags: ["direct"] },
+      { id: "wings", label: "Kanatları Kullan", note: "Sahayı genişlet ve çizgiyi zorla", attack: 5, control: 1, defence: -1, fatigue: 1.15, risk: 2, tags: ["wide"] },
+      { id: "central", label: "Merkezden Oyna", note: "Dar alanda kombinasyon ara", attack: 4, control: 5, defence: -2, fatigue: 1.1, risk: 3, tags: ["central"] },
+      { id: "transition", label: "Hızlı Geçiş", note: "Top kazanır kazanmaz ileri çık", attack: 8, control: -4, defence: 1, fatigue: 1.25, risk: 6, tags: ["counter", "tempo"] }
+    ],
+    tempo: [
+      { id: "low", label: "Düşük Tempo", note: "Maçı kontrol altında tut", attack: -3, control: 6, defence: 2, fatigue: 0.65, risk: -4, tags: ["control"] },
+      { id: "normal", label: "Dengeli Tempo", note: "Duruma göre hızlan", attack: 1, control: 2, defence: 1, fatigue: 1, risk: 0, tags: ["balance"] },
+      { id: "high", label: "Yüksek Tempo", note: "Rakibe düşünme süresi verme", attack: 7, control: 1, defence: -3, fatigue: 1.55, risk: 6, tags: ["tempo", "attack"] }
+    ],
+    risk: [
+      { id: "safe", label: "Güvenli", note: "Top kaybını ve açık alanı azalt", attack: -4, control: 4, defence: 6, fatigue: 0.9, risk: -8, tags: ["protect"] },
+      { id: "measured", label: "Ölçülü", note: "Fırsat oluştuğunda risk al", attack: 2, control: 2, defence: 1, fatigue: 1, risk: 0, tags: ["balance"] },
+      { id: "bold", label: "Cesur", note: "Daha fazla oyuncuyla hücuma çık", attack: 9, control: -2, defence: -7, fatigue: 1.3, risk: 10, tags: ["attack"] }
+    ]
+  };
+
+  const DECISION_FAMILIES = [
+    {
+      id: "momentum-against",
+      title: "Momentum Rakibe Geçti",
+      score: c => c.humanMomentum < -22 ? 70 + Math.abs(c.humanMomentum) : 0,
+      prompt: c => `${c.minute}. dakikada rakip oyunun merkezini ele geçirdi. ${c.scoreText} Saha hâkimiyetini nasıl geri almaya çalışacaksın?`,
+      options: [
+        option("control-reset", "Topa sahip olarak ritmi kır", "Pas hızını düşür ve rakibin baskı serisini kes.", { momentum: 12, control: 10, attack: -2, defence: 2, fatigue: -1, duration: 13 }, ["control"]),
+        option("press-shock", "Kısa süreli yüksek pres uygula", "Topu rakip yarı alanda geri kazanmayı dene.", { momentum: 15, control: 5, attack: 6, defence: -6, fatigue: -6, duration: 10 }, ["press"]),
+        option("counter-trap", "Rakibi üzerine çekip kontraya çık", "Kontrolü bırak ama açık alanı hedefle.", { momentum: 8, control: -7, attack: 11, defence: 3, fatigue: -2, duration: 14 }, ["counter"]),
+        option("hold-shape", "Dizilişi bozma", "Panik yapmadan savunma bütünlüğünü koru.", { momentum: 5, control: 1, attack: -3, defence: 9, fatigue: 1, duration: 12 }, ["protect"])
+      ]
+    },
+    {
+      id: "trailing",
+      title: "Skoru Çevirme Zamanı",
+      score: c => c.humanGoals < c.aiGoals && c.minute >= 43 ? 85 + c.minute / 2 : 0,
+      prompt: c => `${c.minute}. dakika, ${c.scoreText}. Rakip skoru korumaya hazırlanıyor. Hangi risk profilini seçiyorsun?`,
+      options: [
+        option("wide-overload", "Bir kanatta sayısal üstünlük kur", "Savunmayı yana çekip ters koridoru aç.", { momentum: 10, attack: 10, control: 2, defence: -4, fatigue: -4, duration: 15 }, ["wide", "attack"]),
+        option("central-surge", "Merkezde dikine oyna", "Daha az pasla ceza sahasına yaklaş.", { momentum: 8, attack: 12, control: -2, defence: -5, fatigue: -3, duration: 12 }, ["central", "direct"]),
+        option("sustained-pressure", "Baskıyı kademeli artır", "Kontrolü kaybetmeden rakibi geriye it.", { momentum: 12, attack: 7, control: 7, defence: -2, fatigue: -5, duration: 18 }, ["control", "press"]),
+        option("all-in", "Tam risk al", "Maçı eşitlemek için bütün hatları öne çıkar.", { momentum: 16, attack: 16, control: -5, defence: -12, fatigue: -8, duration: 11 }, ["attack", "tempo"])
+      ]
+    },
+    {
+      id: "leading-late",
+      title: "Üstünlüğü Yönet",
+      score: c => c.humanGoals > c.aiGoals && c.minute >= 66 ? 95 + c.minute : 0,
+      prompt: c => `${c.minute}. dakikada öndesin. Rakip risk seviyesini artırıyor. Maçın son bölümünü nasıl yöneteceksin?`,
+      options: [
+        option("protect-box", "Ceza sahası çevresini kapat", "Merkezi daralt ve rakibi düşük kaliteli şutlara zorla.", { momentum: -2, attack: -7, control: 1, defence: 14, fatigue: -1, duration: 20 }, ["protect"]),
+        option("keep-ball", "Topu sakla", "Rakibin hücum süresini azalt.", { momentum: 8, attack: -2, control: 13, defence: 4, fatigue: -2, duration: 17 }, ["control"]),
+        option("second-goal", "İkinci golü ara", "Rakip açılırken boşlukları değerlendir.", { momentum: 11, attack: 12, control: -2, defence: -7, fatigue: -5, duration: 13 }, ["counter", "attack"]),
+        option("mid-block", "Orta blokta dengede kal", "Ne tamamen çekil ne de kontrolsüz öne çık.", { momentum: 4, attack: 1, control: 5, defence: 8, fatigue: 0, duration: 18 }, ["balance"])
+      ]
+    },
+    {
+      id: "fatigue",
+      title: "Kondisyon Alarmı",
+      score: c => c.humanFatigue < 67 && c.minute > 45 ? 90 + (67 - c.humanFatigue) * 3 : 0,
+      prompt: c => `Takımın fizik seviyesi %${Math.round(c.humanFatigue)}'e düştü. Mevcut plan aynı yoğunlukta sürdürülemeyebilir.`,
+      options: [
+        option("lower-tempo", "Tempoyu düşür", "Enerjiyi son bölüme sakla.", { momentum: -3, attack: -4, control: 9, defence: 4, fatigue: 6, duration: 16 }, ["control"]),
+        option("compact", "Hatları birbirine yaklaştır", "Koşu mesafesini azalt ve merkezi kapat.", { momentum: 1, attack: -5, control: 5, defence: 11, fatigue: 4, duration: 17 }, ["protect"]),
+        option("one-final-push", "Kısa bir son baskı yap", "Kondisyon bitmeden maçı değiştirmeye çalış.", { momentum: 14, attack: 13, control: 2, defence: -8, fatigue: -10, duration: 9 }, ["press", "attack"]),
+        option("counter-only", "Sadece geçiş anlarını kullan", "Koşu sayısını azalt, fırsat kalitesini yükselt.", { momentum: 5, attack: 8, control: -5, defence: 6, fatigue: 2, duration: 15 }, ["counter"])
+      ]
+    },
+    {
+      id: "opponent-high-press",
+      title: "Rakip Çıkışı Kilitledi",
+      score: c => c.aiStyle.pressing > 63 && c.minute < 68 ? 70 + c.aiStyle.pressing : 0,
+      prompt: c => `Rakip önde ve yoğun basıyor. İlk pas hattında kayıplar artmaya başladı. Baskıyı nasıl aşacaksın?`,
+      options: [
+        option("play-through", "Kısa pasla presin içinden çık", "Teknik kaliteye güven ve merkezi kullan.", { momentum: 10, attack: 7, control: 10, defence: -5, fatigue: -2, duration: 13 }, ["control", "central"]),
+        option("go-long", "Direkt uzun oyna", "İlk baskı hattını tek pasla geç.", { momentum: 5, attack: 10, control: -8, defence: 1, fatigue: 0, duration: 12 }, ["direct"]),
+        option("switch-wide", "Oyunu ters kanada çevir", "Pres yoğunluğunun uzağında alan bul.", { momentum: 9, attack: 8, control: 5, defence: -1, fatigue: -2, duration: 14 }, ["wide"]),
+        option("invite-counter", "Rakibi çekip boşluğa çık", "Daha riskli ama daha büyük alan yaratır.", { momentum: 8, attack: 12, control: -6, defence: -4, fatigue: -3, duration: 11 }, ["counter"])
+      ]
+    },
+    {
+      id: "wide-threat",
+      title: "Kanat Koridoru Tehdit Altında",
+      score: c => c.aiStyle.width > 62 && c.aiThreat > 45 ? 72 + c.aiStyle.width : 0,
+      prompt: c => `Rakip genişliği iyi kullanıyor ve ${c.dangerSide} koridorunda tekrar tekrar üstünlük kuruyor.`,
+      options: [
+        option("double-wide", "Kanatta ikili sıkıştırma yap", "Çizgiyi kapat ama merkezde alan bırakabilirsin.", { momentum: 7, attack: -3, control: 1, defence: 12, fatigue: -4, duration: 15 }, ["wide", "protect"]),
+        option("narrow-box", "Ceza sahasını dar savun", "Ortaya izin ver ama içeride sayıyı artır.", { momentum: 2, attack: -4, control: 3, defence: 11, fatigue: -1, duration: 17 }, ["protect", "central"]),
+        option("attack-the-space", "Boşalan kanada kontratak yap", "Rakibin ileri çıkan oyuncularını geriye koştur.", { momentum: 11, attack: 12, control: -5, defence: -4, fatigue: -3, duration: 13 }, ["counter", "wide"]),
+        option("press-source", "Topu kanada taşıyan oyuncuya pres yap", "Servis kanalını daha başlamadan kes.", { momentum: 10, attack: 3, control: 6, defence: 5, fatigue: -6, duration: 11 }, ["press"])
+      ]
+    },
+    {
+      id: "central-threat",
+      title: "Merkezde Sayısal Eksiklik",
+      score: c => c.aiStyle.width < 42 && c.aiThreat > 42 ? 70 + (42 - c.aiStyle.width) * 2 : 0,
+      prompt: c => `Rakip merkezde kısa kombinasyonlarla savunma çizgine yaklaşıyor. İkinci toplar da rakipte kalıyor.`,
+      options: [
+        option("screen-center", "Merkez önüne koruma koy", "Dikine pas kanalını kapat.", { momentum: 4, attack: -4, control: 5, defence: 13, fatigue: -2, duration: 16 }, ["central", "protect"]),
+        option("press-midfield", "Orta sahada agresif bas", "Pas bağlantılarını daha erken boz.", { momentum: 11, attack: 4, control: 8, defence: 2, fatigue: -6, duration: 12 }, ["press", "central"]),
+        option("force-wide", "Rakibi çizgiye yönlendir", "Merkezi kapat, ortaları savunmayı kabul et.", { momentum: 5, attack: 0, control: 4, defence: 9, fatigue: -1, duration: 15 }, ["wide", "protect"]),
+        option("quick-outlet", "Top kazanıldığında hızlı çık", "Merkezdeki kalabalığı ters yönde cezalandır.", { momentum: 10, attack: 11, control: -4, defence: -2, fatigue: -2, duration: 12 }, ["counter"])
+      ]
+    },
+    {
+      id: "deadlock",
+      title: "Maç Kilitlendi",
+      score: c => c.humanGoals === c.aiGoals && c.minute >= 54 && Math.abs(c.humanMomentum) < 25 ? 75 + c.minute : 0,
+      prompt: c => `${c.minute}. dakika, skor dengede ve iki takım da net üstünlük kuramıyor. Kilidi hangi yöntemle açacaksın?`,
+      options: [
+        option("increase-width", "Sahayı daha geniş kullan", "Savunma blokları arasındaki mesafeyi artır.", { momentum: 7, attack: 8, control: 2, defence: -2, fatigue: -2, duration: 15 }, ["wide"]),
+        option("tempo-burst", "Tempolu beş dakikalık bölüm oyna", "Rakibin yerleşmeden karar vermesini zorla.", { momentum: 12, attack: 10, control: 1, defence: -4, fatigue: -6, duration: 9 }, ["tempo"]),
+        option("patient-probe", "Sabırlı biçimde zayıf noktayı ara", "Risk almadan pozisyon kalitesini artır.", { momentum: 5, attack: 3, control: 12, defence: 3, fatigue: -1, duration: 18 }, ["patient", "control"]),
+        option("direct-challenge", "Direkt oyuna dön", "İkinci topları ve fizik mücadeleyi hedefle.", { momentum: 8, attack: 11, control: -7, defence: -2, fatigue: -2, duration: 12 }, ["direct"])
+      ]
+    },
+    {
+      id: "strength-underdog",
+      title: "Güç Farkını Yönet",
+      score: c => c.teamOverallDiff <= -4 && c.minute < 55 ? 80 + Math.abs(c.teamOverallDiff) * 4 : 0,
+      prompt: c => `Kurada çıkan rakip takım kâğıt üzerinde ${Math.abs(c.teamOverallDiff)} puan daha güçlü. Maçı hangi zemine çekmek istiyorsun?`,
+      options: [
+        option("slow-game", "Oyunu yavaşlat", "Maçın olay sayısını ve açık alanı azalt.", { momentum: 3, attack: -5, control: 8, defence: 9, fatigue: 2, duration: 20 }, ["control", "protect"]),
+        option("chaos", "Maçı kaosa çevir", "Kalite farkını yüksek varyansla dengele.", { momentum: 10, attack: 13, control: -10, defence: -8, fatigue: -5, duration: 14 }, ["tempo", "attack"]),
+        option("counter-focus", "Savunma ve kontratak", "Rakibin ileri çıkmasını bekle.", { momentum: 5, attack: 9, control: -5, defence: 10, fatigue: 0, duration: 18 }, ["counter", "protect"]),
+        option("press-weak-link", "Rakibin zayıf birimini hedefle", "Takımın en güçlü yönünü tek bölgeye yükle.", { momentum: 9, attack: 9, control: 4, defence: -2, fatigue: -4, duration: 15 }, ["press"])
+      ]
+    },
+    {
+      id: "strength-favorite",
+      title: "Favori Baskısı",
+      score: c => c.teamOverallDiff >= 4 && c.minute > 24 && c.humanGoals <= c.aiGoals ? 78 + c.teamOverallDiff * 3 : 0,
+      prompt: c => `Takım kaliten daha yüksek fakat skor üstünlüğü gelmedi. Sabırsızlaşmadan avantajı nasıl kullanacaksın?`,
+      options: [
+        option("sustain-control", "Kontrolü sürdür", "Kalite farkının zamanla sonuç üretmesini bekle.", { momentum: 7, attack: 5, control: 12, defence: 3, fatigue: -2, duration: 18 }, ["control", "patient"]),
+        option("increase-risk", "Risk seviyesini yükselt", "Daha çok oyuncuyu son bölgeye gönder.", { momentum: 11, attack: 13, control: -2, defence: -8, fatigue: -5, duration: 13 }, ["attack"]),
+        option("target-weak-unit", "Rakibin zayıf hattını tekrar tekrar hedefle", "Tek yönlü ama yoğun baskı kur.", { momentum: 9, attack: 11, control: 2, defence: -3, fatigue: -3, duration: 15 }, ["direct"]),
+        option("counterpress", "Top kaybında karşı pres", "Rakibin nefes almasını engelle.", { momentum: 12, attack: 8, control: 8, defence: -4, fatigue: -7, duration: 12 }, ["press"])
+      ]
+    },
+    {
+      id: "momentum-with",
+      title: "Rakip Sallanıyor",
+      score: c => c.humanMomentum > 28 && c.minute > 20 ? 60 + c.humanMomentum : 0,
+      prompt: c => `Momentum belirgin biçimde sende. Rakip savunma yerleşimini kaybetmeye başladı. Bu dalgayı nasıl kullanacaksın?`,
+      options: [
+        option("finish-now", "Baskıyı artır ve golü şimdi ara", "Kısa süreli maksimum hücum yoğunluğu.", { momentum: 13, attack: 14, control: -2, defence: -8, fatigue: -6, duration: 10 }, ["attack", "tempo"]),
+        option("pin-back", "Rakibi kendi sahasına sabitle", "Kontrolü ve ikinci topları koru.", { momentum: 10, attack: 8, control: 10, defence: 1, fatigue: -4, duration: 16 }, ["press", "control"]),
+        option("change-side", "Hücum yönünü değiştir", "Rakibin yoğunlaştığı bölgenin tersini kullan.", { momentum: 8, attack: 9, control: 4, defence: -1, fatigue: -2, duration: 13 }, ["wide"]),
+        option("manage-energy", "Dalgayı kontrollü sürdür", "Momentum sende kalırken kondisyonu koru.", { momentum: 7, attack: 5, control: 8, defence: 3, fatigue: 2, duration: 15 }, ["control"])
+      ]
+    },
+    {
+      id: "final-ten",
+      title: "Son On Dakika",
+      score: c => c.minute >= 80 ? 150 + c.minute : 0,
+      prompt: c => `${c.minute}. dakika, ${c.scoreText}. Artık her kararın maç sonucuna doğrudan etkisi var. Son planın nedir?`,
+      options: [
+        option("protect-result", "Mevcut sonucu koru", "Risk ve alanı minimuma indir.", { momentum: -2, attack: -9, control: 5, defence: 16, fatigue: 1, duration: 12 }, ["protect"]),
+        option("balanced-finish", "Dengeli kal", "Rakibin hamlesine göre tepki ver.", { momentum: 4, attack: 3, control: 5, defence: 5, fatigue: -1, duration: 12 }, ["balance"]),
+        option("late-winner", "Galibiyet golünü ara", "Son bölümde hücum sayısını artır.", { momentum: 12, attack: 15, control: -3, defence: -10, fatigue: -8, duration: 12 }, ["attack"]),
+        option("counter-last", "Rakibin son riskini kontrayla cezalandır", "Topu bırak ama en büyük boşluğu hedefle.", { momentum: 8, attack: 13, control: -7, defence: 5, fatigue: -3, duration: 12 }, ["counter"])
+      ]
+    },
+    {
+      id: "after-concede",
+      title: "Golün Ardından",
+      score: c => c.lastAgainstGoalAgo <= 4 ? 180 : 0,
+      prompt: c => `Golü yeni yedin. Rakip enerji kazandı ve oyun yeniden başladı. İlk tepkin ne olacak?`,
+      options: [
+        option("instant-response", "Hemen cevap vermeye çalış", "Başlama vuruşuyla öne yüklen.", { momentum: 15, attack: 13, control: -3, defence: -8, fatigue: -5, duration: 9 }, ["attack", "tempo"]),
+        option("reset-emotion", "Önce oyunu sakinleştir", "İkinci bir darbe yemeden dengeyi kur.", { momentum: 8, attack: -2, control: 11, defence: 7, fatigue: 1, duration: 13 }, ["control"]),
+        option("change-route", "Hücum yönünü değiştir", "Rakibin son savunma alışkanlığını boz.", { momentum: 9, attack: 9, control: 3, defence: -2, fatigue: -2, duration: 12 }, ["wide"]),
+        option("press-kickoff", "Başlangıçta pres tuzağı kur", "Rakibin rahat çıkmasını engelle.", { momentum: 13, attack: 8, control: 7, defence: -4, fatigue: -6, duration: 8 }, ["press"])
+      ]
+    },
+    {
+      id: "after-score",
+      title: "Gol Sonrası Kontrol",
+      score: c => c.lastHumanGoalAgo <= 4 ? 170 : 0,
+      prompt: c => `Golü buldun. Rakibin ilk tepkisi agresif olabilir. Bir sonraki beş dakikayı nasıl oynayacaksın?`,
+      options: [
+        option("hunt-second", "İkinci golü hemen ara", "Rakip dağınıkken baskıyı sürdür.", { momentum: 14, attack: 13, control: 0, defence: -7, fatigue: -5, duration: 9 }, ["attack"]),
+        option("cool-match", "Maçı soğut", "Rakibin duygusal tepkisini boşa çıkar.", { momentum: 8, attack: -4, control: 13, defence: 6, fatigue: 2, duration: 13 }, ["control"]),
+        option("mid-block", "Orta blokta karşıla", "Rakibin öne çıkmasını bekle.", { momentum: 6, attack: 5, control: 0, defence: 9, fatigue: 0, duration: 14 }, ["counter", "protect"]),
+        option("same-plan", "Planı değiştirme", "İşe yarayan düzeni koru.", { momentum: 6, attack: 5, control: 5, defence: 4, fatigue: -1, duration: 12 }, ["balance"])
+      ]
+    },
+    {
+      id: "control-loss",
+      title: "Orta Saha Kontrolü Kayboluyor",
+      score: c => c.aiPossession > 58 && c.minute > 25 ? 74 + c.aiPossession : 0,
+      prompt: c => `Rakip topa sahip olma oranını %${Math.round(c.aiPossession)} seviyesine çıkardı. Maç senin istediğin ritimden uzaklaşıyor.`,
+      options: [
+        option("extra-control", "Pas güvenliğini artır", "Top kayıplarını azalt ve ritmi geri al.", { momentum: 8, attack: -1, control: 13, defence: 4, fatigue: -1, duration: 16 }, ["control"]),
+        option("press-mid", "Orta sahada baskıyı artır", "Rakibin rahat pas serisini kes.", { momentum: 12, attack: 4, control: 8, defence: 1, fatigue: -6, duration: 12 }, ["press"]),
+        option("direct-bypass", "Orta sahayı hızlı geç", "Topa daha az sahip ol ama daha dikine oyna.", { momentum: 7, attack: 11, control: -8, defence: -1, fatigue: -2, duration: 13 }, ["direct"]),
+        option("deep-counter", "Kontrolü bırak, alanı savun", "Rakibin pas üstünlüğünü tehlikesiz bölgelerde kabul et.", { momentum: 2, attack: 7, control: -8, defence: 11, fatigue: 2, duration: 16 }, ["counter", "protect"])
+      ]
+    },
+    {
+      id: "generic-read",
+      title: "Taktik Okuma Anı",
+      score: c => 35 + c.minute / 3,
+      prompt: c => `${c.minute}. dakikada maç yeni bir dengeye oturdu. Rakibin gerçek oyun tarzı hâlâ tam çözülmüş değil. Hangi sinyali test edeceksin?`,
+      options: [
+        option("test-press", "Pres altında nasıl çıktığını test et", "Kısa süreli ön alan baskısı uygula.", { momentum: 8, attack: 5, control: 5, defence: -3, fatigue: -4, duration: 10 }, ["press"]),
+        option("test-width", "Savunma genişliğini test et", "Oyunu hızlıca iki kanada taşı.", { momentum: 6, attack: 7, control: 3, defence: -1, fatigue: -2, duration: 11 }, ["wide"]),
+        option("test-center", "Merkez direncini test et", "Dar alanda dikine pas kombinasyonu dene.", { momentum: 6, attack: 8, control: 5, defence: -2, fatigue: -2, duration: 11 }, ["central"]),
+        option("observe", "Düzeni koruyup gözlemle", "Rakibin bir sonraki hamlesini gör.", { momentum: 3, attack: 0, control: 7, defence: 5, fatigue: 2, duration: 12 }, ["control"])
+      ]
+    }
+  ];
+
+  function option(id, label, note, effects, tags) {
+    return { id, label, note, effects, tags };
+  }
+
+  function hashString(value) {
+    let hash = 2166136261;
+    for (let index = 0; index < String(value).length; index += 1) {
+      hash ^= String(value).charCodeAt(index);
+      hash = Math.imul(hash, 16777619);
+    }
+    return hash >>> 0;
+  }
+
+  function random(engine) {
+    let t = engine.rngState += 0x6D2B79F5;
+    t = Math.imul(t ^ t >>> 15, t | 1);
+    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  }
+
+  function randomRange(engine, min, max) {
+    return min + (max - min) * random(engine);
+  }
+
+  function normal(engine) {
+    const u = Math.max(1e-9, random(engine));
+    const v = Math.max(1e-9, random(engine));
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+
+  function selectedPlan(formData) {
+    const plan = {};
+    Object.keys(PLAN_GROUPS).forEach(group => {
+      const id = String(formData.get(group) || "");
+      plan[group] = PLAN_GROUPS[group].find(item => item.id === id)?.id || PLAN_GROUPS[group][0].id;
+    });
+    return plan;
+  }
+
+  function planItem(group, id) {
+    return PLAN_GROUPS[group].find(item => item.id === id) || PLAN_GROUPS[group][0];
+  }
+
+  function aggregatePlan(plan) {
+    const aggregate = { attack: 0, control: 0, defence: 0, fatigue: 1, risk: 0, tags: [] };
+    Object.entries(plan || {}).forEach(([group, id]) => {
+      const item = planItem(group, id);
+      aggregate.attack += item.attack || 0;
+      aggregate.control += item.control || 0;
+      aggregate.defence += item.defence || 0;
+      aggregate.risk += item.risk || 0;
+      aggregate.fatigue *= item.fatigue || 1;
+      aggregate.tags.push(...(item.tags || []));
+    });
+    return aggregate;
+  }
+
+  function aiPlanFromStyle(style = {}) {
+    return {
+      mentality: Number(style.risk || 50) > 66 ? "aggressive" : Number(style.risk || 50) < 37 ? "counter" : Number(style.control || 50) > 62 ? "possession" : "balanced",
+      pressing: Number(style.pressing || 50) > 68 ? "high" : Number(style.pressing || 50) > 55 ? "counterpress" : Number(style.pressing || 50) < 35 ? "low" : "mid",
+      buildUp: Number(style.directness || 50) > 65 ? "direct" : Number(style.width || 50) > 62 ? "wings" : Number(style.width || 50) < 40 ? "central" : Number(style.tempo || 50) > 64 ? "transition" : "patient",
+      tempo: Number(style.tempo || 50) > 66 ? "high" : Number(style.tempo || 50) < 38 ? "low" : "normal",
+      risk: Number(style.risk || 50) > 68 ? "bold" : Number(style.risk || 50) < 38 ? "safe" : "measured"
+    };
+  }
+
+  function matchTeam(fixture, actorId) {
+    return room()?.getTeamForActor?.(fixture, actorId) || null;
+  }
+
+  function actor(career, id) {
+    return room()?.getActor?.(career, id) || career.actors.find(item => item.id === id);
+  }
+
+  function getSides(career, fixture) {
+    const homeActor = actor(career, fixture.homeId);
+    const awayActor = actor(career, fixture.awayId);
+    const humanIsHome = fixture.homeId === career.humanActorId;
+    return {
+      homeActor,
+      awayActor,
+      humanActor: humanIsHome ? homeActor : awayActor,
+      aiActor: humanIsHome ? awayActor : homeActor,
+      humanIsHome,
+      homeTeam: matchTeam(fixture, fixture.homeId),
+      awayTeam: matchTeam(fixture, fixture.awayId),
+      humanTeam: matchTeam(fixture, career.humanActorId),
+      aiTeam: matchTeam(fixture, humanIsHome ? fixture.awayId : fixture.homeId)
+    };
+  }
+
+  function effectiveBase(team, actorRow, planAggregate) {
+    const powerFactor = clamp((Number(actorRow?.power || 1000) - 1000) / 55, -5, 16);
+    return {
+      attack: Number(team?.attack || 75) + powerFactor + planAggregate.attack,
+      control: Number(team?.midfield || 75) + powerFactor * 0.85 + planAggregate.control,
+      defence: Number(team?.defence || 75) + powerFactor * 0.8 + planAggregate.defence,
+      risk: clamp(50 + planAggregate.risk, 20, 85),
+      fatigueRate: clamp(planAggregate.fatigue, 0.55, 2.4),
+      chanceCreation: Number(team?.attributes?.chanceCreation || team?.attack || 75),
+      pressResistance: Number(team?.attributes?.pressResistance || team?.midfield || 75),
+      counterThreat: Number(team?.attributes?.counterThreat || team?.attack || 75),
+      defensiveShape: Number(team?.attributes?.defensiveShape || team?.defence || 75),
+      tempo: Number(team?.attributes?.tempo || 70),
+      variance: Number(team?.attributes?.variance || 30)
+    };
+  }
+
+  function initializeMatch(career, fixture, plan) {
+    const sides = getSides(career, fixture);
+    if (!sides.homeTeam || !sides.awayTeam) throw new Error("Maç başlamadan önce takım kurası tamamlanmalıdır.");
+    const aiStyle = sides.aiActor.styleSeed || {};
+    const aiPlan = aiPlanFromStyle(aiStyle);
+    const seed = hashString(`${fixture.id}|${fixture.teamDraw?.id || "draw"}|${Date.now()}`);
+    fixture.status = "in-progress";
+    fixture.matchPlan = plan;
+    fixture.decisions = [];
+    fixture.matchEngine = {
+      version: VERSION,
+      status: "live",
+      seed,
+      rngState: seed,
+      startedAt: now(),
+      finishedAt: null,
+      minute: 0,
+      scoreHome: 0,
+      scoreAway: 0,
+      zone: 0,
+      momentum: 0,
+      possessionHome: 50,
+      homeFatigue: 100,
+      awayFatigue: 100,
+      homeThreat: 0,
+      awayThreat: 0,
+      homeModifiers: [],
+      awayModifiers: [],
+      userPlan: plan,
+      aiPlan,
+      aiStyle,
+      aiAdaptations: 0,
+      nextDecisionMinute: 14 + Math.floor((seed % 8)),
+      decisionCooldownUntil: 0,
+      decisionCount: 0,
+      currentDecision: null,
+      lastGoal: null,
+      lastChanceSide: null,
+      events: [{ minute: 0, type: "kickoff", side: "neutral", text: "Hakem düdüğü çaldı. Taktik planlar sahada." }],
+      stats: {
+        home: { shots: 0, onTarget: 0, xg: 0, attacks: 0, dangerous: 0, possession: 50 },
+        away: { shots: 0, onTarget: 0, xg: 0, attacks: 0, dangerous: 0, possession: 50 }
+      },
+      report: null
+    };
+    career.activeMatchFixtureId = fixture.id;
+    career.status = "match-live";
+    room()?.saveLocal?.();
+    return fixture.matchEngine;
+  }
+
+  function modifierTotals(modifiers, minute) {
+    const active = (modifiers || []).filter(item => item.until > minute);
+    const totals = { attack: 0, control: 0, defence: 0, risk: 0 };
+    active.forEach(item => {
+      totals.attack += Number(item.attack || 0);
+      totals.control += Number(item.control || 0);
+      totals.defence += Number(item.defence || 0);
+      totals.risk += Number(item.risk || 0);
+    });
+    return { active, totals };
+  }
+
+  function sideMetrics(career, fixture, side) {
+    const engine = fixture.matchEngine;
+    const sides = getSides(career, fixture);
+    const isHome = side === "home";
+    const actorRow = isHome ? sides.homeActor : sides.awayActor;
+    const team = isHome ? sides.homeTeam : sides.awayTeam;
+    const isHuman = actorRow.id === career.humanActorId;
+    const plan = isHuman ? engine.userPlan : engine.aiPlan;
+    const aggregate = aggregatePlan(plan);
+    const base = effectiveBase(team, actorRow, aggregate);
+    const fatigue = isHome ? engine.homeFatigue : engine.awayFatigue;
+    const modsKey = isHome ? "homeModifiers" : "awayModifiers";
+    const { active, totals } = modifierTotals(engine[modsKey], engine.minute);
+    engine[modsKey] = active;
+    const fatiguePenalty = Math.max(0, 75 - fatigue) * 0.22;
+    const sideMomentum = isHome ? engine.momentum : -engine.momentum;
+    return {
+      ...base,
+      attack: base.attack + totals.attack + sideMomentum * 0.06 - fatiguePenalty,
+      control: base.control + totals.control + sideMomentum * 0.05 - fatiguePenalty * 0.75,
+      defence: base.defence + totals.defence + sideMomentum * 0.03 - fatiguePenalty * 0.8,
+      risk: clamp(base.risk + totals.risk, 15, 95),
+      fatigue,
+      team,
+      actor: actorRow,
+      isHuman,
+      plan
+    };
+  }
+
+  function addEvent(engine, event) {
+    engine.events.unshift({ minute: Math.max(0, Math.round(engine.minute)), ...event });
+    engine.events = engine.events.slice(0, MAX_EVENTS);
+  }
+
+  function setMomentum(engine, delta) {
+    engine.momentum = clamp(engine.momentum + delta, -100, 100);
+  }
+
+  function createChance(career, fixture, attackingSide) {
+    const engine = fixture.matchEngine;
+    const defendingSide = attackingSide === "home" ? "away" : "home";
+    const attack = sideMetrics(career, fixture, attackingSide);
+    const defence = sideMetrics(career, fixture, defendingSide);
+    const stats = engine.stats[attackingSide];
+    const momentum = attackingSide === "home" ? engine.momentum : -engine.momentum;
+    const rawXg = 0.075
+      + (attack.attack - defence.defence) / 210
+      + (attack.chanceCreation - 75) / 420
+      + attack.risk / 900
+      + momentum / 1300
+      + randomRange(engine, -0.035, 0.12);
+    const xg = clamp(rawXg, 0.035, 0.48);
+    const bigChance = xg >= 0.28;
+    stats.shots += 1;
+    stats.xg = round1(stats.xg + xg);
+    stats.dangerous += bigChance ? 1 : 0;
+    engine.lastChanceSide = attackingSide;
+    const onTargetChance = clamp(0.34 + xg * 0.8 + (attack.attack - 75) / 220, 0.26, 0.78);
+    const onTarget = random(engine) < onTargetChance;
+    if (onTarget) stats.onTarget += 1;
+    const finishFactor = clamp(0.72 + (attack.attack - defence.defence) / 180 + randomRange(engine, -0.08, 0.08), 0.48, 1.08);
+    const goal = onTarget && random(engine) < xg * finishFactor;
+    const attackingActor = attack.actor;
+    if (goal) {
+      if (attackingSide === "home") engine.scoreHome += 1;
+      else engine.scoreAway += 1;
+      engine.lastGoal = { side: attackingSide, minute: engine.minute };
+      setMomentum(engine, attackingSide === "home" ? 22 : -22);
+      engine.zone = attackingSide === "home" ? 0.25 : -0.25;
+      addEvent(engine, { type: "goal", side: attackingSide, text: `GOL! ${attackingActor.clubName} baskıyı skora çevirdi.` });
+      return;
+    }
+    const narratives = bigChance
+      ? ["Net fırsat! Son vuruş kaleyi bulmadı.", "Savunma son anda araya girdi.", "Kaleci büyük bir kurtarış yaptı."]
+      : onTarget
+        ? ["Şut kalecide kaldı.", "Kaleci kontrollü biçimde kurtardı.", "Zor açıdan gelen şut çıkarıldı."]
+        : ["Şut savunmadan döndü.", "Son pasın şiddeti ayarlanamadı.", "Atak tehlikeli bölgeye ulaşsa da sonuç çıkmadı."];
+    addEvent(engine, { type: bigChance ? "big-chance" : "chance", side: attackingSide, text: narratives[Math.floor(random(engine) * narratives.length)] });
+    setMomentum(engine, attackingSide === "home" ? (bigChance ? 7 : 3) : (bigChance ? -7 : -3));
+    engine.zone = attackingSide === "home" ? -0.15 : 0.15;
+  }
+
+  function maybeAiAdapt(career, fixture) {
+    const engine = fixture.matchEngine;
+    if (engine.aiAdaptations >= 3) return;
+    const sides = getSides(career, fixture);
+    const humanGoals = sides.humanIsHome ? engine.scoreHome : engine.scoreAway;
+    const aiGoals = sides.humanIsHome ? engine.scoreAway : engine.scoreHome;
+    const style = engine.aiStyle || {};
+    const adaptation = Number(style.adaptation || 50);
+    const thresholds = [32, 58, 76];
+    if (engine.minute < thresholds[engine.aiAdaptations]) return;
+    if (random(engine) > 0.35 + adaptation / 160) return;
+    const plan = { ...engine.aiPlan };
+    if (aiGoals < humanGoals) {
+      plan.mentality = Number(style.risk || 50) > 55 ? "aggressive" : "balanced";
+      plan.tempo = "high";
+      plan.risk = engine.minute > 72 ? "bold" : "measured";
+      plan.buildUp = Number(style.directness || 50) > 52 ? "direct" : "transition";
+    } else if (aiGoals > humanGoals) {
+      plan.mentality = Number(style.control || 50) > 55 ? "controlled" : "counter";
+      plan.pressing = Number(style.pressing || 50) > 65 ? "counterpress" : "mid";
+      plan.risk = "safe";
+    } else {
+      plan.buildUp = Number(style.width || 50) > 55 ? "wings" : "central";
+      plan.tempo = Number(style.tempo || 50) > 55 ? "high" : "normal";
+    }
+    engine.aiPlan = plan;
+    engine.aiAdaptations += 1;
+    addEvent(engine, { type: "adapt", side: sides.humanIsHome ? "away" : "home", text: "Rakip teknik alanından yeni talimatlar geldi. Oyun davranışı değişiyor." });
+  }
+
+  function contextFor(career, fixture) {
+    const engine = fixture.matchEngine;
+    const sides = getSides(career, fixture);
+    const humanGoals = sides.humanIsHome ? engine.scoreHome : engine.scoreAway;
+    const aiGoals = sides.humanIsHome ? engine.scoreAway : engine.scoreHome;
+    const humanMomentum = sides.humanIsHome ? engine.momentum : -engine.momentum;
+    const humanFatigue = sides.humanIsHome ? engine.homeFatigue : engine.awayFatigue;
+    const aiThreat = sides.humanIsHome ? engine.awayThreat : engine.homeThreat;
+    const aiPossession = sides.humanIsHome ? 100 - engine.possessionHome : engine.possessionHome;
+    const humanOverall = Number(sides.humanTeam?.overall || 75);
+    const aiOverall = Number(sides.aiTeam?.overall || 75);
+    const lastGoal = engine.lastGoal;
+    return {
+      minute: Math.round(engine.minute),
+      humanGoals,
+      aiGoals,
+      scoreText: `${humanGoals}-${aiGoals}`,
+      humanMomentum,
+      humanFatigue,
+      aiThreat,
+      aiPossession,
+      aiStyle: engine.aiStyle || {},
+      teamOverallDiff: humanOverall - aiOverall,
+      lastAgainstGoalAgo: lastGoal && ((sides.humanIsHome && lastGoal.side === "away") || (!sides.humanIsHome && lastGoal.side === "home")) ? engine.minute - lastGoal.minute : 999,
+      lastHumanGoalAgo: lastGoal && ((sides.humanIsHome && lastGoal.side === "home") || (!sides.humanIsHome && lastGoal.side === "away")) ? engine.minute - lastGoal.minute : 999,
+      dangerSide: Number(engine.aiStyle?.width || 50) > 68 ? "sağ" : "sol"
+    };
+  }
+
+  function chooseDecisionFamily(career, fixture) {
+    const engine = fixture.matchEngine;
+    const context = contextFor(career, fixture);
+    const used = new Set((fixture.decisions || []).map(item => item.familyId));
+    const ranked = DECISION_FAMILIES
+      .map(family => ({ family, score: Number(family.score(context) || 0) + randomRange(engine, 0, 18) - (used.has(family.id) ? 38 : 0) }))
+      .sort((a, b) => b.score - a.score);
+    const selected = ranked[0]?.family || DECISION_FAMILIES[DECISION_FAMILIES.length - 1];
+    return { selected, context };
+  }
+
+  function maybeDecision(career, fixture) {
+    const engine = fixture.matchEngine;
+    if (engine.status !== "live" || engine.currentDecision || engine.minute < engine.nextDecisionMinute || engine.minute < engine.decisionCooldownUntil) return false;
+    const remaining = 90 - engine.minute;
+    const mustReachMinimum = engine.decisionCount < MIN_DECISIONS && remaining < (MIN_DECISIONS - engine.decisionCount) * 18;
+    if (!mustReachMinimum && engine.decisionCount >= MAX_DECISIONS) return false;
+    const { selected, context } = chooseDecisionFamily(career, fixture);
+    const decision = {
+      id: `decision-${Date.now()}-${engine.decisionCount + 1}`,
+      familyId: selected.id,
+      title: selected.title,
+      prompt: selected.prompt(context),
+      minute: Math.round(engine.minute),
+      context,
+      options: selected.options,
+      chosenId: null,
+      quality: null,
+      outcome: null
+    };
+    engine.currentDecision = decision;
+    engine.status = "decision";
+    engine.decisionCount += 1;
+    engine.nextDecisionMinute = Math.min(86, engine.minute + 11 + Math.floor(randomRange(engine, 0, 9)));
+    stopTimer();
+    room()?.saveLocal?.();
+    refreshMount(career, fixture);
+    return true;
+  }
+
+  function tick(career, fixture) {
+    const engine = fixture.matchEngine;
+    if (!engine || engine.status !== "live") return;
+    engine.minute = Math.min(90, engine.minute + 1);
+    const home = sideMetrics(career, fixture, "home");
+    const away = sideMetrics(career, fixture, "away");
+
+    const homeFatigueCost = 0.08 * home.fatigueRate + Math.max(0, home.risk - 55) / 1600;
+    const awayFatigueCost = 0.08 * away.fatigueRate + Math.max(0, away.risk - 55) / 1600;
+    engine.homeFatigue = clamp(engine.homeFatigue - homeFatigueCost, 38, 100);
+    engine.awayFatigue = clamp(engine.awayFatigue - awayFatigueCost, 38, 100);
+
+    const controlDelta = (home.control - away.control) / 20 + engine.momentum / 65 + normal(engine) * 0.42;
+    engine.zone = clamp(engine.zone + controlDelta * 0.16 + normal(engine) * 0.24, -2.4, 2.4);
+    const possessionTarget = clamp(50 + (home.control - away.control) * 0.85 + engine.momentum * 0.12, 28, 72);
+    engine.possessionHome = engine.possessionHome * 0.92 + possessionTarget * 0.08;
+    engine.stats.home.possession = Math.round(engine.possessionHome);
+    engine.stats.away.possession = 100 - Math.round(engine.possessionHome);
+
+    const homeThreatTarget = clamp(25 + engine.zone * 22 + Math.max(0, engine.momentum) * 0.35 + home.attack - away.defence, 0, 100);
+    const awayThreatTarget = clamp(25 - engine.zone * 22 + Math.max(0, -engine.momentum) * 0.35 + away.attack - home.defence, 0, 100);
+    engine.homeThreat = engine.homeThreat * 0.78 + homeThreatTarget * 0.22;
+    engine.awayThreat = engine.awayThreat * 0.78 + awayThreatTarget * 0.22;
+    engine.stats.home.attacks += engine.zone > 0.45 ? 1 : 0;
+    engine.stats.away.attacks += engine.zone < -0.45 ? 1 : 0;
+
+    const chanceThreshold = 1.62 - Math.max(home.risk, away.risk) / 500;
+    if (engine.zone >= chanceThreshold) createChance(career, fixture, "home");
+    else if (engine.zone <= -chanceThreshold) createChance(career, fixture, "away");
+    else if (engine.minute % 8 === 0) {
+      const side = controlDelta >= 0 ? "home" : "away";
+      const actorRow = side === "home" ? home.actor : away.actor;
+      const messages = [
+        `${actorRow.clubName} orta sahada pas açısı arıyor.`,
+        `${actorRow.clubName} oyunu rakip yarı alana taşıdı.`,
+        "İki takım da bir sonraki boşluğu bekliyor.",
+        "Tempo kısa süreliğine düştü; taktik mücadele öne çıkıyor."
+      ];
+      addEvent(engine, { type: "flow", side, text: messages[Math.floor(random(engine) * messages.length)] });
+    }
+
+    const naturalMomentumDecay = engine.momentum > 0 ? -0.7 : engine.momentum < 0 ? 0.7 : 0;
+    setMomentum(engine, naturalMomentumDecay + controlDelta * 0.65);
+    maybeAiAdapt(career, fixture);
+
+    if (engine.minute % 5 === 0) room()?.saveLocal?.();
+    if (engine.minute >= 90) {
+      finishMatch(career, fixture);
+      return;
+    }
+    if (!maybeDecision(career, fixture)) refreshMount(career, fixture);
+  }
+
+  function startTimer(career, fixture) {
+    stopTimer();
+    if (!fixture?.matchEngine || fixture.matchEngine.status !== "live") return;
+    runtime.fixtureId = fixture.id;
+    runtime.timer = window.setInterval(() => {
+      const activeCareer = room()?.getActiveCareer?.();
+      const activeFixture = activeCareer?.fixtures?.find(item => item.id === runtime.fixtureId);
+      if (!activeCareer || !activeFixture || activeFixture.matchEngine?.status !== "live") {
+        stopTimer();
+        return;
+      }
+      tick(activeCareer, activeFixture);
+    }, TICK_MS);
+  }
+
+  function stopTimer() {
+    if (runtime.timer) window.clearInterval(runtime.timer);
+    runtime.timer = null;
+    runtime.fixtureId = null;
+  }
+
+  function optionCompatibility(optionRow, context, sides) {
+    const style = context.aiStyle || {};
+    const team = sides.humanTeam || {};
+    const tags = optionRow.tags || [];
+    let score = 0;
+    if (tags.includes("press")) score += (100 - Number(sides.aiTeam?.attributes?.pressResistance || 75)) * 0.14 - Math.max(0, 62 - context.humanFatigue) * 0.35;
+    if (tags.includes("counter")) score += Number(style.risk || 50) * 0.12 + Number(sides.humanTeam?.attributes?.counterThreat || 75) * 0.08;
+    if (tags.includes("control")) score += Number(team.attributes?.control || team.midfield || 75) * 0.08 + (context.humanMomentum < 0 ? 5 : 0);
+    if (tags.includes("wide")) score += (58 - Number(style.width || 50)) * 0.16 + Math.max(0, Number(team.attack || 75) - Number(sides.aiTeam?.defence || 75)) * 0.15;
+    if (tags.includes("central")) score += (Number(style.width || 50) - 48) * 0.13 + Number(team.midfield || 75) * 0.06;
+    if (tags.includes("protect")) score += context.humanGoals > context.aiGoals ? 8 : context.minute > 78 ? 5 : -2;
+    if (tags.includes("attack")) score += context.humanGoals < context.aiGoals ? 9 : context.minute > 78 && context.humanGoals === context.aiGoals ? 6 : 0;
+    if (tags.includes("tempo")) score += Number(team.attributes?.tempo || 70) * 0.06 - Math.max(0, 68 - context.humanFatigue) * 0.22;
+    if (tags.includes("direct")) score += Number(style.pressing || 50) * 0.08;
+    if (tags.includes("patient")) score += Number(team.attributes?.control || team.midfield || 75) * 0.08;
+    return score;
+  }
+
+  function resolveDecision(career, fixture, optionId) {
+    const engine = fixture.matchEngine;
+    const decision = engine.currentDecision;
+    if (!decision) return;
+    const optionRow = decision.options.find(item => item.id === optionId);
+    if (!optionRow) return;
+    const sides = getSides(career, fixture);
+    const context = decision.context;
+    const compatibility = optionCompatibility(optionRow, context, sides);
+    const variance = randomRange(engine, -7, 7);
+    const quality = clamp(52 + compatibility + variance, 22, 94);
+    const qualityFactor = 0.65 + quality / 160;
+    const effects = optionRow.effects;
+    const humanSide = sides.humanIsHome ? "home" : "away";
+    const modifiersKey = sides.humanIsHome ? "homeModifiers" : "awayModifiers";
+    const momentumDelta = Number(effects.momentum || 0) * qualityFactor * (sides.humanIsHome ? 1 : -1);
+    setMomentum(engine, momentumDelta);
+    engine[modifiersKey].push({
+      until: engine.minute + Number(effects.duration || 12),
+      attack: Number(effects.attack || 0) * qualityFactor,
+      control: Number(effects.control || 0) * qualityFactor,
+      defence: Number(effects.defence || 0) * qualityFactor,
+      risk: (optionRow.tags || []).includes("attack") ? 5 : (optionRow.tags || []).includes("protect") ? -5 : 0,
+      source: optionRow.id
+    });
+    const fatigueDelta = Number(effects.fatigue || 0);
+    if (sides.humanIsHome) engine.homeFatigue = clamp(engine.homeFatigue + fatigueDelta, 35, 100);
+    else engine.awayFatigue = clamp(engine.awayFatigue + fatigueDelta, 35, 100);
+    const impact = quality >= 78 ? "Hamle güçlü bir taktik uyum üretti." : quality >= 60 ? "Hamle dengeli bir etki oluşturdu." : quality >= 43 ? "Hamle risk ve faydayı birlikte getirdi." : "Hamle beklenenden daha yüksek risk oluşturdu.";
+    decision.chosenId = optionRow.id;
+    decision.chosenLabel = optionRow.label;
+    decision.quality = Math.round(quality);
+    decision.outcome = impact;
+    decision.resolvedAt = now();
+    fixture.decisions.push({ ...decision, options: undefined });
+    engine.currentDecision = null;
+    engine.status = "live";
+    engine.decisionCooldownUntil = engine.minute + 7;
+    addEvent(engine, { type: "decision", side: humanSide, text: `${optionRow.label}: ${impact}` });
+    room()?.saveLocal?.();
+    refreshMount(career, fixture);
+    window.setTimeout(() => startTimer(career, fixture), 1050);
+  }
+
+  function ensureTableRow(career, division, actorId) {
+    career.tables ||= {};
+    career.tables[division] ||= [];
+    let row = career.tables[division].find(item => item.actorId === actorId);
+    if (!row) {
+      row = { actorId, mp: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0 };
+      career.tables[division].push(row);
+    }
+    return row;
+  }
+
+  function applyTableResult(career, fixture, homeScore, awayScore) {
+    if (fixture.tableApplied) return;
+    const home = ensureTableRow(career, fixture.division, fixture.homeId);
+    const away = ensureTableRow(career, fixture.division, fixture.awayId);
+    home.mp += 1; away.mp += 1;
+    home.gf += homeScore; home.ga += awayScore;
+    away.gf += awayScore; away.ga += homeScore;
+    home.gd = home.gf - home.ga; away.gd = away.gf - away.ga;
+    if (homeScore > awayScore) { home.w += 1; away.l += 1; home.pts += 3; }
+    else if (awayScore > homeScore) { away.w += 1; home.l += 1; away.pts += 3; }
+    else { home.d += 1; away.d += 1; home.pts += 1; away.pts += 1; }
+    fixture.tableApplied = true;
+  }
+
+  function poisson(engine, lambda) {
+    const limit = Math.exp(-lambda);
+    let product = 1;
+    let count = 0;
+    do { count += 1; product *= random(engine); } while (product > limit && count < 10);
+    return count - 1;
+  }
+
+  function drawAiFixtureTeams(fixture, engine) {
+    const catalog = room()?.getTeamCatalog?.();
+    const pool = (catalog?.teams || []).filter(team => team.active !== false && Number(team.stars) === Number(fixture.stars));
+    if (pool.length < 2) return;
+    const first = pool[Math.floor(random(engine) * pool.length)];
+    let second = pool[Math.floor(random(engine) * pool.length)];
+    let guard = 0;
+    while (second.id === first.id && guard < 30) { second = pool[Math.floor(random(engine) * pool.length)]; guard += 1; }
+    fixture.homeTeam = first.id;
+    fixture.awayTeam = second.id;
+    fixture.teamDraw ||= { id: `ai-draw-${fixture.id}`, version: VERSION, stars: fixture.stars, drawnAt: now(), locked: true, method: "seeded-ai-random" };
+  }
+
+  function simulateAiFixture(career, fixture, engine) {
+    drawAiFixtureTeams(fixture, engine);
+    const homeActor = actor(career, fixture.homeId);
+    const awayActor = actor(career, fixture.awayId);
+    const homeTeam = matchTeam(fixture, fixture.homeId);
+    const awayTeam = matchTeam(fixture, fixture.awayId);
+    const homeRating = Number(homeActor.power || 1000) + Number(homeTeam?.overall || 75) * 13 + 36;
+    const awayRating = Number(awayActor.power || 1000) + Number(awayTeam?.overall || 75) * 13;
+    const diff = (homeRating - awayRating) / 400;
+    const homeLambda = clamp(1.28 + diff + randomRange(engine, -0.14, 0.14), 0.35, 3.4);
+    const awayLambda = clamp(1.08 - diff + randomRange(engine, -0.14, 0.14), 0.3, 3.2);
+    const homeScore = poisson(engine, homeLambda);
+    const awayScore = poisson(engine, awayLambda);
+    fixture.homeScore = homeScore;
+    fixture.awayScore = awayScore;
+    fixture.winnerId = homeScore === awayScore ? null : homeScore > awayScore ? fixture.homeId : fixture.awayId;
+    fixture.status = "played";
+    fixture.updatedAt = now();
+    fixture.simulated = true;
+    fixture.stats = { simulation: "manager-v42.2", homeXg: round1(homeLambda), awayXg: round1(awayLambda) };
+    applyTableResult(career, fixture, homeScore, awayScore);
+  }
+
+  function simulateMatchday(career, completedFixture) {
+    const engine = completedFixture.matchEngine;
+    const matchday = completedFixture.matchday;
+    career.fixtures
+      .filter(item => item.id !== completedFixture.id && item.status === "scheduled" && Number(item.matchday) === Number(matchday))
+      .forEach(item => simulateAiFixture(career, item, engine));
+  }
+
+  function reportLines(career, fixture) {
+    const engine = fixture.matchEngine;
+    const sides = getSides(career, fixture);
+    const qualities = (fixture.decisions || []).map(item => Number(item.quality || 50));
+    const avgQuality = qualities.length ? qualities.reduce((sum, value) => sum + value, 0) / qualities.length : 50;
+    const humanStats = sides.humanIsHome ? engine.stats.home : engine.stats.away;
+    const aiStats = sides.humanIsHome ? engine.stats.away : engine.stats.home;
+    const lines = [];
+    if (avgQuality >= 72) lines.push("Maç içi hamlelerin genel olarak takım ve maç bağlamıyla yüksek uyum gösterdi.");
+    else if (avgQuality >= 56) lines.push("Kararların dengeli etki üretti; bazı hamleler ek risk yarattı.");
+    else lines.push("Kararların oyunu değiştirdi ancak yüksek varyans ve kondisyon maliyeti oluşturdu.");
+    if (humanStats.possession >= 56) lines.push("Orta saha kontrolünü uzun bölümlerde elinde tuttun.");
+    else if (humanStats.possession <= 44) lines.push("Top kontrolü rakipteydi; geçiş hücumları ana üretim yolun oldu.");
+    if (humanStats.xg > aiStats.xg + 0.45) lines.push("Pozisyon kalitesi bakımından rakibin üzerinde üretim yaptın.");
+    else if (aiStats.xg > humanStats.xg + 0.45) lines.push("Rakip daha yüksek kaliteli fırsatlar üretti; savunma planı geliştirilmelidir.");
+    if ((sides.humanIsHome ? engine.homeFatigue : engine.awayFatigue) < 58) lines.push("Son bölümde fizik seviyesi kritik eşiğe düştü.");
+    if (engine.aiAdaptations >= 2) lines.push("Rakip maç içinde birden fazla taktik değişiklik yaptı; profilinin adaptasyon seviyesi yüksek olabilir.");
+    return { lines, avgQuality: Math.round(avgQuality) };
+  }
+
+  async function finishMatch(career, fixture) {
+    if (runtime.busy || fixture.matchEngine?.status === "finished") return;
+    runtime.busy = true;
+    stopTimer();
+    const engine = fixture.matchEngine;
+    engine.minute = 90;
+    engine.status = "finished";
+    engine.finishedAt = now();
+    fixture.status = "played";
+    fixture.homeScore = engine.scoreHome;
+    fixture.awayScore = engine.scoreAway;
+    fixture.winnerId = engine.scoreHome === engine.scoreAway ? null : engine.scoreHome > engine.scoreAway ? fixture.homeId : fixture.awayId;
+    fixture.stats = engine.stats;
+    fixture.updatedAt = now();
+    applyTableResult(career, fixture, engine.scoreHome, engine.scoreAway);
+    simulateMatchday(career, fixture);
+
+    const sides = getSides(career, fixture);
+    const humanGoals = sides.humanIsHome ? engine.scoreHome : engine.scoreAway;
+    const aiGoals = sides.humanIsHome ? engine.scoreAway : engine.scoreHome;
+    const result = humanGoals > aiGoals ? 1 : humanGoals === aiGoals ? 0.5 : 0;
+    const humanRating = Number(career.managerElo || 1000) + Number(sides.humanTeam?.overall || 75) * 8;
+    const aiRating = Number(sides.aiActor.power || 1000) + Number(sides.aiTeam?.overall || 75) * 8;
+    const expected = 1 / (1 + Math.pow(10, (aiRating - humanRating) / 400));
+    const eloDelta = Math.round(28 * (result - expected));
+    const analysis = reportLines(career, fixture);
+    const tacticalDelta = Math.round((analysis.avgQuality - 55) / 10);
+    career.managerElo = clamp(Number(career.managerElo || 1000) + eloDelta, 700, 2200);
+    const humanActor = actor(career, career.humanActorId);
+    humanActor.power = career.managerElo;
+    humanActor.powerClass = room()?.powerLabel?.(career.managerElo) || "COMPETITIVE";
+    career.tacticalIQ = clamp(Number(career.tacticalIQ || 50) + tacticalDelta, 20, 99);
+    const basePoints = result === 1 ? 110 : result === 0.5 ? 55 : 24;
+    const tacticalBonus = Math.max(0, Math.round((analysis.avgQuality - 45) * 1.2));
+    career.careerPoints = Number(career.careerPoints || 0) + basePoints + tacticalBonus;
+    career.prestige = clamp(Number(career.prestige || 0) + (result === 1 ? 2 : result === 0.5 ? 1 : 0), 0, 100);
+    const humanFixtures = career.fixtures.filter(item => [item.homeId, item.awayId].includes(career.humanActorId));
+    const playedHuman = humanFixtures.filter(item => item.status === "played");
+    career.completionRate = Math.round(playedHuman.length / Math.max(1, humanFixtures.length) * 100);
+    career.matchEngineStats ||= { matches: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, decisions: 0 };
+    career.matchEngineStats.matches += 1;
+    if (result === 1) career.matchEngineStats.wins += 1;
+    else if (result === 0.5) career.matchEngineStats.draws += 1;
+    else career.matchEngineStats.losses += 1;
+    career.matchEngineStats.goalsFor += humanGoals;
+    career.matchEngineStats.goalsAgainst += aiGoals;
+    career.matchEngineStats.decisions += fixture.decisions.length;
+    career.matchHistory ||= [];
+    career.matchHistory.unshift({
+      fixtureId: fixture.id,
+      playedAt: now(),
+      opponentId: sides.aiActor.id,
+      opponentName: sides.aiActor.managerName,
+      humanTeamId: sides.humanTeam.id,
+      aiTeamId: sides.aiTeam.id,
+      humanGoals,
+      aiGoals,
+      result: result === 1 ? "W" : result === 0.5 ? "D" : "L",
+      eloDelta,
+      tacticalQuality: analysis.avgQuality
+    });
+    engine.report = {
+      humanGoals,
+      aiGoals,
+      result: result === 1 ? "WIN" : result === 0.5 ? "DRAW" : "LOSS",
+      eloDelta,
+      tacticalDelta,
+      tacticalQuality: analysis.avgQuality,
+      careerPointsEarned: basePoints + tacticalBonus,
+      lines: analysis.lines,
+      revealedStyleHint: revealStyleHint(engine.aiStyle)
+    };
+    const next = career.fixtures
+      .filter(item => item.status === "scheduled" && [item.homeId, item.awayId].includes(career.humanActorId))
+      .sort((a, b) => a.matchday - b.matchday)[0];
+    career.matchday = next?.matchday || fixture.matchday + 1;
+    career.status = "match-report";
+    try {
+      await room()?.persistCareer?.(career, { silent: true });
+    } catch (error) {
+      app()?.toast?.(`${error.message} Maç cihazda kaydedildi.`, "warning");
+    }
+    runtime.busy = false;
+    refreshMount(career, fixture);
+  }
+
+  function revealStyleHint(style = {}) {
+    const dimensions = [
+      ["pres yoğunluğu", Number(style.pressing || 50)],
+      ["tempo eğilimi", Number(style.tempo || 50)],
+      ["risk profili", Number(style.risk || 50)],
+      ["adaptasyon", Number(style.adaptation || 50)],
+      ["genişlik kullanımı", Number(style.width || 50)],
+      ["doğrudan oyun", Number(style.directness || 50)]
+    ].sort((a, b) => Math.abs(b[1] - 50) - Math.abs(a[1] - 50));
+    const [name, value] = dimensions[0];
+    return `Yeni scouting notu: Rakibin ${name} seviyesi ${value >= 65 ? "yüksek" : value <= 35 ? "düşük" : "dengeli"} görünüyor.`;
+  }
+
+  function renderPlanSelector(group, selectedId) {
+    const labels = { mentality: "Ana Yaklaşım", pressing: "Pres Yapısı", buildUp: "Hücum Kurulumu", tempo: "Tempo", risk: "Risk Profili" };
+    return `<fieldset class="manager-plan-group"><legend>${labels[group]}</legend><div>${PLAN_GROUPS[group].map((item, index) => `<label class="${item.id === selectedId ? "selected" : ""}"><input type="radio" name="${group}" value="${item.id}" ${item.id === selectedId ? "checked" : ""} required><span><b>${item.label}</b><small>${item.note}</small></span></label>`).join("")}</div></fieldset>`;
+  }
+
+  function renderSetup(career, human, rival, fixture) {
+    const sides = getSides(career, fixture);
+    if (!sides.humanTeam || !sides.aiTeam) {
+      return `<section id="managerMatchMount" class="manager-match-shell"><div class="manager-match-empty"><span>TEAM DRAW REQUIRED</span><h2>Önce iki takımın kurasını tamamla</h2><p>Canlı maç motoru takım OVR/ATK/MID/DEF değerlerini, Manager ELO ve gizli rakip stilini aynı state içinde kullanır.</p><button class="btn btn-gold" data-manager-action="set-tab" data-tab="draw">Team Draw Theatre</button></div></section>`;
+    }
+    const defaults = fixture.matchPlan || { mentality: "balanced", pressing: "mid", buildUp: "patient", tempo: "normal", risk: "measured" };
+    return `<section id="managerMatchMount" class="manager-match-shell">
+      <div class="manager-war-room-head"><div><span>PRE-MATCH WAR ROOM · MATCHDAY ${fixture.matchday}</span><h2>Maç Planını Kur</h2><p>Rakibin Manager gücü görünür; oyun tarzı gizlidir. Seçtiğin yaklaşım takım özellikleriyle birleşir ve maç içinde değişen durumlara göre sınanır.</p></div><div class="manager-match-clock"><strong>≈ 3–5 DK</strong><span>2X LIVE ENGINE</span></div></div>
+      <div class="manager-war-room-versus">
+        ${compactTeamCard(sides.humanTeam, human, "SEN", career.managerElo)}
+        <div class="manager-war-room-core"><span>TACTICAL</span><b>VS</b><small>${room()?.starText?.(fixture.stars) || `${fixture.stars}★`}</small></div>
+        ${compactTeamCard(sides.aiTeam, rival, "RAKİP", rival.power, true)}
+      </div>
+      <form id="managerMatchPlanForm" class="manager-plan-form" data-fixture-id="${esc(fixture.id)}">
+        <div class="manager-plan-grid">
+          ${renderPlanSelector("mentality", defaults.mentality)}
+          ${renderPlanSelector("pressing", defaults.pressing)}
+          ${renderPlanSelector("buildUp", defaults.buildUp)}
+          ${renderPlanSelector("tempo", defaults.tempo)}
+          ${renderPlanSelector("risk", defaults.risk)}
+        </div>
+        <div class="manager-plan-footer"><div><span>RAKİP PROFİLİ</span><strong>GÜÇ ${rival.power} · STİL GİZLİ</strong><small>Rakibin davranışı maç içindeki sinyallerden okunmalıdır.</small></div><button class="btn btn-gold manager-kickoff-btn" type="submit">Maçı Başlat</button></div>
+      </form>
+    </section>`;
+  }
+
+  function compactTeamCard(team, actorRow, label, power, hiddenStyle = false) {
+    return `<article class="manager-war-team ${label === "RAKİP" ? "rival" : "human"}"><header><span>${label}</span><b>${team.stars}★</b></header><div class="manager-war-team-id"><div>${esc(initials(team.clubName, 3))}</div><section><small>${esc(team.country)} · ${esc(team.league)}</small><h3>${esc(team.clubName)}</h3><p>${esc(actorRow.clubName)} · ${esc(actorRow.managerName)}</p></section><strong>${team.overall}</strong></div><footer><span>ATK <b>${team.attack}</b></span><span>MID <b>${team.midfield}</b></span><span>DEF <b>${team.defence}</b></span><span>MANAGER <b>${power}</b></span></footer>${hiddenStyle ? `<div class="manager-hidden-style"><span>PRESS ???</span><span>RISK ???</span><span>ADAPT ???</span></div>` : ""}</article>`;
+  }
+
+  function initials(value, max = 3) {
+    return String(value || "FC").split(/\s+/).filter(Boolean).map(part => part[0]).join("").slice(0, max).toUpperCase();
+  }
+
+  function sideDisplay(career, fixture) {
+    const engine = fixture.matchEngine;
+    const sides = getSides(career, fixture);
+    return {
+      humanGoals: sides.humanIsHome ? engine.scoreHome : engine.scoreAway,
+      aiGoals: sides.humanIsHome ? engine.scoreAway : engine.scoreHome,
+      humanStats: sides.humanIsHome ? engine.stats.home : engine.stats.away,
+      aiStats: sides.humanIsHome ? engine.stats.away : engine.stats.home,
+      humanFatigue: sides.humanIsHome ? engine.homeFatigue : engine.awayFatigue,
+      aiFatigue: sides.humanIsHome ? engine.awayFatigue : engine.homeFatigue,
+      humanThreat: sides.humanIsHome ? engine.homeThreat : engine.awayThreat,
+      aiThreat: sides.humanIsHome ? engine.awayThreat : engine.homeThreat,
+      humanMomentum: sides.humanIsHome ? engine.momentum : -engine.momentum,
+      humanPossession: sides.humanIsHome ? engine.possessionHome : 100 - engine.possessionHome,
+      ...sides
+    };
+  }
+
+  function renderLive(career, human, rival, fixture) {
+    const engine = fixture.matchEngine;
+    const d = sideDisplay(career, fixture);
+    const momentumPos = clamp((d.humanMomentum + 100) / 2, 0, 100);
+    const zoneHuman = d.humanIsHome ? engine.zone : -engine.zone;
+    const pitchMarker = clamp(50 + zoneHuman * 18, 7, 93);
+    const isRunning = runtime.fixtureId === fixture.id && Boolean(runtime.timer);
+    return `<section id="managerMatchMount" class="manager-live-match ${engine.status === "decision" ? "decision-active" : ""}">
+      <header class="manager-live-header"><div><span>LIVE MATCH ENGINE · 2X</span><strong>${Math.min(90, Math.round(engine.minute))}'</strong></div><div class="manager-live-score"><article><span>${esc(d.humanTeam.clubName)}</span><b>${d.humanGoals}</b><small>${esc(career.clubName)}</small></article><i>—</i><article><b>${d.aiGoals}</b><span>${esc(d.aiTeam.clubName)}</span><small>${esc(rival.clubName)}</small></article></div><div class="manager-live-controls"><span>${engine.status === "decision" ? "TACTICAL PAUSE" : isRunning ? "LIVE" : "PAUSED"}</span>${engine.status === "live" ? `<button data-match-action="${isRunning ? "pause" : "resume"}">${isRunning ? "Duraklat" : "Devam Et"}</button>` : ""}</div></header>
+      <div class="manager-match-main-grid">
+        <article class="manager-pitch-theatre">
+          <div class="manager-pitch-top"><span>SAHA HÂKİMİYETİ</span><strong>${Math.round(d.humanPossession)}% — ${100 - Math.round(d.humanPossession)}%</strong></div>
+          <div class="manager-digital-pitch"><div class="pitch-lines"></div><div class="pitch-control home" style="width:${pitchMarker}%"></div><div class="pitch-ball" style="left:${pitchMarker}%">⚽</div><div class="pitch-label left">${esc(career.shortName)}</div><div class="pitch-label right">${esc(rival.shortName)}</div></div>
+          <div class="manager-momentum-bar"><span>SEN</span><i><b style="width:${momentumPos}%"></b><em style="left:${momentumPos}%"></em></i><span>RAKİP</span></div>
+          <div class="manager-live-metrics">
+            ${metric("xG", d.humanStats.xg, d.aiStats.xg)}
+            ${metric("Şut", d.humanStats.shots, d.aiStats.shots)}
+            ${metric("İsabet", d.humanStats.onTarget, d.aiStats.onTarget)}
+            ${metric("Tehdit", Math.round(d.humanThreat), Math.round(d.aiThreat))}
+            ${metric("Fizik", Math.round(d.humanFatigue), Math.round(d.aiFatigue))}
+          </div>
+        </article>
+        <aside class="manager-event-feed"><div class="manager-feed-head"><span>LIVE EVENT STREAM</span><b>${engine.events.length}</b></div><div>${engine.events.map(event => `<article class="${event.type} ${event.side}"><time>${event.minute}'</time><p>${esc(event.text)}</p></article>`).join("")}</div></aside>
+      </div>
+      <footer class="manager-live-footer"><div><span>PLAN</span><strong>${esc(planItem("mentality", engine.userPlan.mentality).label)} · ${esc(planItem("pressing", engine.userPlan.pressing).label)}</strong></div><div><span>DECISIONS</span><strong>${fixture.decisions.length}/${MAX_DECISIONS}</strong></div><div><span>AI ADAPTATION</span><strong>${engine.aiAdaptations ? "DETECTED" : "HIDDEN"}</strong></div><div><span>SEED</span><strong>${engine.seed.toString(16).toUpperCase()}</strong></div></footer>
+      ${engine.currentDecision ? renderDecision(engine.currentDecision) : ""}
+    </section>`;
+  }
+
+  function metric(label, home, away) {
+    return `<div><span>${label}</span><b>${round1(home)}</b><i></i><b>${round1(away)}</b></div>`;
+  }
+
+  function renderDecision(decision) {
+    return `<div class="manager-decision-overlay"><div class="manager-decision-card"><header><div><span>TACTICAL DECISION · ${decision.minute}'</span><h2>${esc(decision.title)}</h2></div><b>MAÇ DURDU</b></header><p>${esc(decision.prompt)}</p><div class="manager-decision-options">${decision.options.map(item => `<button data-match-action="decision" data-option-id="${esc(item.id)}"><strong>${esc(item.label)}</strong><span>${esc(item.note)}</span><small>Mutlak doğru cevap yoktur; etki mevcut maç state’ine göre çözülür.</small></button>`).join("")}</div></div></div>`;
+  }
+
+  function renderReport(career, human, rival, fixture) {
+    const engine = fixture.matchEngine;
+    const report = engine.report || {};
+    const d = sideDisplay(career, fixture);
+    const resultClass = report.result === "WIN" ? "win" : report.result === "LOSS" ? "loss" : "draw";
+    return `<section id="managerMatchMount" class="manager-match-report ${resultClass}">
+      <div class="manager-report-hero"><div><span>FULL TIME · MATCHDAY ${fixture.matchday}</span><h2>${report.result === "WIN" ? "GALİBİYET" : report.result === "LOSS" ? "MAĞLUBİYET" : "BERABERLİK"}</h2><p>${esc(d.humanTeam.clubName)} ile ${esc(d.aiTeam.clubName)} arasındaki maç tamamlandı.</p></div><div class="manager-report-score"><span>${esc(career.shortName)}</span><b>${report.humanGoals ?? d.humanGoals}</b><i>—</i><b>${report.aiGoals ?? d.aiGoals}</b><span>${esc(rival.shortName)}</span></div></div>
+      <div class="manager-report-grid">
+        <article class="manager-report-rating"><span>TAKTİK PERFORMANS</span><strong>${report.tacticalQuality || 50}</strong><small>/ 100</small><div><b>ELO ${report.eloDelta >= 0 ? "+" : ""}${report.eloDelta || 0}</b><b>IQ ${report.tacticalDelta >= 0 ? "+" : ""}${report.tacticalDelta || 0}</b><b>+${report.careerPointsEarned || 0} CP</b></div></article>
+        <article class="manager-report-stats"><h3>Maç Verisi</h3>${metric("xG", d.humanStats.xg, d.aiStats.xg)}${metric("Şut", d.humanStats.shots, d.aiStats.shots)}${metric("İsabet", d.humanStats.onTarget, d.aiStats.onTarget)}${metric("Top %", Math.round(d.humanPossession), 100 - Math.round(d.humanPossession))}</article>
+        <article class="manager-report-analysis"><h3>Taktik Rapor</h3><ul>${(report.lines || []).map(line => `<li>${esc(line)}</li>`).join("")}</ul><div>${esc(report.revealedStyleHint || "Rakip profili hakkında yeni veri oluşmadı.")}</div></article>
+        <article class="manager-report-decisions"><h3>Kritik Kararlar</h3>${fixture.decisions.length ? fixture.decisions.map(item => `<div><time>${item.minute}'</time><section><strong>${esc(item.chosenLabel)}</strong><small>${esc(item.outcome)}</small></section><b>${item.quality}</b></div>`).join("") : `<p>Bu maçta kritik karar oluşmadı.</p>`}</article>
+      </div>
+      <div class="manager-report-actions"><button class="btn btn-ghost" data-manager-action="set-tab" data-tab="universe">Puan Tablosunu Gör</button><button class="btn btn-gold" data-match-action="continue-career">Sonraki Matchday</button></div>
+    </section>`;
+  }
+
+  function render(career, human, rival, fixture) {
+    if (!fixture || !rival) return `<section id="managerMatchMount" class="manager-match-shell"><div class="manager-match-empty"><h2>Oynanacak maç bulunamadı.</h2><p>Sezon ilerleme motoru sonraki build’de yeni sezon oluşturacaktır.</p></div></section>`;
+    const engine = fixture.matchEngine;
+    if (!engine) return renderSetup(career, human, rival, fixture);
+    if (engine.status === "finished") return renderReport(career, human, rival, fixture);
+    return renderLive(career, human, rival, fixture);
+  }
+
+  function refreshMount(career, fixture) {
+    const mount = document.getElementById("managerMatchMount");
+    if (!mount) return;
+    const opponentId = fixture.homeId === career.humanActorId ? fixture.awayId : fixture.homeId;
+    const human = actor(career, career.humanActorId);
+    const rival = actor(career, opponentId);
+    const html = fixture.matchEngine?.status === "finished" ? renderReport(career, human, rival, fixture) : renderLive(career, human, rival, fixture);
+    const wrapper = document.createElement("div");
+    wrapper.innerHTML = html.trim();
+    mount.replaceWith(wrapper.firstElementChild);
+  }
+
+  async function handleSubmit(event) {
+    if (event.target.id !== "managerMatchPlanForm") return;
+    event.preventDefault();
+    const career = room()?.getActiveCareer?.();
+    const fixtureId = event.target.dataset.fixtureId;
+    const fixture = career?.fixtures?.find(item => item.id === fixtureId);
+    if (!career || !fixture) return;
+    const button = event.target.querySelector("button[type=submit]");
+    button.disabled = true;
+    button.textContent = "Maç motoru hazırlanıyor...";
+    try {
+      const plan = selectedPlan(new FormData(event.target));
+      initializeMatch(career, fixture, plan);
+      await room()?.persistCareer?.(career, { silent: true });
+      refreshMount(career, fixture);
+      startTimer(career, fixture);
+      app()?.toast?.("Maç başladı. Kritik anlarda motor oyunu otomatik durduracak.", "success");
+    } catch (error) {
+      app()?.toast?.(error.message, "error");
+      button.disabled = false;
+      button.textContent = "Maçı Başlat";
+    }
+  }
+
+  async function handleClick(event) {
+    const target = event.target.closest("[data-match-action]");
+    if (!target) return;
+    const career = room()?.getActiveCareer?.();
+    const fixture = career?.activeMatchFixtureId ? career.fixtures.find(item => item.id === career.activeMatchFixtureId) : room()?.getNextHumanFixture?.(career);
+    if (!career || !fixture) return;
+    const action = target.dataset.matchAction;
+    if (action === "pause") {
+      stopTimer();
+      refreshMount(career, fixture);
+    }
+    if (action === "resume") {
+      if (fixture.matchEngine?.status === "live") startTimer(career, fixture);
+      refreshMount(career, fixture);
+    }
+    if (action === "decision") {
+      if (runtime.busy) return;
+      runtime.busy = true;
+      resolveDecision(career, fixture, target.dataset.optionId);
+      runtime.busy = false;
+    }
+    if (action === "continue-career") {
+      stopTimer();
+      career.activeMatchFixtureId = null;
+      career.status = "team-draw-ready";
+      await room()?.persistCareer?.(career, { silent: true }).catch(() => {});
+      room()?.setActiveTab?.("overview");
+    }
+  }
+
+  document.addEventListener("submit", handleSubmit);
+  document.addEventListener("click", handleClick);
+  window.addEventListener("beforeunload", stopTimer);
+
+  window.FIFA_MANAGER_MATCH = {
+    version: VERSION,
+    render,
+    stop: stopTimer,
+    resume: () => {
+      const career = room()?.getActiveCareer?.();
+      const fixture = career?.activeMatchFixtureId ? career.fixtures.find(item => item.id === career.activeMatchFixtureId) : null;
+      if (career && fixture?.matchEngine?.status === "live") startTimer(career, fixture);
+    }
+  };
+})();
