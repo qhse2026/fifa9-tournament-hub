@@ -1,0 +1,33 @@
+FIFA Tournament Hub V40.2 — Geçici Açılış Oylaması
+==================================================
+
+AMAÇ
+- Oyuncu üyeliği ve e-posta girişi geçici olarak devre dışı bırakılır.
+- Site ilk açıldığında FIFA09 Devam Oylaması görünür.
+- Oyuncu önce Evet / Hayır / Çekimser tercihini seçer.
+- Sonra kayıtlı FIFA09 oyuncu listesinden kendi adını seçerek oyunu kesinleştirir.
+- Aynı oyuncu adı tekrar oy verirse önceki tercih güncellenir.
+- Mevcut turnuva sonuçları ve bütün FIFA09 verileri korunur.
+
+SUPABASE
+1. SQL Editor aç.
+2. FIFA_V40_2_TEMPORARY_PUBLIC_POLL.sql dosyasının tamamını çalıştır.
+3. İşlem başarılı olunca GitHub dosyalarını yükle.
+
+GITHUB ANA DİZİNİNE YÜKLENECEK DOSYALAR
+- index.html
+- app.js
+- cloud.js
+- styles.css
+- service-worker.js
+
+ÖNERİLEN COMMIT
+Simplify FIFA09 continuation poll v40.2
+
+DEPLOY SONRASI
+- Vercel deploy bitince Ctrl + F5 yap.
+- Eski sürüm görünürse DevTools > Application > Service Workers > Unregister.
+- Application > Storage > Clear site data işlemini uygula.
+
+NOT
+Oyuncu giriş ve üyelik kodları veri kaybı olmaması için kaynakta korunur; yalnızca arayüzden geçici olarak kaldırılmıştır. Yönetici girişi çalışmaya devam eder.

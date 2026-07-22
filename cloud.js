@@ -267,6 +267,20 @@
     return data;
   }
 
+  async function submitPublicPollVote(slug, playerName, choice) {
+    if (!client || !isConfigured()) throw new Error("Canlı oylama bağlantısı yapılandırılmamış.");
+    const cleanPlayerName = String(playerName || "").trim();
+    if (!cleanPlayerName) throw new Error("Oyuncu seçimi zorunludur.");
+    const { data, error } = await client.rpc("submit_fifa_public_poll_vote", {
+      p_slug: slug,
+      p_player_name: cleanPlayerName,
+      p_choice: choice,
+      p_tournament_id: config.tournamentRowId || "fifa-9"
+    });
+    if (error) throw error;
+    return data;
+  }
+
   async function managePoll(slug, action) {
     if (!client || !admin) throw new Error("Oylamayı yalnızca turnuva yöneticisi yönetebilir.");
     const { data, error } = await client.rpc("admin_manage_fifa_poll", {
@@ -338,6 +352,7 @@
     fetchPollStatus,
     fetchMyPollVote,
     submitPollVote,
+    submitPublicPollVote,
     managePoll,
     refresh,
     fetchAvailability,

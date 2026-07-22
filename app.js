@@ -21,7 +21,7 @@
   let cloudState = cloudConfigured ? "connecting" : "local";
   let cloudUpdatedAt = null;
   let cloudSaveTimer = null;
-  const FINAL_POLL_SLUG = "fifa09-format-continuation";
+  const FINAL_POLL_SLUG = "fifa09-format-continuation-v2";
   let registrationPlayers = [];
   let registrationPlayersLoading = false;
   let registrationPlayersLoadedAt = 0;
@@ -29,6 +29,9 @@
   let finalPollMyVote = null;
   let finalPollLoading = false;
   let finalPollLoadedAt = 0;
+  let temporaryPollChoice = "";
+  let temporaryPollPlayerName = "";
+  let temporaryPollSubmitted = null;
 
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -64,7 +67,7 @@
     finalpoll: "FIFA09 Devam Oylaması"
   };
 
-  let activeView = "dashboard";
+  let activeView = "finalpoll";
   let museumSelectedEdition = 9;
   let museumSelectedPlayerName = "";
   let state = loadState();
@@ -1015,6 +1018,8 @@
   }
 
   function render() {
+    pageTitle.textContent = titleMap[activeView] || "FIFA 9";
+    $$(".nav-item").forEach(item => item.classList.toggle("active", item.dataset.nav === activeView));
     refreshKnockout();
     const liveNav = document.querySelector('[data-nav="livematch"]');
     if (liveNav) liveNav.classList.toggle("has-live", Boolean(state.current.live?.active));
@@ -7961,6 +7966,7 @@ ${shareData.url}`)}`;
     } finally {
       registrationPlayersLoading = false;
       if (activeView === "playeraccess") renderPlayerAccessPage();
+      if (activeView === "finalpoll") renderFinalPollPage();
     }
   }
 
@@ -7973,11 +7979,18 @@ ${shareData.url}`)}`;
 
   async function refreshFinalPoll(force = false) {
     if (!cloudConfigured || !cloud?.fetchPollStatus) return;
-    if (finalPollLoading || (!force && finalPollLoadedAt && Date.now() - finalPollLoadedAt < 20000)) return;
+    if (finalPollLoading || (!force && finalPollLoadedAt && Date.now() - finalPollLoadedAt < 15000)) return;
     finalPollLoading = true;
     try {
-      finalPollSnapshot = await cloud.fetchPollStatus(FINAL_POLL_SLUG);
-      finalPollMyVote = cloudUser && cloudPlayerProfile ? await cloud.fetchMyPollVote(FINAL_POLL_SLUG) : null;
+      const tasks = [cloud.fetchPollStatus(FINAL_POLL_SLUG)];
+      if (cloud?.fetchRegistrationPlayers) tasks.push(cloud.fetchRegistrationPlayers());
+      const [snapshot, players] = await Promise.all(tasks);
+      finalPollSnapshot = snapshot;
+      if (Array.isArray(players)) {
+        registrationPlayers = players;
+        registrationPlayersLoadedAt = Date.now();
+      }
+      finalPollMyVote = null;
       finalPollLoadedAt = Date.now();
     } catch (error) {
       console.warn("Poll could not be loaded", error);
@@ -8033,41 +8046,101 @@ ${shareData.url}`)}`;
     return ({ yes: "Evet, devam etsin", no: "Hayır, devam etmesin", abstain: "Çekimserim" })[choice] || "Henüz oy kullanılmadı";
   }
 
+  function temporaryPollPlayerOptions() {
+    const source = registrationPlayers.length
+      ? registrationPlayers.map(item => item.playerName)
+      : state.current.participants.map(item => item.name?.trim()).filter(Boolean);
+    const names = [...new Set(source.filter(Boolean))].sort((a, b) => a.localeCompare(b, "tr"));
+    return names.map(name => `<option value="${escapeHTML(name)}" ${temporaryPollPlayerName === name ? "selected" : ""}>${escapeHTML(name)}</option>`).join("");
+  }
+
+  function selectTemporaryPollChoice(choice) {
+    if (!["yes", "no", "abstain"].includes(choice)) return;
+    temporaryPollChoice = choice;
+    temporaryPollSubmitted = null;
+    renderFinalPollPage();
+    setTimeout(() => document.querySelector("#temporaryPollIdentity")?.scrollIntoView({ behavior: "smooth", block: "center" }), 40);
+  }
+
+  async function submitTemporaryPollVote() {
+    if (!temporaryPollChoice) {
+      toast("Önce Evet, Hayır veya Çekimser seçeneklerinden birini seç.", "error");
+      return;
+    }
+    const select = document.querySelector("#temporaryPollPlayerSelect");
+    const playerName = String(select?.value || temporaryPollPlayerName || "").trim();
+    if (!playerName) {
+      toast("Oyunu kaydetmek için kendi oyuncu adını seçmelisin.", "error");
+      select?.focus();
+      return;
+    }
+    const button = document.querySelector('[data-action="confirm-temporary-poll-vote"]');
+    if (button) {
+      button.disabled = true;
+      button.textContent = "Oy kaydediliyor…";
+    }
+    try {
+      const result = await cloud.submitPublicPollVote(FINAL_POLL_SLUG, playerName, temporaryPollChoice);
+      temporaryPollSubmitted = {
+        playerName: result?.player_name || playerName,
+        choice: result?.choice || temporaryPollChoice
+      };
+      temporaryPollChoice = "";
+      temporaryPollPlayerName = "";
+      finalPollLoadedAt = 0;
+      await refreshFinalPoll(true);
+      toast(`${temporaryPollSubmitted.playerName} adına oyun kaydedildi.`, "success");
+    } catch (error) {
+      toast(friendlyAccountError(error), "error");
+      if (button) {
+        button.disabled = false;
+        button.textContent = "Oyumu Kesinleştir";
+      }
+    }
+  }
+
   function renderFinalPollPage() {
-    if (cloudConfigured && (!finalPollLoadedAt || Date.now() - finalPollLoadedAt > 20000) && !finalPollLoading) {
+    if (cloudConfigured && (!finalPollLoadedAt || Date.now() - finalPollLoadedAt > 15000) && !finalPollLoading) {
       setTimeout(() => refreshFinalPoll(), 0);
     }
 
+    const formatHero = `<section class="poll-format-hero"><div class="poll-format-copy"><div class="eyebrow">FIFA09 · TURNUVA DEVAM FORMATI</div><h2>Mevcut turnuva düzeni korunarak kaldığı yerden devam</h2><p>Oynanmış maçlar, mevcut sonuçlar, League Phase sıralaması, Altın ve Gümüş Grup yapısı ile eleme aşaması aynen korunacaktır. Bu oylama yalnızca FIFA09 organizasyonunun mevcut formatıyla devam edip etmeyeceğini belirler; daha önce kaydedilen hiçbir sonuç değiştirilmez.</p></div><div class="poll-format-mark"><strong>09</strong><span>MEVCUT FORMAT</span></div></section>`;
+
     if (!cloudConfigured) {
-      view.innerHTML = `<div class="final-poll-page"><section class="poll-hero"><div><div class="eyebrow">FIFA09 · DEVAM KARARI</div><h2>FIFA09 Devam Oylaması</h2><p>Oylama sistemi için Supabase bağlantısı ve V40 SQL kurulumu gereklidir.</p></div></section><section class="panel poll-loading">Cloud bağlantısı yapılandırılmamış.</section></div>`;
+      view.innerHTML = `<div class="final-poll-page">${formatHero}<section class="panel poll-loading">Canlı oylama için Supabase bağlantısı bulunamadı. cloud-config.js dosyasını kontrol et.</section></div>`;
       return;
     }
 
     const poll = finalPollSnapshot;
     if (!poll) {
-      view.innerHTML = `<div class="final-poll-page"><section class="poll-hero"><div><div class="eyebrow">FIFA09 · DEVAM KARARI</div><h2>FIFA09 Devam Oylaması</h2><p>Kayıtlı oyuncuların ortak kararı için güvenli oylama alanı.</p></div></section><section class="panel poll-loading">${finalPollLoading ? "Oylama yükleniyor…" : "Oylama bulunamadı. V40 SQL dosyasını çalıştır."}</section></div>`;
+      view.innerHTML = `<div class="final-poll-page">${formatHero}<section class="panel poll-loading">${finalPollLoading ? "Oylama ve oyuncu listesi yükleniyor…" : "Geçici oylama bulunamadı. V40.2 SQL dosyasını çalıştır."}</section></div>`;
       return;
     }
 
-    const eligible = Number(poll.eligible_count) || 0;
+    const eligible = Number(poll.eligible_count) || registrationPlayers.length || filledParticipants().length;
     const votes = Number(poll.vote_count) || 0;
     const progress = eligible ? Math.round(votes / eligible * 100) : 0;
     const status = poll.status || "draft";
     const resultsVisible = Boolean(poll.results_visible) && status === "closed";
-    const canVote = Boolean(cloudPlayerProfile && status === "open");
 
-    const voteArea = canVote ? `<section class="panel poll-vote-panel"><div class="eyebrow">OYUNU KULLAN</div><h3>${escapeHTML(cloudPlayerProfile.player_name)}</h3><p>Oylama açık olduğu sürece tercihini değiştirebilirsin. Sistemde yalnızca son oyun geçerli kalır.</p><div class="poll-choice-grid">
-      <button class="poll-choice yes ${finalPollMyVote === "yes" ? "active" : ""}" data-action="submit-final-poll-vote" data-choice="yes"><strong>✓ Evet</strong><span>FIFA09 mevcut formatıyla devam etsin</span></button>
-      <button class="poll-choice no ${finalPollMyVote === "no" ? "active" : ""}" data-action="submit-final-poll-vote" data-choice="no"><strong>× Hayır</strong><span>FIFA09 mevcut formatıyla devam etmesin</span></button>
-      <button class="poll-choice abstain ${finalPollMyVote === "abstain" ? "active" : ""}" data-action="submit-final-poll-vote" data-choice="abstain"><strong>— Çekimser</strong><span>Kararı diğer oyunculara bırakıyorum</span></button>
-      </div>${finalPollMyVote ? `<div class="poll-current-vote">Kayıtlı tercihin: ${escapeHTML(pollChoiceText(finalPollMyVote))}</div>` : ""}</section>`
-      : `<section class="panel poll-guest-panel"><div><div class="eyebrow">OY KULLANMA YETKİSİ</div><h3>${status !== "open" ? "Oylama şu anda oy kabul etmiyor" : cloudUser ? "Oyuncu kimliğini tamamlamalısın" : "Yalnızca kayıtlı oyuncular oy kullanabilir"}</h3><p>Misafirler ve normal izleyiciler siteyi giriş yapmadan kullanmaya devam eder; oy kullanabilmek için e-posta hesabının FIFA09 oyuncu adına bağlı olması gerekir.</p></div>${status === "open" ? `<button class="btn btn-blue" data-nav="playeraccess">Oyuncu Girişine Git</button>` : ""}</section>`;
+    let voteArea = "";
+    if (status !== "open") {
+      voteArea = `<section class="panel poll-guest-panel"><div><div class="eyebrow">OYLAMA DURUMU</div><h3>${status === "cancelled" ? "Oylama iptal edildi" : "Oylama şu anda oy kabul etmiyor"}</h3><p>Menülerden siteyi kullanmaya devam edebilirsin. Yönetici oylamayı yeniden açtığında bu sayfadan oy verilebilir.</p></div><button class="btn btn-ghost" data-nav="dashboard">Dashboard'a Dön</button></section>`;
+    } else if (temporaryPollSubmitted) {
+      voteArea = `<section class="panel temporary-poll-success"><div class="temporary-success-icon">✓</div><div><div class="eyebrow">OY KAYDEDİLDİ</div><h3>${escapeHTML(temporaryPollSubmitted.playerName)}</h3><p>Tercih: <strong>${escapeHTML(pollChoiceText(temporaryPollSubmitted.choice))}</strong>. Aynı oyuncu adına yeniden oy verilirse önceki tercih güncellenir.</p></div><div class="temporary-success-actions"><button class="btn btn-blue" data-action="temporary-poll-new-vote">Başka Oy Kullan</button><button class="btn btn-gold" data-nav="dashboard">Siteye Devam Et</button></div></section>`;
+    } else {
+      const identityStep = temporaryPollChoice ? `<div class="temporary-poll-identity" id="temporaryPollIdentity"><div class="temporary-step-number">2</div><div class="temporary-identity-copy"><div class="eyebrow">OYUNCU KİMLİĞİ</div><h3>Şimdi hangi oyuncu olduğunu seç</h3><p>Üyelik veya e-posta girişi gerekmiyor. Lütfen yalnızca kendi adını seç. Aynı oyuncu tekrar oy verirse son tercih geçerli olur.</p></div><label class="temporary-player-select"><span>Oyuncu adı</span><select id="temporaryPollPlayerSelect"><option value="">Oyuncu seç</option>${temporaryPollPlayerOptions()}</select></label><button class="btn btn-gold temporary-confirm-button" data-action="confirm-temporary-poll-vote">Oyumu Kesinleştir</button></div>` : "";
+      voteArea = `<section class="panel poll-vote-panel temporary-poll-panel"><div class="temporary-poll-step"><div class="temporary-step-number">1</div><div><div class="eyebrow">TERCİHİNİ SEÇ</div><h3>FIFA09 mevcut formatıyla devam etsin mi?</h3><p>Önce oyunu seç; sonraki adımda oyuncu adını belirleyerek kaydı tamamla.</p></div></div><div class="poll-choice-grid">
+        <button class="poll-choice yes ${temporaryPollChoice === "yes" ? "active" : ""}" data-action="select-temporary-poll-choice" data-choice="yes"><strong>✓ Evet</strong><span>Mevcut formatla devam edilsin</span></button>
+        <button class="poll-choice no ${temporaryPollChoice === "no" ? "active" : ""}" data-action="select-temporary-poll-choice" data-choice="no"><strong>× Hayır</strong><span>Turnuva devam etmesin</span></button>
+        <button class="poll-choice abstain ${temporaryPollChoice === "abstain" ? "active" : ""}" data-action="select-temporary-poll-choice" data-choice="abstain"><strong>— Çekimser</strong><span>Kararı diğer oyunculara bırakıyorum</span></button>
+      </div>${identityStep}</section>`;
+    }
 
     const results = resultsVisible ? `<section class="poll-results-grid"><article class="panel poll-result yes"><span>Evet</span><strong>${Number(poll.yes_count) || 0}</strong></article><article class="panel poll-result no"><span>Hayır</span><strong>${Number(poll.no_count) || 0}</strong></article><article class="panel poll-result abstain"><span>Çekimser</span><strong>${Number(poll.abstain_count) || 0}</strong></article></section>` : "";
+    const adminArea = cloudAdmin ? `<section class="panel poll-admin-panel"><div class="eyebrow">YÖNETİCİ KONTROLLERİ</div><h3>Geçici Oylama Yönetimi</h3><p>Oyuncu üyeliği bu geçici oylamada kullanılmaz. Sonuçlar yalnızca oylama kapatılıp yayımlandığında görüntülenir.</p><div class="poll-admin-actions"><button class="btn btn-blue" data-action="manage-final-poll" data-poll-action="open">Oylamayı Aç</button><button class="btn btn-ghost" data-action="manage-final-poll" data-poll-action="close">Oylamayı Kapat</button><button class="btn btn-gold" data-action="manage-final-poll" data-poll-action="publish">Sonuçları Yayımla</button><button class="btn btn-ghost" data-action="manage-final-poll" data-poll-action="hide">Sonuçları Gizle</button><button class="btn btn-danger" data-action="manage-final-poll" data-poll-action="reset">Oyları Sıfırla</button><button class="btn btn-danger" data-action="manage-final-poll" data-poll-action="cancel">Oylamayı İptal Et</button></div></section>` : "";
 
-    const adminArea = cloudAdmin ? `<section class="panel poll-admin-panel"><div class="eyebrow">YÖNETİCİ KONTROLLERİ</div><h3>Oylama Yönetimi</h3><p>Oylama açıkken sayısal sonuçlar oyunculara gösterilmez. Oylamayı kapattıktan sonra sonuçları ayrıca yayımlayabilirsin.</p><div class="poll-admin-actions"><button class="btn btn-blue" data-action="manage-final-poll" data-poll-action="open">Oylamayı Aç</button><button class="btn btn-ghost" data-action="manage-final-poll" data-poll-action="close">Oylamayı Kapat</button><button class="btn btn-gold" data-action="manage-final-poll" data-poll-action="publish">Sonuçları Yayımla</button><button class="btn btn-ghost" data-action="manage-final-poll" data-poll-action="hide">Sonuçları Gizle</button><button class="btn btn-danger" data-action="manage-final-poll" data-poll-action="reset">Oyları Sıfırla</button><button class="btn btn-danger" data-action="manage-final-poll" data-poll-action="cancel">Oylamayı İptal Et</button></div></section>` : "";
-
-    view.innerHTML = `<div class="final-poll-page"><section class="poll-hero"><div><div class="eyebrow">FIFA09 · ORTAK KARAR</div><h2>Turnuva Devam Oylaması</h2><p>Bu anket FIFA09 turnuvasının mevcut formatıyla devam edip etmeyeceğini kayıtlı oyuncuların görüşüne sunar.</p></div><div class="poll-hero-badge"><strong>${votes}/${eligible}</strong><span>Oy Kullanıldı</span></div></section><section class="panel poll-question-card"><div class="eyebrow">ANKET SORUSU</div><h3>${escapeHTML(poll.question || "FIFA09 turnuvası mevcut formatıyla devam etsin mi?")}</h3><p>Oyuncuların tercihleri oylama kapanana kadar gizli tutulur. Her oyuncu tek oy hakkına sahiptir ve oylama açıkken tercihini değiştirebilir.</p><div class="poll-status-strip"><span class="poll-status-pill ${escapeHTML(status)}">${escapeHTML(pollStatusText(status))}</span><span class="poll-status-pill">${votes} / ${eligible} katılım</span><button class="btn btn-ghost btn-small" data-action="refresh-final-poll">Yenile</button></div><div class="poll-progress"><div class="poll-progress-head"><span>Katılım</span><strong>%${progress}</strong></div><div class="poll-progress-track"><span style="width:${Math.min(100, Math.max(0, progress))}%"></span></div></div></section>${voteArea}${results}${adminArea}</div>`;
+    view.innerHTML = `<div class="final-poll-page">${formatHero}<section class="panel poll-question-card"><div class="eyebrow">CANLI KATILIM</div><h3>${escapeHTML(poll.question || "FIFA09 turnuvası mevcut formatıyla devam etsin mi?")}</h3><p>Oy vermek için hesap açmana gerek yoktur. Tercihini seçtikten sonra kayıtlı oyuncu listesinden kendi adını belirlemen yeterlidir.</p><div class="poll-status-strip"><span class="poll-status-pill ${escapeHTML(status)}">${escapeHTML(pollStatusText(status))}</span><span class="poll-status-pill">${votes} / ${eligible} katılım</span><button class="btn btn-ghost btn-small" data-action="refresh-final-poll">Yenile</button></div><div class="poll-progress"><div class="poll-progress-head"><span>Katılım</span><strong>%${progress}</strong></div><div class="poll-progress-track"><span style="width:${Math.min(100, Math.max(0, progress))}%"></span></div></div></section>${voteArea}${results}${adminArea}</div>`;
   }
 
   async function handlePlayerPageLogin(form) {
@@ -8167,7 +8240,7 @@ ${shareData.url}`)}`;
     if (!cloudConfigured) { openCloudHelp(); return; }
     if (cloudUser && !cloudAdmin) { toast("Yönetici hesabına geçmek için önce mevcut oyuncu oturumunu kapat.", "error"); return; }
     openModal("Yönetici Girişi", `<form id="adminLoginForm">
-      <div class="info-box">Bu ekran yalnızca turnuva yönetimi içindir. Oyuncular sol menüdeki <strong>Oyuncu Girişi</strong> sayfasını kullanmalıdır.</div>
+      <div class="info-box">Bu ekran yalnızca turnuva yönetimi içindir. Geçici FIFA09 oylaması oyuncular için üyelik gerektirmez.</div>
       <div class="field mt-16"><label>Yönetici e-postası</label><input type="email" name="email" autocomplete="username" required placeholder="admin@example.com"></div>
       <div class="field"><label>Parola</label><input type="password" name="password" autocomplete="current-password" required placeholder="••••••••"></div>
       <div class="modal-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">İptal</button><button type="submit" class="btn btn-gold">Yönetici Girişi</button></div>
@@ -8229,6 +8302,9 @@ ${shareData.url}`)}`;
     if (!action) return;
     const type = action.dataset.action;
     if (type === "refresh-final-poll") { finalPollLoadedAt = 0; refreshFinalPoll(true); return; }
+    if (type === "select-temporary-poll-choice") { selectTemporaryPollChoice(action.dataset.choice); return; }
+    if (type === "confirm-temporary-poll-vote") { submitTemporaryPollVote(); return; }
+    if (type === "temporary-poll-new-vote") { temporaryPollSubmitted = null; temporaryPollChoice = ""; temporaryPollPlayerName = ""; renderFinalPollPage(); return; }
     if (type === "submit-final-poll-vote") { submitFinalPollVote(action.dataset.choice); return; }
     if (type === "manage-final-poll") { manageFinalPoll(action.dataset.pollAction); return; }
     if (["create-fifa10-draft","auto-assign-fifa10","save-fifa10-draft","cancel-fifa10-draft","confirm-cancel-fifa10-draft","add-fifa10-player","remove-fifa10-player","open-honour-editor"].includes(type) && !canEdit()) {
@@ -8473,6 +8549,7 @@ ${shareData.url}`)}`;
 
   document.addEventListener("change", event => {
     if (window.FIFA_SEASON_HUB?.handleChange?.(event)) return;
+    if (event.target.id === "temporaryPollPlayerSelect") { temporaryPollPlayerName = event.target.value; return; }
     if (event.target.dataset.fifa10League && canEdit()) {
       const player=seasonSystem().fifa10Draft.players.find(item=>item.id===event.target.dataset.fifa10League);
       if (player) { player.league=event.target.value==="premier"?"premier":"championship"; seasonSystem().fifa10Draft.updatedAt=new Date().toISOString(); saveState(); renderSeasonMuseum(); }
