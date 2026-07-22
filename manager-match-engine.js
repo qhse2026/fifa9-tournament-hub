@@ -1,12 +1,20 @@
 (() => {
   "use strict";
 
-  const VERSION = "42.2";
+  const VERSION = "42.3";
   const TICK_MS = 850;
   const MAX_EVENTS = 34;
-  const MAX_DECISIONS = 7;
-  const MIN_DECISIONS = 3;
+  const MAX_DECISIONS = 10;
+  const MIN_DECISIONS = 5;
   const runtime = { timer: null, fixtureId: null, busy: false };
+
+  const MOTIVATION_TALKS = [
+    { id: "belief", label: "Kendinize İnanın", note: "Özgüven ve cesur başlangıç", tags: ["balanced", "underdog"] },
+    { id: "intensity", label: "İlk Düdükten İtibaren Baskı", note: "Yüksek enerji, yüksek fizik maliyeti", tags: ["press", "favorite"] },
+    { id: "calm", label: "Sakin Kalın, Planımıza Güvenin", note: "Kontrol ve karar kalitesi", tags: ["control", "favorite"] },
+    { id: "prove", label: "Onlara Kim Olduğumuzu Gösterin", note: "Duygusal ve yüksek varyanslı", tags: ["attack", "underdog"] },
+    { id: "pressure-off", label: "Baskı Yok, Oyunun Keyfini Çıkarın", note: "Rahatlık sağlayabilir veya odağı düşürebilir", tags: ["balanced"] }
+  ];
 
   const room = () => window.FIFA_MANAGER_ROOM;
   const app = () => window.FIFA_APP_CONTEXT;
@@ -354,7 +362,26 @@
     };
   }
 
-  function initializeMatch(career, fixture, plan) {
+  function resolveMotivation(engine, talkId, sides, plan) {
+    const talk = MOTIVATION_TALKS.find(item => item.id === talkId) || MOTIVATION_TALKS[0];
+    const overallDiff = Number(sides.humanTeam?.overall || 75) - Number(sides.aiTeam?.overall || 75);
+    const planTags = aggregatePlan(plan).tags;
+    let fit = 0;
+    if (talk.tags.includes("underdog") && overallDiff < 0) fit += 0.08;
+    if (talk.tags.includes("favorite") && overallDiff >= 0) fit += 0.06;
+    if (talk.tags.some(tag => planTags.includes(tag))) fit += 0.07;
+    const roll = random(engine);
+    const positiveLimit = clamp(0.47 + fit, 0.38, 0.64);
+    const neutralLimit = positiveLimit + 0.31;
+    const outcome = roll < positiveLimit ? "positive" : roll < neutralLimit ? "neutral" : "negative";
+    const strength = outcome === "positive" ? randomRange(engine, 5, 12) : outcome === "negative" ? -randomRange(engine, 4, 9) : randomRange(engine, -1.5, 1.5);
+    return {
+      talkId: talk.id, label: talk.label, outcome, strength: round1(strength),
+      text: outcome === "positive" ? "Konuşma takımı ateşledi; başlangıç enerjisi yükseldi." : outcome === "negative" ? "Konuşma oyuncularda baskı yarattı; başlangıç planı ters tepebilir." : "Takım konuşmayı dinledi ancak belirgin bir psikolojik değişim oluşmadı."
+    };
+  }
+
+  function initializeMatch(career, fixture, plan, motivationId) {
     const sides = getSides(career, fixture);
     if (!sides.homeTeam || !sides.awayTeam) throw new Error("Maç başlamadan önce takım kurası tamamlanmalıdır.");
     const aiStyle = sides.aiActor.styleSeed || {};
@@ -386,24 +413,33 @@
       aiPlan,
       aiStyle,
       aiAdaptations: 0,
-      nextDecisionMinute: 14 + Math.floor((seed % 8)),
+      nextDecisionMinute: 9 + Math.floor((seed % 7)),
       decisionCooldownUntil: 0,
       decisionCount: 0,
       currentDecision: null,
       lastGoal: null,
       lastChanceSide: null,
+      lastChanceMinute: -5,
+      matchVolatility: clamp(0.82 + random(enginePlaceholder(seed)) * 0.52, 0.82, 1.34),
       events: [{ minute: 0, type: "kickoff", side: "neutral", text: "Hakem düdüğü çaldı. Taktik planlar sahada." }],
       stats: {
-        home: { shots: 0, onTarget: 0, xg: 0, attacks: 0, dangerous: 0, possession: 50 },
-        away: { shots: 0, onTarget: 0, xg: 0, attacks: 0, dangerous: 0, possession: 50 }
+        home: { shots: 0, onTarget: 0, offTarget: 0, blocked: 0, xg: 0, attacks: 0, dangerous: 0, possession: 50, corners: 0, fouls: 0, yellow: 0, passes: 0, passAccuracy: 0 },
+        away: { shots: 0, onTarget: 0, offTarget: 0, blocked: 0, xg: 0, attacks: 0, dangerous: 0, possession: 50, corners: 0, fouls: 0, yellow: 0, passes: 0, passAccuracy: 0 }
       },
       report: null
     };
+    fixture.matchEngine.motivation = resolveMotivation(fixture.matchEngine, motivationId, sides, plan);
+    const humanMods = sides.humanIsHome ? "homeModifiers" : "awayModifiers";
+    const motivation = fixture.matchEngine.motivation;
+    fixture.matchEngine[humanMods].push({ until: 22, attack: motivation.strength, control: motivation.strength * .55, defence: motivation.strength * .35, risk: motivation.outcome === "negative" ? 4 : 0, source: "motivation" });
+    fixture.matchEngine.events.unshift({ minute: 0, type: `motivation-${motivation.outcome}`, side: sides.humanIsHome ? "home" : "away", text: `${motivation.label}: ${motivation.text}` });
     career.activeMatchFixtureId = fixture.id;
     career.status = "match-live";
     room()?.saveLocal?.();
     return fixture.matchEngine;
   }
+
+  function enginePlaceholder(seed) { return { rngState: seed }; }
 
   function modifierTotals(modifiers, minute) {
     const active = (modifiers || []).filter(item => item.until > minute);
@@ -477,9 +513,14 @@
     engine.lastChanceSide = attackingSide;
     const onTargetChance = clamp(0.34 + xg * 0.8 + (attack.attack - 75) / 220, 0.26, 0.78);
     const onTarget = random(engine) < onTargetChance;
+    const blocked = !onTarget && random(engine) < 0.31;
     if (onTarget) stats.onTarget += 1;
+    else if (blocked) stats.blocked += 1;
+    else stats.offTarget += 1;
+    if (random(engine) < xg * .42) stats.corners += 1;
     const finishFactor = clamp(0.72 + (attack.attack - defence.defence) / 180 + randomRange(engine, -0.08, 0.08), 0.48, 1.08);
-    const goal = onTarget && random(engine) < xg * finishFactor;
+    const conditionalFinishChance = clamp((xg * finishFactor) / Math.max(.26, onTargetChance), .06, .62);
+    const goal = onTarget && random(engine) < conditionalFinishChance;
     const attackingActor = attack.actor;
     if (goal) {
       if (attackingSide === "home") engine.scoreHome += 1;
@@ -502,7 +543,7 @@
 
   function maybeAiAdapt(career, fixture) {
     const engine = fixture.matchEngine;
-    if (engine.aiAdaptations >= 3) return;
+    if (engine.aiAdaptations >= 4) return;
     const sides = getSides(career, fixture);
     const humanGoals = sides.humanIsHome ? engine.scoreHome : engine.scoreAway;
     const aiGoals = sides.humanIsHome ? engine.scoreAway : engine.scoreHome;
@@ -592,7 +633,7 @@
     engine.currentDecision = decision;
     engine.status = "decision";
     engine.decisionCount += 1;
-    engine.nextDecisionMinute = Math.min(86, engine.minute + 11 + Math.floor(randomRange(engine, 0, 9)));
+    engine.nextDecisionMinute = Math.min(87, engine.minute + 7 + Math.floor(randomRange(engine, 0, 7)));
     stopTimer();
     room()?.saveLocal?.();
     refreshMount(career, fixture);
@@ -625,9 +666,30 @@
     engine.stats.home.attacks += engine.zone > 0.45 ? 1 : 0;
     engine.stats.away.attacks += engine.zone < -0.45 ? 1 : 0;
 
-    const chanceThreshold = 1.62 - Math.max(home.risk, away.risk) / 500;
-    if (engine.zone >= chanceThreshold) createChance(career, fixture, "home");
-    else if (engine.zone <= -chanceThreshold) createChance(career, fixture, "away");
+    const homePoss = engine.possessionHome / 100;
+    engine.stats.home.passes += Math.round(3 + homePoss * 5 + randomRange(engine, 0, 3));
+    engine.stats.away.passes += Math.round(3 + (1 - homePoss) * 5 + randomRange(engine, 0, 3));
+    engine.stats.home.passAccuracy = Math.round(clamp(74 + (home.control - 72) * .35 + homePoss * 9, 66, 94));
+    engine.stats.away.passAccuracy = Math.round(clamp(74 + (away.control - 72) * .35 + (1 - homePoss) * 9, 66, 94));
+    if (random(engine) < .14) {
+      const foulSide = random(engine) < homePoss ? "away" : "home";
+      engine.stats[foulSide].fouls += 1;
+      if (random(engine) < .18) engine.stats[foulSide].yellow += 1;
+    }
+
+    const totalShots = engine.stats.home.shots + engine.stats.away.shots;
+    const projectedShots = totalShots / Math.max(1, engine.minute) * 90;
+    const scoreNeed = engine.minute > 55 && engine.scoreHome === engine.scoreAway ? .025 : engine.minute > 65 ? .018 : 0;
+    const catchup = projectedShots < 13 ? .045 : projectedShots < 17 ? .018 : projectedShots > 25 ? -.035 : 0;
+    const tempoFactor = ((home.tempo + away.tempo) / 2 - 70) / 900;
+    const riskFactor = (Math.max(home.risk, away.risk) - 50) / 850;
+    const chanceProbability = clamp((.155 + scoreNeed + catchup + tempoFactor + riskFactor) * engine.matchVolatility, .075, .34);
+    const canShoot = engine.minute - engine.lastChanceMinute >= (totalShots > 24 ? 2 : 1);
+    if (canShoot && random(engine) < chanceProbability) {
+      const homeWeight = clamp(.5 + engine.zone * .13 + (home.attack - away.attack) / 170 + engine.momentum / 500, .18, .82);
+      createChance(career, fixture, random(engine) < homeWeight ? "home" : "away");
+      engine.lastChanceMinute = engine.minute;
+    }
     else if (engine.minute % 8 === 0) {
       const side = controlDelta >= 0 ? "home" : "away";
       const actorRow = side === "home" ? home.actor : away.actor;
@@ -800,8 +862,28 @@
     fixture.status = "played";
     fixture.updatedAt = now();
     fixture.simulated = true;
-    fixture.stats = { simulation: "manager-v42.2", homeXg: round1(homeLambda), awayXg: round1(awayLambda) };
+    fixture.stats = { simulation: "manager-v42.3", homeXg: round1(homeLambda), awayXg: round1(awayLambda) };
     applyTableResult(career, fixture, homeScore, awayScore);
+    applyActorElo(career, fixture, homeScore, awayScore);
+  }
+
+  function applyActorElo(career, fixture, homeScore, awayScore) {
+    if (fixture.eloApplied) return;
+    const home = actor(career, fixture.homeId);
+    const away = actor(career, fixture.awayId);
+    const homeBefore = Number(home.power || 1000);
+    const awayBefore = Number(away.power || 1000);
+    const expectedHome = 1 / (1 + Math.pow(10, (awayBefore - homeBefore) / 400));
+    const actualHome = homeScore > awayScore ? 1 : homeScore === awayScore ? .5 : 0;
+    const stageK = fixture.division === "premier" ? 30 : 26;
+    const goalFactor = Math.min(1.45, 1 + Math.max(0, Math.abs(homeScore - awayScore) - 1) * .1);
+    const delta = Math.round(stageK * goalFactor * (actualHome - expectedHome));
+    home.power = clamp(homeBefore + delta, 700, 2200);
+    away.power = clamp(awayBefore - delta, 700, 2200);
+    home.powerClass = room()?.powerLabel?.(home.power) || home.powerClass;
+    away.powerClass = room()?.powerLabel?.(away.power) || away.powerClass;
+    fixture.eloChange = { homeBefore, awayBefore, homeAfter: home.power, awayAfter: away.power, homeDelta: delta, awayDelta: -delta };
+    fixture.eloApplied = true;
   }
 
   function simulateMatchday(career, completedFixture) {
@@ -847,14 +929,17 @@
     fixture.stats = engine.stats;
     fixture.updatedAt = now();
     applyTableResult(career, fixture, engine.scoreHome, engine.scoreAway);
+    applyActorElo(career, fixture, engine.scoreHome, engine.scoreAway);
     simulateMatchday(career, fixture);
 
     const sides = getSides(career, fixture);
     const humanGoals = sides.humanIsHome ? engine.scoreHome : engine.scoreAway;
     const aiGoals = sides.humanIsHome ? engine.scoreAway : engine.scoreHome;
     const result = humanGoals > aiGoals ? 1 : humanGoals === aiGoals ? 0.5 : 0;
+    const eloSnapshot = fixture.eloChange || {};
     const humanRating = Number(career.managerElo || 1000) + Number(sides.humanTeam?.overall || 75) * 8;
-    const aiRating = Number(sides.aiActor.power || 1000) + Number(sides.aiTeam?.overall || 75) * 8;
+    const aiPreMatchPower = sides.humanIsHome ? eloSnapshot.awayBefore : eloSnapshot.homeBefore;
+    const aiRating = Number(aiPreMatchPower || sides.aiActor.power || 1000) + Number(sides.aiTeam?.overall || 75) * 8;
     const expected = 1 / (1 + Math.pow(10, (aiRating - humanRating) / 400));
     const eloDelta = Math.round(28 * (result - expected));
     const analysis = reportLines(career, fixture);
@@ -902,6 +987,9 @@
       tacticalQuality: analysis.avgQuality,
       careerPointsEarned: basePoints + tacticalBonus,
       lines: analysis.lines,
+      motivation: engine.motivation,
+      totalShots: engine.stats.home.shots + engine.stats.away.shots,
+      totalXg: round1(engine.stats.home.xg + engine.stats.away.xg),
       revealedStyleHint: revealStyleHint(engine.aiStyle)
     };
     const next = career.fixtures
@@ -957,6 +1045,7 @@
           ${renderPlanSelector("tempo", defaults.tempo)}
           ${renderPlanSelector("risk", defaults.risk)}
         </div>
+        <fieldset class="manager-motivation-group"><legend>MAÇ ÖNCESİ MOTİVASYON KONUŞMASI</legend><div>${MOTIVATION_TALKS.map((item, index) => `<label><input type="radio" name="motivation" value="${item.id}" ${index === 0 ? "checked" : ""}><span><b>${item.label}</b><small>${item.note}</small></span></label>`).join("")}</div><small>Konuşma doğru bağlamda pozitif etki yaratabilir; etkisiz kalabilir veya ters tepebilir. Sonuç maç başladığında açıklanır.</small></fieldset>
         <div class="manager-plan-footer"><div><span>RAKİP PROFİLİ</span><strong>GÜÇ ${rival.power} · STİL GİZLİ</strong><small>Rakibin davranışı maç içindeki sinyallerden okunmalıdır.</small></div><button class="btn btn-gold manager-kickoff-btn" type="submit">Maçı Başlat</button></div>
       </form>
     </section>`;
@@ -996,7 +1085,7 @@
     const pitchMarker = clamp(50 + zoneHuman * 18, 7, 93);
     const isRunning = runtime.fixtureId === fixture.id && Boolean(runtime.timer);
     return `<section id="managerMatchMount" class="manager-live-match ${engine.status === "decision" ? "decision-active" : ""}">
-      <header class="manager-live-header"><div><span>LIVE MATCH ENGINE · 2X</span><strong>${Math.min(90, Math.round(engine.minute))}'</strong></div><div class="manager-live-score"><article><span>${esc(d.humanTeam.clubName)}</span><b>${d.humanGoals}</b><small>${esc(career.clubName)}</small></article><i>—</i><article><b>${d.aiGoals}</b><span>${esc(d.aiTeam.clubName)}</span><small>${esc(rival.clubName)}</small></article></div><div class="manager-live-controls"><span>${engine.status === "decision" ? "TACTICAL PAUSE" : isRunning ? "LIVE" : "PAUSED"}</span>${engine.status === "live" ? `<button data-match-action="${isRunning ? "pause" : "resume"}">${isRunning ? "Duraklat" : "Devam Et"}</button>` : ""}</div></header>
+      <header class="manager-live-header"><div><span>LIVE MATCH ENGINE · 2X</span><strong>${Math.min(90, Math.round(engine.minute))}'</strong></div><div class="manager-live-score"><article><span>${esc(d.humanTeam.clubName)}</span><b>${d.humanGoals}</b><small>${esc(career.clubName)}</small></article><i>—</i><article><b>${d.aiGoals}</b><span>${esc(d.aiTeam.clubName)}</span><small>${esc(rival.clubName)}</small></article></div><div class="manager-live-controls"><span>${engine.status === "decision" ? "TACTICAL PAUSE" : isRunning ? "LIVE" : "PAUSED"}</span>${engine.status === "live" ? `<button data-match-action="${isRunning ? "pause" : "resume"}">${isRunning ? "Duraklat" : "Devam Et"}</button>${!isRunning ? `<button data-match-action="change-tactics">Taktik Değiştir</button>` : ""}` : ""}</div></header>
       <div class="manager-match-main-grid">
         <article class="manager-pitch-theatre">
           <div class="manager-pitch-top"><span>SAHA HÂKİMİYETİ</span><strong>${Math.round(d.humanPossession)}% — ${100 - Math.round(d.humanPossession)}%</strong></div>
@@ -1008,13 +1097,22 @@
             ${metric("İsabet", d.humanStats.onTarget, d.aiStats.onTarget)}
             ${metric("Tehdit", Math.round(d.humanThreat), Math.round(d.aiThreat))}
             ${metric("Fizik", Math.round(d.humanFatigue), Math.round(d.aiFatigue))}
+            ${metric("Pas", d.humanStats.passes, d.aiStats.passes)}
+            ${metric("Pas %", d.humanStats.passAccuracy, d.aiStats.passAccuracy)}
+            ${metric("Korner", d.humanStats.corners, d.aiStats.corners)}
+            ${metric("Faul", d.humanStats.fouls, d.aiStats.fouls)}
           </div>
         </article>
         <aside class="manager-event-feed"><div class="manager-feed-head"><span>LIVE EVENT STREAM</span><b>${engine.events.length}</b></div><div>${engine.events.map(event => `<article class="${event.type} ${event.side}"><time>${event.minute}'</time><p>${esc(event.text)}</p></article>`).join("")}</div></aside>
       </div>
       <footer class="manager-live-footer"><div><span>PLAN</span><strong>${esc(planItem("mentality", engine.userPlan.mentality).label)} · ${esc(planItem("pressing", engine.userPlan.pressing).label)}</strong></div><div><span>DECISIONS</span><strong>${fixture.decisions.length}/${MAX_DECISIONS}</strong></div><div><span>AI ADAPTATION</span><strong>${engine.aiAdaptations ? "DETECTED" : "HIDDEN"}</strong></div><div><span>SEED</span><strong>${engine.seed.toString(16).toUpperCase()}</strong></div></footer>
       ${engine.currentDecision ? renderDecision(engine.currentDecision) : ""}
+      ${engine.tacticalEditing ? renderTacticalEditor(engine.userPlan) : ""}
     </section>`;
+  }
+
+  function renderTacticalEditor(plan) {
+    return `<div class="manager-decision-overlay"><form id="managerTacticalAdjustForm" class="manager-decision-card manager-tactical-editor"><header><div><span>MANUAL TACTICAL PAUSE</span><h2>Oyun Planını Değiştir</h2></div><b>SAAT DURDU</b></header><div class="manager-plan-grid">${Object.keys(PLAN_GROUPS).map(group => renderPlanSelector(group, plan[group])).join("")}</div><div class="manager-tactical-actions"><button type="button" data-match-action="cancel-tactics">Vazgeç</button><button class="btn btn-gold" type="submit">Değişiklikleri Uygula</button></div></form></div>`;
   }
 
   function metric(label, home, away) {
@@ -1034,9 +1132,9 @@
       <div class="manager-report-hero"><div><span>FULL TIME · MATCHDAY ${fixture.matchday}</span><h2>${report.result === "WIN" ? "GALİBİYET" : report.result === "LOSS" ? "MAĞLUBİYET" : "BERABERLİK"}</h2><p>${esc(d.humanTeam.clubName)} ile ${esc(d.aiTeam.clubName)} arasındaki maç tamamlandı.</p></div><div class="manager-report-score"><span>${esc(career.shortName)}</span><b>${report.humanGoals ?? d.humanGoals}</b><i>—</i><b>${report.aiGoals ?? d.aiGoals}</b><span>${esc(rival.shortName)}</span></div></div>
       <div class="manager-report-grid">
         <article class="manager-report-rating"><span>TAKTİK PERFORMANS</span><strong>${report.tacticalQuality || 50}</strong><small>/ 100</small><div><b>ELO ${report.eloDelta >= 0 ? "+" : ""}${report.eloDelta || 0}</b><b>IQ ${report.tacticalDelta >= 0 ? "+" : ""}${report.tacticalDelta || 0}</b><b>+${report.careerPointsEarned || 0} CP</b></div></article>
-        <article class="manager-report-stats"><h3>Maç Verisi</h3>${metric("xG", d.humanStats.xg, d.aiStats.xg)}${metric("Şut", d.humanStats.shots, d.aiStats.shots)}${metric("İsabet", d.humanStats.onTarget, d.aiStats.onTarget)}${metric("Top %", Math.round(d.humanPossession), 100 - Math.round(d.humanPossession))}</article>
+        <article class="manager-report-stats"><h3>Gelişmiş Maç Verisi</h3>${metric("xG", d.humanStats.xg, d.aiStats.xg)}${metric("Şut", d.humanStats.shots, d.aiStats.shots)}${metric("İsabet", d.humanStats.onTarget, d.aiStats.onTarget)}${metric("İsabetsiz", d.humanStats.offTarget, d.aiStats.offTarget)}${metric("Blok", d.humanStats.blocked, d.aiStats.blocked)}${metric("Top %", Math.round(d.humanPossession), 100 - Math.round(d.humanPossession))}${metric("Pas", d.humanStats.passes, d.aiStats.passes)}${metric("Pas %", d.humanStats.passAccuracy, d.aiStats.passAccuracy)}${metric("Korner", d.humanStats.corners, d.aiStats.corners)}${metric("Faul", d.humanStats.fouls, d.aiStats.fouls)}${metric("Sarı", d.humanStats.yellow, d.aiStats.yellow)}</article>
         <article class="manager-report-analysis"><h3>Taktik Rapor</h3><ul>${(report.lines || []).map(line => `<li>${esc(line)}</li>`).join("")}</ul><div>${esc(report.revealedStyleHint || "Rakip profili hakkında yeni veri oluşmadı.")}</div></article>
-        <article class="manager-report-decisions"><h3>Kritik Kararlar</h3>${fixture.decisions.length ? fixture.decisions.map(item => `<div><time>${item.minute}'</time><section><strong>${esc(item.chosenLabel)}</strong><small>${esc(item.outcome)}</small></section><b>${item.quality}</b></div>`).join("") : `<p>Bu maçta kritik karar oluşmadı.</p>`}</article>
+        <article class="manager-report-decisions"><h3>Kritik Kararlar</h3>${report.motivation ? `<div><time>0'</time><section><strong>${esc(report.motivation.label)}</strong><small>${esc(report.motivation.text)}</small></section><b>${report.motivation.outcome === "positive" ? "+" : report.motivation.outcome === "negative" ? "−" : "="}</b></div>` : ""}${fixture.decisions.length ? fixture.decisions.map(item => `<div><time>${item.minute}'</time><section><strong>${esc(item.chosenLabel)}</strong><small>${esc(item.outcome)}</small></section><b>${item.quality}</b></div>`).join("") : `<p>Bu maçta kritik karar oluşmadı.</p>`}</article>
       </div>
       <div class="manager-report-actions"><button class="btn btn-ghost" data-manager-action="set-tab" data-tab="universe">Puan Tablosunu Gör</button><button class="btn btn-gold" data-match-action="continue-career">Sonraki Matchday</button></div>
     </section>`;
@@ -1073,8 +1171,9 @@
     button.disabled = true;
     button.textContent = "Maç motoru hazırlanıyor...";
     try {
-      const plan = selectedPlan(new FormData(event.target));
-      initializeMatch(career, fixture, plan);
+      const data = new FormData(event.target);
+      const plan = selectedPlan(data);
+      initializeMatch(career, fixture, plan, String(data.get("motivation") || "belief"));
       await room()?.persistCareer?.(career, { silent: true });
       refreshMount(career, fixture);
       startTimer(career, fixture);
@@ -1084,6 +1183,24 @@
       button.disabled = false;
       button.textContent = "Maçı Başlat";
     }
+  }
+
+  async function handleTacticalSubmit(event) {
+    if (event.target.id !== "managerTacticalAdjustForm") return;
+    event.preventDefault();
+    const career = room()?.getActiveCareer?.();
+    const fixture = career?.activeMatchFixtureId ? career.fixtures.find(item => item.id === career.activeMatchFixtureId) : null;
+    if (!career || !fixture?.matchEngine) return;
+    const engine = fixture.matchEngine;
+    const oldPlan = JSON.stringify(engine.userPlan);
+    engine.userPlan = selectedPlan(new FormData(event.target));
+    engine.tacticalEditing = false;
+    if (JSON.stringify(engine.userPlan) !== oldPlan) {
+      engine.decisionCooldownUntil = Math.max(engine.decisionCooldownUntil, engine.minute + 4);
+      addEvent(engine, { type: "tactics", side: getSides(career, fixture).humanIsHome ? "home" : "away", text: "Teknik alan oyunu durdurdu ve yeni taktik planı sahaya iletti." });
+    }
+    room()?.saveLocal?.();
+    refreshMount(career, fixture);
   }
 
   async function handleClick(event) {
@@ -1101,6 +1218,8 @@
       if (fixture.matchEngine?.status === "live") startTimer(career, fixture);
       refreshMount(career, fixture);
     }
+    if (action === "change-tactics") { fixture.matchEngine.tacticalEditing = true; refreshMount(career, fixture); }
+    if (action === "cancel-tactics") { fixture.matchEngine.tacticalEditing = false; refreshMount(career, fixture); }
     if (action === "decision") {
       if (runtime.busy) return;
       runtime.busy = true;
@@ -1117,6 +1236,7 @@
   }
 
   document.addEventListener("submit", handleSubmit);
+  document.addEventListener("submit", handleTacticalSubmit);
   document.addEventListener("click", handleClick);
   window.addEventListener("beforeunload", stopTimer);
 
