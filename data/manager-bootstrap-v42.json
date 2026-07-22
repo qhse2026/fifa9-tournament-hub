@@ -1,5 +1,5 @@
 {
-  "version": 42,
+  "version": "42.1",
   "generatedAt": "2026-07-22T13:46:26.433Z",
   "sourceBackup": {
     "file": "FIFA_9_Backup_2026-07-22.json",
@@ -18,7 +18,9 @@
     "fifa10SeasonStatus": "scheduled",
     "fifa10SeasonPhase": "oruc-ready",
     "finalChapterVersion": 41,
-    "finalChapterEnabled": false
+    "finalChapterEnabled": false,
+    "teamDrawEngine": true,
+    "teamCatalogClubs": 65
   },
   "competitionRules": {
     "premier": {
@@ -1391,5 +1393,15 @@
       },
       "source": "fifa09"
     }
-  ]
+  ],
+  "teamCatalog": {
+    "version": "42.1",
+    "file": "data/manager-team-catalog-fc25.json",
+    "clubs": 65,
+    "pools": {
+      "4": 30,
+      "4.5": 25,
+      "5": 10
+    }
+  }
 }

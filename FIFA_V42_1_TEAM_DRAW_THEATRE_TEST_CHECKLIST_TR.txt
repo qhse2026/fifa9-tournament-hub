@@ -1,0 +1,22 @@
+V42.1 TEAM DRAW THEATRE — TEST CHECKLIST
+========================================
+
+[ ] The Manager's Room ve Manager Hall menüleri görünüyor.
+[ ] V42.0 kariyer kaydı kaybolmadı.
+[ ] Team Draw Theatre sekmesi açılıyor.
+[ ] Katalog toplamı 65 görünüyor.
+[ ] 4★ havuzunda 30 kulüp görünüyor.
+[ ] 4.5★ havuzunda 25 kulüp görünüyor.
+[ ] 5★ havuzunda 10 kulüp görünüyor.
+[ ] Matchday 1 kura seviyesi 4★.
+[ ] İki tarafa aynı kulüp verilmiyor.
+[ ] Takım kartlarında OVR / ATK / MID / DEF görünüyor.
+[ ] Rakip Manager Power görünürken stil bilgisi gizli kalıyor.
+[ ] Test kariyerinde kura yenilenebiliyor.
+[ ] Resmî kariyerde kura bir defa çekilip kilitleniyor.
+[ ] Resmî kura sonrası snapshot Supabase'e kaydediliyor.
+[ ] Başka cihaz senaryosunda Kariyerimi Aç + PIN çalışıyor.
+[ ] Manager Hall diğer resmî kariyerleri listeliyor.
+[ ] Mobil görünümde iki kart alt alta geliyor.
+[ ] Service Worker yeni katalog JSON'unu cache listesine alıyor.
+[ ] Eski FIFA09/FIFA10 ekranları ve turnuva state'i etkilenmiyor.

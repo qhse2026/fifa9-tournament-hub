@@ -1,0 +1,54 @@
+FIFA TOURNAMENT HUB — V42.1 TEAM DRAW THEATRE KURULUMU
+========================================================
+
+ÖN KOŞUL
+- V42.0 Manager Room Foundation çalışıyor olmalıdır.
+- manager_room_v42_foundation.sql daha önce çalıştırılmış olmalıdır.
+
+1) SUPABASE
+Supabase > SQL Editor içinde yalnızca şu dosyayı çalıştır:
+
+supabase/manager_room_v42_1_team_catalog.sql
+
+Bu migration:
+- 65 Avrupa erkek kulübünü manager_team_catalog tablosuna ekler/günceller.
+- 4★, 4.5★ ve 5★ Manager Room takım havuzlarını hazırlar.
+- Güvenli public katalog görünümünü oluşturur.
+- Mevcut Manager kariyerlerini ve FIFA turnuva tablolarını silmez.
+
+2) GITHUB / VERCEL
+Aşağıdaki dosyaları repository ana dizinindeki mevcut dosyaların üzerine yükle:
+
+index.html
+app.js
+manager-room.js
+manager-room.css
+service-worker.js
+data/manager-bootstrap-v42.json
+data/manager-team-catalog-fc25.json
+
+Aşağıdaki dosyayı repository'ye ekle:
+
+supabase/manager_room_v42_1_team_catalog.sql
+
+Önerilen commit:
+Add V42.1 Team Draw Theatre and FC25 club catalog
+
+3) DEPLOY SONRASI
+- Ctrl + F5 yap.
+- Eski sürüm görünürse Service Worker'ı Unregister et ve site verisini temizle.
+- Yeni cache: fifa-tournament-hub-v42-1-team-draw-theatre
+
+4) İLK TEST
+- The Manager's Room'u aç.
+- Mevcut test kariyerini seç veya yeni test kariyeri kur.
+- Team Draw Theatre sekmesine gir.
+- Matchday 1 için 4★ kura çek.
+- Kullanıcı ve rakip için iki farklı kulüp geldiğini doğrula.
+- Test kariyerinde yeniden kura çalışmalıdır.
+- Resmî kariyerde ilk kuradan sonra düğme kilitlenmelidir.
+
+NOT
+- V42.1 tam maç motoru değildir.
+- Bu sürüm takım kataloğu, kura, kura kilidi ve cloud snapshot katmanıdır.
+- Canlı 5 dakikalık maç motoru V42.2'de bağlanacaktır.
