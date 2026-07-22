@@ -1,0 +1,73 @@
+FIFA V41.0 FINAL CHAPTER ENGINE — TEST KONTROL LİSTESİ
+=======================================================
+
+A. REGRESYON
+[ ] Site açılıyor.
+[ ] Turnuva iptal duyurusu görünmüyor.
+[ ] FIFA09 Final Chapter oylaması açılıyor.
+[ ] League Phase sonuçları korunuyor.
+[ ] Altın Grup tablosu korunuyor.
+[ ] Gümüş Grup tablosu korunuyor.
+[ ] Yönetici girişi çalışıyor.
+[ ] Misafir sonuçları görebiliyor ancak yönetim düğmelerini kullanamıyor.
+
+B. AKTİVASYON
+[ ] Altın + Gümüş Grup toplamı 12 oyuncu.
+[ ] Oğuzhan Dindar oyuncu listesinde bulunuyor.
+[ ] Aziz Sarıoğlu oyuncu listesinde bulunuyor.
+[ ] Ercan Köseoğlu oyuncu listesinde bulunuyor.
+[ ] Final Chapter'ı Hazırla düğmesi çalışıyor.
+[ ] Üç oyuncu doğrudan çeyrek finalist görünüyor.
+[ ] Sayfa yenilendiğinde Final Chapter verileri korunuyor.
+
+C. PLAY-OFF
+[ ] 9 oyunculu kura oluşturuluyor.
+[ ] 4 Best of 3 eşleşmesi oluşuyor.
+[ ] Bir oyuncu Şanslı Çeyrek Finalist oluyor.
+[ ] Kura kilitlenmeden sonuç düğmeleri pasif.
+[ ] Kura yenileme çalışıyor.
+[ ] Kura kilitleme çalışıyor.
+[ ] İlk maç tamamlanmadan ikinci maç açılamıyor.
+[ ] Bir oyuncu 2 galibiyete ulaştığında üçüncü maç kapanıyor.
+
+D. TAKIM HAVUZLARI
+[ ] Play-off takım havuzu kaydediliyor.
+[ ] Çeyrek final takım havuzu kaydediliyor.
+[ ] Yarı final takım havuzu kaydediliyor.
+[ ] Final takım havuzu kaydediliyor.
+[ ] Takım kurası iki oyuncuya takım atıyor.
+[ ] Çeyrek finalde aynı oyuncuya tekrar takım çıkmıyor.
+[ ] Yarı finalde aynı oyuncuya tekrar takım çıkmıyor.
+[ ] Finalde iki oyuncuya aynı takım atanıyor.
+
+E. ÇEYREK FİNAL
+[ ] 4 play-off galibi tamamlanmadan kura açılamıyor.
+[ ] Doğrudan 3 + şanslı 1 + play-off galibi 4 = 8 oyuncu oluşuyor.
+[ ] 4 çeyrek final eşleşmesi oluşuyor.
+[ ] Kura yenileme ve kilitleme çalışıyor.
+[ ] Best of 3 galipleri doğru hesaplanıyor.
+
+F. YARI FİNAL
+[ ] Çeyrek final tamamlanmadan yarı final kurası açılamıyor.
+[ ] 4 galipten 2 eşleşme oluşuyor.
+[ ] 5★ takım kurası çalışıyor.
+[ ] Best of 3 galipleri doğru hesaplanıyor.
+
+G. FİNAL
+[ ] Yarı finaller tamamlanınca final otomatik oluşuyor.
+[ ] Ortak takım kurası çalışıyor.
+[ ] Farklı takımlar manuel girilirse sistem engelliyor.
+[ ] Beraberlikte uzatma/penaltı galibi seçimi zorunlu.
+[ ] Final sonucu sonrası şampiyon doğru gösteriliyor.
+
+H. KİLİT VE GÜVENLİK
+[ ] Çeyrek final kurası oluşturulduktan sonra play-off sonuçları değiştirilemiyor.
+[ ] Yarı final kurası oluşturulduktan sonra çeyrek final sonuçları değiştirilemiyor.
+[ ] Final oluşturulduktan sonra yarı final sonuçları değiştirilemiyor.
+[ ] Sonuç girilmişse Final Chapter formatı iptal edilemiyor.
+[ ] Sonuç yoksa format iptal edilip eski eleme yedeği geri yüklenebiliyor.
+
+I. CACHE
+[ ] service-worker.js cache adı V41 olarak görünüyor.
+[ ] Ctrl + F5 sonrası yeni arayüz geliyor.
+[ ] Gerekirse Service Worker Unregister + Clear site data sonrası sorun çözülüyor.

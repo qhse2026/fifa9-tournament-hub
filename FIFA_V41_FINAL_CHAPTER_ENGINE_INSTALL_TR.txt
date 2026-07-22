@@ -1,0 +1,97 @@
+FIFA 09 FINAL CHAPTER ENGINE — V41.0
+======================================
+
+ÖN KOŞUL
+- V40.4 Final Chapter grup oylaması kurulmuş ve çalışıyor olmalıdır.
+- Bu sürüm için yeni Supabase SQL gerekmez.
+- Final Chapter verileri mevcut tournament_state payload alanında saklanır.
+
+GITHUB / VERCEL KURULUMU
+1. Aşağıdaki dosyaları GitHub repository ana dizinindeki mevcut dosyaların üzerine yükle:
+   - index.html
+   - app.js
+   - styles.css
+   - service-worker.js
+
+2. Önerilen commit mesajı:
+   Add FIFA09 Final Chapter engine v41
+
+3. Vercel deployment tamamlandıktan sonra Ctrl + F5 yap.
+
+4. Eski görünüm devam ederse:
+   Chrome DevTools > Application > Service Workers > Unregister
+   Chrome DevTools > Application > Storage > Clear site data
+
+Yeni cache adı:
+   fifa-tournament-hub-v41-final-chapter-engine
+
+YENİ FORMATIN ETKİNLEŞTİRİLMESİ
+1. Yönetici hesabıyla giriş yap.
+2. FIFA09 Final Chapter Kararı sayfasını aç.
+3. Oylama kapatılıp sonuç yayımlandığında “Final Chapter'ı Hazırla” düğmesini kullan.
+4. Alternatif olarak sol menüde FIFA09 Final Chapter sayfasını açıp aynı düğmeyi kullan.
+5. Sistem şu üç oyuncuyu doğrudan çeyrek finalist olarak doğrular:
+   - Oğuzhan Dindar
+   - Aziz Sarıoğlu
+   - Ercan Köseoğlu
+6. Altın + Gümüş Grup toplamı tam olarak 12 oyuncu değilse aktivasyon yapılmaz.
+
+TURNUVA AKIŞI
+A) PLAY-OFF
+- Doğrudan çeyrek finalistler dışındaki 9 oyuncu kuraya girer.
+- İlk 8 oyuncu dört Best of 3 eşleşmesine ayrılır.
+- Kurada son kalan oyuncu Şanslı Çeyrek Finalist olur.
+- Varsayılan takım seviyesi 4 yıldızdır.
+- Kura, sonuç girişi başlamadan önce yenilenebilir.
+- Yönetici kurayı kilitledikten sonra sonuç girişi açılır.
+
+B) ÇEYREK FİNAL
+- 3 doğrudan çeyrek finalist
+- 1 şanslı çeyrek finalist
+- 4 play-off galibi
+- Toplam 8 oyuncu yeniden kuraya girer.
+- Best of 3 oynanır.
+- Takımlar 4.5 yıldız havuzundan çekilir.
+- Oyuncu aynı çeyrek final turunda aynı takımı tekrar kullanamaz.
+
+C) YARI FİNAL
+- Dört çeyrek final galibi yeniden kuraya girer.
+- Best of 3 oynanır.
+- Takımlar 5 yıldız havuzundan çekilir.
+- Oyuncu aynı yarı final turunda aynı takımı tekrar kullanamaz.
+
+D) BÜYÜK FİNAL
+- Yarı final galipleri otomatik olarak finale taşınır.
+- Final tek maçtır.
+- İki oyuncu aynı takımı kullanır.
+- Takım ortak final havuzundan kura ile seçilir.
+- Eşitlikte uzatma/penaltı galibi seçilmelidir.
+
+TAKIM HAVUZLARI
+Final Chapter sayfasında “Takım Havuzları” düğmesini kullan.
+Dört ayrı havuz bulunur:
+- Play-off 4★
+- Çeyrek Final 4.5★
+- Yarı Final 5★
+- Final aynı takım havuzu
+
+Takım isimleri her satıra bir takım yazılarak veya virgülle ayrılarak girilebilir.
+
+BEST OF 3 MANTIĞI
+- İlk maç tamamlanmadan ikinci maç açılamaz.
+- İkinci maç tamamlanmadan üçüncü maç açılamaz.
+- Bir oyuncu 2 galibiyete ulaştığında seri biter ve kullanılmayan üçüncü maç kapanır.
+- Sonraki tur kurası oluşturulduktan sonra önceki tur sonuçları kilitlenir.
+
+VERİ GÜVENLİĞİ
+- League Phase sonuçları korunur.
+- Altın Grup sonuçları korunur.
+- Gümüş Grup sonuçları korunur.
+- Oylama verileri korunur.
+- Mevcut canlı maç ve arşiv kayıtları korunur.
+- Eski eleme şablonu aktivasyon sırasında yedeklenir.
+- Final Chapter sonuç girişi başlamadan format iptal edilirse eski eleme şablonu geri yüklenebilir.
+- Final Chapter içinde tamamlanmış maç varsa format doğrudan iptal edilemez.
+
+NOT
+Play-off takım seviyesi, formatın doğal 4★ > 4.5★ > 5★ ilerlemesi için 4 yıldız olarak uygulanmıştır.

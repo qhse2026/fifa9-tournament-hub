@@ -55,7 +55,7 @@
     league: "League Phase",
     gold: "Altın Grup",
     silver: "Gümüş Grup",
-    knockout: "Eleme Aşaması",
+    knockout: "FIFA09 Final Chapter",
     print: "Çıktı Merkezi",
     archive: "Turnuva Arşivi",
     museum: "Sezonlar & Kupa Müzesi",
@@ -71,6 +71,7 @@
   let museumSelectedEdition = 9;
   let museumSelectedPlayerName = "";
   let state = loadState();
+  if (state.current?.finalChapter?.enabled) activeView = "knockout";
   let allTimeSelectedPlayerName = "";
   let allTimeRivalryA = "";
   let allTimeRivalryB = "";
@@ -156,6 +157,7 @@
           final: null,
           championId: null
         },
+        finalChapter: defaultFinalChapter(),
         live: {
           active: null,
           archive: {}
@@ -194,6 +196,7 @@
         league: { ...fresh.current.league, ...(raw.current?.league || {}) },
         phase2: { ...fresh.current.phase2, ...(raw.current?.phase2 || {}) },
         knockout: { ...fresh.current.knockout, ...(raw.current?.knockout || {}) },
+        finalChapter: mergeFinalChapter(raw.current?.finalChapter),
         live: { ...fresh.current.live, ...(raw.current?.live || {}), archive: { ...fresh.current.live.archive, ...(raw.current?.live?.archive || {}) } },
         matchArchive: { ...fresh.current.matchArchive, ...(raw.current?.matchArchive || {}) }
       }
@@ -640,7 +643,432 @@
     return sameSeriesPlayers(existing, a, b) ? existing : createSeries(key, label, a, b);
   }
 
+
+  const FINAL_CHAPTER_DIRECT_NAMES = Object.freeze(["Oğuzhan Dindar", "Aziz Sarıoğlu", "Ercan Köseoğlu"]);
+
+  function defaultFinalChapter() {
+    return {
+      version: 41,
+      enabled: false,
+      status: "not-started",
+      activatedAt: null,
+      participantIds: [],
+      directQuarterFinalistIds: [],
+      legacyKnockoutBackup: null,
+      settings: {
+        playoffStars: 4,
+        quarterfinalStars: 4.5,
+        semifinalStars: 5,
+        finalStars: 5,
+        preventTeamRepeat: true
+      },
+      teamPools: {
+        playoff: [],
+        quarterfinal: [],
+        semifinal: [],
+        final: []
+      },
+      playoff: { drawn: false, locked: false, drawSeed: null, luckyId: null, series: [] },
+      quarterfinal: { drawn: false, locked: false, drawSeed: null, series: [] },
+      semifinal: { drawn: false, locked: false, drawSeed: null, series: [] },
+      final: { match: null, championId: null },
+      history: []
+    };
+  }
+
+  function mergeFinalChapter(raw) {
+    const fresh = defaultFinalChapter();
+    if (!raw || typeof raw !== "object") return fresh;
+    return {
+      ...fresh,
+      ...raw,
+      settings: { ...fresh.settings, ...(raw.settings || {}) },
+      teamPools: {
+        playoff: Array.isArray(raw.teamPools?.playoff) ? raw.teamPools.playoff : [],
+        quarterfinal: Array.isArray(raw.teamPools?.quarterfinal) ? raw.teamPools.quarterfinal : [],
+        semifinal: Array.isArray(raw.teamPools?.semifinal) ? raw.teamPools.semifinal : [],
+        final: Array.isArray(raw.teamPools?.final) ? raw.teamPools.final : []
+      },
+      playoff: { ...fresh.playoff, ...(raw.playoff || {}), series: Array.isArray(raw.playoff?.series) ? raw.playoff.series : [] },
+      quarterfinal: { ...fresh.quarterfinal, ...(raw.quarterfinal || {}), series: Array.isArray(raw.quarterfinal?.series) ? raw.quarterfinal.series : [] },
+      semifinal: { ...fresh.semifinal, ...(raw.semifinal || {}), series: Array.isArray(raw.semifinal?.series) ? raw.semifinal.series : [] },
+      final: { ...fresh.final, ...(raw.final || {}) },
+      participantIds: Array.isArray(raw.participantIds) ? raw.participantIds : [],
+      directQuarterFinalistIds: Array.isArray(raw.directQuarterFinalistIds) ? raw.directQuarterFinalistIds : [],
+      history: Array.isArray(raw.history) ? raw.history : []
+    };
+  }
+
+  function finalChapterState() {
+    if (!state.current.finalChapter || typeof state.current.finalChapter !== "object") state.current.finalChapter = defaultFinalChapter();
+    return state.current.finalChapter;
+  }
+
+  function finalChapterIsEnabled() {
+    return Boolean(state.current.finalChapter?.enabled);
+  }
+
+  function finalChapterEligibleIds() {
+    return [...new Set([...(state.current.phase2?.goldIds || []), ...(state.current.phase2?.silverIds || [])])].filter(Boolean);
+  }
+
+  function finalChapterDirectIds() {
+    const eligible = new Set(finalChapterEligibleIds());
+    return FINAL_CHAPTER_DIRECT_NAMES.map(participantIdByName).filter(id => id && eligible.has(id));
+  }
+
+  function finalChapterSeries(stage) {
+    const fc = finalChapterState();
+    return Array.isArray(fc[stage]?.series) ? fc[stage].series : [];
+  }
+
+  function allFinalChapterGames() {
+    const fc = finalChapterState();
+    return [
+      ...finalChapterSeries("playoff").flatMap(series => series.games || []),
+      ...finalChapterSeries("quarterfinal").flatMap(series => series.games || []),
+      ...finalChapterSeries("semifinal").flatMap(series => series.games || []),
+      ...(fc.final?.match ? [fc.final.match] : [])
+    ];
+  }
+
+  function finalChapterStageLabel(stage) {
+    return ({ playoff: "Play-off", quarterfinal: "Çeyrek Final", semifinal: "Yarı Final", final: "Büyük Final" })[stage] || "Final Chapter";
+  }
+
+  function finalChapterStars(stage) {
+    const settings = finalChapterState().settings;
+    return ({ playoff: settings.playoffStars, quarterfinal: settings.quarterfinalStars, semifinal: settings.semifinalStars, final: settings.finalStars })[stage] || "";
+  }
+
+  function createFinalChapterSeries(stage, index, playerAId, playerBId) {
+    const key = `fc-${stage}-${index}`;
+    const label = `${finalChapterStageLabel(stage)} ${index}`;
+    const series = createSeries(key, label, playerAId, playerBId);
+    series.finalChapterStage = stage;
+    series.stars = finalChapterStars(stage);
+    series.games.forEach(game => {
+      game.finalChapterStage = stage;
+      game.stars = series.stars;
+      game.note = `${label} · ${series.stars}★`;
+    });
+    return series;
+  }
+
+  function finalChapterHistory(action, detail = {}) {
+    const fc = finalChapterState();
+    fc.history.unshift({ action, at: new Date().toISOString(), ...detail });
+    fc.history = fc.history.slice(0, 60);
+  }
+
+  function finalChapterHasCompletedGames(stage = null) {
+    return allFinalChapterGames().some(match => matchComplete(match) && (!stage || match.finalChapterStage === stage));
+  }
+
+  function finalChapterStageWinners(stage) {
+    return finalChapterSeries(stage).map(seriesWinner).filter(Boolean);
+  }
+
+  function finalChapterStageComplete(stage) {
+    const series = finalChapterSeries(stage);
+    return series.length > 0 && series.every(item => Boolean(seriesWinner(item)));
+  }
+
+  function finalChapterEditLockReason(match) {
+    if (!match?.finalChapterStage) return "";
+    const fc = finalChapterState();
+    if (match.finalChapterStage === "playoff" && fc.quarterfinal.drawn) return "Çeyrek final kurası oluşturulduğu için play-off sonuçları artık değiştirilemez.";
+    if (match.finalChapterStage === "quarterfinal" && fc.semifinal.drawn) return "Yarı final kurası oluşturulduğu için çeyrek final sonuçları artık değiştirilemez.";
+    if (match.finalChapterStage === "semifinal" && fc.final.match) return "Final oluşturulduğu için yarı final sonuçları artık değiştirilemez.";
+    return "";
+  }
+
+  function refreshFinalChapter() {
+    const fc = finalChapterState();
+    if (!fc.enabled) return;
+    if (fc.semifinal.drawn && finalChapterStageComplete("semifinal")) {
+      const winners = finalChapterStageWinners("semifinal");
+      if (winners.length === 2 && (!fc.final.match || ![fc.final.match.homeId, fc.final.match.awayId].every(id => winners.includes(id)))) {
+        const match = createMatch("final", 1, winners[0], winners[1], { allowDraw: false });
+        match.finalChapterStage = "final";
+        match.stars = finalChapterStars("final");
+        match.sameTeamRequired = true;
+        match.note = `FIFA09 Final Chapter Büyük Final · ${match.stars}★ · Aynı takım`;
+        fc.final.match = match;
+        fc.final.championId = null;
+        finalChapterHistory("final-created", { playerIds: winners });
+      }
+    }
+    fc.final.championId = fc.final.match ? matchWinnerId(fc.final.match) : null;
+    if (fc.final.championId) fc.status = "completed";
+    else if (fc.final.match) fc.status = "final";
+    else if (fc.semifinal.drawn) fc.status = "semifinal";
+    else if (fc.quarterfinal.drawn) fc.status = "quarterfinal";
+    else if (fc.playoff.drawn) fc.status = "playoff";
+    else fc.status = "setup";
+  }
+
+  function activateFinalChapter() {
+    if (!canEdit()) return;
+    const eligible = finalChapterEligibleIds();
+    const direct = finalChapterDirectIds();
+    if (eligible.length !== 12) {
+      toast(`Final Chapter için Altın ve Gümüş gruplarında toplam 12 oyuncu bulunmalıdır. Mevcut: ${eligible.length}.`, "error");
+      return;
+    }
+    if (direct.length !== 3) {
+      toast("Doğrudan çeyrek finalistlerden Oğuzhan Dindar, Aziz Sarıoğlu veya Ercan Köseoğlu oyuncu listesinde bulunamadı.", "error");
+      return;
+    }
+    if (finalChapterIsEnabled()) { navTo("knockout"); return; }
+    if (!window.confirm("Final Chapter formatı etkinleştirilsin mi? Mevcut Altın/Gümüş sonuçları korunacak, eski eleme şablonu devre dışı bırakılacaktır.")) return;
+    const fc = defaultFinalChapter();
+    fc.enabled = true;
+    fc.status = "setup";
+    fc.activatedAt = new Date().toISOString();
+    fc.participantIds = eligible;
+    fc.directQuarterFinalistIds = direct;
+    fc.legacyKnockoutBackup = JSON.parse(JSON.stringify(state.current.knockout || defaultState().current.knockout));
+    fc.history = [{ action: "activated", at: fc.activatedAt, playerIds: eligible, directIds: direct }];
+    state.current.finalChapter = fc;
+    state.current.knockout = defaultState().current.knockout;
+    saveState(true, true);
+    toast("FIFA09 Final Chapter formatı etkinleştirildi.", "success");
+    navTo("knockout");
+  }
+
+  function cancelFinalChapter() {
+    if (!canEdit()) return;
+    const fc = finalChapterState();
+    if (!fc.enabled) return;
+    if (finalChapterHasCompletedGames()) {
+      toast("Sonuç girilmiş Final Chapter maçları bulunduğu için format iptal edilemez. Önce tüm sonuçları temizle.", "error");
+      return;
+    }
+    if (!window.confirm("Final Chapter hazırlığı iptal edilsin ve varsa önceki eleme şablonu geri yüklensin mi?")) return;
+    const legacy = fc.legacyKnockoutBackup;
+    state.current.finalChapter = defaultFinalChapter();
+    if (legacy) state.current.knockout = legacy;
+    saveState(true, true);
+    toast("Final Chapter hazırlığı iptal edildi.");
+    render();
+  }
+
+  function drawFinalChapterStage(stage) {
+    if (!canEdit()) return;
+    const fc = finalChapterState();
+    if (!fc.enabled) { toast("Önce Final Chapter formatını etkinleştir.", "error"); return; }
+    const target = fc[stage];
+    if (!target || target.locked || finalChapterHasCompletedGames(stage)) {
+      toast("Bu tur kilitli veya sonuç girişi başladığı için kura değiştirilemez.", "error");
+      return;
+    }
+    let players = [];
+    if (stage === "playoff") {
+      players = fc.participantIds.filter(id => !fc.directQuarterFinalistIds.includes(id));
+      if (players.length !== 9) { toast("Play-off kurası için 9 oyuncu bulunmalıdır.", "error"); return; }
+      const seed = randomSeed();
+      const order = shuffled(players, seed);
+      target.drawSeed = seed;
+      target.luckyId = order[8];
+      target.series = [0, 1, 2, 3].map(index => createFinalChapterSeries("playoff", index + 1, order[index * 2], order[index * 2 + 1]));
+    } else if (stage === "quarterfinal") {
+      if (!fc.playoff.locked || !finalChapterStageComplete("playoff")) { toast("Önce play-off serileri tamamlanmalıdır.", "error"); return; }
+      players = [...fc.directQuarterFinalistIds, fc.playoff.luckyId, ...finalChapterStageWinners("playoff")].filter(Boolean);
+      if (players.length !== 8) { toast("Çeyrek final kurası için 8 oyuncu bulunmalıdır.", "error"); return; }
+      const seed = randomSeed();
+      const order = shuffled(players, seed);
+      target.drawSeed = seed;
+      target.series = [0, 1, 2, 3].map(index => createFinalChapterSeries("quarterfinal", index + 1, order[index * 2], order[index * 2 + 1]));
+    } else if (stage === "semifinal") {
+      if (!fc.quarterfinal.locked || !finalChapterStageComplete("quarterfinal")) { toast("Önce çeyrek final serileri tamamlanmalıdır.", "error"); return; }
+      players = finalChapterStageWinners("quarterfinal");
+      if (players.length !== 4) { toast("Yarı final kurası için 4 oyuncu bulunmalıdır.", "error"); return; }
+      const seed = randomSeed();
+      const order = shuffled(players, seed);
+      target.drawSeed = seed;
+      target.series = [0, 1].map(index => createFinalChapterSeries("semifinal", index + 1, order[index * 2], order[index * 2 + 1]));
+    } else return;
+    target.drawn = true;
+    target.locked = false;
+    finalChapterHistory(`${stage}-drawn`, { playerIds: players, drawSeed: target.drawSeed, luckyId: target.luckyId || null });
+    refreshFinalChapter();
+    saveState(true, true);
+    toast(`${finalChapterStageLabel(stage)} kurası oluşturuldu. Onayladıktan sonra kilitle.`, "success");
+    renderFinalChapterEngine();
+  }
+
+  function lockFinalChapterStage(stage) {
+    if (!canEdit()) return;
+    const target = finalChapterState()[stage];
+    if (!target?.drawn) { toast("Önce kurayı oluştur.", "error"); return; }
+    if (target.locked) return;
+    target.locked = true;
+    finalChapterHistory(`${stage}-locked`, { drawSeed: target.drawSeed });
+    saveState(true, true);
+    toast(`${finalChapterStageLabel(stage)} kurası kilitlendi.`, "success");
+    renderFinalChapterEngine();
+  }
+
+  function parseTeamPool(value) {
+    return [...new Set(String(value || "").split(/[\n,;]+/).map(item => item.trim()).filter(Boolean))];
+  }
+
+  function openFinalChapterTeamPools() {
+    if (!canEdit()) return;
+    const pools = finalChapterState().teamPools;
+    openModal("Final Chapter Takım Havuzları", `<form id="finalChapterPoolsForm">
+      <div class="fc-pool-form-grid">
+        <div class="field"><label>Play-off · 4★</label><textarea name="playoff" placeholder="Her satıra bir takım">${escapeHTML(pools.playoff.join("\n"))}</textarea></div>
+        <div class="field"><label>Çeyrek Final · 4.5★</label><textarea name="quarterfinal" placeholder="Her satıra bir takım">${escapeHTML(pools.quarterfinal.join("\n"))}</textarea></div>
+        <div class="field"><label>Yarı Final · 5★</label><textarea name="semifinal" placeholder="Her satıra bir takım">${escapeHTML(pools.semifinal.join("\n"))}</textarea></div>
+        <div class="field"><label>Final · Aynı Takım</label><textarea name="final" placeholder="Her satıra bir takım">${escapeHTML(pools.final.join("\n"))}</textarea></div>
+      </div>
+      <div class="info-box mt-16">Takım isimleri satır, virgül veya noktalı virgülle ayrılabilir. Çeyrek final ve yarı finalde bir oyuncu aynı tur içinde aynı takımı tekrar çekemez.</div>
+      <div class="modal-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">İptal</button><button type="submit" class="btn btn-gold">Havuzları Kaydet</button></div>
+    </form>`, "TEAM DRAW CONTROL");
+  }
+
+  function saveFinalChapterTeamPools(form) {
+    if (!canEdit()) return;
+    const data = new FormData(form);
+    const fc = finalChapterState();
+    ["playoff", "quarterfinal", "semifinal", "final"].forEach(stage => { fc.teamPools[stage] = parseTeamPool(data.get(stage)); });
+    finalChapterHistory("team-pools-updated", { counts: Object.fromEntries(Object.entries(fc.teamPools).map(([key, value]) => [key, value.length])) });
+    saveState(true, true);
+    closeModal();
+    toast("Final Chapter takım havuzları kaydedildi.", "success");
+    renderFinalChapterEngine();
+  }
+
+  function normalizeTeamKey(value) {
+    return String(value || "").trim().toLocaleLowerCase("tr-TR");
+  }
+
+  function finalChapterUsedTeams(playerId, stage, excludeMatchId = "") {
+    const used = new Set();
+    allFinalChapterGames().forEach(match => {
+      if (match.id === excludeMatchId || match.finalChapterStage !== stage) return;
+      if (match.homeId === playerId && match.homeTeam) used.add(normalizeTeamKey(match.homeTeam));
+      if (match.awayId === playerId && match.awayTeam) used.add(normalizeTeamKey(match.awayTeam));
+    });
+    return used;
+  }
+
+  function validateFinalChapterTeams(match, homeTeam, awayTeam) {
+    if (!match?.finalChapterStage) return "";
+    const stage = match.finalChapterStage;
+    if (stage === "final" && homeTeam && awayTeam && normalizeTeamKey(homeTeam) !== normalizeTeamKey(awayTeam)) return "Büyük finalde iki oyuncu aynı takımı kullanmalıdır.";
+    if (!finalChapterState().settings.preventTeamRepeat || !["quarterfinal", "semifinal"].includes(stage)) return "";
+    const checks = [[match.homeId, homeTeam], [match.awayId, awayTeam]];
+    for (const [playerId, team] of checks) {
+      if (!team) continue;
+      if (finalChapterUsedTeams(playerId, stage, match.id).has(normalizeTeamKey(team))) return `${playerName(playerId)} bu turda ${team} takımını daha önce kullandı.`;
+    }
+    return "";
+  }
+
+  function drawFinalChapterGameTeams(matchId) {
+    if (!canEdit()) return;
+    const match = findMatch(matchId);
+    if (!match?.finalChapterStage) return;
+    const stage = match.finalChapterStage;
+    const pool = finalChapterState().teamPools[stage] || [];
+    if (!pool.length) { toast(`${finalChapterStageLabel(stage)} takım havuzu boş. Önce takım havuzlarını düzenle.`, "error"); return; }
+    if (matchComplete(match)) { toast("Sonucu girilmiş maçın takım kurası değiştirilemez.", "error"); return; }
+    if (stage === "final") {
+      const team = shuffled(pool, randomSeed())[0];
+      match.homeTeam = team;
+      match.awayTeam = team;
+    } else {
+      const enforceRepeatRule = ["quarterfinal", "semifinal"].includes(stage) && finalChapterState().settings.preventTeamRepeat;
+      const homeUsed = enforceRepeatRule ? finalChapterUsedTeams(match.homeId, stage, match.id) : new Set();
+      const awayUsed = enforceRepeatRule ? finalChapterUsedTeams(match.awayId, stage, match.id) : new Set();
+      const homeOptions = pool.filter(team => !homeUsed.has(normalizeTeamKey(team)));
+      const awayOptions = pool.filter(team => !awayUsed.has(normalizeTeamKey(team)));
+      if (!homeOptions.length || !awayOptions.length) { toast("Bu oyuncu için tekrar etmeyen takım kalmadı. Havuzu genişlet.", "error"); return; }
+      match.homeTeam = shuffled(homeOptions, randomSeed())[0];
+      const distinctAway = awayOptions.filter(team => normalizeTeamKey(team) !== normalizeTeamKey(match.homeTeam));
+      match.awayTeam = shuffled(distinctAway.length ? distinctAway : awayOptions, randomSeed())[0];
+    }
+    match.updatedAt = new Date().toISOString();
+    finalChapterHistory("team-draw", { matchId, stage, homeTeam: match.homeTeam, awayTeam: match.awayTeam });
+    saveState(true, true);
+    toast("Takım kurası tamamlandı.", "success");
+    renderFinalChapterEngine();
+  }
+
+  function finalChapterStageControls(stage) {
+    const target = finalChapterState()[stage];
+    if (!canEdit()) return "";
+    if (!target.drawn) return `<button class="btn btn-gold" data-action="fc-draw-stage" data-stage="${stage}">Kura Çek</button>`;
+    if (!target.locked && !finalChapterHasCompletedGames(stage)) return `<button class="btn btn-ghost" data-action="fc-draw-stage" data-stage="${stage}">Kurayı Yenile</button><button class="btn btn-gold" data-action="fc-lock-stage" data-stage="${stage}">Kurayı Kilitle</button>`;
+    return `<span class="badge badge-green">KURA KİLİTLİ</span>`;
+  }
+
+  function finalChapterGameRow(game, series, stageLocked, winner, index) {
+    const previousComplete = index === 0 || matchComplete(series.games[index - 1]);
+    const resultLocked = !stageLocked || !previousComplete || (winner && !matchComplete(game));
+    const score = matchComplete(game) ? `${game.homeScore}–${game.awayScore}${game.tiebreakWinnerId ? " P" : ""}` : "Sonuç bekleniyor";
+    return `<div class="fc-engine-game ${matchComplete(game) ? "complete" : ""}">
+      <div class="fc-game-number">M${index + 1}</div>
+      <div class="fc-game-side"><strong>${displayName(game.homeId)}</strong><span>${escapeHTML(game.homeTeam || "Takım bekliyor")}</span></div>
+      <div class="fc-game-score">${score}</div>
+      <div class="fc-game-side right"><strong>${displayName(game.awayId)}</strong><span>${escapeHTML(game.awayTeam || "Takım bekliyor")}</span></div>
+      ${canEdit() ? `<div class="fc-game-actions"><button class="btn btn-ghost btn-small" data-action="fc-draw-teams" data-match-id="${game.id}" ${resultLocked || matchComplete(game) ? "disabled" : ""}>Takım Kurası</button><button class="btn btn-blue btn-small" data-action="edit-match" data-match-id="${game.id}" ${resultLocked ? "disabled" : ""}>${matchComplete(game) ? "Düzelt" : "Sonuç"}</button></div>` : ""}
+    </div>`;
+  }
+
+  function finalChapterSeriesCard(series, stageLocked) {
+    const wins = seriesWins(series);
+    const winner = seriesWinner(series);
+    return `<article class="fc-engine-series ${winner ? "complete" : ""}">
+      <div class="fc-engine-series-head"><div><small>${escapeHTML(finalChapterStageLabel(series.finalChapterStage))} · ${escapeHTML(String(series.stars))}★</small><h4>${displayName(series.playerAId)} <span>vs</span> ${displayName(series.playerBId)}</h4></div><div class="fc-series-score"><b>${wins.a}</b><span>–</span><b>${wins.b}</b></div></div>
+      <div class="fc-engine-games">${series.games.map((game, index) => finalChapterGameRow(game, series, stageLocked, winner, index)).join("")}</div>
+      ${winner ? `<div class="fc-series-winner">✓ Tur atlayan: <strong>${displayName(winner)}</strong></div>` : ""}
+    </article>`;
+  }
+
+  function finalChapterStageSection(stage, title, subtitle, ready, waitingText) {
+    const fc = finalChapterState();
+    const target = fc[stage];
+    if (!ready && !target.drawn) return `<section class="panel fc-engine-stage locked"><div class="fc-engine-stage-head"><div><div class="eyebrow">${escapeHTML(title)}</div><h3>${escapeHTML(waitingText)}</h3><p>${escapeHTML(subtitle)}</p></div><span class="fc-stage-lock">⌛</span></div></section>`;
+    return `<section class="panel fc-engine-stage ${target.drawn ? "drawn" : "ready"}">
+      <div class="fc-engine-stage-head"><div><div class="eyebrow">${escapeHTML(title)}</div><h3>${target.drawn ? `${target.series.length} eşleşme hazır` : "Kura çekimine hazır"}</h3><p>${escapeHTML(subtitle)}</p></div><div class="fc-engine-stage-actions">${finalChapterStageControls(stage)}</div></div>
+      ${stage === "playoff" && target.luckyId ? `<div class="fc-lucky-player"><span>★</span><div><small>ŞANSLI ÇEYREK FİNALİST</small><strong>${displayName(target.luckyId)}</strong></div></div>` : ""}
+      ${target.drawn ? `<div class="fc-engine-series-grid">${target.series.map(series => finalChapterSeriesCard(series, target.locked)).join("")}</div>` : ""}
+    </section>`;
+  }
+
+  function renderFinalChapterEngine() {
+    const fc = finalChapterState();
+    if (!fc.enabled) {
+      const eligible = finalChapterEligibleIds();
+      view.innerHTML = `<div class="fc-engine-page"><section class="fc-engine-hero setup"><div><div class="eyebrow">FIFA09 · FINAL CHAPTER ENGINE</div><h2>Yeni eleme formatını hazırla</h2><p>Altın ve Gümüş Grup sonuçları değişmeden korunur. Üç doğrudan çeyrek finalist, dokuz kişilik play-off kurası ve şanslı çeyrek finalist sistemi etkinleştirilir.</p><div class="fc-direct-mini">${FINAL_CHAPTER_DIRECT_NAMES.map(name => `<span>✓ ${escapeHTML(name)}</span>`).join("")}</div></div><div class="fc-engine-mark"><strong>${eligible.length}</strong><span>GRUP<br>OYUNCUSU</span></div></section>
+        <section class="panel fc-activation-panel"><div><h3>Final Chapter henüz etkin değil</h3><p>Oylama kabul edildiyse yönetici olarak formatı etkinleştir. Mevcut League Phase, Altın Grup ve Gümüş Grup sonuçları silinmez.</p></div>${canEdit() ? `<button class="btn btn-gold" data-action="activate-final-chapter">Final Chapter'ı Etkinleştir</button>` : `<span class="badge badge-gold">YÖNETİCİ ONAYI BEKLENİYOR</span>`}</section></div>`;
+      return;
+    }
+    refreshFinalChapter();
+    const directNames = fc.directQuarterFinalistIds.map(displayName);
+    const playoffReady = true;
+    const qfReady = fc.playoff.locked && finalChapterStageComplete("playoff");
+    const sfReady = fc.quarterfinal.locked && finalChapterStageComplete("quarterfinal");
+    const finalMatch = fc.final.match;
+    const champion = fc.final.championId;
+    view.innerHTML = `<div class="fc-engine-page">
+      <section class="fc-engine-hero"><div><div class="eyebrow">FIFA09 · FINAL CHAPTER</div><h2>Road to the Final</h2><p>Play-off 4★, çeyrek final 4.5★, yarı final 5★. Best of 3 serilerinde iki galibiyet tur getirir; büyük final tek maç ve aynı takım formatındadır.</p><div class="fc-direct-mini">${directNames.map(name => `<span>QF · ${name}</span>`).join("")}</div></div><div class="fc-engine-mark"><strong>${champion ? "🏆" : "09"}</strong><span>${champion ? `${displayName(champion)}<br>ŞAMPİYON` : "FINAL<br>CHAPTER"}</span></div></section>
+      <div class="fc-engine-toolbar"><div><span class="badge badge-gold">${escapeHTML(fc.status.toLocaleUpperCase("tr-TR"))}</span><small>Aktivasyon: ${fc.activatedAt ? new Date(fc.activatedAt).toLocaleString("tr-TR") : "—"}</small></div>${canEdit() ? `<div><button class="btn btn-ghost" data-action="open-fc-team-pools">Takım Havuzları</button><button class="btn btn-danger" data-action="fc-cancel-format">Formatı İptal Et</button></div>` : ""}</div>
+      <section class="fc-direct-panel"><div><small>DOĞRUDAN ÇEYREK FİNAL</small><h3>Lig performansı kontenjanı</h3></div>${fc.directQuarterFinalistIds.map((id, index) => `<article><span>${index + 1}</span><strong>${displayName(id)}</strong></article>`).join("")}</section>
+      ${finalChapterStageSection("playoff", "01 · PLAY-OFF KURASI", "Kalan 9 oyuncu: dört Best of 3 eşleşme ve bir şanslı çeyrek finalist. Varsayılan takım seviyesi 4★.", playoffReady, "Play-off kurulumu bekleniyor")}
+      ${finalChapterStageSection("quarterfinal", "02 · ÇEYREK FİNAL", "8 oyuncu yeniden kuraya girer. Best of 3 · 4.5★ · aynı tur içinde takım tekrarı yasak.", qfReady, "Play-off galipleri bekleniyor")}
+      ${finalChapterStageSection("semifinal", "03 · YARI FİNAL", "4 oyuncu yeniden kuraya girer. Best of 3 · 5★ · aynı tur içinde takım tekrarı yasak.", sfReady, "Çeyrek final galipleri bekleniyor")}
+      <section class="panel fc-engine-final ${finalMatch ? "ready" : "locked"}"><div class="fc-final-trophy">🏆</div><div><div class="eyebrow">04 · BÜYÜK FİNAL</div><h3>${finalMatch ? `${displayName(finalMatch.homeId)} vs ${displayName(finalMatch.awayId)}` : "Yarı final galipleri bekleniyor"}</h3><p>Tek maç · iki oyuncu aynı takım · beraberlikte uzatma ve penaltılar.</p>${finalMatch ? `<div class="fc-final-team">Takım: <strong>${escapeHTML(finalMatch.homeTeam || "Kura bekleniyor")}</strong></div>` : ""}</div>${finalMatch && canEdit() ? `<div class="fc-final-actions"><button class="btn btn-ghost" data-action="fc-draw-teams" data-match-id="${finalMatch.id}" ${matchComplete(finalMatch) ? "disabled" : ""}>Ortak Takımı Çek</button><button class="btn btn-gold" data-action="edit-match" data-match-id="${finalMatch.id}">${matchComplete(finalMatch) ? "Sonucu Düzelt" : "Final Sonucunu Gir"}</button></div>` : ""}</section>
+      ${champion ? `<section class="fc-champion-celebration"><span>FIFA09 ŞAMPİYONU</span><h2>${displayName(champion)}</h2><p>Final Chapter tamamlandı.</p></section>` : ""}
+    </div>`;
+  }
+
   function refreshKnockout() {
+    if (finalChapterIsEnabled()) { refreshFinalChapter(); return; }
     const ko = state.current.knockout;
     if (!ko.generated || !ko.seeds) return;
 
@@ -665,6 +1093,7 @@
   }
 
   function allKnockoutGames() {
+    if (finalChapterIsEnabled()) return allFinalChapterGames();
     const ko = state.current.knockout;
     const series = [ko.qf1, ko.qf2, ko.qf3, ko.sf1, ko.sf2].filter(Boolean);
     return [...series.flatMap(s => s.games || []), ...(ko.final ? [ko.final] : [])];
@@ -680,6 +1109,10 @@
     if (!leagueFinished()) return "league";
     if (!state.current.phase2.generated) return "phase2-ready";
     if (!phase2Finished()) return "phase2";
+    if (finalChapterIsEnabled()) {
+      refreshFinalChapter();
+      return finalChapterState().final.championId ? "completed" : "knockout";
+    }
     if (!state.current.knockout.generated) return "knockout-ready";
     if (!state.current.knockout.championId) return "knockout";
     return "completed";
@@ -692,7 +1125,7 @@
       "phase2-ready": "Altın/Gümüş Aşaması Hazır",
       phase2: "Altın/Gümüş Grupları",
       "knockout-ready": "Eleme Kurası Hazır",
-      knockout: "Eleme Aşaması",
+      knockout: "FIFA09 Final Chapter",
       completed: "Turnuva Tamamlandı"
     }[currentStage()];
   }
@@ -702,7 +1135,7 @@
     const groupDone = [...goldMatches(), ...silverMatches()].filter(matchComplete).length;
     const koDone = allKnockoutGames().filter(matchComplete).length;
     const score = leagueDone + groupDone + koDone;
-    const estimated = 48 + 30 + 11;
+    const estimated = 48 + 30 + (finalChapterIsEnabled() ? 31 : 11);
     return Math.min(100, Math.round((score / estimated) * 100));
   }
 
@@ -2165,7 +2598,7 @@
       </div>
       <div class="grid-2">
         <section class="panel">
-          <div class="panel-header"><div><h3 class="panel-title">Kümülatif Puan Durumu</h3><div class="panel-subtitle">League Phase + ${isGold ? "Altın" : "Gümüş"} Grup sonuçları birlikte hesaplanır.</div></div>${phase2Finished() && !state.current.knockout.generated && canEdit() ? `<button class="btn btn-gold" data-action="generate-knockout">Eleme Eşleşmelerini Oluştur</button>` : ""}</div>
+          <div class="panel-header"><div><h3 class="panel-title">Kümülatif Puan Durumu</h3><div class="panel-subtitle">League Phase + ${isGold ? "Altın" : "Gümüş"} Grup sonuçları birlikte hesaplanır.</div></div>${phase2Finished() && !finalChapterIsEnabled() && canEdit() ? `<button class="btn btn-gold" data-action="activate-final-chapter">Final Chapter'ı Hazırla</button>` : finalChapterIsEnabled() ? `<button class="btn btn-blue" data-nav="knockout">Final Chapter'a Git</button>` : ""}</div>
           ${standingsTable(table, group)}
           ${matches.every(matchComplete) && !otherComplete ? `<div class="info-box mt-16">Bu grup tamamlandı. Diğer grubun kalan maçları bekleniyor.</div>` : ""}
         </section>
@@ -2177,9 +2610,10 @@
   }
 
   function renderKnockout() {
+    if (finalChapterIsEnabled()) { renderFinalChapterEngine(); return; }
     const ko = state.current.knockout;
     if (!ko.generated) {
-      view.innerHTML = emptyState("⌁", "Eleme aşaması henüz oluşmadı", "Altın ve Gümüş gruplarındaki 30 maç tamamlandığında sıralamalara göre eşleşmeler otomatik üretilecek.", `<button class="btn btn-gold" data-nav="gold">Altın Gruba Git</button>`);
+      renderFinalChapterEngine();
       return;
     }
     refreshKnockout();
@@ -7689,6 +8123,7 @@
     state.current.league = { generated: true, drawSeed: seed, rounds: fullRounds.slice(0, LEAGUE_ROUNDS) };
     state.current.phase2 = defaultState().current.phase2;
     state.current.knockout = defaultState().current.knockout;
+    state.current.finalChapter = defaultFinalChapter();
     saveState();
     toast("League Phase kurası oluşturuldu: 6 tur, 48 maç.", "success");
     navTo("league");
@@ -7712,6 +8147,7 @@
       adminReplacements: selection.replacement ? [{ ...selection.replacement, status: "applied", appliedAt: new Date().toISOString(), carriedPoints: table.find(row => row.id === selection.replacement.incomingId)?.pts || 0, carriedGoalDifference: table.find(row => row.id === selection.replacement.incomingId)?.gd || 0 }] : []
     };
     state.current.knockout = defaultState().current.knockout;
+    state.current.finalChapter = defaultFinalChapter();
     saveState();
     toast(selection.replacement ? "Altın ve Gümüş grupları oluşturuldu. Ersin Darıcı, idari yedek olarak kendi puanıyla Gümüş Gruba alındı." : "Altın ve Gümüş grupları oluşturuldu. Puanlar taşındı.", "success");
     navTo("gold");
@@ -7728,6 +8164,7 @@
       gold1: gold[0].id, gold2: gold[1].id, gold3: gold[2].id, gold4: gold[3].id,
       silver1: silver[0].id, silver2: silver[1].id, silver3: silver[2].id
     };
+    state.current.finalChapter = defaultFinalChapter();
     state.current.knockout = {
       generated: true,
       seeds,
@@ -7767,10 +8204,11 @@
       if (!arraySame(gold,state.current.phase2.goldIds) || !arraySame(silver,state.current.phase2.silverIds)) {
         state.current.phase2 = defaultState().current.phase2;
         state.current.knockout = defaultState().current.knockout;
-        return "League Phase sıralaması değiştiği için Altın/Gümüş ve eleme aşamaları sıfırlandı.";
+        state.current.finalChapter = defaultFinalChapter();
+        return "League Phase sıralaması değiştiği için Altın/Gümüş ve Final Chapter hazırlığı sıfırlandı.";
       }
     }
-    if (["league","gold","silver"].includes(phase) && state.current.knockout.generated) {
+    if (["league","gold","silver"].includes(phase) && state.current.knockout.generated && !finalChapterIsEnabled()) {
       const expected = expectedKnockoutSeeds();
       if (!expected || !seedsSame(expected,state.current.knockout.seeds)) {
         state.current.knockout = defaultState().current.knockout;
@@ -7784,6 +8222,8 @@
     if (!canEdit()) return;
     const match = findMatch(form.dataset.matchId);
     if (!match) return;
+    const lockReason = finalChapterEditLockReason(match);
+    if (lockReason) { toast(lockReason, "error"); return; }
     const data = new FormData(form);
     const homeScore = Number(data.get("homeScore"));
     const awayScore = Number(data.get("awayScore"));
@@ -7795,10 +8235,14 @@
       toast("Eleme maçında eşitlik varsa uzatma/penaltı galibini seç.", "error"); return;
     }
     if (!matchComplete(match)) matchArchiveSnapshot(match, "manual-entry");
+    const nextHomeTeam = String(data.get("homeTeam") || "").trim();
+    const nextAwayTeam = String(data.get("awayTeam") || "").trim();
+    const teamError = validateFinalChapterTeams(match, nextHomeTeam, nextAwayTeam);
+    if (teamError) { toast(teamError, "error"); return; }
     match.homeScore = homeScore;
     match.awayScore = awayScore;
-    match.homeTeam = String(data.get("homeTeam") || "").trim();
-    match.awayTeam = String(data.get("awayTeam") || "").trim();
+    match.homeTeam = nextHomeTeam;
+    match.awayTeam = nextAwayTeam;
     match.tiebreakWinnerId = homeScore === awayScore ? tieWinner : null;
     match.note = String(data.get("note") || "").trim();
     match.updatedAt = new Date().toISOString();
@@ -7815,6 +8259,8 @@
     if (!canEdit()) return;
     const match = findMatch(matchId);
     if (!match) return;
+    const lockReason = finalChapterEditLockReason(match);
+    if (lockReason) { toast(lockReason, "error"); return; }
     match.homeScore = null; match.awayScore = null; match.tiebreakWinnerId = null; match.note = ""; match.updatedAt = null;
     clearMatchArchiveResult(matchId);
     const warning = reconcileAfterStageEdit(match.phase);
@@ -8217,7 +8663,11 @@ ${shareData.url}`)}`;
     }
 
     const results = resultsVisible ? `<section class="poll-results-grid"><article class="panel poll-result yes"><span>Evet</span><strong>${Number(poll.yes_count) || 0}</strong></article><article class="panel poll-result no"><span>Hayır</span><strong>${Number(poll.no_count) || 0}</strong></article><article class="panel poll-result abstain"><span>Çekimser</span><strong>${Number(poll.abstain_count) || 0}</strong></article></section>` : "";
-    const adminArea = cloudAdmin ? `<section class="panel poll-admin-panel fc-admin-panel"><div class="eyebrow">YÖNETİCİ KONTROLLERİ</div><h3>Final Chapter Oylama Yönetimi</h3><p>Oy hakkı yalnızca mevcut Altın ve Gümüş Grup oyuncularına açıktır.</p><div class="poll-admin-actions"><button class="btn btn-blue" data-action="manage-final-poll" data-poll-action="open">Oylamayı Aç</button><button class="btn btn-ghost" data-action="manage-final-poll" data-poll-action="close">Oylamayı Kapat</button><button class="btn btn-gold" data-action="manage-final-poll" data-poll-action="publish">Sonuçları Yayımla</button><button class="btn btn-ghost" data-action="manage-final-poll" data-poll-action="hide">Sonuçları Gizle</button><button class="btn btn-danger" data-action="manage-final-poll" data-poll-action="reset">Oyları Sıfırla</button><button class="btn btn-danger" data-action="manage-final-poll" data-poll-action="cancel">Oylamayı İptal Et</button></div></section>` : "";
+    const pollAccepted = Number(poll.yes_count) > Number(poll.no_count) && status === "closed";
+    const engineAction = finalChapterIsEnabled()
+      ? `<button class="btn btn-blue" data-nav="knockout">Final Chapter Yönetimine Git</button>`
+      : `<button class="btn btn-gold" data-action="activate-final-chapter" ${pollAccepted ? "" : 'title="Oylama sonucu kabul edilmiş görünmüyor; yönetici yine de kontrollü olarak etkinleştirebilir."'}>Final Chapter'ı Hazırla</button>`;
+    const adminArea = cloudAdmin ? `<section class="panel poll-admin-panel fc-admin-panel"><div class="eyebrow">YÖNETİCİ KONTROLLERİ</div><h3>Final Chapter Oylama Yönetimi</h3><p>Oy hakkı yalnızca mevcut Altın ve Gümüş Grup oyuncularına açıktır.</p><div class="poll-admin-actions"><button class="btn btn-blue" data-action="manage-final-poll" data-poll-action="open">Oylamayı Aç</button><button class="btn btn-ghost" data-action="manage-final-poll" data-poll-action="close">Oylamayı Kapat</button><button class="btn btn-gold" data-action="manage-final-poll" data-poll-action="publish">Sonuçları Yayımla</button><button class="btn btn-ghost" data-action="manage-final-poll" data-poll-action="hide">Sonuçları Gizle</button><button class="btn btn-danger" data-action="manage-final-poll" data-poll-action="reset">Oyları Sıfırla</button><button class="btn btn-danger" data-action="manage-final-poll" data-poll-action="cancel">Oylamayı İptal Et</button>${engineAction}</div></section>` : "";
 
     view.innerHTML = `<div class="final-poll-page fc-poll-page">${formatHero}${voteArea}${results}${adminArea}</div>`;
   }
@@ -8387,6 +8837,12 @@ ${shareData.url}`)}`;
     if (type === "temporary-poll-new-vote") { temporaryPollSubmitted = null; temporaryPollChoice = ""; temporaryPollPlayerName = ""; renderFinalPollPage(); return; }
     if (type === "submit-final-poll-vote") { submitFinalPollVote(action.dataset.choice); return; }
     if (type === "manage-final-poll") { manageFinalPoll(action.dataset.pollAction); return; }
+    if (type === "activate-final-chapter") { activateFinalChapter(); return; }
+    if (type === "fc-cancel-format") { cancelFinalChapter(); return; }
+    if (type === "fc-draw-stage") { drawFinalChapterStage(action.dataset.stage); return; }
+    if (type === "fc-lock-stage") { lockFinalChapterStage(action.dataset.stage); return; }
+    if (type === "fc-draw-teams") { drawFinalChapterGameTeams(action.dataset.matchId); return; }
+    if (type === "open-fc-team-pools") { openFinalChapterTeamPools(); return; }
     if (["create-fifa10-draft","auto-assign-fifa10","save-fifa10-draft","cancel-fifa10-draft","confirm-cancel-fifa10-draft","add-fifa10-player","remove-fifa10-player","open-honour-editor"].includes(type) && !canEdit()) {
       toast("Bu işlem yalnızca turnuva yöneticisine açıktır.", "error");
       return;
@@ -8605,6 +9061,7 @@ ${shareData.url}`)}`;
     if (event.target.id === "playerSignupForm") { event.preventDefault(); handlePlayerSignup(event.target); return; }
     if (event.target.id === "playerClaimForm") { event.preventDefault(); handlePlayerClaim(event.target); return; }
     if (event.target.id === "honourRecordForm") { event.preventDefault(); saveHonourRecord(event.target); return; }
+    if (event.target.id === "finalChapterPoolsForm") { event.preventDefault(); saveFinalChapterTeamPools(event.target); return; }
     if (event.target.id === "matchForm") {
       event.preventDefault();
       saveMatch(event.target);
