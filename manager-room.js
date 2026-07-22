@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "42.5.2";
+  const VERSION = "42.6.0";
   const STORAGE_KEY = "fifa-manager-room-v42";
   const CATALOG_URL = "data/manager-team-catalog-fc25.json";
   const BOOTSTRAP_URL = "data/manager-bootstrap-v42.json";
@@ -74,7 +74,8 @@
     career.matchEngineStats ||= { matches: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, decisions: 0 };
     career.managerIdentity ||= { level:"manager", sound:true, reputation:50, dna:{ attack:50, control:50, adaptability:50, motivation:50, bigMatch:50 }, skills:{ tacticalReading:0, motivation:0, fitness:0, scouting:0 } };
     career.rivalries ||= {};
-    career.actors.forEach(item=>{ item.tacticalIQ=Number(item.tacticalIQ||Math.max(42,Math.min(92,Math.round(48+(item.power-900)/18)))); item.reputation=Number(item.reputation||Math.max(35,Math.min(95,Math.round(45+(item.power-900)/16)))); item.formRating=Number(item.formRating||50); });
+    career.actors.forEach(item=>{ item.tacticalIQ=Number(item.tacticalIQ||Math.max(42,Math.min(92,Math.round(48+(item.power-900)/18)))); item.reputation=Number(item.reputation||Math.max(35,Math.min(95,Math.round(45+(item.power-900)/16)))); item.formRating=Number(item.formRating||50); item.managerMemory ||= { meetings:0,wins:0,draws:0,losses:0,plans:{},lastPlan:null,confidence:50,notes:[] }; });
+    career.intelligence ||= { version:VERSION, humanPatterns:{}, insights:[] };
     career.fixtures.forEach(fixture => {
       fixture.status ||= "scheduled";
       if (fixture.homeTeam === "") fixture.homeTeam = null;
@@ -95,6 +96,9 @@
         });
         fixture.matchEngine.pulse = Array.isArray(fixture.matchEngine.pulse) ? fixture.matchEngine.pulse : [];
         fixture.matchEngine.tacticalSnapshots = Array.isArray(fixture.matchEngine.tacticalSnapshots) ? fixture.matchEngine.tacticalSnapshots : [];
+        fixture.matchEngine.possessionChains = Array.isArray(fixture.matchEngine.possessionChains) ? fixture.matchEngine.possessionChains : [];
+        fixture.matchEngine.shotMap = Array.isArray(fixture.matchEngine.shotMap) ? fixture.matchEngine.shotMap : [];
+        fixture.matchEngine.zoneEntries ||= { home:{left:0,centre:0,right:0}, away:{left:0,centre:0,right:0} };
       }
     });
     ensureOrucCup(career);
@@ -661,7 +665,7 @@
     const premierCount = career.actors.filter(item => item.division === "premier").length;
     const championshipCount = career.actors.filter(item => item.division === "championship").length;
     const legInfo = LEGS.find(item => item.id === Number(next?.leg || 1)) || LEGS[0];
-    const tabs = [["overview", "Kulüp Merkezi"], ["universe", "Lig Evreni"], ["fixtures", "Fikstür & Sonuçlar"], ["oruc", "Oruç Reis Kupası"], ["statistics", "İstatistik Merkezi"], ["identity", "Manager Identity"], ["draw", "Team Draw Theatre"], ["match", "Canlı Maç"], ["scouting", "AI Rakipler"], ["engine", "Motor Laboratuvarı"]];
+    const tabs = [["overview", "Kulüp Merkezi"], ["calendar", "Football Calendar"], ["universe", "Lig Evreni"], ["oruc", "Oruç Reis Kupası"], ["intelligence", "Career Intelligence"], ["statistics", "İstatistik Merkezi"], ["identity", "Manager Identity"], ["draw", "Team Draw Theatre"], ["match", "Canlı Maç"], ["scouting", "AI Rakipler"], ["engine", "Motor 2.0 Lab"]];
     view.innerHTML = `
       <section class="manager-club-hero" style="--club-primary:${esc(career.primaryColor)};--club-secondary:${esc(career.secondaryColor)}">
         <div class="manager-club-badge"><span>${esc(career.shortName)}</span></div>
@@ -670,7 +674,7 @@
       </section>
       <nav class="manager-tabs">${tabs.map(([id, label]) => `<button class="${activeTab === id ? "active" : ""}" data-manager-action="set-tab" data-tab="${id}">${label}</button>`).join("")}</nav>
       <div class="manager-career-toolbar"><span>${career.mode === "official" ? "RESMÎ KARİYER" : "TEST KARİYERİ"} · SEZON ${career.seasonNo}</span><button data-manager-action="exit-career">Kariyerden Çık</button></div>
-      ${activeTab === "overview" ? renderOverview(career, human, rival, next) : activeTab === "fixtures" ? renderFixtures(career) : activeTab === "oruc" ? renderOrucCup(career) : activeTab === "statistics" ? renderStatistics(career) : activeTab === "identity" ? renderIdentity(career) : activeTab === "archive" ? renderArchive(career) : activeTab === "draw" ? renderTeamDraw(career, human, rival, next) : activeTab === "match" ? (window.FIFA_MANAGER_MATCH?.render?.(career, human, matchRival, matchFixture) || `<section class="manager-loading"><h2>Maç motoru yükleniyor</h2></section>`) : activeTab === "universe" ? renderUniverse(career, premierCount, championshipCount) : activeTab === "scouting" ? renderScouting(career) : renderEngineLab(career)}
+      ${activeTab === "overview" ? renderOverview(career, human, rival, next) : activeTab === "calendar" || activeTab === "fixtures" ? renderCalendar(career) : activeTab === "oruc" ? renderOrucCup(career) : activeTab === "intelligence" ? renderCareerIntelligence(career, rival) : activeTab === "statistics" ? renderStatistics(career) : activeTab === "identity" ? renderIdentity(career) : activeTab === "archive" ? renderArchive(career) : activeTab === "draw" ? renderTeamDraw(career, human, rival, next) : activeTab === "match" ? (window.FIFA_MANAGER_MATCH?.render?.(career, human, matchRival, matchFixture) || `<section class="manager-loading"><h2>Maç motoru yükleniyor</h2></section>`) : activeTab === "universe" ? renderUniverse(career, premierCount, championshipCount) : activeTab === "scouting" ? renderScouting(career) : renderEngineLab(career)}
     `;
   }
 
@@ -741,11 +745,35 @@
     return [...table].sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf || actor(career, b.actorId).power - actor(career, a.actorId).power);
   }
 
-  function renderFixtures(career) {
-    const allRows=[...career.fixtures].sort((a,b)=>Number(a.matchday)-Number(b.matchday)||String(a.division).localeCompare(String(b.division))); const matchdays=[...new Set(allRows.map(x=>Number(x.matchday)))].sort((a,b)=>a-b); const rows=selectedFixtureMatchday==="all"?allRows:allRows.filter(x=>Number(x.matchday)===Number(selectedFixtureMatchday)); const played=allRows.filter(x=>x.status==="played").length;
-    const filters=`<div class="manager-matchday-filter"><button data-manager-action="fixture-matchday" data-matchday="all" class="${selectedFixtureMatchday==="all"?"active":""}">TÜMÜ</button>${matchdays.map(md=>`<button data-manager-action="fixture-matchday" data-matchday="${md}" class="${Number(selectedFixtureMatchday)===md?"active":""}">MD ${md}</button>`).join("")}</div>`;
+  function renderFixtures(career, forcedMatchday=null) {
+    const allRows=[...career.fixtures].sort((a,b)=>Number(a.matchday)-Number(b.matchday)||String(a.division).localeCompare(String(b.division))); const matchdays=[...new Set(allRows.map(x=>Number(x.matchday)))].sort((a,b)=>a-b); const filterDay=forcedMatchday??selectedFixtureMatchday; const rows=filterDay==="all"?allRows:allRows.filter(x=>Number(x.matchday)===Number(filterDay)); const played=allRows.filter(x=>x.status==="played").length;
+    const filters=forcedMatchday===null?`<div class="manager-matchday-filter"><button data-manager-action="fixture-matchday" data-matchday="all" class="${selectedFixtureMatchday==="all"?"active":""}">TÜMÜ</button>${matchdays.map(md=>`<button data-manager-action="fixture-matchday" data-matchday="${md}" class="${Number(selectedFixtureMatchday)===md?"active":""}">MD ${md}</button>`).join("")}</div>`:"";
     const list=rows.map(item=>{const home=actor(career,item.homeId),away=actor(career,item.awayId),done=item.status==="played",elo=item.eloChange,archive=done&&item.matchEngine&&[item.homeId,item.awayId].includes(career.humanActorId);return `<article class="${done?"played":"scheduled"} ${[item.homeId,item.awayId].includes(career.humanActorId)?"human":""}"><time>MD ${item.matchday}</time><div><small>${item.competition==="oruc"?`ORUÇ REİS KUPASI · BEST OF 3 · ${starText(item.stars)}`:`${item.division==="premier"?"PREMIER LEAGUE":"CHAMPIONSHIP"} · ${starText(item.stars)}`}</small><strong>${esc(home.clubName)} <b>${done?item.homeScore:"–"} : ${done?item.awayScore:"–"}</b> ${esc(away.clubName)}</strong><span>${esc(home.managerName)} · ${esc(away.managerName)}</span></div><aside><b>${done?"FT":"SCHEDULED"}</b>${elo?`<small>${elo.homeDelta>=0?"+":""}${elo.homeDelta} / ${elo.awayDelta>=0?"+":""}${elo.awayDelta} ELO</small>`:""}${archive?`<button data-manager-action="open-archive" data-fixture-id="${esc(item.id)}">MAÇ ANALİZİ</button>`:""}</aside></article>`}).join("");
     return `<section class="manager-fixture-centre"><div class="manager-section-head"><div><span>SEASON COMMAND CENTRE</span><h3>Matchday Fikstür ve Sonuçları</h3></div><small>${played}/${allRows.length} maç tamamlandı</small></div>${filters}<div class="manager-fixture-list">${list||`<div class="empty-state">Bu Matchday için maç bulunmuyor.</div>`}</div></section>`;
+  }
+
+  function renderCalendar(career) {
+    const fixtures=[...career.fixtures];
+    const matchdays=[...new Set(fixtures.map(f=>Number(f.matchday)))].sort((a,b)=>a-b);
+    const current=selectedFixtureMatchday==="all"?Number(career.matchday||matchdays[0]||1):Number(selectedFixtureMatchday);
+    const dayRows=fixtures.filter(f=>Number(f.matchday)===current);
+    const league=dayRows.filter(f=>f.competition!=="oruc");
+    const cup=dayRows.filter(f=>f.competition==="oruc");
+    const human=dayRows.find(f=>[f.homeId,f.awayId].includes(career.humanActorId));
+    const status=human?.status==="played"?"TAMAMLANDI":human?.status==="in-progress"?"CANLI":human?"MAÇ GÜNÜ":"PROGRAM YOK";
+    const rail=`<div class="manager-calendar-rail">${matchdays.map(md=>{const rows=fixtures.filter(f=>Number(f.matchday)===md),played=rows.length&&rows.every(f=>f.status==="played"),hasHuman=rows.some(f=>[f.homeId,f.awayId].includes(career.humanActorId)),hasCup=rows.some(f=>f.competition==="oruc");return `<button class="${md===current?"active":""} ${played?"complete":""}" data-manager-action="fixture-matchday" data-matchday="${md}"><small>${hasCup?"KUPA + LİG":"LİG"}</small><strong>MD ${md}</strong><span>${hasHuman?"SENİN MAÇIN":"EVREN"}</span></button>`}).join("")}</div>`;
+    return `<section class="manager-football-calendar"><header><div><span>UNIFIED SEASON TIMELINE</span><h2>Football Calendar</h2><p>Lig ve Oruç Reis Kupası aynı sezon akışında. Bir Matchday seç; yalnızca o günün programını ve sonuçlarını gör.</p></div><div class="manager-calendar-status"><small>AKTİF GÜN</small><strong>MD ${current}</strong><span>${status}</span></div></header>${rail}<div class="manager-calendar-summary"><article><span>LİG MAÇI</span><strong>${league.length}</strong></article><article><span>KUPA MAÇI</span><strong>${cup.length}</strong></article><article><span>TAMAMLANAN</span><strong>${dayRows.filter(f=>f.status==="played").length}/${dayRows.length}</strong></article><article><span>SEZON İLERLEMESİ</span><strong>${Math.round(fixtures.filter(f=>f.status==="played").length/Math.max(1,fixtures.length)*100)}%</strong></article></div>${renderFixtures(career,current)}</section>`;
+  }
+
+  function renderCareerIntelligence(career, nextRival) {
+    const history=career.matchHistory||[];
+    const plans={};
+    history.forEach(h=>{const p=h.planSummary||"Dengeli";plans[p]=(plans[p]||0)+1});
+    const favorite=Object.entries(plans).sort((a,b)=>b[1]-a[1])[0]?.[0]||"Henüz yeterli veri yok";
+    const rivals=career.actors.filter(a=>a.type==="ai").map(a=>({actor:a,m:a.managerMemory||{}})).sort((a,b)=>Number(b.m.meetings||0)-Number(a.m.meetings||0));
+    const memory=nextRival?.managerMemory||{};
+    const counters=Object.entries(memory.plans||{}).sort((a,b)=>b[1]-a[1]).slice(0,3);
+    return `<section class="manager-intelligence-centre"><header><div><span>CAREER INTELLIGENCE NETWORK</span><h2>Rakipler Seni Hatırlıyor</h2><p>Her AI menajer karşılaşmaları, kullandığın maç planını ve sonuçları kendi hafızasında tutar. Bir sonraki maçta karşı plan üretir.</p></div><div class="manager-intel-score"><strong>${Math.min(99,45+history.length*3)}</strong><span>DATA DEPTH</span></div></header><div class="manager-intel-kpis"><article><span>ANALİZ EDİLEN MAÇ</span><strong>${history.length}</strong></article><article><span>BASKIN PLANIN</span><strong>${esc(favorite)}</strong></article><article><span>ADAPTASYON</span><strong>${career.matchEngineStats?.decisions||0}</strong></article><article><span>RAKİP HAFIZASI</span><strong>${rivals.filter(x=>x.m.meetings).length}</strong></article></div>${nextRival?`<section class="manager-next-intel"><div><span>NEXT OPPONENT FILE</span><h3>${esc(nextRival.managerName)} · ${esc(nextRival.clubName)}</h3><p>Sana karşı ${memory.meetings||0} maç: ${memory.wins||0}G ${memory.draws||0}B ${memory.losses||0}M. Güven seviyesi ${memory.confidence||50}/100.</p></div><aside>${counters.length?counters.map(([k,v])=>`<b>${esc(k)} <small>${v} kez görüldü</small></b>`).join(""):`<b>İLK TEMAS <small>Rakibin özel karşı plan verisi yok</small></b>`}</aside></section>`:""}<div class="manager-memory-grid">${rivals.slice(0,12).map(({actor:a,m})=>`<article><div><span>${esc(a.clubName)}</span><h4>${esc(a.managerName)}</h4></div><strong>${m.meetings||0}<small>MEETING</small></strong><footer><span>${m.wins||0}G</span><span>${m.draws||0}B</span><span>${m.losses||0}M</span><span>IQ ${a.tacticalIQ}</span></footer></article>`).join("")}</div></section>`;
   }
 
   function renderArchive(career) {
@@ -805,7 +833,7 @@
       ["Decision Intelligence", 45, "Bağlamsal karar aileleri ve outcome resolver"],
       ["Balance Telemetry", 15, "Deterministik seed ve maç raporu verisi"]
     ];
-    return `<section class="manager-engine-lab"><div class="manager-engine-core"><div class="manager-core-ring"><span>V42.4</span><strong>LIVE CORE</strong></div><div><span>MATCH INTELLIGENCE ENGINE</span><h3>90 dakikalık görünmeyen maç; canlı pulse, olay yayını ve kalıcı analiz state’i içinde</h3><p>Maç hızlandırılmış gösterilir. Her dakika tempo, atak momentumu, tehdit ve saha hâkimiyeti kaydedilir; maç bittiğinde bütün telemetri arşivde kalır.</p></div></div><div class="manager-module-grid">${modules.map(row => `<article><div><span>${row[0]}</span><strong>${row[1]}%</strong></div><i><b style="width:${row[1]}%"></b></i><p>${row[2]}</p></article>`).join("")}</div><div class="manager-engine-contract"><strong>V42.4 MATCH INTELLIGENCE</strong><span>Match Pulse, broadcast olayları, Match DNA, taktik etki analizi, istatistik merkezi ve geçmiş maç arşivi aktif.</span></div></section>`;
+    return `<section class="manager-engine-lab"><div class="manager-engine-core"><div class="manager-core-ring"><span>V42.6</span><strong>ENGINE 2.0</strong></div><div><span>MATCH INTELLIGENCE ENGINE 2.0</span><h3>PlayStation maç temposunu pozisyon zincirleri, hücum yolları ve öğrenen AI ile simüle eden 90 dakika</h3><p>Kadro kurma katmanı yoktur. Gerçek oyuncuların FIFA karşılaşmalarını temsil eden motor; takım kurası, teknik direktör planı, momentum, hücum zinciri ve sonuç kalibrasyonunu işler.</p></div></div><div class="manager-module-grid">${modules.map(row => `<article><div><span>${row[0]}</span><strong>${row[1]}%</strong></div><i><b style="width:${row[1]}%"></b></i><p>${row[2]}</p></article>`).join("")}</div><div class="manager-engine-contract"><strong>V42.6 CAREER INTELLIGENCE</strong><span>AI hafızası, karşı plan, birleşik Football Calendar, pozisyon zincirleri, şut haritası verisi ve hücum koridorları aktiftir.</span></div></section>`;
   }
 
   function render(view) {
