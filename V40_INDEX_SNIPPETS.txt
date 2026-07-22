@@ -1,0 +1,7 @@
+V40 INDEX.HTML EKLENECEK SATIRLAR
+
+1) <head> bölümünde styles.css satırından sonra:
+<link rel="stylesheet" href="final-chapter-v40.css" />
+
+2) </body> öncesinde app.js satırından sonra:
+<script src="final-chapter-v40.js"></script>

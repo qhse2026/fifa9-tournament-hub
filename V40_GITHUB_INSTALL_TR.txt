@@ -1,0 +1,56 @@
+FIFA TOURNAMENT HUB V40 — FINAL CHAPTER OYLAMASI
+
+ÖN KOŞUL
+- Mevcut siten V39 olmalıdır.
+- player_membership_v39.sql daha önce çalıştırılmış olmalıdır.
+- V39 oyuncu hesapları player_profiles tablosuna bağlanmış olmalıdır.
+
+1) SUPABASE
+Supabase Dashboard > SQL Editor bölümünde şu dosyanın tamamını çalıştır:
+
+fifa09_final_chapter_poll_v40.sql
+
+Bu SQL:
+- Oylama ve oy tablolarını oluşturur.
+- Aktif oyuncuların yalnızca kendi oyunu kaydetmesini sağlar.
+- Yöneticiye oylamayı açma/kapatma/iptal etme yetkisi verir.
+- Sonuçları oylama kapanana kadar gizler.
+- Realtime güncellemelerini aktive eder.
+
+2) GITHUB
+Aşağıdaki iki dosyayı GitHub projenin ana dizinine yükle:
+
+final-chapter-v40.js
+final-chapter-v40.css
+
+3) index.html DEĞİŞİKLİĞİ
+<head> içindeki mevcut styles.css satırının hemen altına ekle:
+
+<link rel="stylesheet" href="final-chapter-v40.css" />
+
+body sonundaki mevcut app.js satırının hemen altına ekle:
+
+<script src="final-chapter-v40.js"></script>
+
+Örnek:
+<script src="app.js"></script>
+<script src="final-chapter-v40.js"></script>
+
+4) COMMIT
+Önerilen commit mesajı:
+
+Add FIFA 09 Final Chapter poll v40
+
+5) DEPLOY VE TEST
+- Vercel deploy tamamlandıktan sonra Ctrl + F5 yap.
+- Oyuncu hesabıyla giriş yap.
+- Sol menüde “Final Chapter Oylaması” görünmelidir.
+- Aktif oyuncu EVET / HAYIR / ÇEKİMSER oyu verebilmelidir.
+- Oy dağılımı oylama açıkken gizli olmalıdır.
+- Yönetici oylamayı kapattığında sonuçlar görünmelidir.
+- Oyuncu oyunu oylama açıkken değiştirebilmelidir.
+
+NOT
+- Bu paket mevcut V39 app.js, styles.css ve index.html dosyalarını değiştirmez.
+- Yalnızca iki yeni GitHub dosyası eklenir ve index.html içine iki satır eklenir.
+- FIFA 09 maç sonuçları, V39 üyelik sistemi ve mevcut turnuva verileri korunur.
