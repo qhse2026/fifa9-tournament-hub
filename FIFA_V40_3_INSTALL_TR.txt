@@ -1,0 +1,34 @@
+FIFA 09 FINAL CHAPTER OYLAMASI — V40.3
+================================================
+
+AMAÇ
+- Mevcut FIFA09 sonuçları ve sıralamaları değişmeden kalır.
+- Oylama yalnızca turnuvanın kalan eleme bölümünün Final Chapter formatını belirler.
+- Önceki V40.2 devam sorusu kaldırılır.
+- Yeni anket yeni slug ile sıfır oyla başlar.
+
+OYLAMA FORMATI
+1. Oğuzhan Dindar, Aziz Sarıoğlu ve Ercan Köseoğlu doğrudan çeyrek finalisttir.
+2. Kalan 9 oyuncu play-off kurasına katılır. Son kalan oyuncu Şanslı Çeyrek Finalist olur.
+3. Kalan 8 oyuncu dört Best of 3 play-off eşleşmesi oynar.
+4. Çeyrek final: 8 oyuncu, yeniden kura, Best of 3, 4.5 yıldız takım havuzu, tur içinde takım tekrarı yok.
+5. Yarı final: yeniden kura, Best of 3, 5 yıldız takım havuzu, tur içinde takım tekrarı yok.
+6. Final: tek maç, iki finalist aynı takımı kullanır; beraberlikte uzatma ve penaltılar.
+
+KURULUM
+1. Supabase SQL Editor içinde FIFA_V40_3_FINAL_CHAPTER_POLL.sql dosyasını çalıştır.
+2. GitHub ana dizininde şu dosyaları mevcut dosyaların üzerine yükle:
+   - index.html
+   - app.js
+   - styles.css
+   - service-worker.js
+3. Vercel deploy tamamlanınca Ctrl + F5 yap.
+4. Gerekirse Service Worker > Unregister ve Clear site data uygula.
+
+NOT
+- Yeni anket slug: fifa09-final-chapter-format-v3
+- Önceki V40.2 oyları yeni ankete aktarılmaz.
+- FIFA09 maç sonuçları, League Phase, Altın/Gümüş tabloları ve arşiv verileri değişmez.
+
+ÖNERİLEN COMMIT
+Update FIFA09 poll to Final Chapter format v40.3
