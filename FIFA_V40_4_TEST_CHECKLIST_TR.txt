@@ -1,0 +1,16 @@
+FIFA V40.4 TEST KONTROL LİSTESİ
+================================
+[ ] Site açıldığında Final Chapter Kararı sayfası görünüyor.
+[ ] Uzun metin yerine 5 aşamalı format şeridi görünüyor.
+[ ] Oy hakkı Altın + Gümüş Grup olarak açıklanıyor.
+[ ] Katılım toplamı 12 veya mevcut iki grubun toplam oyuncu sayısını gösteriyor.
+[ ] Evet/Hayır/Çekimser seçimi çalışıyor.
+[ ] Karar seçilmeden oyuncu seçme bölümü kilitli.
+[ ] Karar seçilince oyuncu isim butonları açılıyor.
+[ ] Yalnızca Altın ve Gümüş Grup oyuncuları listeleniyor.
+[ ] League Phase elenen dört oyuncu listede görünmüyor.
+[ ] Oyuncu seçilmeden kesinleştirme düğmesi aktif olmuyor.
+[ ] Aynı oyuncu yeniden oy verdiğinde önceki oy güncelleniyor.
+[ ] Yönetici oylamayı açıp kapatabiliyor.
+[ ] Önceki FIFA09 sonuçları ve puan tabloları değişmedi.
+[ ] Mobil görünümde yatay format şeridi ve oyuncu kartları kullanılabiliyor.

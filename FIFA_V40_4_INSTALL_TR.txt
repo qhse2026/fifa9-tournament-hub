@@ -1,0 +1,34 @@
+FIFA09 FINAL CHAPTER KARAR OYLAMASI — V40.4
+================================================
+
+AMAÇ
+- Oylama yalnızca mevcut Altın Grup ve Gümüş Grup oyuncularına açıktır.
+- 16 kişilik ilk katılımcı listesinin tamamı oy kullanamaz.
+- Oy hakkı, tournament_state içindeki current.phase2.goldIds ve current.phase2.silverIds alanlarından canlı olarak belirlenir.
+- Oynanmış maçlar, puan tabloları ve mevcut sıralamalar değiştirilmez.
+
+YENİ ARAYÜZ
+- Uzun açıklamalar yerine kompakt 5 aşamalı Final Chapter yol haritası.
+- Karar seçimi: Evet / Hayır / Çekimser.
+- Dropdown yerine Altın ve Gümüş Grup oyuncularının isim butonları.
+- Oyuncu ve karar seçilmeden Oyumu Kesinleştir düğmesi aktif olmaz.
+- Canlı katılım oranı gösterilir.
+
+KURULUM
+1. Supabase SQL Editor içinde FIFA_V40_4_FINAL_CHAPTER_GROUP_POLL.sql dosyasını çalıştır.
+2. GitHub ana dizinine şu dosyaları yükle:
+   - index.html
+   - app.js
+   - cloud.js
+   - styles.css
+   - service-worker.js
+3. Commit önerisi:
+   Refine Final Chapter group-only poll v40.4
+4. Vercel deploy bittikten sonra Ctrl + F5 yap.
+
+YENİ ANKET KİMLİĞİ
+- fifa09-final-chapter-groups-v4
+- Önceki deneme oyları bu ankete aktarılmaz.
+
+CACHE
+- fifa-tournament-hub-v40-4-group-final-chapter-poll

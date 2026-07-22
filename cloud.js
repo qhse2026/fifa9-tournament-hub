@@ -193,6 +193,22 @@
     }));
   }
 
+
+  async function fetchFinalChapterPlayers() {
+    if (!client || !isConfigured()) return [];
+    const { data, error } = await client.rpc("get_fifa09_final_chapter_players", {
+      p_tournament_id: config.tournamentRowId || "fifa-9"
+    });
+    if (error) throw error;
+    return (data || []).map(item => ({
+      playerName: item.player_name,
+      groupName: item.group_name,
+      groupOrder: Number(item.group_order) || 9,
+      seedOrder: Number(item.seed_order) || 99,
+      claimed: false
+    }));
+  }
+
   async function signUpPlayer(email, password, playerName) {
     if (!client) throw new Error("Cloud connection is not configured.");
     const cleanEmail = String(email || "").trim();
@@ -349,6 +365,7 @@
     signUpPlayer,
     claimPlayerIdentity,
     fetchRegistrationPlayers,
+    fetchFinalChapterPlayers,
     fetchPollStatus,
     fetchMyPollVote,
     submitPollVote,
