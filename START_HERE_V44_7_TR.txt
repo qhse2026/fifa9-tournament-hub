@@ -1,0 +1,72 @@
+FIFA 9 TOURNAMENT HUB
+V44.7.0 — FINAL CHAPTER CONNECTED UNIVERSE
+KURULUM TALİMATI
+
+AMAÇ
+Bu güncelleme FIFA 09 Final Chapter maçlarını aynı veri kaynağı üzerinden şu dört merkeze bağlar:
+- Canlı Maç Merkezi ve canlı maç anlatımı
+- Form Merkezi
+- Canlı İstatistikler
+- Turnuva Zekâ Merkezi
+
+UYUMLULUK
+- Mevcut V44.6.1 Manager Room / Season Division Lock düzeltmesine dokunmaz.
+- manager-room.js veya manager-match-engine.js içermez ve bunları değiştirmez.
+- Mevcut turnuva state'i, skorlar, Final Chapter kuraları ve kariyer kayıtları korunur.
+- Yeni Supabase SQL gerekmez.
+
+GITHUB'A YÜKLENECEK DOSYALAR
+ZIP'i bilgisayarında açın ve yalnızca şu üç dosyayı repository ana dizinine yükleyin:
+1. app.js
+2. styles.css
+3. service-worker.js
+
+Dosyalar index.html ile aynı seviyede görünmelidir:
+
+fifa9-tournament-hub/
+  index.html
+  app.js
+  styles.css
+  service-worker.js
+  manager-room.js
+  ...
+
+Bu dosyaları bir V44.7 klasörü altında yüklemeyin.
+
+ÖNERİLEN COMMIT MESAJI
+Install V44.7.0 Final Chapter Connected Universe
+
+YAYIN SONRASI
+1. GitHub Actions > pages build and deployment işleminin yeşil tik olmasını bekleyin.
+2. Siteyi açın.
+3. Ctrl + Shift + R ile sert yenileme yapın.
+4. Console'da aşağıdakini çalıştırın:
+
+window.FIFA_FINAL_CHAPTER?.connectedUniverseVersion
+
+Beklenen sonuç:
+44.7.0
+
+Eski sürüm görünürse Console'da çalıştırın:
+
+(async () => {
+  const registrations = await navigator.serviceWorker.getRegistrations();
+  await Promise.all(registrations.map(item => item.unregister()));
+  const keys = await caches.keys();
+  await Promise.all(keys.map(key => caches.delete(key)));
+  location.reload();
+})();
+
+İLK KABUL TESTİ
+1. FIFA 09 Final Chapter ekranını açın.
+2. Canlı Maç Merkezi'ne girin.
+3. Yalnızca her aktif Best of 3 serisinin sıradaki oynanabilir maçının listelendiğini kontrol edin.
+4. Bir Final Chapter maçını başlatın.
+5. Üst bölümde aşama, seri skoru ve maçın önemini gösteren Final Chapter yayın panelini kontrol edin.
+6. Maç sonucunu kaydedin; seri skorunun ve sonraki tur akışının güncellendiğini kontrol edin.
+7. Form Merkezi > Final Chapter filtresini açın.
+8. Canlı İstatistikler'de Final Chapter / Ana Eleme / Son Bilet / Çeyrek Final / Yarı Final / Büyük Final filtrelerini kontrol edin.
+9. Zekâ Merkezi > Final Chapter sekmesini açıp şampiyonluk olasılıkları ve Destiny Path alanını kontrol edin.
+
+ÖNEMLİ KURAL
+Bir Final Chapter maçı yalnızca bir kez kaydedilir. Canlı Maç, Form, Canlı İstatistikler, Zekâ Merkezi ve bracket aynı maç kaydını okur. Ayrı veya kopya bir istatistik motoru oluşturulmamıştır.

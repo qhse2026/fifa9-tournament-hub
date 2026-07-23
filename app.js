@@ -26,6 +26,8 @@
   const FINAL_CHAPTER_DIRECT_NAMES = Object.freeze(["Oğuzhan Dindar", "Aziz Sarıoğlu", "Ercan Köseoğlu"]);
   const FINAL_CHAPTER_WITHDRAWN_NAMES = Object.freeze(["Sultan Atasaral"]);
   const FINAL_CHAPTER_FORMAT_VERSION = 43;
+  const FINAL_CHAPTER_CONNECTED_UNIVERSE_VERSION = "44.7.0";
+  const FINAL_CHAPTER_STAGE_ORDER = Object.freeze({ playoff: 1, secondChanceSemi: 2, secondChanceFinal: 3, quarterfinal: 4, semifinal: 5, final: 6 });
   let registrationPlayers = [];
   let registrationPlayersLoading = false;
   let registrationPlayersLoadedAt = 0;
@@ -85,6 +87,8 @@
   let selectedTeamPlayerName = "";
   let formWindowSize = 20;
   let formScope = "current";
+  let liveStatsScope = "all";
+  let finalChapterIntelligencePlayer = "";
   let selectedFormPlayerName = "";
   let oddsPhaseFilter = "all";
   let intelligenceSection = "matchday";
@@ -746,7 +750,8 @@
 
   function finalChapterState() {
     if (!state.current.finalChapter || typeof state.current.finalChapter !== "object") state.current.finalChapter = defaultFinalChapter();
-    return migrateFinalChapterFormat(state.current.finalChapter);
+    const fc = migrateFinalChapterFormat(state.current.finalChapter);
+    return hydrateFinalChapterMatchMetadata(fc);
   }
 
   function finalChapterIsEnabled() {
@@ -811,14 +816,214 @@
     })[stage] || "";
   }
 
+
+  function isFinalChapterMatch(match) {
+    return Boolean(match?.finalChapterStage || match?.competition === "final-chapter" || String(match?.id || "").startsWith("fc-"));
+  }
+
+  function hydrateFinalChapterMatchMetadata(fc = state.current.finalChapter) {
+    if (!fc || typeof fc !== "object") return fc;
+    const stageKeys = ["playoff", "secondChanceSemi", "secondChanceFinal", "quarterfinal", "semifinal"];
+    const starsByStage = {
+      playoff: fc.settings?.playoffStars || 4,
+      secondChanceSemi: fc.settings?.playoffStars || 4,
+      secondChanceFinal: fc.settings?.playoffStars || 4,
+      quarterfinal: fc.settings?.quarterfinalStars || 4.5,
+      semifinal: fc.settings?.semifinalStars || 5,
+      final: fc.settings?.finalStars || 5
+    };
+    stageKeys.forEach(stage => {
+      const seriesRows = Array.isArray(fc?.[stage]?.series) ? fc[stage].series : [];
+      seriesRows.forEach((series, seriesIndex) => {
+        series.finalChapterStage = stage;
+        series.stars = Number(series.stars || starsByStage[stage]);
+        series.bestOf = 3;
+        (series.games || []).forEach((game, gameIndex) => {
+          game.competition = "final-chapter";
+          game.chapterStage = stage;
+          game.finalChapterStage = stage;
+          game.seriesId = series.key || `fc-${stage}-${seriesIndex + 1}`;
+          game.seriesGame = gameIndex + 1;
+          game.bestOf = 3;
+          game.seriesTargetWins = 2;
+          game.eliminationMatch = true;
+          game.stars = Number(game.stars || series.stars || starsByStage[stage]);
+        });
+      });
+    });
+    if (fc.final?.match) {
+      const match = fc.final.match;
+      match.competition = "final-chapter";
+      match.chapterStage = "final";
+      match.finalChapterStage = "final";
+      match.seriesId = "fc-final";
+      match.seriesGame = 1;
+      match.bestOf = 1;
+      match.seriesTargetWins = 1;
+      match.eliminationMatch = true;
+      match.stars = Number(match.stars || starsByStage.final);
+    }
+    return fc;
+  }
+
+  function finalChapterSeriesForMatch(match) {
+    if (!match?.finalChapterStage || match.finalChapterStage === "final") return null;
+    const stage = match.finalChapterStage;
+    return finalChapterSeries(stage).find(series => series.key === match.seriesKey || series.key === match.seriesId || (series.games || []).some(game => game.id === match.id)) || null;
+  }
+
+  function genericSeriesForMatch(match) {
+    if (isFinalChapterMatch(match)) return finalChapterSeriesForMatch(match);
+    return match?.seriesKey ? state.current.knockout?.[match.seriesKey] || null : null;
+  }
+
+  function seriesEndedUnused(match) {
+    const series = genericSeriesForMatch(match);
+    return Boolean(series && seriesWinner(series) && !matchComplete(match));
+  }
+
+  function matchAvailableForLive(match) {
+    if (!match?.homeId || !match?.awayId || matchComplete(match) || seriesEndedUnused(match)) return false;
+    const series = genericSeriesForMatch(match);
+    if (!series) return true;
+    const index = (series.games || []).findIndex(game => game.id === match.id);
+    if (index < 0) return true;
+    return index === 0 || matchComplete(series.games[index - 1]);
+  }
+
+  function finalChapterMatchContext(match) {
+    if (!isFinalChapterMatch(match)) return null;
+    const stage = match.finalChapterStage || match.chapterStage || (match.phase === "final" ? "final" : "playoff");
+    const series = finalChapterSeriesForMatch(match);
+    const gameIndex = series ? Math.max(0, (series.games || []).findIndex(game => game.id === match.id)) : 0;
+    const wins = series ? seriesWins(series) : { a: 0, b: 0 };
+    const winner = series ? seriesWinner(series) : matchWinnerId(match);
+    const stakes = ({
+      playoff: intelligenceCopy("Kazanan doğrudan çeyrek finale; kaybeden Son Bilet yoluna gider.", "Winner advances directly to the quarter-finals; loser enters the Last Ticket route."),
+      secondChanceSemi: intelligenceCopy("Kaybeden Final Chapter'a veda eder; kazanan Son Bilet finaline çıkar.", "The loser exits the Final Chapter; the winner reaches the Last Ticket final."),
+      secondChanceFinal: intelligenceCopy("Kazanan sekizinci ve son çeyrek finalist olur.", "The winner becomes the eighth and final quarter-finalist."),
+      quarterfinal: intelligenceCopy("Seri galibi FIFA 09'un son dört oyuncusu arasına girer.", "The series winner reaches the FIFA 09 final four."),
+      semifinal: intelligenceCopy("Seri galibi Büyük Final biletini alır.", "The series winner earns a place in the Grand Final."),
+      final: intelligenceCopy("Tek maç, tek kupa, FIFA 09 şampiyonluğu.", "One match, one trophy, the FIFA 09 championship.")
+    })[stage] || intelligenceCopy("Final Chapter eleme maçı.", "Final Chapter elimination match.");
+    const shortLabel = ({ playoff: "ANA ELEME", secondChanceSemi: "SON BİLET YF", secondChanceFinal: "SON BİLET FİNALİ", quarterfinal: "ÇEYREK FİNAL", semifinal: "YARI FİNAL", final: "BÜYÜK FİNAL" })[stage] || "FINAL CHAPTER";
+    return {
+      stage,
+      label: finalChapterStageLabel(stage),
+      shortLabel,
+      stageOrder: FINAL_CHAPTER_STAGE_ORDER[stage] || 99,
+      series,
+      gameIndex,
+      gameNumber: Number(match.seriesGame || gameIndex + 1 || 1),
+      bestOf: stage === "final" ? 1 : 3,
+      targetWins: stage === "final" ? 1 : 2,
+      wins,
+      winner,
+      stakes,
+      isDecider: stage === "final" || Boolean(series && (wins.a === 1 && wins.b === 1)),
+      seriesScore: series ? `${wins.a}–${wins.b}` : "0–0"
+    };
+  }
+
+  function finalChapterMatchesForScope(scope = "final-chapter") {
+    const games = allFinalChapterGames();
+    if (["all", "final-chapter"].includes(scope)) return games;
+    if (scope === "last-ticket") return games.filter(match => ["secondChanceSemi", "secondChanceFinal"].includes(match.finalChapterStage));
+    return games.filter(match => match.finalChapterStage === scope);
+  }
+
+  function finalChapterProgressRows() {
+    const stages = ["playoff", "secondChanceSemi", "secondChanceFinal", "quarterfinal", "semifinal", "final"];
+    return stages.map(stage => {
+      const matches = allFinalChapterGames().filter(match => match.finalChapterStage === stage && !seriesEndedUnused(match));
+      const completed = matches.filter(matchComplete);
+      const series = stage === "final" ? (finalChapterState().final.match ? 1 : 0) : finalChapterSeries(stage).length;
+      const completedSeries = stage === "final" ? (finalChapterState().final.championId ? 1 : 0) : finalChapterSeries(stage).filter(item => seriesWinner(item)).length;
+      return { stage, label: finalChapterStageLabel(stage), matches: matches.length, completedMatches: completed.length, series, completedSeries, goals: completed.reduce((sum, match) => sum + Number(match.homeScore || 0) + Number(match.awayScore || 0), 0) };
+    });
+  }
+
+  function finalChapterPlayerStatus(playerId) {
+    const fc = finalChapterState();
+    if (fc.withdrawnPlayerIds.includes(playerId)) return intelligenceCopy("Çekildi", "Withdrawn");
+    if (fc.final.championId === playerId) return intelligenceCopy("FIFA 09 Şampiyonu", "FIFA 09 Champion");
+    const stageLabels = [
+      ["final", intelligenceCopy("Büyük Final", "Grand Final")],
+      ["semifinal", intelligenceCopy("Yarı Final", "Semi-final")],
+      ["quarterfinal", intelligenceCopy("Çeyrek Final", "Quarter-final")],
+      ["secondChanceFinal", intelligenceCopy("Son Bilet Finali", "Last Ticket Final")],
+      ["secondChanceSemi", intelligenceCopy("Son Bilet Play-off", "Last Ticket Play-off")],
+      ["playoff", intelligenceCopy("Ana Eleme", "Main Play-off")]
+    ];
+    for (const [stage, label] of stageLabels) {
+      const series = stage === "final" ? [] : finalChapterSeries(stage);
+      const active = series.find(item => !seriesWinner(item) && [item.playerAId, item.playerBId].includes(playerId));
+      if (active) return label;
+      const won = series.some(item => seriesWinner(item) === playerId);
+      if (won) return intelligenceCopy(`${label} galibi`, `${label} winner`);
+      const lost = series.some(item => seriesWinner(item) && [item.playerAId, item.playerBId].includes(playerId) && seriesWinner(item) !== playerId);
+      if (lost && stage !== "playoff") return intelligenceCopy(`${label} aşamasında elendi`, `Eliminated in ${label}`);
+    }
+    if (fc.final.match && [fc.final.match.homeId, fc.final.match.awayId].includes(playerId)) return intelligenceCopy("Büyük Finalist", "Grand Finalist");
+    if (fc.directQuarterFinalistIds.includes(playerId)) return intelligenceCopy("Doğrudan Çeyrek Finalist", "Direct Quarter-finalist");
+    return intelligenceCopy("Final Chapter", "Final Chapter");
+  }
+
+  function finalChapterLiveNarrative(match, live) {
+    const context = finalChapterMatchContext(match);
+    if (!context) return null;
+    const home = playerName(match.homeId);
+    const away = playerName(match.awayId);
+    const hs = Number(live?.homeScore || 0), as = Number(live?.awayScore || 0), minute = Number(live?.minute || 0);
+    const leader = hs === as ? "" : hs > as ? home : away;
+    const projectedA = context.series ? context.wins.a + (hs > as && match.homeId === context.series.playerAId || as > hs && match.awayId === context.series.playerAId ? 1 : 0) : 0;
+    const projectedB = context.series ? context.wins.b + (hs > as && match.homeId === context.series.playerBId || as > hs && match.awayId === context.series.playerBId ? 1 : 0) : 0;
+    let headline = intelligenceCopy(`${context.shortLabel} · Maç ${context.gameNumber}`, `${context.shortLabel} · Match ${context.gameNumber}`);
+    if (context.isDecider) headline = intelligenceCopy(`${context.shortLabel} · KARAR MAÇI`, `${context.shortLabel} · DECIDING MATCH`);
+    const bullets = [context.stakes];
+    if (context.series) bullets.push(intelligenceCopy(`Seri skoru ${context.seriesScore}; canlı sonuçla olası durum ${projectedA}–${projectedB}.`, `Series score ${context.seriesScore}; projected live position ${projectedA}–${projectedB}.`));
+    if (leader) bullets.push(intelligenceCopy(`${minute}'. dakikada avantaj ${leader} tarafında.`, `${leader} holds the advantage in the ${minute}th minute.`));
+    else bullets.push(intelligenceCopy(`${minute}'. dakikada denge bozulmuş değil.`, `The tie remains level in the ${minute}th minute.`));
+    return { ...context, headline, bullets };
+  }
+
+  function finalChapterEventText(type, side, match, live) {
+    const context = finalChapterMatchContext(match);
+    if (!context) return "";
+    const name = side === "home" ? playerName(match.homeId) : playerName(match.awayId);
+    const minute = Number(live?.minute || 0);
+    if (type === "goal") {
+      if (context.stage === "secondChanceFinal") return intelligenceCopy(`${name}, sekizinci çeyrek final bileti için kritik golü buldu.`, `${name} scores a crucial goal in the battle for the eighth quarter-final ticket.`);
+      if (context.stage === "final") return intelligenceCopy(`${name}, FIFA 09 kupasına bir adım daha yaklaştı.`, `${name} moves one step closer to the FIFA 09 trophy.`);
+      if (context.isDecider) return intelligenceCopy(`${name}, karar maçında serinin dengesini değiştirdi.`, `${name} changes the balance of the series in the decider.`);
+      return intelligenceCopy(`${name}, ${context.label} mücadelesinde öne geçti.`, `${name} strikes in the ${context.label}.`);
+    }
+    if (type === "bigchance" || type === "hugemiss") return intelligenceCopy(`${minute}'. dakikada tur yolunu değiştirebilecek büyük an.`, `A major ${minute}th-minute moment that could change the route to the next round.`);
+    if (type === "red") return intelligenceCopy(`${name} için Final Chapter dengelerini değiştirecek kırmızı kart.`, `A red card that could transform the Final Chapter tie for ${name}.`);
+    return "";
+  }
+
+  function renderFinalChapterLivePanel(match, live) {
+    const narrative = finalChapterLiveNarrative(match, live);
+    if (!narrative) return "";
+    return `<section class="fc-live-context"><div class="fc-live-context-head"><div><span>FIFA 09 · FINAL CHAPTER</span><h3>${escapeHTML(narrative.headline)}</h3></div><div class="fc-live-series-score"><small>${intelligenceCopy("SERİ", "SERIES")}</small><strong>${escapeHTML(narrative.seriesScore)}</strong></div></div><div class="fc-live-context-grid">${narrative.bullets.map((line,index)=>`<div><span>${index+1}</span><p>${escapeHTML(line)}</p></div>`).join("")}</div></section>`;
+  }
+
   function createFinalChapterSeries(stage, index, playerAId, playerBId) {
     const key = `fc-${stage}-${index}`;
     const label = `${finalChapterStageLabel(stage)} ${index}`;
     const series = createSeries(key, label, playerAId, playerBId);
     series.finalChapterStage = stage;
     series.stars = finalChapterStars(stage);
-    series.games.forEach(game => {
+    series.games.forEach((game, gameIndex) => {
+      game.competition = "final-chapter";
+      game.chapterStage = stage;
       game.finalChapterStage = stage;
+      game.seriesId = key;
+      game.seriesGame = gameIndex + 1;
+      game.bestOf = 3;
+      game.seriesTargetWins = 2;
+      game.eliminationMatch = true;
       game.stars = series.stars;
       game.note = `${label} · ${series.stars}★`;
     });
@@ -870,7 +1075,14 @@
       const winners = finalChapterStageWinners("semifinal");
       if (winners.length === 2 && (!fc.final.match || ![fc.final.match.homeId, fc.final.match.awayId].every(id => winners.includes(id)))) {
         const match = createMatch("final", 1, winners[0], winners[1], { allowDraw: false });
+        match.competition = "final-chapter";
+        match.chapterStage = "final";
         match.finalChapterStage = "final";
+        match.seriesId = "fc-final";
+        match.seriesGame = 1;
+        match.bestOf = 1;
+        match.seriesTargetWins = 1;
+        match.eliminationMatch = true;
         match.stars = finalChapterStars("final");
         match.sameTeamRequired = true;
         match.note = `FIFA09 Final Chapter Büyük Final · ${match.stars}★ · Aynı takım`;
@@ -1867,8 +2079,10 @@
 
   function liveEligibleMatches() {
     return allCurrentMatches()
-      .filter(match => match?.homeId && match?.awayId && !matchComplete(match))
+      .filter(matchAvailableForLive)
       .sort((a, b) => {
+        const ac = finalChapterMatchContext(a), bc = finalChapterMatchContext(b);
+        if (ac || bc) return (ac?.stageOrder || 99) - (bc?.stageOrder || 99) || (ac?.gameNumber || 0) - (bc?.gameNumber || 0);
         const phaseOrder = { league: 1, gold: 2, silver: 3, knockout: 4, final: 5 };
         return (phaseOrder[a.phase] || 99) - (phaseOrder[b.phase] || 99) || (a.round || 0) - (b.round || 0);
       });
@@ -2295,6 +2509,7 @@
         <div class="live-progress-orb"><strong>${liveMinuteText(live)}</strong><span>${liveStatusText(live)}</span></div>
       </div>
       ${renderLivePresentationControls()}
+      ${renderFinalChapterLivePanel(match, live)}
 
       <section class="live-studio-scoreboard">
         <div class="studio-team-card home"><span class="studio-side-tag">EV SAHİBİ</span><strong>${displayName(match.homeId)}</strong><small>${escapeHTML(live.homeTeam || match.homeTeam || 'Takım bekleniyor')}</small>${renderLiveHeatBadge(studio.homeHeat, studio.homeName)}<div class="live-view-score">${live.homeScore}</div></div>
@@ -2351,11 +2566,14 @@
   }
 
   function renderLiveMatchOption(match) {
-    return `<article class="live-match-option">
+    const fc = finalChapterMatchContext(match);
+    return `<article class="live-match-option ${fc ? "final-chapter-option" : ""}">
       <div class="live-option-stage">${escapeHTML(liveStageLabel(match))}</div>
+      ${fc ? `<div class="fc-live-option-meta"><span>${fc.bestOf === 1 ? intelligenceCopy("TEK MAÇ", "SINGLE MATCH") : `BO3 · ${intelligenceCopy("MAÇ", "MATCH")} ${fc.gameNumber}`}</span><strong>${intelligenceCopy("SERİ", "SERIES")} ${fc.seriesScore}</strong></div>` : ""}
       <div class="live-option-players"><span>${displayName(match.homeId)}</span><strong>VS</strong><span>${displayName(match.awayId)}</span></div>
-      <div class="live-option-teams"><span>${escapeHTML(match.homeTeam || "Takım seçilmedi")}</span><span>${escapeHTML(match.awayTeam || "Takım seçilmedi")}</span></div>
-      ${canEdit() ? `<button class="btn btn-gold btn-wide" data-action="start-live-match" data-match-id="${match.id}">Canlı Yayını Başlat</button>` : `<span class="badge">YÖNETİCİ BEKLENİYOR</span>`}
+      <div class="live-option-teams"><span>${escapeHTML(match.homeTeam || intelligenceCopy("Takım seçilmedi", "Team not selected"))}</span><span>${escapeHTML(match.awayTeam || intelligenceCopy("Takım seçilmedi", "Team not selected"))}</span></div>
+      ${fc ? `<p class="fc-live-option-stakes">${escapeHTML(fc.stakes)}</p>` : ""}
+      ${canEdit() ? `<button class="btn btn-gold btn-wide" data-action="start-live-match" data-match-id="${match.id}">${fc ? intelligenceCopy("Final Chapter Yayınını Başlat", "Start Final Chapter Broadcast") : intelligenceCopy("Canlı Yayını Başlat", "Start Live Broadcast")}</button>` : `<span class="badge">${intelligenceCopy("YÖNETİCİ BEKLENİYOR", "WAITING FOR ADMIN")}</span>`}
     </article>`;
   }
 
@@ -2432,7 +2650,9 @@
     const scoreKey = side === "home" ? "homeScore" : "awayScore";
     active[scoreKey] = Math.max(0, Number(active[scoreKey]) || 0) + 1;
     active.events = Array.isArray(active.events) ? active.events : [];
-    active.events.push({ id: `live-${Date.now()}-${Math.random().toString(36).slice(2,6)}`, type: "goal", side, minute: Number(active.minute) || 0, addedTime: Number(active.addedTime) || 0, text: "Gol", createdAt: new Date().toISOString() });
+    const match = getActiveLive()?.match;
+    const chapterText = match ? finalChapterEventText("goal", side, match, active) : "";
+    active.events.push({ id: `live-${Date.now()}-${Math.random().toString(36).slice(2,6)}`, type: "goal", side, minute: Number(active.minute) || 0, addedTime: Number(active.addedTime) || 0, text: chapterText || "Gol", createdAt: new Date().toISOString() });
     touchLive();
     render();
   }
@@ -2509,7 +2729,9 @@
     }
     active.events = Array.isArray(active.events) ? active.events : [];
     const textMap = { attack: "Atak", dangerous: "Tehlikeli atak", bigchance: "Büyük gol fırsatı", hugemiss: "Mutlak gol kaçtı", ontarget: "İsabetli şut", yellow: "Sarı kart", red: "Kırmızı kart", penalty: "Penaltı kazanıldı", penaltymiss: "Penaltı kaçtı" };
-    active.events.push({ id: `live-${Date.now()}-${Math.random().toString(36).slice(2,6)}`, type, side, minute: Number(active.minute) || 0, addedTime: Number(active.addedTime) || 0, text: textMap[type] || "Canlı olay", createdAt: new Date().toISOString() });
+    const match = getActiveLive()?.match;
+    const chapterText = match ? finalChapterEventText(type, side, match, active) : "";
+    active.events.push({ id: `live-${Date.now()}-${Math.random().toString(36).slice(2,6)}`, type, side, minute: Number(active.minute) || 0, addedTime: Number(active.addedTime) || 0, text: chapterText || textMap[type] || "Canlı olay", createdAt: new Date().toISOString() });
     touchLive();
     render();
     toast(`${textMap[type] || 'Olay'} canlı modele eklendi.`, "success");
@@ -2578,7 +2800,8 @@
     applyLivePresentationMode();
     if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {});
     const warning = reconcileAfterStageEdit(match.phase);
-    refreshKnockout();
+    if (isFinalChapterMatch(match)) refreshFinalChapter();
+    else refreshKnockout();
     closeModal();
     saveState(true, true);
     render();
@@ -3571,6 +3794,8 @@
   }
 
   function currentMatchStageLabel(match) {
+    const chapter = finalChapterMatchContext(match);
+    if (chapter) return chapter.stage === "final" ? `FIFA 09 Final Chapter · ${chapter.label}` : `FIFA 09 Final Chapter · ${chapter.label} · ${intelligenceCopy("Maç", "Match")} ${chapter.gameNumber}`;
     const seriesMap = { qf1: "Quarter-final 1", qf2: "Quarter-final 2", qf3: "Quarter-final 3", sf1: "Semi-final 1", sf2: "Semi-final 2" };
     if (match.phase === "league") return `League Phase · Round ${match.round}`;
     if (match.phase === "gold") return `Gold Group · Round ${match.round}`;
@@ -3580,8 +3805,28 @@
     return "FIFA 9";
   }
 
+  function renderLiveStatsScopeControls() {
+    if (!finalChapterIsEnabled()) return "";
+    const scopes = [
+      ["all", intelligenceCopy("Tümü", "All")],
+      ["final-chapter", "Final Chapter"],
+      ["playoff", intelligenceCopy("Ana Eleme", "Main Play-off")],
+      ["last-ticket", intelligenceCopy("Son Bilet", "Last Ticket")],
+      ["quarterfinal", intelligenceCopy("Çeyrek Final", "Quarter-final")],
+      ["semifinal", intelligenceCopy("Yarı Final", "Semi-final")],
+      ["final", intelligenceCopy("Büyük Final", "Grand Final")]
+    ];
+    return `<section class="panel fc-connected-filter"><div><span>CONNECTED UNIVERSE · V${FINAL_CHAPTER_CONNECTED_UNIVERSE_VERSION}</span><h3>${intelligenceCopy("İstatistik kapsamı", "Statistics scope")}</h3></div><div class="segmented-control fc-scope-control">${scopes.map(([key,label])=>`<button class="segment-btn ${liveStatsScope===key?"active":""}" data-action="set-live-stats-scope" data-live-stats-scope="${key}">${escapeHTML(label)}</button>`).join("")}</div></section>`;
+  }
+
+  function renderFinalChapterProgressPanel() {
+    if (!finalChapterIsEnabled()) return "";
+    const rows = finalChapterProgressRows();
+    return `<section class="panel fc-progress-panel"><div class="panel-header"><div><div class="eyebrow">FIFA 09 · FINAL CHAPTER</div><h3 class="panel-title">${intelligenceCopy("Final Chapter Turnuva Nabzı", "Final Chapter Tournament Pulse")}</h3><div class="panel-subtitle">${intelligenceCopy("Canlı Maç, Form, İstatistik ve Zekâ Merkezi aynı resmî maç kayıtlarını okur.", "Live Match, Form, Statistics and Intelligence read the same official match records.")}</div></div><span class="badge badge-green">ONE SOURCE</span></div><div class="fc-progress-route">${rows.map(row=>`<article class="${row.completedSeries===row.series&&row.series?"complete":""}"><span>${escapeHTML(row.label)}</span><strong>${row.completedSeries}/${row.series}</strong><small>${row.completedMatches} ${intelligenceCopy("maç", "matches")} · ${row.goals} ${intelligenceCopy("gol", "goals")}</small><i style="width:${row.series?Math.min(100,row.completedSeries/row.series*100):0}%"></i></article>`).join("")}</div></section>`;
+  }
+
   function renderLiveStatistics() {
-    const analytics = buildLiveTournamentAnalytics();
+    const analytics = buildLiveTournamentAnalytics(liveStatsScope);
     if (!state.current.league.generated) {
       view.innerHTML = emptyState("⌁", "Canlı İstatistikler Kura Sonrası Başlar", "16 oyuncu kaydedilip League Phase fikstürü oluşturulduğunda FIFA 9 canlı istatistik merkezi otomatik devreye girecek.", canEdit() ? `<button class="btn btn-gold" data-nav="setup">Kura Sayfasına Git</button>` : "");
       return;
@@ -3603,7 +3848,9 @@
         <div class="live-progress-orb"><strong>${Math.round(progress)}%</strong><span>Turnuva Verisi</span></div>
       </div>
 
-      <div class="live-update-strip"><span class="live-pulse-dot"></span><strong>Canlı Güncelleme Aktif</strong><span>Son veri: ${escapeHTML(lastUpdate)}</span><span>${analytics.summary.completed}/${analytics.summary.totalFixtures} kayıtlı fikstür</span></div>
+      <div class="live-update-strip"><span class="live-pulse-dot"></span><strong>${intelligenceCopy("Canlı Güncelleme Aktif", "Live Update Active")}</strong><span>${intelligenceCopy("Son veri", "Last update")}: ${escapeHTML(lastUpdate)}</span><span>${analytics.summary.completed}/${analytics.summary.totalFixtures} ${intelligenceCopy("kayıtlı fikstür", "registered fixtures")}</span></div>
+      ${renderLiveStatsScopeControls()}
+      ${renderFinalChapterProgressPanel()}
 
       <div class="kpi-grid">
         ${kpiCard("Tamamlanan Maç", analytics.summary.completed, `${analytics.summary.totalFixtures} aktif fikstür`, progress)}
@@ -3720,8 +3967,8 @@
     return `<div class="table-wrap compact-table"><table><thead><tr><th>#</th><th class="player-col">Takım</th><th>Seçim</th><th>G</th><th>B</th><th>M</th><th>AG</th><th>AV</th><th>P</th><th>PPG</th></tr></thead><tbody>${rows.map((row,index) => `<tr><td>${index+1}</td><td class="player-col"><span class="player-name">${escapeHTML(row.name)}</span></td><td>${row.games}</td><td>${row.wins}</td><td>${row.draws}</td><td>${row.losses}</td><td>${row.gf}</td><td class="${row.gd > 0 ? "gd-positive" : row.gd < 0 ? "gd-negative" : ""}">${formatGD(row.gd)}</td><td>${row.points}</td><td>${row.ppg.toFixed(2)}</td></tr>`).join("")}</tbody></table></div>`;
   }
 
-  function buildLiveTournamentAnalytics() {
-    const allMatches = allCurrentMatches();
+  function buildLiveTournamentAnalytics(scope = liveStatsScope) {
+    const allMatches = scope === "all" ? allCurrentMatches() : finalChapterMatchesForScope(scope);
     const completed = allMatches.filter(matchComplete);
     const playerRows = new Map();
     const teamRows = new Map();
@@ -3739,7 +3986,8 @@
 
     function matchOrder(match, index = 0) {
       const timestamp = match.updatedAt ? Date.parse(match.updatedAt) : 0;
-      const structural = (phaseOrder[match.phase] || 9) * 100000 + (Number(match.round) || 0) * 100 + index;
+      const chapter = finalChapterMatchContext(match);
+      const structural = chapter ? 400000 + chapter.stageOrder * 10000 + chapter.gameNumber * 100 + index : (phaseOrder[match.phase] || 9) * 100000 + (Number(match.round) || 0) * 100 + index;
       return timestamp ? 1000000000000 + timestamp : structural;
     }
 
@@ -3824,7 +4072,7 @@
       const latest = reverse[0]?.result || "–";
       const streakCount = latest === "W" ? row.currentWinStreak : latest === "L" ? (()=>{ const i=reverse.findIndex(item=>item.result!=="L"); return i===-1?reverse.length:i; })() : (()=>{ const i=reverse.findIndex(item=>item.result!=="D"); return i===-1?reverse.length:i; })();
       row.currentStreakLabel = latest === "W" ? `${streakCount}G seri` : latest === "L" ? `${streakCount}M seri` : latest === "D" ? `${streakCount}B seri` : "Maç bekleniyor";
-      row.officialPosition = officialMap.get(row.id) || "FIFA 9";
+      row.officialPosition = scope === "all" ? (officialMap.get(row.id) || "FIFA 9") : finalChapterPlayerStatus(row.id);
       return row;
     }).sort((a,b)=>b.points-a.points || b.gd-a.gd || b.gf-a.gf || b.wins-a.wins || a.name.localeCompare(b.name,"tr")).map((row,index)=>({ ...row, rank:index+1 }));
 
@@ -3841,22 +4089,20 @@
     }));
     const completedDecorated = decoratedMatches.filter(item=>matchComplete(item.match));
 
-    function seriesEndedUnused(match) {
-      if (!match.seriesKey) return false;
-      const series = state.current.knockout[match.seriesKey];
-      return Boolean(seriesWinner(series) && !matchComplete(match));
-    }
     const activeFixtures = decoratedMatches.filter(item=>!seriesEndedUnused(item.match));
     const upcomingMatches = activeFixtures.filter(item=>!matchComplete(item.match) && item.match.homeId && item.match.awayId).sort((a,b)=>a.order-b.order).slice(0,10);
     const recentMatches = completedDecorated.sort((a,b)=>b.order-a.order).slice(0,10);
 
-    const stages = [
+    const stageSource = scope === "all" ? [
       { key:"league", label:"League Phase", matches:leagueMatches() },
       { key:"gold", label:"Altın Grup", matches:goldMatches() },
       { key:"silver", label:"Gümüş Grup", matches:silverMatches() },
-      { key:"knockout", label:"Eleme Serileri", matches:allKnockoutGames().filter(m=>m.phase==="knockout") },
-      { key:"final", label:"Büyük Final", matches:allKnockoutGames().filter(m=>m.phase==="final") }
-    ].map(stage => {
+      ...(finalChapterIsEnabled() ? finalChapterProgressRows().map(row => ({ key:row.stage, label:row.label, matches:allFinalChapterGames().filter(match=>match.finalChapterStage===row.stage) })) : [
+        { key:"knockout", label:"Eleme Serileri", matches:allKnockoutGames().filter(m=>m.phase==="knockout") },
+        { key:"final", label:"Büyük Final", matches:allKnockoutGames().filter(m=>m.phase==="final") }
+      ])
+    ] : finalChapterProgressRows().filter(row => scope === "final-chapter" || scope === "last-ticket" && ["secondChanceSemi","secondChanceFinal"].includes(row.stage) || row.stage === scope).map(row => ({ key:row.stage, label:row.label, matches:allFinalChapterGames().filter(match=>match.finalChapterStage===row.stage) }));
+    const stages = stageSource.map(stage => {
       const valid = stage.matches.filter(match=>!seriesEndedUnused(match));
       const done = valid.filter(matchComplete);
       return { ...stage, total:valid.length, completed:done.length, goals:done.reduce((sum,m)=>sum+m.homeScore+m.awayScore,0) };
@@ -3890,7 +4136,8 @@
         goals:completedDecorated.reduce((sum,item)=>sum+item.totalGoals,0),
         avgGoals:completedDecorated.length?completedDecorated.reduce((sum,item)=>sum+item.totalGoals,0)/completedDecorated.length:0,
         draws:completed.filter(match=>match.homeScore===match.awayScore&&match.allowDraw).length,
-        lastUpdated
+        lastUpdated,
+        scope
       }
     };
   }
@@ -3919,6 +4166,9 @@
 
   function renderFormCentre() {
     const analytics = buildFormAnalytics(formWindowSize, formScope);
+    const chapterScope = formScope === "final-chapter";
+    const formTitle = chapterScope ? intelligenceCopy("Final Chapter Form Merkezi", "Final Chapter Form Centre") : intelligenceCopy(`Son ${formWindowSize} Maç Form Merkezi`, `Last ${formWindowSize} Matches Form Centre`);
+    const formDescription = chapterScope ? intelligenceCopy("Yalnızca FIFA 09 Final Chapter maçlarından hesaplanan eleme formu, karar maçı performansı ve seri dayanıklılığı.", "Knockout form, deciding-match performance and series resilience calculated only from FIFA 09 Final Chapter matches.") : intelligenceCopy(`Oyuncuların en güncel ${formWindowSize} maçına göre hesaplanan bağımsız form puan durumu, performans endeksi, seri analizi ve maç maç form çizgisi.`, `Independent form standings, performance index, streak analysis and match-by-match timeline calculated from each player's latest ${formWindowSize} matches.`);
     if (!analytics.players.length) {
       view.innerHTML = emptyState("↗", "Form Verisi Hazır Değil", "Oyuncuların maç geçmişi oluştuğunda Son 20 Maç Form Merkezi otomatik olarak çalışacak.", canEdit() ? `<button class="btn btn-gold" data-nav="setup">Oyuncuları Aç</button>` : "");
       return;
@@ -3934,8 +4184,8 @@
       <div class="group-banner form-banner">
         <div>
           <div class="eyebrow">FORM & MOMENTUM LAB</div>
-          <h2>Son ${formWindowSize} Maç Form Merkezi</h2>
-          <p>Oyuncuların en güncel ${formWindowSize} maçına göre hesaplanan bağımsız form puan durumu, performans endeksi, seri analizi ve maç maç form çizgisi. FIFA 9 sonuçları girildikçe otomatik yenilenir.</p>
+          <h2>${escapeHTML(formTitle)}</h2>
+          <p>${escapeHTML(formDescription)}</p>
           <div class="live-banner-actions"><button class="btn btn-gold" data-action="share-form-stats">Form Tablosunu Paylaş</button><button class="btn btn-ghost" data-nav="livestats">Canlı İstatistiklere Git</button></div>
         </div>
         <div class="form-orb"><strong>${leader?.formIndex || 0}</strong><span>Form Gücü</span><small>${escapeHTML(leader?.name || "–")}</small></div>
@@ -3951,8 +4201,9 @@
         <div class="form-control-row second">
           <div><div class="panel-title">Oyuncu Havuzu</div><div class="panel-subtitle">FIFA 9 kadrosunu veya arşivdeki bütün oyuncuları karşılaştır.</div></div>
           <div class="segmented-control" role="group" aria-label="Oyuncu havuzu">
-            <button class="segment-btn ${formScope === "current" ? "active" : ""}" data-action="set-form-scope" data-form-scope="current">FIFA 9 Kadrosu</button>
-            <button class="segment-btn ${formScope === "all" ? "active" : ""}" data-action="set-form-scope" data-form-scope="all">Tüm Oyuncular</button>
+            <button class="segment-btn ${formScope === "current" ? "active" : ""}" data-action="set-form-scope" data-form-scope="current">${intelligenceCopy("FIFA 9 Kadrosu", "FIFA 9 Squad")}</button>
+            ${finalChapterIsEnabled() ? `<button class="segment-btn ${formScope === "final-chapter" ? "active" : ""}" data-action="set-form-scope" data-form-scope="final-chapter">Final Chapter</button>` : ""}
+            <button class="segment-btn ${formScope === "all" ? "active" : ""}" data-action="set-form-scope" data-form-scope="all">${intelligenceCopy("Tüm Oyuncular", "All Players")}</button>
           </div>
         </div>
       </section>
@@ -4067,11 +4318,13 @@
   }
 
   function buildFormAnalytics(windowSize = 20, scope = "current") {
-    const history = buildFormMatchHistory();
+    const fullHistory = buildFormMatchHistory();
+    const history = scope === "final-chapter" ? fullHistory.filter(match => match.isFinalChapter) : fullHistory;
     const allNames = new Set();
     history.forEach(match => { if (match.homeName) allNames.add(match.homeName); if (match.awayName) allNames.add(match.awayName); });
     const currentNames = filledParticipants().map(player => player.name.trim()).filter(Boolean);
-    let names = scope === "current" && currentNames.length ? currentNames : [...allNames];
+    const chapterNames = finalChapterIsEnabled() ? finalChapterState().participantIds.map(playerName).filter(Boolean) : [];
+    let names = scope === "current" && currentNames.length ? currentNames : scope === "final-chapter" ? chapterNames : [...allNames];
     names = [...new Set(names)].filter(name => name && !/^P\d+$/i.test(name));
 
     const players = names.map(name => {
@@ -4133,7 +4386,7 @@
       const favorite = [...teamUse.entries()].sort((a,b)=>b[1]-a[1] || a[0].localeCompare(b[0],"tr"))[0];
       row.favoriteTeam = favorite ? { name:favorite[0], games:favorite[1] } : null;
       return row;
-    }).filter(row => row.games > 0 || scope === "current")
+    }).filter(row => row.games > 0 || scope === "current" || scope === "final-chapter")
       .sort((a,b)=>b.points-a.points || b.gd-a.gd || b.gf-a.gf || b.wins-a.wins || b.formIndex-a.formIndex || a.name.localeCompare(b.name,"tr"))
       .map((row,index)=>({ ...row, rank:index+1 }));
 
@@ -4173,6 +4426,8 @@
       homeScore:Number(match.s1),
       awayScore:Number(match.s2),
       winnerName:Number(match.s1) === Number(match.s2) ? "" : Number(match.s1) > Number(match.s2) ? match.p1 : match.p2,
+      isFinalChapter:false,
+      chapterStage:"",
       order:edition.edition * 1000000 + index + 1
     })));
     const currentCompleted = allCurrentMatches().filter(matchComplete);
@@ -4189,6 +4444,8 @@
         homeTeam:match.homeTeam || "", awayTeam:match.awayTeam || "",
         homeScore:Number(match.homeScore), awayScore:Number(match.awayScore),
         winnerName:matchWinnerId(match) ? playerName(matchWinnerId(match)) : "",
+        isFinalChapter:isFinalChapterMatch(match),
+        chapterStage:match.finalChapterStage || "",
         order:9000000 + (time ? time / 10000000000000 : structural)
       };
     }).sort((a,b)=>a.order-b.order).map((match,index)=>({ ...match, order:9000000+index+1 }));
@@ -7737,8 +7994,103 @@
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,"_blank","noopener,noreferrer");
   }
 
+  function finalChapterSeriesProbability(playerId, series, strengthMap) {
+    if (!series) return 1;
+    const winner = seriesWinner(series);
+    if (winner) return winner === playerId ? 1 : 0;
+    const opponentId = series.playerAId === playerId ? series.playerBId : series.playerAId;
+    const own = strengthMap.get(playerId) || 1500;
+    const opp = strengthMap.get(opponentId) || 1500;
+    const p = 1 / (1 + Math.pow(10, (opp - own) / 420));
+    const wins = seriesWins(series);
+    const ownWins = series.playerAId === playerId ? wins.a : wins.b;
+    const oppWins = series.playerAId === playerId ? wins.b : wins.a;
+    const memo = new Map();
+    const solve = (a,b) => {
+      if (a >= 2) return 1;
+      if (b >= 2) return 0;
+      const key = `${a}-${b}`;
+      if (memo.has(key)) return memo.get(key);
+      const value = p * solve(a+1,b) + (1-p) * solve(a,b+1);
+      memo.set(key,value); return value;
+    };
+    return solve(ownWins,oppWins);
+  }
+
+  function buildFinalChapterIntelligence() {
+    const fc = finalChapterState();
+    const elo = buildEloAnalytics();
+    const form = buildFormAnalytics(5, "current");
+    const ids = [...new Set(fc.participantIds || [])].filter(id => !fc.withdrawnPlayerIds.includes(id));
+    const strengthMap = new Map(ids.map(id => {
+      const name = playerName(id);
+      const e = elo.playerMap.get(name)?.rating || 1500;
+      const formRow = form.playerMap.get(name);
+      const f = formRow?.games ? formRow.formIndex : 50;
+      return [id, e + (f - 50) * 2.2];
+    }));
+    const average = ids.length ? ids.reduce((sum,id)=>sum+(strengthMap.get(id)||1500),0)/ids.length : 1500;
+    const generic = id => intelligenceClamp(1/(1+Math.pow(10,(average-(strengthMap.get(id)||1500))/460)),.28,.72);
+    const stageSeries = stage => finalChapterSeries(stage);
+    const activeSeries = id => ["playoff","secondChanceSemi","secondChanceFinal","quarterfinal","semifinal"].map(stage => ({ stage, series:stageSeries(stage).find(item=>!seriesWinner(item)&&[item.playerAId,item.playerBId].includes(id)) })).find(item=>item.series) || null;
+    const lostStage = id => ["secondChanceSemi","secondChanceFinal","quarterfinal","semifinal"].find(stage=>stageSeries(stage).some(item=>seriesWinner(item)&&[item.playerAId,item.playerBId].includes(id)&&seriesWinner(item)!==id)) || (fc.final.match&&matchComplete(fc.final.match)&&[fc.final.match.homeId,fc.final.match.awayId].includes(id)&&matchWinnerId(fc.final.match)!==id?"final":"");
+    const rows = ids.map(id => {
+      const name = playerName(id), strength = strengthMap.get(id)||1500, base = generic(id);
+      const active = activeSeries(id);
+      const eliminatedStage = lostStage(id);
+      const champion = fc.final.championId === id;
+      let qf = 0, semi = 0, final = 0, title = 0;
+      if (champion) qf=semi=final=title=1;
+      else if (eliminatedStage) qf = ["semifinal","final"].includes(eliminatedStage) ? 1 : eliminatedStage === "quarterfinal" ? 1 : 0;
+      else {
+        const wonMain = stageSeries("playoff").some(series=>seriesWinner(series)===id);
+        const wonLast = stageSeries("secondChanceFinal").some(series=>seriesWinner(series)===id);
+        const direct = fc.directQuarterFinalistIds.includes(id);
+        const inQf = stageSeries("quarterfinal").some(series=>[series.playerAId,series.playerBId].includes(id));
+        const wonQf = stageSeries("quarterfinal").some(series=>seriesWinner(series)===id);
+        const inSf = stageSeries("semifinal").some(series=>[series.playerAId,series.playerBId].includes(id));
+        const wonSf = stageSeries("semifinal").some(series=>seriesWinner(series)===id);
+        const inFinal = fc.final.match && [fc.final.match.homeId,fc.final.match.awayId].includes(id);
+        if (inFinal) {
+          qf=semi=final=1;
+          const opponent=fc.final.match.homeId===id?fc.final.match.awayId:fc.final.match.homeId;
+          title=1/(1+Math.pow(10,((strengthMap.get(opponent)||1500)-strength)/420));
+        } else if (inSf) {
+          qf=semi=1; const p=finalChapterSeriesProbability(id,active?.series||stageSeries("semifinal").find(s=>[s.playerAId,s.playerBId].includes(id)),strengthMap); final=p; title=p*base;
+        } else if (wonQf) { qf=semi=1; final=base; title=base*base; }
+        else if (inQf) { qf=1; const p=finalChapterSeriesProbability(id,active?.series||stageSeries("quarterfinal").find(s=>[s.playerAId,s.playerBId].includes(id)),strengthMap); semi=p; final=p*base; title=p*base*base; }
+        else if (direct||wonMain||wonLast) { qf=1; semi=base; final=base*base; title=base*base*base; }
+        else if (active?.stage==="playoff") { const p=finalChapterSeriesProbability(id,active.series,strengthMap); const fallback=(1-p)*base*base; qf=intelligenceClamp(p+fallback,0,1); semi=qf*base; final=semi*base; title=final*base; }
+        else if (active?.stage==="secondChanceSemi") { const p=finalChapterSeriesProbability(id,active.series,strengthMap); qf=p*base; semi=qf*base; final=semi*base; title=final*base; }
+        else if (active?.stage==="secondChanceFinal") { const p=finalChapterSeriesProbability(id,active.series,strengthMap); qf=p; semi=p*base; final=semi*base; title=final*base; }
+        else { qf=base; semi=qf*base; final=semi*base; title=final*base; }
+      }
+      const current = active;
+      const context = current ? finalChapterMatchContext(current.series.games.find(matchAvailableForLive) || current.series.games.find(game=>!matchComplete(game)) || current.series.games[0]) : null;
+      const formRow = form.playerMap.get(name); return { id,name,strength:Math.round(strength),elo:elo.playerMap.get(name)?.rating||1500,form:formRow?.games?formRow.formIndex:50,status:finalChapterPlayerStatus(id),qf,semi,final,title,currentStage:current?.stage||"",seriesProbability:current?finalChapterSeriesProbability(id,current.series,strengthMap):null,opponent:current?(current.series.playerAId===id?playerName(current.series.playerBId):playerName(current.series.playerAId)):"",path:context?.stakes||"" };
+    }).sort((a,b)=>b.title-a.title||b.strength-a.strength||a.name.localeCompare(b.name,"tr"));
+    rows.forEach((row,index)=>row.rank=index+1);
+    const activeTies = ["playoff","secondChanceSemi","secondChanceFinal","quarterfinal","semifinal"].flatMap(stage=>stageSeries(stage).filter(series=>!seriesWinner(series)).map(series=>({stage,series}))).filter(item=>item.series.games.some(matchAvailableForLive));
+    return { rows, playerMap:new Map(rows.map(row=>[row.id,row])), progress:finalChapterProgressRows(), activeTies, favourite:rows[0]||null, surprise:[...rows].filter(row=>row.rank>3).sort((a,b)=>b.title-a.title)[0]||rows[1]||null };
+  }
+
+  function renderFinalChapterIntelligenceSection() {
+    if (!finalChapterIsEnabled()) return `<div class="info-box">${intelligenceCopy("Final Chapter etkinleştirildiğinde bağlı zekâ paneli burada açılır.", "The connected intelligence panel will open here once Final Chapter is activated.")}</div>`;
+    const data=buildFinalChapterIntelligence();
+    if (!finalChapterIntelligencePlayer || !data.rows.some(row=>row.id===finalChapterIntelligencePlayer)) finalChapterIntelligencePlayer=data.rows[0]?.id||"";
+    const selected=data.playerMap.get(finalChapterIntelligencePlayer)||data.rows[0];
+    return `<div class="fc-intelligence-page">
+      <section class="fc-intelligence-hero"><div><div class="eyebrow">CONNECTED UNIVERSE · V${FINAL_CHAPTER_CONNECTED_UNIVERSE_VERSION}</div><h2>Final Chapter Intelligence</h2><p>${intelligenceCopy("Canlı maç, seri skoru, Final Chapter formu ve Elo gücü tek modelde birleşir. Yüzdeler olasılık tahminidir; kesin sonuç değildir.", "Live match state, series score, Final Chapter form and Elo strength combine in one model. Percentages are estimates, not certainties.")}</p></div><div><span>${intelligenceCopy("Şampiyonluk Favorisi", "Title Favourite")}</span><strong>${escapeHTML(data.favourite?.name||"–")}</strong><b>${simulationPct(data.favourite?.title||0,1)}</b></div></section>
+      <section class="panel fc-intel-progress"><div class="panel-header"><div><h3 class="panel-title">${intelligenceCopy("Road to the Final", "Road to the Final")}</h3><div class="panel-subtitle">${intelligenceCopy("Her aşama aynı resmî sonuç kaydından güncellenir.", "Every stage updates from the same official result record.")}</div></div><span class="badge badge-green">SYNCED</span></div><div class="fc-progress-route">${data.progress.map(row=>`<article class="${row.completedSeries===row.series&&row.series?"complete":""}"><span>${escapeHTML(row.label)}</span><strong>${row.completedSeries}/${row.series}</strong><small>${row.completedMatches} ${intelligenceCopy("maç", "matches")}</small><i style="width:${row.series?row.completedSeries/row.series*100:0}%"></i></article>`).join("")}</div></section>
+      <section class="panel"><div class="panel-header"><div><h3 class="panel-title">${intelligenceCopy("Şampiyonluk Olasılıkları", "Championship Probabilities")}</h3><div class="panel-subtitle">Elo, son form, mevcut seri skoru ve kalan yol birlikte değerlendirilir.</div></div><span class="badge badge-gold">LIVE MODEL</span></div><div class="fc-probability-table"><div class="head"><span>#</span><span>${intelligenceCopy("Oyuncu", "Player")}</span><span>${intelligenceCopy("Durum", "Status")}</span><span>ELO</span><span>FORM</span><span>QF</span><span>SF</span><span>${intelligenceCopy("Final", "Final")}</span><span>${intelligenceCopy("Şampiyon", "Champion")}</span></div>${data.rows.map(row=>`<button class="${selected?.id===row.id?"active":""}" data-action="select-fc-intelligence-player" data-player-id="${row.id}"><span>${row.rank}</span><strong>${escapeHTML(row.name)}</strong><small>${escapeHTML(row.status)}</small><b>${row.elo}</b><b>${row.form}</b><span>${simulationPct(row.qf,0)}</span><span>${simulationPct(row.semi,0)}</span><span>${simulationPct(row.final,0)}</span><strong>${simulationPct(row.title,1)}</strong></button>`).join("")}</div></section>
+      ${selected?`<section class="fc-destiny-profile"><div><span>${escapeHTML(selected.name.split(" ").map(part=>part[0]).slice(0,2).join(""))}</span><div><h3>${escapeHTML(selected.name)}</h3><p>${escapeHTML(selected.status)} · ${selected.elo} Elo · Form ${selected.form}</p></div><strong>${simulationPct(selected.title,1)}<small>${intelligenceCopy("ŞAMPİYONLUK", "TITLE")}</small></strong></div><div class="fc-destiny-grid"><article><span>${intelligenceCopy("Çeyrek Final", "Quarter-final")}</span><strong>${simulationPct(selected.qf,1)}</strong></article><article><span>${intelligenceCopy("Yarı Final", "Semi-final")}</span><strong>${simulationPct(selected.semi,1)}</strong></article><article><span>${intelligenceCopy("Final", "Final")}</span><strong>${simulationPct(selected.final,1)}</strong></article><article><span>${intelligenceCopy("Şampiyon", "Champion")}</span><strong>${simulationPct(selected.title,1)}</strong></article></div>${selected.opponent?`<div class="fc-current-opponent"><span>${intelligenceCopy("Güncel eşleşme", "Current tie")}</span><strong>${escapeHTML(selected.name)} vs ${escapeHTML(selected.opponent)}</strong><b>${simulationPct(selected.seriesProbability||0,1)} ${intelligenceCopy("seri şansı", "series chance")}</b><p>${escapeHTML(selected.path)}</p></div>`:""}</section>`:""}
+      <section class="panel"><div class="panel-header"><div><h3 class="panel-title">${intelligenceCopy("Aktif Seri Radarı", "Active Series Radar")}</h3><div class="panel-subtitle">${intelligenceCopy("Sıradaki oynanabilir maçlar ve canlı seri durumu.", "Next playable matches and live series state.")}</div></div></div>${data.activeTies.length?`<div class="fc-active-ties">${data.activeTies.map(({stage,series})=>{const wins=seriesWins(series);const next=series.games.find(matchAvailableForLive);return `<article><span>${escapeHTML(finalChapterStageLabel(stage))}</span><h4>${displayName(series.playerAId)} <b>${wins.a}–${wins.b}</b> ${displayName(series.playerBId)}</h4><p>${next?`${intelligenceCopy("Sıradaki maç", "Next match")}: M${finalChapterMatchContext(next)?.gameNumber||1}`:intelligenceCopy("Seri sonucu bekleniyor", "Awaiting series result")}</p></article>`}).join("")}</div>`:`<div class="info-box">${intelligenceCopy("Şu anda aktif ve oynanabilir seri bulunmuyor.", "There is currently no active playable series.")}</div>`}</section>
+    </div>`;
+  }
+
   function renderIntelligenceCentre() {
     const sections = [
+      ...(finalChapterIsEnabled() ? [["finalchapter", "Final Chapter", "09"]] : []),
       ["matchday", "Matchday", "◈"], ["elo", "Elo", "↗"], ["exchange", "Power Exchange", "⌁"],
       ["pressure", intelligenceCopy("Baskı", "Pressure"), "◆"], ["destiny", intelligenceCopy("Kader Yolu", "Destiny Path"), "◇"],
       ["pulse", intelligenceCopy("Live Pulse", "Live Pulse"), "♥"], ["director", "AI Director", "AI"],
@@ -7747,6 +8099,7 @@
       ["cards", intelligenceCopy("Oyuncu Kartları", "Player Cards"), "▣"]
     ];
     const renderers = {
+      finalchapter:renderFinalChapterIntelligenceSection,
       matchday:renderMatchdaySection,
       elo:renderEloSection,
       exchange:renderPowerExchangeSection,
@@ -9055,13 +9408,23 @@ ${shareData.url}`)}`;
     if (type === "open-match-archive-details") { openMatchArchiveDetails(action.dataset.matchId); return; }
     if (type === "share-odds") { shareOdds(); return; }
     if (type === "share-single-odds") { shareOdds(action.dataset.matchId); return; }
+    if (type === "set-live-stats-scope") {
+      liveStatsScope = ["all","final-chapter","playoff","last-ticket","quarterfinal","semifinal","final"].includes(action.dataset.liveStatsScope) ? action.dataset.liveStatsScope : "all";
+      if (activeView === "livestats") renderLiveStatistics();
+      return;
+    }
+    if (type === "select-fc-intelligence-player") {
+      finalChapterIntelligencePlayer = action.dataset.playerId || finalChapterIntelligencePlayer;
+      if (activeView === "intelligence") renderIntelligenceCentre();
+      return;
+    }
     if (type === "set-form-window") {
       formWindowSize = Math.max(5, Math.min(20, Number(action.dataset.formWindow) || 20));
       if (activeView === "form") renderFormCentre();
       return;
     }
     if (type === "set-form-scope") {
-      formScope = action.dataset.formScope === "all" ? "all" : "current";
+      formScope = ["all","current","final-chapter"].includes(action.dataset.formScope) ? action.dataset.formScope : "current";
       selectedFormPlayerName = "";
       if (activeView === "form") renderFormCentre();
       return;
@@ -9294,6 +9657,7 @@ ${shareData.url}`)}`;
 
   window.FIFA_FINAL_CHAPTER = {
     formatVersion: FINAL_CHAPTER_FORMAT_VERSION,
+    connectedUniverseVersion: FINAL_CHAPTER_CONNECTED_UNIVERSE_VERSION,
     directNames: [...FINAL_CHAPTER_DIRECT_NAMES],
     withdrawnNames: [...FINAL_CHAPTER_WITHDRAWN_NAMES],
     getState: finalChapterState,
@@ -9303,7 +9667,13 @@ ${shareData.url}`)}`;
     refresh: refreshFinalChapter,
     stageWinners: finalChapterStageWinners,
     stageLosers: finalChapterStageLosers,
-    allGames: allFinalChapterGames
+    allGames: allFinalChapterGames,
+    matchContext: finalChapterMatchContext,
+    progress: finalChapterProgressRows,
+    intelligence: buildFinalChapterIntelligence,
+    availableGames: () => allFinalChapterGames().filter(matchAvailableForLive),
+    liveAnalytics: scope => buildLiveTournamentAnalytics(scope || "final-chapter"),
+    formAnalytics: () => buildFormAnalytics(20, "final-chapter")
   };
 
   async function initializeCloud() {

@@ -1,4 +1,4 @@
-const CACHE = "fifa-tournament-hub-v44-6-1-season-division-lock";
+const CACHE = "fifa-tournament-hub-v44-7-0-final-chapter-connected";
 const APP_SHELL = [
   "./",
   "./index.html",
