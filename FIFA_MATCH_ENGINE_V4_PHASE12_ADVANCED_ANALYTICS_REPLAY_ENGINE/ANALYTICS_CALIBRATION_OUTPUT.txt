@@ -1,0 +1,111 @@
+{
+  "matches": 8,
+  "averages": {
+    "goals": 1.75,
+    "shots": 20.125,
+    "xg": 3.495311575595324,
+    "xgot": 2.420615700681481,
+    "xt": 4.244107776685305,
+    "passes": 1043,
+    "passAccuracy": 80.0575263662512,
+    "progressivePasses": 244,
+    "keyPasses": 15.25,
+    "carries": 103.75,
+    "possessionChains": 100,
+    "timelineEvents": 25.75,
+    "replayFrames": 4212,
+    "replayClips": 9,
+    "topRating": 9.655000000000001,
+    "averagePlayerRating": 7.003806818181818
+  },
+  "samples": [
+    {
+      "score": {
+        "home": 1,
+        "away": 2
+      },
+      "shots": 31,
+      "xg": 5.800538763977805,
+      "xt": 4.194155697528862,
+      "frames": 4212,
+      "clips": 13
+    },
+    {
+      "score": {
+        "home": 0,
+        "away": 0
+      },
+      "shots": 18,
+      "xg": 2.8912323684984447,
+      "xt": 3.8301024453260544,
+      "frames": 4152,
+      "clips": 5
+    },
+    {
+      "score": {
+        "home": 2,
+        "away": 0
+      },
+      "shots": 22,
+      "xg": 3.5875811293926594,
+      "xt": 4.14562914431554,
+      "frames": 4242,
+      "clips": 14
+    },
+    {
+      "score": {
+        "home": 1,
+        "away": 1
+      },
+      "shots": 17,
+      "xg": 2.97602415217253,
+      "xt": 4.088584893005948,
+      "frames": 4122,
+      "clips": 5
+    },
+    {
+      "score": {
+        "home": 1,
+        "away": 1
+      },
+      "shots": 19,
+      "xg": 2.9054986250420476,
+      "xt": 4.423183333823003,
+      "frames": 4242,
+      "clips": 9
+    },
+    {
+      "score": {
+        "home": 1,
+        "away": 0
+      },
+      "shots": 20,
+      "xg": 3.1343128045359085,
+      "xt": 4.188504884243603,
+      "frames": 4242,
+      "clips": 6
+    },
+    {
+      "score": {
+        "home": 2,
+        "away": 1
+      },
+      "shots": 19,
+      "xg": 4.0462190198511685,
+      "xt": 4.2020699755286,
+      "frames": 4242,
+      "clips": 12
+    },
+    {
+      "score": {
+        "home": 1,
+        "away": 0
+      },
+      "shots": 15,
+      "xg": 2.6210857412920276,
+      "xt": 4.88063183971083,
+      "frames": 4242,
+      "clips": 8
+    }
+  ]
+}

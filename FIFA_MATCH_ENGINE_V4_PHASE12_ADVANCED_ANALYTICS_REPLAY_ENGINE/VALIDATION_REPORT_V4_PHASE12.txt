@@ -1,0 +1,45 @@
+MATCH ENGINE V4 — PHASE 12 VALIDATION
+
+Bundle syntax: PASS
+Laboratory inline syntax: PASS
+Regression tests: PASS
+Regression scenarios: 10
+Calibration matches: 8
+
+VERIFIED CONTRACTS
+- official event-sourced shot map
+- official event-sourced pass map
+- pass network and progressive actions
+- custom xT calculation
+- 12x8 heatmaps and average positions
+- five-minute momentum buckets
+- bounded and sorted player ratings
+- possession-chain analysis
+- full replay frame archive and key clips
+- deterministic analysis for identical seeds
+- analytics do not alter simulation outcomes
+- added-time clock progresses beyond 90:00
+- safe restart fallbacks after extreme dismissals
+
+EIGHT-MATCH ANALYTICS CALIBRATION — TWO TEAMS TOTAL
+Goals: 1.75
+Shots: 20.12
+xG: 3.50
+xGOT: 2.42
+xT: 4.24
+Pass attempts represented in map: 1043.00
+Pass accuracy: 80.06%
+Progressive passes: 244.00
+Key passes: 15.25
+Carries: 103.75
+Possession chains retained in report: 100.00
+Key timeline events: 25.75
+Replay frames: 4212.00
+Replay clips: 9.00
+Top player rating: 9.66
+Average player rating: 7.00
+
+NOTES
+- xT is a custom simulation model.
+- Full replay frames are export data and are not embedded in the career save by default.
+- Final GitHub Pages, Service Worker and Supabase reload testing must be performed after repository deployment.

@@ -1,0 +1,15 @@
+PASS Phase 12 API contract
+PASS Deterministic score and analytics
+PASS Shot map is sourced from official shot events
+PASS Pass map, network and xT are populated
+PASS Heatmap and average positions have correct shape
+PASS Player ratings remain bounded and sorted
+PASS Momentum uses five-minute buckets
+PASS Replay archive contains full frames and event clips
+PASS Possession chains and key timeline are generated
+PASS Analytics do not alter the first 20 minutes of simulation
+{
+  "tests": 10,
+  "passed": 10,
+  "failed": 0
+}

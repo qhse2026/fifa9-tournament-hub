@@ -1,0 +1,33 @@
+MATCH ENGINE V4 — PHASE 12 KURULUM
+
+1. manager-match-engine-v4-phase12.bundle.js dosyasını repository kök dizinine yükleyin.
+2. index.html içindeki Phase 11 script satırını kaldırın.
+3. manager-match-engine.js satırının hemen altına şunu ekleyin:
+   <script src="manager-match-engine-v4-phase12.bundle.js?v=4.0.0-phase12.1"></script>
+4. Phase 2–11 bundle dosyalarını Phase 12 ile birlikte yüklemeyin.
+5. Service Worker cache sürümünü artırın.
+6. Ctrl + Shift + R ile hard refresh yapın.
+7. Phase 12'yi devam eden maç yerine yeni başlayacak maçtan itibaren kullanın.
+
+PHASE 12 YENİLİKLERİ
+- Resmî event akışına bağlı shot map ve pass map
+- xG, xGOT ve özel xT modeli
+- Progressive pass / carry ve pass network
+- 12x8 takım ve oyuncu heatmap'leri
+- Ortalama pozisyonlar ve field tilt
+- 5 dakikalık momentum grafiği
+- Possession chain / hücum sekansı analizi
+- Oyuncu performans rating kartları
+- Yaklaşık 1 saniyelik tam replay arşivi
+- Gol, kırmızı kart, penaltı, büyük şans ve direk klipleri
+- Analiz JSON ve replay JSON dışa aktarma
+- Canlı ANALİZ paneli: Summary, Momentum, Shots, Passes, Heatmap, Players, Timeline
+
+VERİ SAKLAMA
+- fixture.matchEngine.matchAnalysis içine analiz özeti yazılır.
+- Tam replay frame arşivi kariyer JSON'una gömülmez; API veya panel üzerinden ayrı JSON olarak dışa aktarılır.
+- Yeni Supabase SQL veya zorunlu kariyer migration'ı gerekmiyor.
+
+STABİLİTE DÜZELTMELERİ
+- Uzatma süresinde maç saatinin 90:00'da takılması giderildi.
+- Çok sayıda oyuncu ihracı sonrası kickoff, kale vuruşu ve duran top yeniden başlatmalarına güvenli fallback eklendi.

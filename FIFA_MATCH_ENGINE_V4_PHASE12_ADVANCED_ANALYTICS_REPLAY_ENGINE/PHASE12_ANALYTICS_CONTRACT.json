@@ -1,0 +1,52 @@
+{
+  "version": "4.0.0-phase12.1",
+  "engineMethods": [
+    "getAnalytics",
+    "getMatchAnalysis",
+    "exportReplayArchive",
+    "getReplayClip"
+  ],
+  "analysis": {
+    "teams": [
+      "home",
+      "away"
+    ],
+    "maps": [
+      "shotMap",
+      "passMap",
+      "carryMap",
+      "heatmaps"
+    ],
+    "models": [
+      "xg",
+      "xgot",
+      "xt",
+      "expectedAssists",
+      "momentum",
+      "ppda",
+      "fieldTiltTouches"
+    ],
+    "networks": [
+      "passNetwork",
+      "possessionChains"
+    ],
+    "people": [
+      "players",
+      "averagePositions"
+    ],
+    "events": [
+      "timeline"
+    ],
+    "replay": [
+      "frameIntervalSeconds",
+      "frameCount",
+      "clips",
+      "frames(optional)"
+    ]
+  },
+  "persistence": {
+    "summaryPath": "fixture.matchEngine.matchAnalysis",
+    "fullReplayPersistedInCareer": false,
+    "databaseMigrationRequired": false
+  }
+}
