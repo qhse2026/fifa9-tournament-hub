@@ -1,0 +1,27 @@
+{
+  "version": "4.0.0-phase7.1",
+  "matches": 40,
+  "averages": {
+    "goals": 1.5,
+    "shots": 21.03,
+    "onTarget": 6.8,
+    "xg": 3.95,
+    "passesAttempted": 862.03,
+    "passesCompleted": 742.7,
+    "attackingRuns": 993.23,
+    "blindSideRuns": 178.5,
+    "overlaps": 193.35,
+    "underlaps": 142.48,
+    "halfSpaceRuns": 86.55,
+    "widthRuns": 75.22,
+    "boxRuns": 378.68,
+    "falseNineDrops": 27.05,
+    "linkPlayActions": 9.15,
+    "targetManActions": 24.08,
+    "defenderCarries": 0,
+    "creativePasses": 71.13,
+    "killerPassesAttempted": 425.75,
+    "progressiveCarries": 182.05,
+    "roleShots": 21.03
+  }
+}

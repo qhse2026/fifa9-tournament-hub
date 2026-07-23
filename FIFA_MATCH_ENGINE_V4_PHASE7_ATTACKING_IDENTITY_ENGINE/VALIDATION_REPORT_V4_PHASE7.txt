@@ -1,0 +1,59 @@
+MATCH ENGINE 4.0 — PHASE 7 VALIDATION REPORT
+Version: 4.0.0-phase7.1
+Scope: Attacking Identity, Player Roles, Box Occupation and Link Play
+
+VALIDATED SYSTEMS
+PASS — 27 normalized attacking role profiles are available.
+PASS — False nine drops deeper than advanced forward.
+PASS — Advanced forward / poacher attack the last line and scoring zones.
+PASS — Winger maintains width; inside forward attacks inner channels.
+PASS — Fullback relationship changes between overlap, underlap and inversion according to the wide player's role.
+PASS — Mezzala occupies the half-space.
+PASS — Target forward exposes hold-up/link-play decisions.
+PASS — Ball-playing defender advances from the build-up line.
+PASS — Dynamic box assignments expose near post, far post, penalty spot and edge roles.
+PASS — Blind-side runner, link player and width holder are published in attackingAI snapshots.
+PASS — Career lineup/player arrays are mapped into V4 names, shirt numbers and supported attributes.
+PASS — New role metrics are included in fixture.matchEngine.stats through the official adapter.
+PASS — Core, adapter and live bridge Phase 7 APIs are present.
+PASS — Bundle syntax and laboratory inline script syntax are valid.
+PASS — Same seed produces the same score and team statistics.
+
+REGRESSION SUITE
+8 scenario groups passed.
+Role profiles tested: 27.
+
+DEFAULT BALANCE — 20 MATCHES
+Goals per match: 1.80
+Shots per match: 25.75
+Shots on target per match: 9.45
+Blocked shots per match: 8.75
+xG per match: 4.66
+Pass attempts per match: 1,028.80
+Completed passes per match: 849.75
+Pass accuracy: 82.60%
+Corners per match: 3.30
+
+ROLE-CONTRAST CALIBRATION — 40 MATCHES
+This pool deliberately uses contrasting false-nine, target-forward, poacher, winger, inside-forward, wide-playmaker, mezzala and inverted-fullback combinations.
+Goals per match: 1.50
+Shots per match: 21.03
+Pass attempts per match: 862.03
+Completed passes per match: 742.70
+Attacking run episodes: 993.23
+Blind-side runs: 178.50
+Overlaps: 193.35
+Underlaps/inversions: 142.48
+Half-space runs: 86.55
+Box-run episodes: 378.68
+False-nine drops: 27.05
+Target-man actions: 24.08
+Creative pass actions: 71.13
+Killer-pass attempts: 425.75
+Progressive carries: 182.05
+
+NOTES
+- Role-run metrics represent tactical movement episodes, not physical sprint counts.
+- Phase 7 retains all official Phase 1–6 passing, shooting, goalkeeper, set-piece, aerial, defensive and pressing systems.
+- No new Supabase SQL or mandatory career migration is required.
+- GitHub Pages Service Worker and real saved-career reload testing must be completed after repository deployment.

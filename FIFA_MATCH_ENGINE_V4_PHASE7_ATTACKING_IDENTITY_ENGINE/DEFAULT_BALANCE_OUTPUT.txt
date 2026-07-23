@@ -1,0 +1,15 @@
+{
+  "version": "4.0.0-phase7.1",
+  "matches": 20,
+  "averages": {
+    "goals": 1.8,
+    "shots": 25.75,
+    "onTarget": 9.45,
+    "blocked": 8.75,
+    "xg": 4.66,
+    "passesAttempted": 1028.8,
+    "passesCompleted": 849.75,
+    "corners": 3.3,
+    "passAccuracy": 82.6
+  }
+}

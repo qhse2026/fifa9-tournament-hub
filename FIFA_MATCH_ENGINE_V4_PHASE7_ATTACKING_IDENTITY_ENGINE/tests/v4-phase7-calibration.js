@@ -1,0 +1,5 @@
+'use strict';
+const {spawn}=require('node:child_process'), fs=require('node:fs'), os=require('node:os'), path=require('node:path');
+const dir=fs.mkdtempSync(path.join(os.tmpdir(),'p7-cal-')); const workers=4, each=10;
+function run(i){return new Promise((resolve,reject)=>{const out=path.join(dir,`${i}.json`);const child=spawn(process.execPath,[path.join(__dirname,'v4-phase7-calibration-worker.js'),String(i*each),String(each),out],{stdio:['ignore','pipe','pipe']});let err='';child.stderr.on('data',d=>err+=d);child.on('exit',code=>code===0?resolve(JSON.parse(fs.readFileSync(out))):reject(new Error(err||`worker ${i} failed`)));});}
+(async()=>{const rows=await Promise.all(Array.from({length:workers},(_,i)=>run(i)));const total={};for(const row of rows)for(const [k,v]of Object.entries(row))total[k]=(total[k]||0)+v;const avg={};for(const [k,v]of Object.entries(total))if(k!=='matches')avg[k]=Math.round(v/total.matches*100)/100;console.log(JSON.stringify({version:'4.0.0-phase7.1',matches:total.matches,averages:avg},null,2));})().catch(e=>{console.error(e);process.exit(1);});

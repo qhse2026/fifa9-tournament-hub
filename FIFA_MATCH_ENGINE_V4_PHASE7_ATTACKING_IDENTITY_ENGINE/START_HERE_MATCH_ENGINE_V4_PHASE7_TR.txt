@@ -1,0 +1,13 @@
+MATCH ENGINE 4.0 — PHASE 7 KURULUM
+
+1. GitHub kök dizinine manager-match-engine-v4-phase7.bundle.js dosyasını yükleyin.
+2. index.html içindeki Phase 6 script satırını kaldırın.
+3. manager-match-engine.js satırının hemen altına şunu ekleyin:
+
+<script src="manager-match-engine-v4-phase7.bundle.js?v=4.0.0-phase7.1"></script>
+
+4. Phase 2–6 bundle dosyalarını aynı anda yüklemeyin.
+5. Service Worker cache sürümünü artırın ve Ctrl+Shift+R ile hard refresh yapın.
+6. Phase 7'yi devam eden maçın ortasında değil, yeni maçtan itibaren kullanın.
+
+Phase 7 yeni Supabase SQL veya zorunlu kariyer migration'ı gerektirmez.
