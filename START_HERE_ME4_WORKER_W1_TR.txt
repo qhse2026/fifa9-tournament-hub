@@ -1,0 +1,31 @@
+MATCH ENGINE V4 — WORKER W1 KURULUM
+
+Bu paket tam repository paketidir.
+
+1. Mevcut repository dosyalarınızın yedeğini alın.
+2. Bu ZIP içindeki tüm dosyaları repository köküne yükleyin / mevcut dosyaların üzerine yazın.
+3. Özellikle şu dosyaların yüklendiğini doğrulayın:
+   - me4-match-worker.js
+   - me4-worker-bridge.js
+   - manager-match-engine-v4-phase13-safe.bundle.js
+   - index.html
+   - service-worker.js
+4. Eski me4-phase13-lazy-loader.js veya me4-emergency-rollback.js index.html içinde çağrılmamalıdır.
+5. Vercel deployment Ready/Production olduktan sonra Service Worker cache temizleyin.
+6. Yeni maç açın. Sağ altta ME4W · GÖRSEL MOTOR AKTİF görünmelidir.
+
+MİMARİ
+- Ağır Phase 13 çekirdeği Web Worker içinde parse edilir ve çalışır.
+- Ana thread yalnızca kariyer, Supabase ve 2D DOM çizimi yapar.
+- Resmî skor/top legacy motorundadır.
+- Worker 22 oyuncunun taktiksel koordinatlarını resmî top konumuna göre üretir.
+- Worker hata verirse legacy görüntü ve maç çalışmaya devam eder.
+
+DOĞRULAMA
+Console:
+window.ME4WorkerBridge?.getStatus()
+
+Beklenen maç sırasında:
+status: ACTIVE
+workerReady: true
+framesApplied: artan sayı

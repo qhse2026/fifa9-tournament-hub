@@ -1,0 +1,30 @@
+READY READY 4.0.0-phase13-safe.1 
+INITIALIZED ACTIVE  SET_PIECE
+SNAPSHOT ACTIVE  SET_PIECE
+SNAPSHOT ACTIVE  SET_PIECE
+SNAPSHOT ACTIVE  SET_PIECE
+{
+  "ready": true,
+  "initialized": true,
+  "snapshots": 3,
+  "clock": 0.7,
+  "player": {
+    "id": "home-RB-2",
+    "number": 2,
+    "position": "RB",
+    "group": "FB",
+    "role": "overlap",
+    "x": 32.92233342123143,
+    "y": 7.4298970549456715,
+    "targetX": 54,
+    "targetY": 6.5,
+    "facing": -0.04408905739807182,
+    "intent": "OVERLAP",
+    "energy": 99.9,
+    "fatigue": 0,
+    "status": "FIT",
+    "hasBall": false
+  },
+  "homeCount": 11,
+  "awayCount": 11
+}
