@@ -1,0 +1,33 @@
+V4 PHASE 4 SHOT + GOALKEEPER REGRESSION: PASS
+{
+  "goalScore": {
+    "home": 1,
+    "away": 0
+  },
+  "heldSaveState": "CONTROLLED",
+  "parryEvent": "REBOUND",
+  "woodwork": 1,
+  "blocked": 1,
+  "deterministicScore": {
+    "home": 1,
+    "away": 0
+  }
+}
+[Match Engine V4] Phase 4 full match authority enabled · 4.0.0-phase4-authority.1
+V4 PHASE 4 FULL AUTHORITY REGRESSION: PASS
+{
+  "authority": "V4_FULL_AUTHORITY",
+  "officialScore": {
+    "home": 1,
+    "away": 0
+  },
+  "shotStatsOfficial": true,
+  "visualBallSource": "ME4_PHASE4"
+}
+V4 PHASE 4 LIVE BRIDGE REGRESSION: PASS
+{
+  "ballLeft": "86%",
+  "classes": [
+    "me4-ball-loose"
+  ]
+}

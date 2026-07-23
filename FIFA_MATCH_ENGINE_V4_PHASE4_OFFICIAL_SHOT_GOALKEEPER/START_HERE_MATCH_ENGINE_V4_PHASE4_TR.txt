@@ -1,0 +1,183 @@
+MATCH ENGINE V4 — PHASE 4
+OFFICIAL SHOT, GOALKEEPER & SCORE AUTHORITY
+Sürüm: 4.0.0-phase4.1
+
+============================================================
+1. BU SÜRÜM NE YAPIYOR?
+============================================================
+
+Phase 4 aşağıdaki sistemleri resmî olarak V4'e taşır:
+
+- Oyuncuların 2D taktiksel hareketleri
+- Pas uçuşu ve top kontrolü
+- Pas arası, kötü ilk kontrol ve ikinci top
+- Şut kararı ve şut hedef koordinatı
+- Şutun gerçek zamanlı 2D uçuşu
+- Savunmacının şut hattına girerek blok yapması
+- Direk ve üst direk geometrisi
+- Kalecinin başlangıç pozisyonu ve reaksiyon gecikmesi
+- Kalecinin set alma, tam uzanma, yüksek uzanma ve ayakla kurtarış kararı
+- Topu tutma, yana çelme ve tehlikeli bölgeye çelme
+- Rebound / dönen top mücadelesi
+- Gol çizgisinin fiziksel olarak geçilmesi
+- Resmî skor ve şut istatistiklerinin kariyer maç nesnesine yazılması
+
+Phase 4 sonrasında terminal şut anında legacy motora devir yapılmaz.
+Yetki etiketi: V4_FULL_AUTHORITY
+
+============================================================
+2. KURULUM
+============================================================
+
+A) Repository kök dizinine yükleyin:
+
+manager-match-engine-v4-phase4.bundle.js
+
+B) index.html içindeki Phase 3 satırını kaldırın:
+
+<script src="manager-match-engine-v4-phase3.bundle.js?v=4.0.0-phase3.1"></script>
+
+C) Aynı yere Phase 4 satırını ekleyin:
+
+<script src="manager-match-engine-v4-phase4.bundle.js?v=4.0.0-phase4.1"></script>
+
+D) Doğru yükleme sırası:
+
+<script src="manager-match-engine.js"></script>
+<script src="manager-match-engine-v4-phase4.bundle.js?v=4.0.0-phase4.1"></script>
+
+ÖNEMLİ:
+- Phase 2, Phase 3 ve Phase 4 bundle'larını birlikte yüklemeyin.
+- Sadece en güncel Phase 4 bundle aktif olmalıdır.
+- Service Worker kullanılıyorsa cache sürümünü artırın.
+- Tarayıcıda hard refresh yapın: Ctrl + Shift + R.
+
+============================================================
+3. VERİTABANI VE KAYIT
+============================================================
+
+Yeni Supabase SQL gerekmez.
+Kariyer JSON şeması için zorunlu migration yoktur.
+
+V4 aşağıdaki alanları mevcut matchEngine nesnesine yazar:
+
+matchEngine.matchEngineV4
+matchEngine.visual2D.ball
+matchEngine.visual2D.ballControl
+matchEngine.visual2D.shotAction
+matchEngine.stats.home
+matchEngine.stats.away
+matchEngine.homeGoals
+matchEngine.aiGoals
+
+Fixture skor alanları da senkronize edilir:
+
+fixture.homeScore
+fixture.awayScore
+
+============================================================
+4. YENİ RESMÎ İSTATİSTİKLER
+============================================================
+
+shots
+onTarget
+blocked
+goals
+xg
+xgot
+saves
+savesHeld
+savesParried
+woodwork
+bigChances
+bigChancesMissed
+
+Phase 3 pas istatistiklerinin tamamı korunur.
+
+============================================================
+5. ŞUT DURUM MAKİNESİ
+============================================================
+
+CONTROLLED
+→ SHOT_FLIGHT
+→ BLOCK
+→ LOOSE / CORNER
+
+CONTROLLED
+→ SHOT_FLIGHT
+→ OFF_TARGET
+→ GOAL_KICK
+
+CONTROLLED
+→ SHOT_FLIGHT
+→ POST
+→ REBOUND
+
+CONTROLLED
+→ SHOT_FLIGHT
+→ SAVE_HOLD
+→ GOALKEEPER_CONTROL
+
+CONTROLLED
+→ SHOT_FLIGHT
+→ SAVE_PARRY_WIDE
+→ CORNER / GOAL_KICK
+
+CONTROLLED
+→ SHOT_FLIGHT
+→ SAVE_PARRY_DANGER
+→ SECOND_BALL
+
+CONTROLLED
+→ SHOT_FLIGHT
+→ GOAL_LINE_CROSSED
+→ GOAL
+→ KICK_OFF
+
+============================================================
+6. CANLI EKRANDA NE GÖRÜLECEK?
+============================================================
+
+HUD:
+
+ME4 SHOT · GOALKEEPER AI
+V4 TAM MAÇ YETKİSİ
+PLACED 54% · xG 0.31 · FULL_STRETCH
+REST DEF 72 · 68
+
+Şut anında:
+- Top daha parlak ve hızlı görünür.
+- Şutör ile hedef arasında düz şut çizgisi oluşur.
+- Kalecinin intent etiketi değişir.
+- Golde saha kısa bir flash efekti verir.
+- Rebound durumunda top boşta top moduna geçer.
+
+============================================================
+7. ÖNEMLİ KULLANIM NOTU
+============================================================
+
+Phase 4'ü devam eden eski bir maçın ortasında açmak yerine yeni bir maçtan
+başlatın. Motor seed üzerinden deterministik olarak maç başından itibaren
+simülasyon yaptığı için, eski motorla başlamış bir maçın ortasında sürüm
+değiştirmek skorun yeniden hesaplanmasına yol açabilir.
+
+Mevcut devam eden maçı eski sürümle bitirin; sonraki maçtan itibaren Phase 4'ü
+kullanın.
+
+============================================================
+8. SMOKE TEST
+============================================================
+
+1. Yeni bir maç başlatın.
+2. 2D saha HUD'ında “V4 TAM MAÇ YETKİSİ” yazısını kontrol edin.
+3. Bir şut oluştuğunda topun SHOT_FLIGHT durumuna geçtiğini kontrol edin.
+4. Gol olduğunda scoreboard ile V4 GOAL eventinin aynı olduğunu kontrol edin.
+5. Maç istatistiklerinde shots, onTarget, saves, blocked ve xG alanlarını kontrol edin.
+6. Maçı kaydedip tekrar açın ve fixture skorunun korunduğunu kontrol edin.
+
+============================================================
+9. GERİ DÖNÜŞ
+============================================================
+
+Sorun görülürse Phase 4 script satırını kaldırıp önceki Phase 3 satırını geri
+ekleyebilirsiniz. Kariyer veritabanı için rollback SQL gerekmez.

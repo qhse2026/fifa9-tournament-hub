@@ -1,0 +1,11 @@
+PHASE 3 SATIRINI KALDIRIN:
+<script src="manager-match-engine-v4-phase3.bundle.js?v=4.0.0-phase3.1"></script>
+
+YERİNE PHASE 4 SATIRINI EKLEYİN:
+<script src="manager-match-engine-v4-phase4.bundle.js?v=4.0.0-phase4.1"></script>
+
+DOĞRU SIRALAMA:
+<script src="manager-match-engine.js"></script>
+<script src="manager-match-engine-v4-phase4.bundle.js?v=4.0.0-phase4.1"></script>
+
+Phase 2, Phase 3 ve Phase 4 bundle dosyalarını aynı anda yüklemeyin.

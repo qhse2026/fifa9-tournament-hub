@@ -1,0 +1,53 @@
+MATCH ENGINE V4 — PHASE 4 VALIDATION REPORT
+Version: 4.0.0-phase4.1
+
+CORE / SHOT REGRESSIONS
+[PASS] Shot enters SHOT_FLIGHT state
+[PASS] Shot ball position advances through physical duration
+[PASS] Forced GOAL crosses goal line and increments score
+[PASS] SAVE_HOLD transfers possession to goalkeeper
+[PASS] SAVE_PARRY_DANGER creates rebound event
+[PASS] SAVE_PARRY_WIDE creates safe restart outcome
+[PASS] POST creates woodwork stat and rebound
+[PASS] BLOCK creates blocked-shot stat and block event
+[PASS] OFF_TARGET creates goal-kick restart
+[PASS] Same seed produces identical score and team statistics
+[PASS] Event IDs remain unique after event buffer trimming
+
+FULL AUTHORITY ADAPTER
+[PASS] Adapter exposes V4_FULL_AUTHORITY
+[PASS] Config uses FULL_AUTHORITY mode
+[PASS] V4 score becomes legacy-visible official score
+[PASS] Fixture homeScore / awayScore synchronized
+[PASS] Shot and goalkeeper stats written to matchEngine.stats
+[PASS] visual2D ball source is ME4_PHASE4
+[PASS] matchEngineV4 contract marks shots, goalkeeper and score as V4
+
+LIVE 2D BRIDGE
+[PASS] Shot-flight ball coordinates applied to DOM
+[PASS] Shot trajectory line rendered
+[PASS] Shot-flight visual class applied
+[PASS] Shot line removed when ball becomes loose
+[PASS] Loose-ball visual state applied
+
+20-MATCH CALIBRATION
+Goals: 2.45
+Shots: 30.45
+On target: 14.85
+Blocked: 6.05
+Saves: 12.40
+Saves held: 5.70
+Saves parried: 6.70
+Woodwork: 0.30
+xG: 4.33
+xGOT: 2.68
+Pass attempts: 971.75
+Pass completions: 802.75
+Pass accuracy: 82.61%
+Corners: 3.25
+
+KNOWN DEPLOYMENT CHECKS
+- GitHub Pages Service Worker cache must be refreshed after upload.
+- Phase 2/3 bundle must not remain loaded beside Phase 4.
+- A new match should be used for first production test.
+- Real Supabase career reload requires browser smoke testing after deployment.

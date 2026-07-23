@@ -1,0 +1,30 @@
+V4 PHASE 4 CALIBRATION
+{
+  "matches": 20,
+  "averages": {
+    "goals": 2.45,
+    "shots": 30.45,
+    "onTarget": 14.85,
+    "blocked": 6.05,
+    "saves": 12.4,
+    "savesHeld": 5.7,
+    "savesParried": 6.7,
+    "woodwork": 0.3,
+    "xg": 4.33,
+    "xgot": 2.68,
+    "passesAttempted": 971.75,
+    "passesCompleted": 802.75,
+    "corners": 3.25,
+    "passAccuracy": 82.61
+  },
+  "scoreSamples": [
+    "0-0",
+    "0-1",
+    "1-2",
+    "2-3",
+    "1-0",
+    "1-0",
+    "2-1",
+    "1-1"
+  ]
+}
