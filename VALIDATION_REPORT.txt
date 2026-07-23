@@ -1,17 +1,56 @@
-FIFA V44.2.1 VALIDATION REPORT
+FIFA TOURNAMENT HUB V44.3.0 — VALIDATION REPORT
+Generated: 2026-07-23
 
-PASSED
-- manager-room.js syntax check
-- language.js syntax check
-- service-worker.js syntax check
-- manager-room.css brace balance
-- Automatic recovery from an empty careers array with a valid career stored inside saveSlots
-- Continue Career changes launcherOpen from true to false
-- Exit Career changes launcherOpen from false to true
-- Exit Career retains activeCareerId
-- Exit Career retains career array and progress
-- Last-known-good backup is created
-- New career modal waits for resource loading and opens successfully
+FILES
+[PASS] manager-room.js included
+[PASS] manager-match-engine.js included
+[PASS] manager-room.css included
+[PASS] service-worker.js included
 
-TEST METHOD
-Node VM integration test with simulated localStorage, save-slot recovery, Manager event handlers and application context.
+JAVASCRIPT SYNTAX
+[PASS] node --check manager-room.js
+[PASS] node --check manager-match-engine.js
+[PASS] node --check service-worker.js
+
+PHYSICAL LOAD 2.0
+[PASS] Same normalized minute-fatigue function is used for human and AI sides.
+[PASS] Base fatigue cost: 0.145 points per simulated minute.
+[PASS] Balanced 90-minute expected finish: approximately 86.9 physical condition.
+[PASS] Low-effort 90-minute expected finish: approximately 89.2.
+[PASS] High-effort/risk 90-minute expected finish: approximately 77.5–81.4.
+[PASS] Direct decision fatigue is scaled to 10% and capped at -1.0 per decision.
+[PASS] Legacy live-match fatigue gaps greater than 16 points are normalized on resume.
+[PASS] Legacy human 50 / AI 95 at minute 60 normalizes to human 83 / AI 95.
+
+COMPACT MATCH REPORT
+[PASS] Default report contains score, xG, shots, possession, physical condition and three summary findings.
+[PASS] Only the last three critical decisions are shown in the default view.
+[PASS] Detailed statistics and tactical analysis are inside a collapsed details panel.
+[PASS] Important-event list is capped at eight entries.
+[PASS] Full chronological event stream is not rendered in the default full-time report.
+[PASS] Responsive CSS rules included for mobile report layout.
+
+CROSS-DEVICE OFFICIAL CAREER SYNC
+[PASS] Existing manager_unlock_career RPC is used to pull the current cloud snapshot.
+[PASS] Existing manager_save_career_snapshot RPC is used to push a compact snapshot.
+[PASS] Live state includes active fixture, clock, score, decisions, tactics and match engine state.
+[PASS] Auto-sync is scheduled every two simulated minutes.
+[PASS] Immediate sync is scheduled after decisions, tactical changes, substitutions, pause and match-centre exit.
+[PASS] Visibility/background and pagehide sync hooks are included.
+[PASS] Manual SENKRONİZE control and sync-status indicator are included.
+[PASS] A newer cloud snapshot is pulled when the career is opened on another device.
+[PASS] Active live match reopens in the Match tab after cloud unlock.
+
+STORAGE SAFETY
+[PASS] Completed-match movement and heavy telemetry are compacted before local/cloud storage.
+[PASS] Active live-match state is retained while oversized logs are capped.
+[PASS] Duplicate recovery storage is removed.
+[PASS] QuotaExceededError is caught and no longer blocks exit or cloud sync attempts.
+[PASS] Service Worker cache key updated to V44.3.0.
+
+DEPLOYMENT REQUIREMENTS / LIMITATIONS
+- Cross-device sync works only for Official Career.
+- The Supabase RPC repair previously supplied must already be installed.
+- Each new device must open the career once with the same player name and six-digit Manager PIN.
+- Do not actively play the same career on two devices at the same time.
+- Final end-to-end validation must be performed on the deployed GitHub Pages URL because the local validation environment cannot reproduce the user's Supabase project and browser service-worker state.

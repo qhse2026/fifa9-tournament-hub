@@ -1,12 +1,16 @@
 (() => {
   "use strict";
 
-  const VERSION = "44.1.0";
+  const VERSION = "44.3.0";
   const TICK_MS = 250;
   const PLAYBACK_SPEEDS = [1, 2, 4, 8, 16];
   const MAX_EVENTS = 180;
   const MAX_DECISIONS = 10;
   const MIN_DECISIONS = 5;
+  const FATIGUE_MODEL_VERSION = 2;
+  const BASE_FATIGUE_PER_MINUTE = 0.145;
+  const DECISION_FATIGUE_SCALE = 0.10;
+  const AUTO_ORDER_FATIGUE_SCALE = 0.12;
   const runtime = { timer: null, fixtureId: null, busy: false };
 
   const MOTIVATION_TALKS = [
@@ -846,6 +850,7 @@
       possessionHome: 50,
       homeFatigue: 100,
       awayFatigue: 100,
+      fatigueModelVersion: FATIGUE_MODEL_VERSION,
       homeThreat: 0,
       awayThreat: 0,
       homeModifiers: [],
@@ -916,6 +921,7 @@
     career.activeMatchFixtureId = fixture.id;
     career.status = "match-live";
     room()?.saveLocal?.();
+    room()?.scheduleCloudSync?.(career,{reason:"match-start-state"});
     return fixture.matchEngine;
   }
 
@@ -1336,7 +1342,7 @@
         const order=AUTO_ORDERS.find(item=>item.id===id);if(!order||engine.minute<order.minute||!orderTriggered(id,context))continue;
         const effects=order.effects||{},key=side==="home"?"homeModifiers":"awayModifiers";
         engine[key].push({until:Math.min(91,engine.minute+Number(effects.duration||15)),attack:Number(effects.attack||0),control:Number(effects.control||0),defence:Number(effects.defence||0),risk:Number(effects.risk||0),source:`auto-${id}`});
-        if(Number(effects.fatigue||0)){if(side==="home")engine.homeFatigue=clamp(engine.homeFatigue+Number(effects.fatigue),35,100);else engine.awayFatigue=clamp(engine.awayFatigue+Number(effects.fatigue),35,100);}
+        if(Number(effects.fatigue||0)){const delta=scaledTacticalFatigue(effects.fatigue,AUTO_ORDER_FATIGUE_SCALE,-1.2,.9);if(side==="home")engine.homeFatigue=clamp(engine.homeFatigue+delta,55,100);else engine.awayFatigue=clamp(engine.awayFatigue+delta,55,100);}
         const row={id,label:order.label,minute:Math.round(engine.minute),side,owner};engine.triggeredOrders[owner].push(row);
         if(owner==="ai")engine.aiAdaptations+=1;
         addEvent(engine,{type:"auto-order",side,text:owner==="human"?`Otomatik emir çalıştı: ${order.label}.`:`Rakip teknik direktör skor ve saha durumuna bağlı önceden hazırlanmış planını devreye aldı.`});
@@ -1620,6 +1626,34 @@
     return true;
   }
 
+  function normalizedFatigueMinuteCost(metrics) {
+    const effort = clamp(Number(metrics?.fatigueRate || 1), .55, 2.8);
+    const effortCost = (effort - 1) * .055;
+    const riskCost = Math.max(0, Number(metrics?.risk || 50) - 58) / 1850;
+    return clamp(BASE_FATIGUE_PER_MINUTE + effortCost + riskCost, .105, .265);
+  }
+
+  function scaledTacticalFatigue(value, scale, min = -1.1, max = .8) {
+    return clamp(Number(value || 0) * scale, min, max);
+  }
+
+  function normalizeLegacyFatigue(engine) {
+    if (!engine || Number(engine.fatigueModelVersion || 0) >= FATIGUE_MODEL_VERSION) return;
+    const minute = clamp(Number(engine.minute || engine.clockSeconds / 60 || 0), 0, 90);
+    const expected = clamp(100 - minute * BASE_FATIGUE_PER_MINUTE, 76, 100);
+    let home = clamp(Number(engine.homeFatigue || expected), 35, 100);
+    let away = clamp(Number(engine.awayFatigue || expected), 35, 100);
+    if (Math.abs(home - away) > 16) {
+      if (home < away) home = Math.max(home, away - 12);
+      else away = Math.max(away, home - 12);
+    }
+    home = Math.max(home, expected - 14);
+    away = Math.max(away, expected - 14);
+    engine.homeFatigue = clamp(home, 55, 100);
+    engine.awayFatigue = clamp(away, 55, 100);
+    engine.fatigueModelVersion = FATIGUE_MODEL_VERSION;
+  }
+
   function simulateMinute(career, fixture, simulationMinute) {
     const engine = fixture.matchEngine;
     if (!engine || engine.status !== "live") return;
@@ -1628,10 +1662,10 @@
     const away = sideMetrics(career, fixture, "away");
     applyCounterMatrix(home,away);
 
-    const homeFatigueCost = 0.075 * home.fatigueRate + Math.max(0, home.risk - 55) / 850;
-    const awayFatigueCost = 0.075 * away.fatigueRate + Math.max(0, away.risk - 55) / 850;
-    engine.homeFatigue = clamp(engine.homeFatigue - homeFatigueCost, 38, 100);
-    engine.awayFatigue = clamp(engine.awayFatigue - awayFatigueCost, 38, 100);
+    const homeFatigueCost = normalizedFatigueMinuteCost(home);
+    const awayFatigueCost = normalizedFatigueMinuteCost(away);
+    engine.homeFatigue = clamp(engine.homeFatigue - homeFatigueCost, 55, 100);
+    engine.awayFatigue = clamp(engine.awayFatigue - awayFatigueCost, 55, 100);
 
     const controlDelta = (home.control - away.control) / 20 + engine.momentum / 65;
     engine.zone = clamp((Number(engine.visual2D?.ball?.x||50)-50)/18, -2.4, 2.4);
@@ -1668,7 +1702,7 @@
       setBroadcast(engine, "half-time", "neutral", "İLK YARI", `${engine.scoreHome} — ${engine.scoreAway} · Devre arası taktik değerlendirmesi`);
     }
 
-    if (engine.minute % 5 === 0) room()?.saveLocal?.();
+    if (engine.minute % 2 === 0) room()?.scheduleCloudSync?.(career,{reason:"live-match"});
     if (engine.minute >= 90) {
       engine.status = "full-time";
       setBroadcast(engine, "full-time", "neutral", "MAÇ SONU", `${engine.scoreHome} — ${engine.scoreAway}`);
@@ -1695,6 +1729,7 @@
   }
 
   function ensureLiveRuntime(engine){
+    normalizeLegacyFatigue(engine);
     if(!Number.isFinite(Number(engine.clockSeconds)))engine.clockSeconds=clamp(Number(engine.minute||0)*60,0,5400);
     if(!Number.isFinite(Number(engine.lastSimulatedMinute)))engine.lastSimulatedMinute=Math.floor(Number(engine.clockSeconds||0)/60);
     const speed=Number(engine.playbackSpeed||8);engine.playbackSpeed=PLAYBACK_SPEEDS.includes(speed)?speed:8;
@@ -1787,9 +1822,9 @@
       risk: (optionRow.tags || []).includes("attack") ? 5 : (optionRow.tags || []).includes("protect") ? -5 : 0,
       source: optionRow.id
     });
-    const fatigueDelta = Number(effects.fatigue || 0);
-    if (sides.humanIsHome) engine.homeFatigue = clamp(engine.homeFatigue + fatigueDelta, 35, 100);
-    else engine.awayFatigue = clamp(engine.awayFatigue + fatigueDelta, 35, 100);
+    const fatigueDelta = scaledTacticalFatigue(effects.fatigue, DECISION_FATIGUE_SCALE, -1.0, .7);
+    if (sides.humanIsHome) engine.homeFatigue = clamp(engine.homeFatigue + fatigueDelta, 55, 100);
+    else engine.awayFatigue = clamp(engine.awayFatigue + fatigueDelta, 55, 100);
     const impact = quality >= 78 ? "Hamle güçlü bir taktik uyum üretti." : quality >= 60 ? "Hamle dengeli bir etki oluşturdu." : quality >= 43 ? "Hamle risk ve faydayı birlikte getirdi." : "Hamle beklenenden daha yüksek risk oluşturdu.";
     decision.chosenId = optionRow.id;
     decision.chosenLabel = optionRow.label;
@@ -1802,6 +1837,7 @@
     engine.decisionCooldownUntil = engine.minute + 7;
     addEvent(engine, { type: "decision", side: humanSide, text: `${optionRow.label}: ${impact}` });
     room()?.saveLocal?.();
+    room()?.scheduleCloudSync?.(career,{reason:"match-decision"});
     refreshMount(career, fixture);
     window.setTimeout(() => startTimer(career, fixture), 1050);
   }
@@ -2330,27 +2366,47 @@
     const report = engine.report || {};
     const d = sideDisplay(career, fixture);
     const resultClass = report.result === "WIN" ? "win" : report.result === "LOSS" ? "loss" : "draw";
-    return `<section id="managerMatchMount" class="manager-match-report ${resultClass}">
-      <div class="manager-report-hero"><div><span>FULL TIME · MATCHDAY ${fixture.matchday}</span><h2>${report.result === "WIN" ? "GALİBİYET" : report.result === "LOSS" ? "MAĞLUBİYET" : "BERABERLİK"}</h2><p>${esc(d.humanTeam.clubName)} ile ${esc(d.aiTeam.clubName)} arasındaki maç tamamlandı.</p></div><div class="manager-report-score"><span>${esc(career.shortName)}</span><b>${report.humanGoals ?? d.humanGoals}</b><i>—</i><b>${report.aiGoals ?? d.aiGoals}</b><span>${esc(rival.shortName)}</span></div></div>
-      ${renderPulseChart(engine, d.humanIsHome)}
-      ${renderUefaStatistics(d,false)}
-      ${renderChainIntelligence(engine,d.humanIsHome,true)}
-      ${renderCausalAnalysis(engine,d.humanIsHome,true)}
-      ${renderShotMap(engine,d.humanIsHome)}
-      ${renderTurningPoints(engine)}
-      ${renderFogReveal(engine)}
-      ${renderManagerBattle(report)}
-      ${renderMatchDna(engine, d)}
-      ${renderFormationAnalysis(engine, d)}
-      ${renderTacticalIntelligenceReport(engine,d)}
-      <div class="manager-report-grid">
-        <article class="manager-report-rating"><span>TAKTİK PERFORMANS</span><strong>${report.tacticalQuality || 50}</strong><small>/ 100</small><div><b>ELO ${report.eloDelta >= 0 ? "+" : ""}${report.eloDelta || 0}</b><b>IQ ${report.tacticalDelta >= 0 ? "+" : ""}${report.tacticalDelta || 0}</b><b>+${report.careerPointsEarned || 0} CP</b></div></article>
-        <article class="manager-report-stats"><h3>Gelişmiş Maç Verisi</h3>${metric("xG", d.humanStats.xg, d.aiStats.xg)}${metric("Şut", d.humanStats.shots, d.aiStats.shots)}${metric("İsabet", d.humanStats.onTarget, d.aiStats.onTarget)}${metric("Kurtarış", d.humanStats.saves, d.aiStats.saves)}${metric("Direk", d.humanStats.woodwork, d.aiStats.woodwork)}${metric("Ofsayt", d.humanStats.offsides, d.aiStats.offsides)}${metric("Serbest V.", d.humanStats.freeKicks, d.aiStats.freeKicks)}${metric("VAR İptal", d.humanStats.varOverturns, d.aiStats.varOverturns)}${metric("İsabetsiz", d.humanStats.offTarget, d.aiStats.offTarget)}${metric("Blok", d.humanStats.blocked, d.aiStats.blocked)}${metric("Top %", Math.round(d.humanPossession), 100 - Math.round(d.humanPossession))}${metric("Pas", d.humanStats.passes, d.aiStats.passes)}${metric("Pas %", d.humanStats.passAccuracy, d.aiStats.passAccuracy)}${metric("Korner", d.humanStats.corners, d.aiStats.corners)}${metric("Faul", d.humanStats.fouls, d.aiStats.fouls)}${metric("Sarı", d.humanStats.yellow, d.aiStats.yellow)}${metric("Kırmızı", d.humanStats.red, d.aiStats.red)}${metric("Penaltı", d.humanStats.penalties, d.aiStats.penalties)}${metric("Pen. Kaçtı", d.humanStats.penaltiesMissed, d.aiStats.penaltiesMissed)}</article>
-        <article class="manager-report-analysis"><h3>Taktik Rapor</h3><ul>${(report.lines || []).map(line => `<li>${esc(line)}</li>`).join("")}</ul><div>${esc(report.revealedStyleHint || "Rakip profili hakkında yeni veri oluşmadı.")}</div></article>
-        <article class="manager-report-decisions"><h3>Kritik Kararlar</h3>${report.motivation ? `<div><time>0'</time><section><strong>${esc(report.motivation.label)}</strong><small>${esc(report.motivation.text)}</small></section><b>${report.motivation.outcome === "positive" ? "+" : report.motivation.outcome === "negative" ? "−" : "="}</b></div>` : ""}${report.pressConference ? `<div><time>MEDYA</time><section><strong>${esc(report.pressConference.label)}</strong><small>${esc(report.pressConference.text)}</small></section><b>${report.pressConference.outcome === "positive" ? "+" : report.pressConference.outcome === "negative" ? "−" : "="}</b></div>` : ""}${fixture.decisions.length ? fixture.decisions.map(item => `<div><time>${item.minute}'</time><section><strong>${esc(item.chosenLabel)}</strong><small>${esc(item.outcome)}</small></section><b>${item.quality}</b></div>`).join("") : `<p>Maç içi kritik karar oluşmadı.</p>`}</article>
-      </div>
-      ${renderTacticalImpact(engine)}
-      <section class="manager-full-timeline"><h3>Tam Olay Akışı</h3>${[...engine.events].reverse().map(event=>`<article class="${event.type}"><time>${event.minute}'</time><b>${esc(event.type.replaceAll("-"," ").toUpperCase())}</b><span>${esc(event.text)}</span></article>`).join("")}</section>
+    const resultLabel = report.result === "WIN" ? "GALİBİYET" : report.result === "LOSS" ? "MAĞLUBİYET" : "BERABERLİK";
+    const summaryLines = (report.lines || []).slice(0, 3);
+    const decisionRows = (fixture.decisions || []).slice(-3).reverse();
+    const importantTypes = new Set(["goal","penalty-goal","penalty-miss","red","var-overturn","woodwork","shootout"]);
+    const keyEvents = (engine.events || []).filter(event => importantTypes.has(event.type)).slice(-8).reverse();
+    const humanFatigue = Math.round(d.humanFatigue);
+    const aiFatigue = Math.round(d.aiFatigue);
+    const physicalNote = humanFatigue >= 82 ? "NORMAL MAÇ YÜKÜ" : humanFatigue >= 72 ? "YÜKSEK EFOR" : "KRİTİK EFOR";
+    const compactMetric = (label, humanValue, aiValue, suffix = "") => `<article><span>${label}</span><b>${humanValue}${suffix}</b><i>${aiValue}${suffix}</i></article>`;
+    return `<section id="managerMatchMount" class="manager-match-report manager-match-report-compact ${resultClass}">
+      <div class="manager-report-hero"><div><span>FULL TIME · MATCHDAY ${fixture.matchday}</span><h2>${resultLabel}</h2><p>${esc(d.humanTeam.clubName)} — ${esc(d.aiTeam.clubName)}</p></div><div class="manager-report-score"><span>${esc(career.shortName)}</span><b>${report.humanGoals ?? d.humanGoals}</b><i>—</i><b>${report.aiGoals ?? d.aiGoals}</b><span>${esc(rival.shortName)}</span></div></div>
+      <section class="manager-compact-report-kpis">
+        ${compactMetric("xG", round1(d.humanStats.xg), round1(d.aiStats.xg))}
+        ${compactMetric("ŞUT", d.humanStats.shots, d.aiStats.shots)}
+        ${compactMetric("TOP", Math.round(d.humanPossession), 100-Math.round(d.humanPossession), "%")}
+        ${compactMetric("FİZİK", humanFatigue, aiFatigue)}
+      </section>
+      <section class="manager-report-summary-card">
+        <header><div><span>MAÇ ÖZETİ</span><h3>Üç temel sonuç</h3></div><strong>${physicalNote}</strong></header>
+        <ul>${summaryLines.length ? summaryLines.map(line => `<li>${esc(line)}</li>`).join("") : `<li>Maç dengeli bir taktik akışla tamamlandı.</li>`}</ul>
+        <div class="manager-report-rewards"><span>TAKTİK <b>${report.tacticalQuality || 50}</b></span><span>ELO <b>${report.eloDelta >= 0 ? "+" : ""}${report.eloDelta || 0}</b></span><span>IQ <b>${report.tacticalDelta >= 0 ? "+" : ""}${report.tacticalDelta || 0}</b></span><span>KARİYER <b>+${report.careerPointsEarned || 0}</b></span></div>
+      </section>
+      ${decisionRows.length ? `<section class="manager-report-compact-decisions"><h3>Son Kritik Kararlar</h3>${decisionRows.map(item => `<article><time>${item.minute}'</time><div><b>${esc(item.chosenLabel)}</b><small>${esc(item.outcome)}</small></div><strong>${item.quality}</strong></article>`).join("")}</section>` : ""}
+      <details class="manager-report-details">
+        <summary><span>DETAYLI MAÇ ANALİZİ</span><b>İstatistikleri ve önemli olayları aç</b></summary>
+        <div class="manager-report-details-body">
+          <section class="manager-report-compact-stats">
+            ${compactMetric("İSABET", d.humanStats.onTarget, d.aiStats.onTarget)}
+            ${compactMetric("PAS %", d.humanStats.passAccuracy, d.aiStats.passAccuracy, "%")}
+            ${compactMetric("KORNER", d.humanStats.corners, d.aiStats.corners)}
+            ${compactMetric("KURTARIŞ", d.humanStats.saves, d.aiStats.saves)}
+            ${compactMetric("FAUL", d.humanStats.fouls, d.aiStats.fouls)}
+            ${compactMetric("SARI", d.humanStats.yellow, d.aiStats.yellow)}
+            ${compactMetric("KIRMIZI", d.humanStats.red, d.aiStats.red)}
+            ${compactMetric("OFSAYT", d.humanStats.offsides, d.aiStats.offsides)}
+          </section>
+          ${renderCausalAnalysis(engine,d.humanIsHome,true)}
+          ${renderTacticalIntelligenceReport(engine,d)}
+          ${keyEvents.length ? `<section class="manager-key-timeline"><h3>Önemli Olaylar</h3>${keyEvents.map(event=>`<article class="${event.type}"><time>${event.minute}'</time><b>${esc(event.type.replaceAll("-"," ").toUpperCase())}</b><span>${esc(event.text)}</span></article>`).join("")}</section>` : ""}
+        </div>
+      </details>
       <div class="manager-report-actions"><button class="btn btn-ghost" data-match-action="share-card" data-fixture-id="${esc(fixture.id)}">Maç Kartını Paylaş</button><button class="btn btn-ghost" data-manager-action="set-tab" data-tab="${archiveMode?"fixtures":"universe"}">${archiveMode?"Fikstürlere Dön":"Puan Tablosunu Gör"}</button>${archiveMode?"":`<button class="btn btn-gold" data-match-action="continue-career">Sonraki Matchday</button>`}</div>
     </section>`;
   }
@@ -2481,6 +2537,7 @@
       addEvent(engine, { type: "tactics", side: getSides(career, fixture).humanIsHome ? "home" : "away", text: "Teknik alan oyunu durdurdu ve yeni taktik planı sahaya iletti." });
     }
     room()?.saveLocal?.();
+    room()?.scheduleCloudSync?.(career,{reason:"tactical-change"});
     refreshMount(career, fixture);
   }
 
@@ -2498,6 +2555,8 @@
     }
     if (action === "pause") {
       stopTimer();
+      room()?.saveLocal?.();
+      await room()?.scheduleCloudSync?.(career,{reason:"match-pause",force:true});
       refreshMount(career, fixture);
     }
     if (action === "resume") {
@@ -2507,11 +2566,11 @@
     if (action === "change-tactics") { stopTimer(); fixture.matchEngine.tacticalEditing = true; refreshMount(career, fixture); }
     if (action === "cancel-tactics") { fixture.matchEngine.tacticalEditing = false; refreshMount(career, fixture); }
     if (action === "toggle-events") { fixture.matchEngine.eventStreamVisible = !fixture.matchEngine.eventStreamVisible; room()?.saveLocal?.(); refreshMount(career, fixture); }
-    if (action === "exit-centre") { stopTimer(); fixture.matchEngine.tacticalEditing = false; room()?.saveLocal?.(); room()?.setActiveTab?.("overview"); app()?.toast?.("Maç duraklatıldı. Canlı maça istediğin zaman dönebilirsin.", "success"); }
+    if (action === "exit-centre") { stopTimer(); fixture.matchEngine.tacticalEditing = false; room()?.saveLocal?.(); await room()?.scheduleCloudSync?.(career,{reason:"match-pause",force:true}); room()?.setActiveTab?.("overview"); app()?.toast?.("Maç duraklatıldı ve buluta kaydedildi. Diğer cihazdan devam edebilirsin.", "success"); }
     if (action === "substitution") {
       const engine=fixture.matchEngine; engine.substitutions ||= []; if(engine.substitutions.length>=5){app()?.toast?.("Değişiklik hakkı doldu.","warning");return;}
       const type=target.dataset.subType; const effects=type==="pace"?{attack:9,control:0,defence:-2}:type==="control"?{attack:2,control:10,defence:2}:{attack:-2,control:2,defence:10}; const humanHome=getSides(career,fixture).humanIsHome; const key=humanHome?"homeModifiers":"awayModifiers";
-      engine[key].push({until:91,...effects,risk:0,source:`sub-${type}`}); engine.substitutions.push({minute:Math.round(engine.minute),type}); addEvent(engine,{type:"substitution",side:humanHome?"home":"away",text:`Oyuncu değişikliği: ${type==="pace"?"hız ve hücum":type==="control"?"orta saha kontrolü":"savunma direnci"} güçlendirildi.`}); room()?.saveLocal?.(); refreshMount(career,fixture);
+      engine[key].push({until:91,...effects,risk:0,source:`sub-${type}`}); engine.substitutions.push({minute:Math.round(engine.minute),type}); addEvent(engine,{type:"substitution",side:humanHome?"home":"away",text:`Oyuncu değişikliği: ${type==="pace"?"hız ve hücum":type==="control"?"orta saha kontrolü":"savunma direnci"} güçlendirildi.`}); room()?.saveLocal?.(); room()?.scheduleCloudSync?.(career,{reason:"substitution"}); refreshMount(career,fixture);
     }
     if (action === "decision") {
       if (runtime.busy) return;

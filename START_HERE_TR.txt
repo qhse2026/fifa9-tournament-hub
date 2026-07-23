@@ -1,28 +1,18 @@
-FIFA TOURNAMENT HUB V44.2.1 — CRITICAL HOTFIX
+FIFA TOURNAMENT HUB V44.3.0 — KURULUM
 
-BU PAKET NEDEN VAR?
-V44.2.0 ana ekrana dönüyordu ancak bazı eski Manager kayıtlarını okuyamadığı için “Kariyerlerim: 0” gösterebiliyordu. Ayrıca Manager kaynakları yüklenmeden butona basıldığında yeni kariyer penceresi sessizce açılmayabiliyordu.
-
-YÜKLENECEK SADECE 5 DOSYA
-Paket içindeki github klasöründen aşağıdaki dosyaları repository köküne yükleyin ve mevcut dosyaların üzerine yazın:
-1. index.html
-2. manager-room.js
-3. manager-room.css
-4. language.js
-5. service-worker.js
-
-BAŞKA DOSYA SİLMEYİN.
-Repository içindeki data, assets, cloud.js, app.js, manager-match-engine.js ve diğer dosyalar aynen kalmalıdır.
-
-YÜKLEME SONRASI
-1. GitHub Pages deploy tamamlanmasını bekleyin.
-2. Siteyi açın.
-3. Ctrl + Shift + R veya Ctrl + F5 yapın.
-4. Ana ekranda eski kariyer görünmüyorsa “KAYITLARI TARA VE KURTAR” butonuna basın.
-5. Elinizde JSON yedeği varsa “JSON YEDEĞİ YÜKLE” ile içeri aktarın.
+1. ZIP içindeki github klasöründe bulunan 4 dosyayı GitHub repository köküne yükleyin:
+   - manager-room.js
+   - manager-match-engine.js
+   - manager-room.css
+   - service-worker.js
+2. Aynı adlı eski dosyaların üzerine yazın. Diğer dosyaları silmeyin.
+3. GitHub Pages deploy tamamlandıktan sonra Ctrl + Shift + R yapın.
+4. Telefonda resmî kariyeri açın ve üstteki “SENKRONİZE” düğmesine bir kez basın.
+5. Bilgisayarda The Manager's Room > Kariyerimi Aç seçeneğinden aynı oyuncu adı ve 6 haneli Manager PIN ile giriş yapın.
+6. Devam eden canlı maç varsa oyun doğrudan Canlı Maç sekmesini açar ve buluttaki dakika/karar/skor state'ini yükler.
 
 ÖNEMLİ
-- “Kariyerden Çık” artık activeCareerId değerini silmez. Yalnızca ana oyun ekranını açar.
-- Kariyer localStorage, recovery anahtarı, last-good yedeği ve save-slot alanlarından taranır.
-- Yeni kayıt yapılmadan önce son sağlam Manager state ayrıca korunur.
-- Bu paket mevcut kariyeri, maçları, ELO, Tactical IQ veya fikstürü sıfırlamaz.
+- Cihazlar arası senkronizasyon yalnızca RESMÎ KARİYER için çalışır.
+- Test kariyeri yerel kalır.
+- Canlı maç her 2 simülasyon dakikasında, taktik kararda, oyuncu değişikliğinde, duraklatmada ve uygulama arka plana alındığında buluta gönderilir.
+- Aynı kariyeri iki cihazda aynı anda oynamayın; cihaz değiştirirken önce mevcut cihazdaki SENKRONİZE düğmesine basın.

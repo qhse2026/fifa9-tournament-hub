@@ -1,26 +1,26 @@
-# FIFA Tournament Hub V44.2.1 — Critical Recovery Hotfix
+# FIFA Tournament Hub V44.3.0
 
-## Corrected failure
+## Physical Load 2.0
+- İnsan ve AI tarafında aynı temel maç yorgunluğu uygulanır.
+- Normal 90 dakika sonunda dengeli planlar yaklaşık 82–89 fizik aralığını hedefler.
+- Yüksek pres, yüksek tempo ve agresif risk ekstra maliyet üretir; ancak karar seçenekleri artık doğrudan 5–10 fizik puanı silmez.
+- Eski devam eden maçlarda oluşmuş 40–50 / 94–95 gibi yapay farklar güvenli biçimde normalize edilir.
 
-V44.2.0 introduced the title screen but could display `Kariyerlerim: 0` when the previous Manager state was stored in a legacy wrapper, recovery key, save slot or nested backup structure. The exit action also used `activeCareerId = null`, making the saved career selection fragile.
+## Compact Full-Time Report
+- Maç sonu ekranı skor, dört ana KPI, üç sonuç ve gelişim ödülleriyle sınırlı özet görünümde açılır.
+- Ayrıntılı taktik ve olay analizi kapalı bir panel içindedir.
+- Tam olay akışı yerine en fazla sekiz önemli olay gösterilir.
+- Mobil ekranda rapor uzunluğu büyük ölçüde azaltılmıştır.
 
-## Changes
+## Cross-Device Career Sync
+- Resmî kariyer canlı maç state'i Supabase'e otomatik gönderilir.
+- Maç sırasında her 2 simülasyon dakikasında, karar/taktik/değişiklik/duraklatma anlarında kayıt yapılır.
+- Telefon arka plana alındığında bulut kaydı tetiklenir.
+- Bilgisayarda aynı oyuncu adı ve PIN ile Kariyerimi Aç seçildiğinde en güncel bulut snapshot'ı yüklenir.
+- Devam eden maç varsa Canlı Maç sekmesi doğrudan açılır.
+- Üst kariyer çubuğuna manuel SENKRONİZE düğmesi ve durum göstergesi eklendi.
 
-- Exit now opens the title screen through `ui.launcherOpen` and keeps the selected career ID intact.
-- Existing careers are scanned and recovered from:
-  - `fifa-manager-room-v42`
-  - `fifa-manager-room-recovery-v43`
-  - `fifa-manager-room-last-good-v44`
-  - save-slot snapshots
-  - other local JSON storage entries containing a valid Manager career
-  - imported JSON backup files
-- A last-known-good Manager backup is written whenever valid careers exist.
-- Empty state writes no longer overwrite a valid recovery snapshot.
-- Real Game / Test buttons wait for bootstrap and team catalogue loading instead of failing silently.
-- Added Save Recovery Centre, JSON import, Manager backup export and Return to Tournament Hub controls.
-- Service Worker cache updated to V44.2.1.
-- TR/EN strings added for the recovery workflow.
-
-## Compatibility
-
-No SQL change. No schema reset. Existing V44.1 and V44.2 careers remain compatible.
+## Storage Safety
+- Tamamlanmış maçlardaki ağır hareket/telemetri verileri yerel kayıt sırasında küçültülür.
+- Eski recovery kopyasının localStorage alanını iki kat doldurması engellenir.
+- QuotaExceededError çıkışı, kaydı ve senkronizasyonu durdurmaz.
