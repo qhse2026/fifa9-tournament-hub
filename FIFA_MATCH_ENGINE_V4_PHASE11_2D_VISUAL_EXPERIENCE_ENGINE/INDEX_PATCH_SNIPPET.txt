@@ -1,0 +1,9 @@
+REMOVE:
+<script src="manager-match-engine-v4-phase10.bundle.js?v=4.0.0-phase10.1"></script>
+
+ADD:
+<script src="manager-match-engine-v4-phase11.bundle.js?v=4.0.0-phase11.1"></script>
+
+REQUIRED ORDER:
+<script src="manager-match-engine.js"></script>
+<script src="manager-match-engine-v4-phase11.bundle.js?v=4.0.0-phase11.1"></script>

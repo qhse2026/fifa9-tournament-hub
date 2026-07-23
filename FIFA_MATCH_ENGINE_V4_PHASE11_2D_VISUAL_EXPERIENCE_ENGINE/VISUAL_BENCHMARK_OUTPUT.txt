@@ -1,0 +1,7 @@
+{
+  "iterations": 10000,
+  "players": 19,
+  "totalMs": 153.44,
+  "averageMsPerVisualEvaluation": 0.01534,
+  "checksum": 15937970.76
+}

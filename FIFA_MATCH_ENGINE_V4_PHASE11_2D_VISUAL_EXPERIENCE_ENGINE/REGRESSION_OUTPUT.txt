@@ -1,0 +1,14 @@
+PASS Phase 11 API contract
+PASS Interpolation is deterministic
+PASS Facing angle follows movement
+PASS Animation inference distinguishes movement
+PASS Collision offsets separate close players
+PASS Camera modes are bounded
+PASS Replay buffer retains recent frames
+PASS Phase 10 core remains deterministic
+PASS Visual copy does not mutate core snapshot
+{
+  "tests": 9,
+  "passed": 9,
+  "failed": 0
+}

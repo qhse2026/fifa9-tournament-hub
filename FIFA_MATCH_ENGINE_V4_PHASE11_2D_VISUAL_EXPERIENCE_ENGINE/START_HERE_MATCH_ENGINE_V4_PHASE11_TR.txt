@@ -1,0 +1,22 @@
+MATCH ENGINE V4 — PHASE 11 KURULUM
+
+1. manager-match-engine-v4-phase11.bundle.js dosyasını repository köküne yükleyin.
+2. Phase 10 script satırını kaldırın.
+3. manager-match-engine.js satırının hemen altına şunu ekleyin:
+   <script src="manager-match-engine-v4-phase11.bundle.js?v=4.0.0-phase11.1"></script>
+4. Phase 2–10 bundle dosyalarını Phase 11 ile birlikte yüklemeyin.
+5. Service Worker cache sürümünü artırın.
+6. Ctrl + Shift + R ile hard refresh yapın.
+7. Yeni bir maç başlatın.
+
+PHASE 11
+- Snapshot interpolasyonu ve 60 FPS görsel döngü
+- Hızlanma, koşu, sprint ve jockey görsel durumları
+- Pas, şut, tackle, header ve kaleci aksiyonları
+- Oyuncular için görsel collision avoidance
+- Top yüksekliği, spin, gölge ve trail
+- Broadcast, Tactical, Follow Ball ve Highlight kamera
+- Gol sonrası otomatik replay ve manuel replay
+- Ofsayt çizgisi, pres bağlantısı ve koşu overlay'leri
+
+Görsel katman maç sonucunu veya fizik simülasyonunu değiştirmez. Yeni Supabase SQL ya da zorunlu migration gerekmez.
