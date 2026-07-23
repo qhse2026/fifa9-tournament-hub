@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Match Engine V4 — Phase 6 Defensive Intelligence Lab</title>
+<style>
+:root{color-scheme:dark;font-family:Inter,Segoe UI,Arial,sans-serif;background:#06111c;color:#edf6f8}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 18% 0,#143c50 0,transparent 35%),#06111c}.shell{max-width:1260px;margin:auto;padding:22px}.head{display:flex;justify-content:space-between;gap:20px;align-items:flex-start;margin-bottom:15px}.head span{font-size:10px;font-weight:950;letter-spacing:.15em;color:#6accef}.head h1{margin:6px 0;font-size:29px}.head p{margin:0;max-width:760px;color:#91a7b3;line-height:1.5}.controls{display:flex;justify-content:flex-end;gap:7px;flex-wrap:wrap;max-width:510px}.controls button{padding:9px 11px;border:1px solid #2a5a71;border-radius:10px;background:#092234;color:#e8f3f6;font-size:11px;font-weight:850;cursor:pointer}.controls button.active{border-color:#e4bb63;background:#7b5621}.manager-match-shell{padding:14px;border:1px solid #173a4e;border-radius:20px;background:rgba(4,17,28,.9)}.score{display:grid;grid-template-columns:1fr auto 1fr;gap:14px;align-items:center;padding:11px 15px;margin-bottom:11px;border-radius:13px;background:#081e2d}.score strong:last-child{text-align:right}.score b{font-size:22px;color:#eccb78}.manager-2d-view>header{display:flex;align-items:center;min-height:55px;padding:0 4px}.manager-2d-view>header span{font-size:8px;color:#68c9ef;font-weight:950;letter-spacing:.13em}.manager-2d-view>header strong{display:block;margin-top:5px}.manager-2d-pitch{position:relative;overflow:hidden;aspect-ratio:105/68;border:2px solid rgba(255,255,255,.26);border-radius:17px;background:repeating-linear-gradient(90deg,#123d2d 0,#123d2d 10%,#174a35 10%,#174a35 20%);box-shadow:inset 0 0 65px rgba(0,0,0,.42),0 12px 35px rgba(0,0,0,.2)}.manager-2d-pitch:before{content:"";position:absolute;inset:10px;border:1px solid rgba(255,255,255,.34)}.manager-2d-pitch:after{content:"";position:absolute;left:50%;top:10px;bottom:10px;border-left:1px solid rgba(255,255,255,.34)}.circle{position:absolute;left:50%;top:50%;width:14%;aspect-ratio:1;border:1px solid rgba(255,255,255,.34);border-radius:50%;transform:translate(-50%,-50%)}.box{position:absolute;top:27%;width:13%;height:46%;border:1px solid rgba(255,255,255,.34)}.box.home{left:10px;border-left:0}.box.away{right:10px;border-right:0}.match-player{position:absolute;z-index:5;width:27px;height:27px;display:grid;place-items:center;transform:translate(-50%,-50%);border:2px solid #fff;border-radius:50%;box-shadow:0 5px 12px rgba(0,0,0,.45)}.match-player.human{background:#10a8b6}.match-player.rival{background:#d7535c}.match-player b{font-size:8px}.match-player small{position:absolute;top:28px;padding:2px 4px;border-radius:4px;background:rgba(0,0,0,.7);font-size:6px}.match-ball{position:absolute;z-index:8;transform:translate(-50%,-50%);font-size:18px}.telemetry{display:grid;grid-template-columns:repeat(8,1fr);gap:8px;margin-top:12px}.telemetry article{padding:10px;border:1px solid #173b4e;border-radius:11px;background:#071b29}.telemetry span{display:block;color:#7894a3;font-size:7px;font-weight:850}.telemetry strong{display:block;margin-top:5px;font-size:13px}.events{margin-top:11px;padding:10px 12px;min-height:62px;border-left:3px solid #d9af57;background:#081d2b;color:#a6bac4;font-size:12px;line-height:1.45}.note{margin-top:10px;color:#869da9;font-size:11px;line-height:1.55}@media(max-width:900px){.head{display:block}.controls{justify-content:flex-start;margin-top:12px;max-width:none}.telemetry{grid-template-columns:repeat(2,1fr)}.match-player{width:21px;height:21px}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="head">
+    <div><span>PHASE 6 · DEFENSIVE INTELLIGENCE, PRESSING & OFFSIDE LINE</span><h1>Savunma ve Pres Laboratuvarı</h1><p>Pres tetikleyicileri, touchline trap, çift sıkıştırma, pas gölgesi, kontra geciktirme, cutback savunması ve ofsayt çizgisi aynı resmi V4 motorunda çalışır.</p></div>
+    <div class="controls">
+      <button id="play" class="active">Duraklat</button>
+      <button id="touchline">Touchline Trap</button>
+      <button id="counterpress">Counter-Press</button>
+      <button id="cutback">Cutback Savunması</button>
+      <button id="offside">Ofsayt Tuzağı</button>
+      <button id="normal">Normal Akış</button>
+      <button onclick="location.reload()">Sıfırla</button>
+    </div>
+  </div>
+  <section id="managerMatchMount" class="manager-match-shell">
+    <div class="score"><strong>HOME XI</strong><b><span id="hs">0</span> — <span id="as">0</span></b><strong>AWAY XI</strong></div>
+    <section class="manager-2d-view"><header><div><span>MATCH ENGINE V4 · PHASE 6 FULL AUTHORITY</span><strong id="phase">V4 KICK OFF</strong></div></header><div class="manager-2d-pitch"><i class="circle"></i><i class="box home"></i><i class="box away"></i><span class="match-ball home" data-live-ball style="left:50%;top:50%">⚽</span></div></section>
+    <div class="telemetry">
+      <article><span>MAÇ SAATİ</span><strong id="clock">00:00</strong></article>
+      <article><span>PRES DURUMU</span><strong id="pressState">BLOCK</strong></article>
+      <article><span>TETİK SKORU</span><strong id="trigger">0</strong></article>
+      <article><span>SAVUNMA ÇİZGİSİ</span><strong id="line">—</strong></article>
+      <article><span>PRESLER</span><strong id="pressures">0</strong></article>
+      <article><span>PRES KAZANIMI</span><strong id="regains">0</strong></article>
+      <article><span>ÇİFT SIKIŞTIRMA</span><strong id="doubleTeams">0</strong></article>
+      <article><span>OFSAYT KAZANIMI</span><strong id="offsides">0</strong></article>
+    </div>
+    <div class="events" id="event">Motor başlatılıyor…</div>
+    <div class="note">Düğmeler motorun debug senaryolarını kullanır. Production akışında bu davranışlar topun konumu, oyuncu yönü, kötü ilk kontrol, baskı yoğunluğu ve geçiş zamanına göre otomatik tetiklenir.</div>
+  </section>
+</div>
+<script>
+(() => {
+  const pitch=document.querySelector('.manager-2d-pitch');
+  const roles=['GK','LB','LCB','RCB','RB','DM','LCM','RCM','LW','ST','RW'];
+  for(const side of ['home','away']) roles.forEach((role,index)=>{const n=document.createElement('span');n.className=`match-player ${side==='home'?'human':'rival'}`;n.dataset.motionPlayer='';n.dataset.side=side;n.dataset.index=index;n.style.left=side==='home'?'18%':'82%';n.style.top=`${8+index*8}%`;n.innerHTML=`<b>${index+1}</b><small>${role}</small>`;pitch.appendChild(n)});
+  const fixture={id:'LAB-P6',homeId:'H',awayId:'A',homeTeam:'home',awayTeam:'away',matchEngine:{status:'live',clockSeconds:0,minute:0,humanSide:'home',homeGoals:0,aiGoals:0,events:[],stats:{home:{},away:{}},visual2D:{ball:{x:50,y:50},possession:'home',phase:'KICK OFF'},userPlan:{formation:'4-3-3',mentality:'balanced',pressing:'high',buildUp:'central',tempo:'normal',risk:'measured',positionRoles:{LB:'overlap',RB:'overlap',GK:'distributor'},phaseBehaviors:{inPossession:'positional',outPossession:'high-press',winTransition:'counter',lossTransition:'counterpress'},defence:{offsideTrap:true,pressingTrap:'auto',counterPressWindow:6,boxDefence:'hybrid'}},aiPlan:{formation:'4-2-3-1',mentality:'controlled',pressing:'mid',buildUp:'patient',tempo:'normal',risk:'safe',positionRoles:{LB:'stay-back',RB:'stay-back',GK:'cross-commander'},phaseBehaviors:{inPossession:'patient',outPossession:'mid-block',winTransition:'secure',lossTransition:'regroup'},defence:{offsideTrap:false,pressingTrap:'central',boxDefence:'hybrid'}}}};
+  const career={id:'LAB-C6',activeMatchFixtureId:fixture.id,fixtures:[fixture],actors:[{id:'H',clubName:'Home XI',styleSeed:{tempo:56,pressing:66,risk:52,width:58}},{id:'A',clubName:'Away XI',styleSeed:{tempo:49,pressing:52,risk:45,width:48}}]};
+  window.FIFA_MANAGER_ROOM={getActiveCareer:()=>career,getActor:(c,id)=>c.actors.find(a=>a.id===id),getTeamForActor:(_f,id)=>({id,clubName:id==='H'?'Home XI':'Away XI',overall:id==='H'?83:81})};
+  window.__P6={fixture,career};
+})();
+</script>
+<script src="manager-match-engine-v4-phase6.bundle.js"></script>
+<script>
+window.addEventListener('load',()=>{
+  const {fixture,career}=window.__P6; let running=true;
+  const phase6=window.FIFA_MATCH_ENGINE_V4_PHASE6; phase6.enable(); let engine=phase6.attach(career,fixture,0);
+  const fmt=s=>`${String(Math.floor(s/60)).padStart(2,'0')}:${String(Math.floor(s%60)).padStart(2,'0')}`;
+  const player=(side,group,index=0)=>engine.getSnapshot().teams[side].players.filter(p=>p.group===group)[index];
+  function update(){
+    if(!running)return;
+    fixture.matchEngine.clockSeconds=Math.min(5400,fixture.matchEngine.clockSeconds+1.15); fixture.matchEngine.minute=fixture.matchEngine.clockSeconds/60;
+    phase6.poll(); const p6=phase6.getSnapshot(), s=p6.simulation, h=fixture.matchEngine.stats.home||{}, a=fixture.matchEngine.stats.away||{};
+    const defence=s?.defensiveAI?.home?.active?s.defensiveAI.home:s?.defensiveAI?.away?.active?s.defensiveAI.away:s?.defensiveAI?.home;
+    document.getElementById('clock').textContent=fmt(fixture.matchEngine.clockSeconds);
+    document.getElementById('phase').textContent=fixture.matchEngine.visual2D.phase||s?.phase||'—';
+    document.getElementById('pressState').textContent=defence?.active?`${defence.trap}${defence.doubleTeam?' · 2V1':''}`:'BLOCK';
+    document.getElementById('trigger').textContent=defence?.triggerScore||0;
+    document.getElementById('line').textContent=Number.isFinite(defence?.lineX)?defence.lineX.toFixed(1):'—';
+    document.getElementById('pressures').textContent=(h.pressures||0)+(a.pressures||0);
+    document.getElementById('regains').textContent=(h.pressureRegains||0)+(a.pressureRegains||0);
+    document.getElementById('doubleTeams').textContent=(h.doubleTeams||0)+(a.doubleTeams||0);
+    document.getElementById('offsides').textContent=(h.offsidesWon||0)+(a.offsidesWon||0);
+    document.getElementById('hs').textContent=fixture.matchEngine.homeGoals||0; document.getElementById('as').textContent=fixture.matchEngine.aiGoals||0;
+    const ev=s?.lastEvent; document.getElementById('event').textContent=ev?`${Math.floor(ev.second/60)}:${String(ev.second%60).padStart(2,'0')} · ${ev.type} · ${ev.side||'neutral'}${ev.trap?` · ${ev.trap}`:''}${ev.triggerScore?` · ${ev.triggerScore}`:''}`:'Motor akışı hazırlanıyor.';
+  }
+  setInterval(update,80);
+  document.getElementById('play').onclick=e=>{running=!running;e.currentTarget.textContent=running?'Duraklat':'Devam Et';e.currentTarget.classList.toggle('active',running)};
+  document.getElementById('touchline').onclick=()=>{const owner=player('away','WING');const fb=player('home','FB');const cm=player('home','CM');engine.debugSetPlayerPosition(owner.id,{x:58,y:3});engine.debugSetPlayerPosition(fb.id,{x:55,y:5});engine.debugSetPlayerPosition(cm.id,{x:58,y:9});engine.debugSetBallOwner(owner.id,'HEAVY_FIRST_TOUCH');engine.debugRefreshDefence()};
+  document.getElementById('counterpress').onclick=()=>{const home=player('home','DM'),away=player('away','DM');engine.debugSetBallOwner(home.id,'CONTROL');engine.debugChangePossession(away.id,'TEST_LOSS');setTimeout(()=>engine.debugChangePossession(home.id,'TEST_REGAIN'),650)};
+  document.getElementById('cutback').onclick=()=>{const owner=player('away','WING');engine.debugSetPlayerPosition(owner.id,{x:9,y:3});engine.debugSetBallOwner(owner.id,'CARRY');engine.debugRefreshDefence()};
+  document.getElementById('offside').onclick=()=>{const passer=player('home','CM'),runner=player('home','ST');engine.debugSetBallOwner(passer.id,'CONTROL');engine.debugStartPass(passer.id,runner.id,{forceOffside:true})};
+  document.getElementById('normal').onclick=()=>{engine=phase6.attach(career,fixture,fixture.matchEngine.clockSeconds)};
+});
+</script>
+</body>
+</html>

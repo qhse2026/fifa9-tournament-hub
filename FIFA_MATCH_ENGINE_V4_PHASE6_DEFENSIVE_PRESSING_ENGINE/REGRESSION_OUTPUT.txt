@@ -1,0 +1,15 @@
+{
+  "status": "PASS",
+  "version": "4.0.0-phase6.1",
+  "tests": 8,
+  "touchlineTrap": "TOUCHLINE",
+  "pressingTriggers": [
+    "BAD_TOUCH",
+    "BACK_PASS",
+    "TOUCHLINE",
+    "WEAK_FOOT",
+    "GOALKEEPER",
+    "COUNTER_PRESS",
+    "ISOLATED_RECEIVER"
+  ]
+}

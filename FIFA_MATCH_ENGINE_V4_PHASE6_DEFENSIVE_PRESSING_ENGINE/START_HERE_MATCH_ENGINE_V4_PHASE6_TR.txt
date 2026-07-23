@@ -1,0 +1,44 @@
+MATCH ENGINE V4 — PHASE 6 KURULUM
+====================================
+
+PAKET: Defensive Intelligence & Pressing Engine
+SÜRÜM: 4.0.0-phase6.1
+
+1) GitHub repository kök dizinine yükle:
+   manager-match-engine-v4-phase6.bundle.js
+
+2) index.html içinde eski Phase 5 satırını kaldır:
+   <script src="manager-match-engine-v4-phase5.bundle.js?v=4.0.0-phase5.1"></script>
+
+3) Aynı yere Phase 6 satırını ekle:
+   <script src="manager-match-engine-v4-phase6.bundle.js?v=4.0.0-phase6.1"></script>
+
+4) Sıralama mutlaka şöyle olmalı:
+   <script src="manager-match-engine.js"></script>
+   <script src="manager-match-engine-v4-phase6.bundle.js?v=4.0.0-phase6.1"></script>
+
+5) Phase 2, 3, 4, 5 ve 6 bundle dosyalarını birlikte yükleme.
+   Yalnızca en güncel Phase 6 bundle aktif olmalı.
+
+6) Service Worker / cache dosyan varsa cache versiyonunu artır.
+   Ardından tarayıcıda Ctrl + Shift + R yap.
+
+7) Devam eden maçın ortasında bundle değiştirme.
+   Yeni motoru yeni başlayacak maçtan itibaren kullan.
+
+VERİ TABANI
+-----------
+Yeni Supabase SQL veya zorunlu kariyer migration'ı gerekmiyor.
+Yeni savunma istatistik alanları mevcut fixture.matchEngine.stats nesnesine eklenir.
+
+KONTROL
+-------
+Canlı 2D başlığında şu ibare görünmelidir:
+ME4 DEFENCE · PRESSING AI
+V4 PHASE 6
+
+Laboratuvar testi:
+match-engine-v4-phase6-lab.html
+
+Node regresyon testi:
+node tests/v4-phase6-regression.js

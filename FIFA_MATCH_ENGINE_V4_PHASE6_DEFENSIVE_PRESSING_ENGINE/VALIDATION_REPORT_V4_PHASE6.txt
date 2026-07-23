@@ -1,0 +1,43 @@
+MATCH ENGINE V4 — PHASE 6 VALIDATION
+=====================================
+Version: 4.0.0-phase6.1
+Scope: Defensive Intelligence, Pressing, Offside Line and Box Defence
+
+STATIC VALIDATION
+-----------------
+[PASS] Production bundle JavaScript syntax
+[PASS] Laboratory inline JavaScript syntax
+[PASS] Core global export
+[PASS] Authority adapter global export
+[PASS] Live bridge global export
+
+REGRESSION SCENARIOS
+--------------------
+[PASS] Deterministic full-match reproduction
+[PASS] Touchline pressing trap
+[PASS] Double-team assignment
+[PASS] Cover-shadow target creation
+[PASS] Forced offside and defending counters
+[PASS] Counter-press regain window
+[PASS] Cutback defensive shape
+[PASS] Pressing interception and regain
+[PASS] Defensive line leader and line coordinate
+
+20-MATCH CALIBRATION
+--------------------
+Goals per match: 1.80
+Shots per match: 26.10
+Pass attempts per match: 956.45
+Pass accuracy: 77.57%
+Offsides per match: 6.35
+Pressures per match: 171.90
+Successful pressures per match: 42.55
+Press success rate: 24.75%
+Double teams per match: 13.65
+Counter-press regains per match: 3.70
+Passing lanes blocked per match: 16.70
+Tackle success rate: 50.35%
+
+LIMITATIONS
+-----------
+GitHub Pages Service Worker cache, real Supabase persistence and an existing live career were not available for an end-to-end browser smoke test in this environment. Perform that test after repository deployment.

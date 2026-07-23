@@ -1,0 +1,9 @@
+ESKİ SATIRI KALDIR:
+<script src="manager-match-engine-v4-phase5.bundle.js?v=4.0.0-phase5.1"></script>
+
+YENİ SATIRI EKLE:
+<script src="manager-match-engine-v4-phase6.bundle.js?v=4.0.0-phase6.1"></script>
+
+DOĞRU SIRALAMA:
+<script src="manager-match-engine.js"></script>
+<script src="manager-match-engine-v4-phase6.bundle.js?v=4.0.0-phase6.1"></script>
