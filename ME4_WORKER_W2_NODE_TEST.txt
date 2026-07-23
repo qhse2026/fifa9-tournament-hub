@@ -1,0 +1,17 @@
+READY: PASS
+INITIALIZED: PASS
+V4 FULL BALL AUTHORITY: PASS
+BALL MOVEMENT: PASS
+HOME PLAYERS: 11
+AWAY PLAYERS: 11
+PASS ACTION OBSERVED: PASS
+
+Observed action example:
+- Type: PASS
+- Side: home
+- Owner: home-ST-10
+- Receiver: home-LW-11
+- Outcome: TEAMMATE
+- Band: long
+
+Worker version: 4.0.0-worker-w2-final.1

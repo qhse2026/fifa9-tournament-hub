@@ -1,0 +1,35 @@
+ME4 WORKER W2 FINAL STABLE
+
+TEK PAKET — W1 TESTİ BAŞARILI OLAN SİSTEMİN ÜZERİNE KURULUR.
+
+GitHub repository köküne bu paketteki şu 5 dosyayı birlikte yükleyin:
+- index.html
+- service-worker.js
+- me4-match-worker.js
+- me4-worker-bridge.js
+- manager-match-engine-v4-phase13-safe.bundle.js
+
+Commit:
+Install ME4 Worker W2 Final Stable
+
+Vercel deployment Ready + Production olduktan sonra:
+1. F12 > Application > Service Workers > Unregister
+2. Application > Storage > Clear site data
+3. Tüm FIFA sekmelerini kapatın
+4. https://fifa9-tournament-hub.vercel.app/?me4worker=w2final
+5. Ctrl + Shift + R
+
+Beklenen:
+- Sol alt: Manager Room v44.7.4 · ME4 Worker W2 Final Stable
+- Maç yokken: ME4W2 · MAÇ BEKLENİYOR
+- Maçta: ME4W2 · TAM GÖRSEL MOTOR AKTİF
+- Saha HUD: ME4W2 · OYUNCU + TOP + PAS AKTİF
+
+Yetki:
+- Oyuncu koordinatları: ME4 Worker
+- Top hareketi: ME4 Worker
+- Pas/orta/şut görseli: ME4 Worker
+- Taktiksel hareket ve enerji: ME4 Worker
+- Resmî skor/kariyer/Supabase: mevcut stabil sistem
+
+Worker hata verirse oyun otomatik olarak stabil motorla devam eder.

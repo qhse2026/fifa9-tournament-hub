@@ -1,0 +1,44 @@
+{
+  "build": "FIFA 9 v44.7.4 ME4 Worker W2 Final Stable",
+  "syntax": {
+    "me4-match-worker.js": "PASS",
+    "me4-worker-bridge.js": "PASS",
+    "service-worker.js": "PASS"
+  },
+  "workerThreadTest": {
+    "ready": true,
+    "initialized": true,
+    "snapshot": true,
+    "ballAuthority": "V4_FULL_AUTHORITY",
+    "ballMoved": true,
+    "ballState": "CONTROLLED",
+    "actionSeen": false,
+    "homePlayers": 11,
+    "awayPlayers": 11,
+    "workerVersion": "4.0.0-worker-w2-final.1",
+    "passActionObserved": true,
+    "observedAction": {
+      "type": "PASS",
+      "side": "home",
+      "ownerId": "home-ST-10",
+      "receiverId": "home-LW-11",
+      "outcome": "TEAMMATE",
+      "band": "long"
+    }
+  },
+  "mainThreadPhase13Reference": "ABSENT",
+  "authority": {
+    "visualPlayers": "ME4 Web Worker",
+    "visualBall": "ME4 Web Worker",
+    "visualPassingAndShots": "ME4 Web Worker",
+    "officialScoreAndCareer": "Legacy stable engine"
+  },
+  "failOpenFallback": true,
+  "filesToUpload": [
+    "index.html",
+    "service-worker.js",
+    "me4-match-worker.js",
+    "me4-worker-bridge.js",
+    "manager-match-engine-v4-phase13-safe.bundle.js"
+  ]
+}
