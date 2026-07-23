@@ -1,0 +1,64 @@
+MATCH ENGINE 4.0 — PHASE 5 VALIDATION REPORT
+================================================
+Version: 4.0.0-phase5.1
+Scope: Set Piece, Aerial Duel, Goalkeeper Cross & Second Ball Engine
+
+STATIC VALIDATION
+-----------------
+[PASS] JavaScript syntax validation (node --check)
+[PASS] Phase 5 public API exposed
+[PASS] Phase 4 public references removed
+[PASS] Phase 5 script can be loaded in Node without DOM
+
+REGRESSION TESTS
+----------------
+[PASS] Deterministic same-seed match reproduction
+[PASS] Near-post corner staging
+[PASS] Short corner converted to physical pass flight
+[PASS] Direct free-kick official shot flight
+[PASS] Indirect free-kick aerial delivery
+[PASS] Long-throw set-piece delivery
+[PASS] Penalty high-xG shot without wall blocker
+[PASS] Set-piece goal counters
+[PASS] Multiple corner outcomes
+[PASS] Proactive cross-commander intervention
+[PASS] Set-piece assignments and marking metadata
+
+SAMPLED CORNER OUTCOMES
+-----------------------
+- AERIAL_DUEL_WON
+- GOALKEEPER_PUNCH
+- SET_PIECE_CLEARED
+- SET_PIECE_SCRAMBLE
+
+40-MATCH PARALLEL CALIBRATION
+-----------------------------
+Goals per match: 2.12
+Shots per match: 29.90
+Shots on target: 14.20
+xG per match: 3.86
+Pass attempts: 959.38
+Pass accuracy: 82.97%
+Corners: 3.45
+Corner shots: 1.15
+Corner goals: 0.03
+Free kicks: 6.17
+Direct free kicks: 1.43
+Indirect free kicks: 4.75
+Free-kick goals: 0.17
+Throw-ins represented: 5.22
+Penalties: 0.12
+Set-piece shots: 5.05
+Set-piece goals: 0.30
+Set-piece goal share: 14.12%
+Set-piece second balls: 3.00
+Aerial duels: 6.00
+Attacking aerial win rate: 58.33%
+Goalkeeper punches: 1.43
+Missed claims: 1.18
+Defensive clearances: 1.50
+
+NOTES
+-----
+The engine models highlight-relevant throw-ins and free kicks rather than every routine stoppage.
+Live GitHub Pages, Service Worker cache and Supabase persistence smoke tests must be completed after deployment to the repository.

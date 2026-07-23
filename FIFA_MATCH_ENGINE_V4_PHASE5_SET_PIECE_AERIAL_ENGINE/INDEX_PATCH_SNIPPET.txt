@@ -1,0 +1,17 @@
+PHASE 5 INDEX.HTML DEĞİŞİKLİĞİ
+==============================
+
+Phase 4 satırını kaldırın:
+
+<script src="manager-match-engine-v4-phase4.bundle.js?v=4.0.0-phase4.1"></script>
+
+Yerine Phase 5 satırını ekleyin:
+
+<script src="manager-match-engine-v4-phase5.bundle.js?v=4.0.0-phase5.1"></script>
+
+Doğru yükleme sırası:
+
+<script src="manager-match-engine.js"></script>
+<script src="manager-match-engine-v4-phase5.bundle.js?v=4.0.0-phase5.1"></script>
+
+Phase 2, Phase 3, Phase 4 ve Phase 5 bundle dosyalarını aynı anda yüklemeyin.

@@ -1,0 +1,11 @@
+{
+  "status": "PASS",
+  "version": "4.0.0-phase5.1",
+  "tests": 11,
+  "sampledCornerOutcomes": [
+    "AERIAL_DUEL_WON",
+    "GOALKEEPER_PUNCH",
+    "SET_PIECE_CLEARED",
+    "SET_PIECE_SCRAMBLE"
+  ]
+}

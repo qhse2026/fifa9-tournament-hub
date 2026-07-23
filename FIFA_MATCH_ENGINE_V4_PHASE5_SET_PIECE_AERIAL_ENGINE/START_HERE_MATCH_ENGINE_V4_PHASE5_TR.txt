@@ -1,0 +1,75 @@
+MATCH ENGINE 4.0 — PHASE 5 KURULUM
+==================================
+Sürüm: 4.0.0-phase5.1
+Paket: Set Piece, Aerial Duel & Second Ball Engine
+
+1. GitHub repository kök dizinine şu dosyayı yükleyin:
+   manager-match-engine-v4-phase5.bundle.js
+
+2. index.html içinde Phase 4 satırını kaldırın:
+   <script src="manager-match-engine-v4-phase4.bundle.js?v=4.0.0-phase4.1"></script>
+
+3. Aynı konuma Phase 5 satırını ekleyin:
+   <script src="manager-match-engine-v4-phase5.bundle.js?v=4.0.0-phase5.1"></script>
+
+4. Script sırası kesinlikle şu olmalıdır:
+   <script src="manager-match-engine.js"></script>
+   <script src="manager-match-engine-v4-phase5.bundle.js?v=4.0.0-phase5.1"></script>
+
+5. Phase 2, Phase 3, Phase 4 ve Phase 5 bundle dosyalarını birlikte yüklemeyin.
+
+6. Service Worker/cache kullanılıyorsa cache sürümünü artırın.
+   Ardından tarayıcıda Ctrl + Shift + R ile hard refresh yapın.
+
+7. Phase 5'i devam eden maçın ortasında değil, yeni başlayacak maçtan itibaren kullanın.
+
+VERİ UYUMLULUĞU
+----------------
+- Yeni Supabase SQL gerektirmez.
+- Kariyer JSON şemasında zorunlu migration yoktur.
+- Mevcut positionRoles ve phaseBehaviors alanları korunur.
+- setPieces alanı yoksa güvenli varsayılanlar kullanılır.
+
+OPSİYONEL TAKTİK ALANLARI
+-------------------------
+userPlan veya aiPlan içine aşağıdaki alan eklenebilir:
+
+setPieces: {
+  cornerRoutine: "mixed",       // near-post, far-post, crowd-keeper, short, edge, mixed
+  freeKickRoutine: "mixed",     // near-post, far-post, screen, second-phase, mixed
+  throwInRoutine: "support",    // support, channel, long-throw, recycle
+  marking: "hybrid",            // zonal, man, hybrid
+  risk: 52
+}
+
+PHASE 5'TE RESMÎ OLARAK V4 TARAFINDAN YÖNETİLENLER
+---------------------------------------------------
+- Korner organizasyonları
+- Direkt ve endirekt serbest vuruşlar
+- Kısa korner
+- Uzun taç
+- Penaltı
+- Hava topu eşleşmeleri
+- Kalecinin ortayı tutma, yumruklama veya çizgide kalma kararı
+- Alan, adam adama ve hibrit duran top savunması
+- İkinci top ve duran top sonrası kontra
+- Duran top şut ve gol istatistikleri
+
+HIZLI TEST
+----------
+1. match-engine-v4-phase5-lab.html dosyasını aynı klasörde açın.
+2. Ön Direk, Arka Direk, Kısa Korner, Direkt FK, Endirekt FK, Uzun Taç ve Penaltı düğmelerini deneyin.
+3. Saha üzerindeki oyuncu görevlerini ve HUD bilgisini kontrol edin.
+
+KONSOL KONTROLÜ
+---------------
+Tarayıcı konsolunda:
+
+FIFA_MATCH_ENGINE_V4.VERSION
+Beklenen: "4.0.0-phase5.1"
+
+FIFA_MATCH_ENGINE_V4.SET_PIECE_AERIAL_VERSION
+Beklenen: 5
+
+FIFA_MATCH_ENGINE_V4_PHASE5.getSnapshot()
+Canlı adapter ve simülasyon durumunu döndürür.
