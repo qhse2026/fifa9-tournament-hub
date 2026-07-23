@@ -1,0 +1,24 @@
+MATCH ENGINE V4 — PHASE 10 KURULUM
+
+1. manager-match-engine-v4-phase10.bundle.js dosyasını repository köküne yükleyin.
+2. Phase 9 script satırını kaldırın.
+3. manager-match-engine.js satırının hemen altına şunu ekleyin:
+   <script src="manager-match-engine-v4-phase10.bundle.js?v=4.0.0-phase10.1"></script>
+4. Phase 2–9 bundle dosyalarını Phase 10 ile birlikte yüklemeyin.
+5. Service Worker cache sürümünü artırın.
+6. Ctrl + Shift + R ile hard refresh yapın.
+7. Yeni bir maç başlatın.
+
+PHASE 10
+- Dört hakem karakteri
+- Faul şiddeti ve müdahale bağlamı
+- Avantaj oynatma ve geri çağırma
+- Sarı, ikinci sarı ve doğrudan kırmızı
+- Oyuncunun sahadan çıkarılması ve 10 kişi düzeni
+- Kaleci kırmızısında acil saha oyuncusu kalecisi
+- Penaltı hassasiyeti
+- Zaman geçirme ve itiraz yaptırımları
+- Olay bazlı uzatma süresi
+- Resmî kariyer istatistik aktarımı
+
+Yeni Supabase SQL veya zorunlu kariyer migration'ı gerekmiyor.

@@ -1,0 +1,58 @@
+{
+  "fixturesPerProfile": 60,
+  "foulsPerFixture": 22,
+  "profiles": {
+    "lenient": {
+      "matches": 60,
+      "averageFouls": 22,
+      "averageYellow": 3,
+      "averageRed": 0.13,
+      "secondYellowRate": 0.02,
+      "tacticalFouls": 3,
+      "dangerousFouls": 0.25,
+      "penalties": 0.22,
+      "advantages": 5,
+      "advantageRealizationPct": 20,
+      "averageAddedMinutes": 3.17
+    },
+    "balanced": {
+      "matches": 60,
+      "averageFouls": 22,
+      "averageYellow": 5.5,
+      "averageRed": 0.82,
+      "secondYellowRate": 0.62,
+      "tacticalFouls": 3,
+      "dangerousFouls": 0.32,
+      "penalties": 0.22,
+      "advantages": 5,
+      "advantageRealizationPct": 20,
+      "averageAddedMinutes": 3.19
+    },
+    "strict": {
+      "matches": 60,
+      "averageFouls": 22,
+      "averageYellow": 9.48,
+      "averageRed": 2.28,
+      "secondYellowRate": 2.07,
+      "tacticalFouls": 3,
+      "dangerousFouls": 0.23,
+      "penalties": 0.23,
+      "advantages": 5,
+      "advantageRealizationPct": 20,
+      "averageAddedMinutes": 3.28
+    },
+    "disciplinarian": {
+      "matches": 60,
+      "averageFouls": 22,
+      "averageYellow": 12,
+      "averageRed": 3.52,
+      "secondYellowRate": 3.27,
+      "tacticalFouls": 3,
+      "dangerousFouls": 1.15,
+      "penalties": 0.22,
+      "advantages": 5,
+      "advantageRealizationPct": 20,
+      "averageAddedMinutes": 3.56
+    }
+  }
+}

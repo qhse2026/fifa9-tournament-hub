@@ -1,0 +1,21 @@
+MATCH ENGINE V4 — PHASE 10 VALIDATION
+
+Bundle syntax: PASS
+Laboratory inline syntax: PASS
+Regression tests: PASS
+Regression scenarios: 10
+Scripted discipline calibration: PASS
+Profiles tested: lenient, balanced, strict, disciplinarian
+
+VERIFIED
+- profile-specific card thresholds
+- second yellow and direct red dismissal
+- advantage realized and recalled
+- penalty foul and restart
+- event-based added time
+- goalkeeper dismissal emergency replacement
+- deterministic scripted sequence
+- official referee statistics contract
+
+CALIBRATION NOTE
+The calibration is a controlled disciplinary stress test using a fixed 22-foul scenario. It compares referee thresholds; it is not a claim about natural full-match foul/card averages.
