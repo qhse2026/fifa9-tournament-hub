@@ -1,0 +1,30 @@
+ME4 PHASE 13 DOĞRULAMA
+
+1. Site açıldığında sağ altta yeşil:
+   ME4 · PHASE 13 AKTİF
+   rozeti görünmelidir.
+
+2. Browser console'u açın:
+   F12 > Console
+
+3. Şu komutları ayrı ayrı çalıştırın:
+
+window.ME4Activation?.getStatus()
+window.FIFA_MATCH_ENGINE_V4_PHASE13?.getStatus()
+window.FIFA_MATCH_ENGINE_V4_PHASE11_LIVE?.getStatus()
+window.FIFA_MATCH_ENGINE_V4_PHASE12?.getStatus()
+
+Beklenen:
+- status: ACTIVE
+- balance: true
+- visual: true
+- analytics: true
+- managerRoom: true (Manager Room yüklendikten sonra)
+
+4. Bir Manager Room maçı açın.
+   Saha üzerinde Phase 11 HUD ve ANALİZ düğmesi görünmelidir.
+   Phase 13 balance rozeti maç HUD'u oluşunca eklenir.
+
+5. Eski görünüm devam ederse:
+   Repository köküne `me4-cache-reset.html` yükleyin ve şu adresi açın:
+   https://fifa9-tournament-hub.vercel.app/me4-cache-reset.html

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ME4 Cache Reset</title>
+<style>
+body{margin:0;min-height:100vh;display:grid;place-items:center;background:#07151d;color:#eef8fa;font-family:Inter,system-ui,sans-serif}
+main{width:min(620px,92vw);background:#0c2733;border:1px solid #315568;border-radius:18px;padding:24px;box-shadow:0 20px 60px #0008}
+h1{margin-top:0}p{color:#b8ced5;line-height:1.6}button{width:100%;padding:14px;border:0;border-radius:11px;background:#d6a83b;color:#152028;font-weight:950;font-size:15px;cursor:pointer}
+pre{white-space:pre-wrap;background:#071a23;border-radius:10px;padding:12px;min-height:80px}
+</style>
+</head>
+<body><main>
+<h1>Match Engine V4 Cache Reset</h1>
+<p>Bu sayfa eski Service Worker ve önbellek kayıtlarını temizler. Temizleme sonrası ana site yeni sekmede açılır.</p>
+<button id="reset">CACHE TEMİZLE VE SİTEYİ AÇ</button>
+<pre id="log">Hazır.</pre>
+<script>
+const log = message => document.getElementById("log").textContent += `\n${message}`;
+document.getElementById("reset").onclick = async () => {
+  try {
+    if ("serviceWorker" in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      for (const registration of registrations) await registration.unregister();
+      log(`Service Worker kaldırıldı: ${registrations.length}`);
+    }
+    if ("caches" in window) {
+      const names = await caches.keys();
+      for (const name of names) await caches.delete(name);
+      log(`Cache silindi: ${names.length}`);
+    }
+    log("Tamamlandı.");
+    setTimeout(() => location.href = "./?me4=phase13-hotfix1&cache=" + Date.now(), 500);
+  } catch (error) {
+    log("HATA: " + (error.message || error));
+  }
+};
+</script>
+</main></body></html>

@@ -1,0 +1,37 @@
+ME4 PHASE 13 — KESİN AKTİVASYON
+
+SORUN
+Phase klasörlerini GitHub'a yüklemek tek başına motoru çalıştırmaz.
+index.html dosyası JavaScript dosyasını çağırmadığı için tarayıcı onu hiç çalıştırmaz.
+
+YAPILACAKLAR
+
+1. Bu paketteki `me4-phase13-activation.js` dosyasını repository'nin KÖK dizinine yükleyin.
+   Klasör içine koymayın. app.js, index.html ve manager-match-engine.js ile aynı seviyede olmalıdır.
+
+2. GitHub'da kök dizindeki `index.html` dosyasını açın.
+
+3. Sağ üstteki kalem simgesine (Edit this file) basın.
+
+4. Dosyanın en altına gidin. `</body>` satırının HEMEN ÜSTÜNE şu satırı ekleyin:
+
+<script src="me4-phase13-activation.js?v=4.0.0-phase13-activation-hotfix.1"></script>
+
+5. Commit changes düğmesine basın.
+
+6. Vercel kullanıyorsanız yeni deployment'ın tamamlandığını doğrulayın.
+
+7. Siteyi şu şekilde açın:
+   https://fifa9-tournament-hub.vercel.app/?me4=phase13-hotfix1
+
+8. Sağ altta şu yeşil rozet görünmelidir:
+   ME4 · PHASE 13 AKTİF
+
+KIRMIZI ROZET GÖRÜNÜRSE
+Rozete tıklayın. Hangi API'nin eksik olduğu ekranda ve browser console'da gösterilir.
+
+ÖNEMLİ
+- Phase 2–12 klasörlerini index.html içinde ayrıca çağırmayın.
+- Yalnızca activation loader çağrılmalıdır.
+- Loader mevcut Phase 13 klasöründeki bundle'ı otomatik bulur.
+- Phase 13 paketi önceki bütün phase kodlarını zaten içinde barındırır.
