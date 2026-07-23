@@ -1,0 +1,30 @@
+V4 PHASE 3 BALL CONTROL REGRESSION: PASS
+{
+  "version": "4.0.0-phase3.1",
+  "finalAuthority": "V4_PASSING",
+  "passStats": {
+    "attempted": 3,
+    "completed": 2
+  },
+  "badTouches": 1,
+  "secondBallsWon": 1
+}
+[Match Engine V4] Phase 3 ball authority enabled · 4.0.0-phase3-authority.1
+V4 PHASE 3 LIVE AUTHORITY REGRESSION: PASS
+{
+  "authority": "LEGACY_TERMINAL",
+  "statsWrites": 5,
+  "officialScore": {
+    "home": 1,
+    "away": 0
+  },
+  "passAccuracyHome": 25
+}
+V4 PHASE 3 LIVE BRIDGE REGRESSION: PASS
+{
+  "ballLeft": "55%",
+  "ballTop": "50%",
+  "classes": [
+    "me4-ball-external"
+  ]
+}

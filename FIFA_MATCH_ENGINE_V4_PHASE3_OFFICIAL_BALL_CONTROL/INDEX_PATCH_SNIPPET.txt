@@ -1,0 +1,11 @@
+INDEX.HTML — MATCH ENGINE V4 PHASE 3
+
+ÖNCE:
+<script src="manager-match-engine.js"></script>
+<script src="manager-match-engine-v4-live.bundle.js?v=4.0.0-live-visual.1"></script>
+
+SONRA:
+<script src="manager-match-engine.js"></script>
+<script src="manager-match-engine-v4-phase3.bundle.js?v=4.0.0-phase3.1"></script>
+
+Phase 2 ve Phase 3 bundle dosyalarını birlikte kullanmayın.

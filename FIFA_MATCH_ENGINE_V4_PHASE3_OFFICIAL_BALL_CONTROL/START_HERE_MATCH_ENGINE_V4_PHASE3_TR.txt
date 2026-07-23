@@ -1,0 +1,91 @@
+FIFA MATCH ENGINE V4 — PHASE 3
+OFFICIAL PASS & BALL CONTROL
+Sürüm: 4.0.0-phase3.1
+
+BU SÜRÜM NE YAPIYOR?
+- Phase 2'deki 22 oyunculu taktiksel hareket sistemini korur.
+- Akan oyundaki resmî pas ve top kontrolünü Match Engine V4 yönetir.
+- Top pas sırasında oyuncunun ayağına yapışmaz; başlangıç, hedef, hız, uçuş süresi ve eğri üzerinden fiziksel olarak hareket eder.
+- Pas hattında rakibin topa ve hatta ulaşma süresi hesaplanır; gerçek geometrik pas arası oluşabilir.
+- İlk kontrol; temiz kontrol, ağır kontrol veya top kaybı olarak sonuçlanabilir.
+- Ağır kontrol ve müdahaleler boşta top üretir.
+- Boşta top, yakın oyuncuların mesafe, hız, sezgi, konsantrasyon ve agresiflik değerleriyle ikinci-top mücadelesine dönüşür.
+- V4 pas istatistiklerini mevcut UEFA istatistik alanlarına yazar.
+- Şut, gol, korner, serbest vuruş, penaltı ve kaleci kurtarışı gibi terminal olaylarda mevcut resmî motor geçici olarak yetkiyi devralır.
+- Terminal olay bittikten sonra top yetkisi otomatik olarak V4 pas motoruna döner.
+- Skor, fikstür, ELO, kariyer ve Supabase kayıt sistemi mevcut resmî akışta kalır.
+
+ZORUNLU KURULUM
+1. manager-match-engine-v4-phase3.bundle.js dosyasını GitHub repository KÖK dizinine yükleyin.
+2. index.html dosyasını açın.
+3. Mevcut ana motor satırını bulun:
+
+   <script src="manager-match-engine.js"></script>
+
+4. Phase 2 satırı mevcutsa KALDIRIN:
+
+   <script src="manager-match-engine-v4-live.bundle.js?v=4.0.0-live-visual.1"></script>
+
+5. Ana motor satırının hemen altına Phase 3 satırını ekleyin:
+
+   <script src="manager-match-engine-v4-phase3.bundle.js?v=4.0.0-phase3.1"></script>
+
+ÖNEMLİ
+- Phase 2 ve Phase 3 bundle dosyalarını aynı anda yüklemeyin.
+- Phase 3 bundle; Core, Authority Adapter ve Live Bridge'i tek dosyada içerir.
+- Yeni Supabase SQL gerekmez.
+- Kariyer JSON şeması değiştirilmez.
+
+OPSİYONEL SERVICE WORKER GÜNCELLEMESİ
+Offline cache kullanılıyorsa:
+1. APP_SHELL içindeki eski Phase 2 varlığını kaldırın:
+   ./manager-match-engine-v4-live.bundle.js
+2. Şunu ekleyin:
+   ./manager-match-engine-v4-phase3.bundle.js
+3. Service Worker cache anahtarını yeni bir sürüme yükseltin.
+4. Deploy sonrası Ctrl + Shift + R yapın.
+5. Eski sürüm kalırsa Site Settings > Clear Data ve Service Worker unregister uygulayın.
+
+İLK CANLI TEST
+1. Bir test kariyeri açın.
+2. Bir canlı maç başlatın.
+3. 2D saha üzerinde "ME4 PASS & BALL AI" rozetini doğrulayın.
+4. Yetki göstergesinde normal akan oyunda "V4 PAS YETKİSİ" görünmelidir.
+5. Pas sırasında topun verenden alıcıya uçtuğunu ve pas çizgisinin göründüğünü kontrol edin.
+6. Ağır kontrolde topun oyuncudan ayrıldığını ve "BOŞTA TOP" / "İKİNCİ TOP" durumunun oluştuğunu izleyin.
+7. Şut veya gol sekansında göstergenin kısa süreli "LEGACY ŞUT YETKİSİ" durumuna geçtiğini doğrulayın.
+8. Sekans bittikten sonra yetkinin otomatik olarak V4'e döndüğünü kontrol edin.
+9. Maç sonunda skor, istatistik, fikstür, ELO ve kariyer kaydının normal güncellendiğini doğrulayın.
+
+KONSOL KONTROLLERİ
+Phase 3 durumu:
+  FIFA_MATCH_ENGINE_V4_PHASE3.getStatus()
+
+Güncel snapshot:
+  FIFA_MATCH_ENGINE_V4_PHASE3.getSnapshot()
+
+Canlı köprü durumu:
+  FIFA_MATCH_ENGINE_V4_PHASE3_LIVE.getStatus()
+
+Geçici kapatma:
+  FIFA_MATCH_ENGINE_V4_PHASE3_LIVE.disable()
+  FIFA_MATCH_ENGINE_V4_PHASE3.disable()
+
+Tekrar açma:
+  FIFA_MATCH_ENGINE_V4_PHASE3.enable()
+  FIFA_MATCH_ENGINE_V4_PHASE3_LIVE.enable()
+
+2D LABORATUVAR
+- manager-match-engine-v4-phase3.bundle.js ile match-engine-v4-phase3-lab.html dosyasını aynı klasörde tutun.
+- HTML dosyasını tarayıcıda açın.
+- Hız kontrolleriyle pas uçuşunu, pas arasını, ağır kontrolü ve ikinci topu izleyin.
+
+NODE DOĞRULAMA
+Paket klasöründe:
+  node tests/v4-phase3-ball-control-regression.js
+  node tests/v4-phase3-live-authority-regression.js
+  node tests/v4-phase3-live-bridge-regression.js
+  node tests/v4-phase3-calibration.js
+
+BİLİNÇLİ SINIR
+Phase 3'te resmî şut yörüngesi, kaleci kurtarışı ve gol çizgisi çözümü henüz eski motor tarafından yönetilir. Bu güvenlik sınırı, top fiziği devreye alınırken skor ve kariyer bütünlüğünün korunması için bilinçli olarak bırakılmıştır.

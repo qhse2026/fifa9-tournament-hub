@@ -1,0 +1,67 @@
+FIFA MATCH ENGINE V4 — PHASE 3 VALIDATION REPORT
+Official Pass & Ball Control
+
+VERSIONS
+[PASS] Core 4.0.0-phase3.1
+[PASS] Authority Adapter 4.0.0-phase3-authority.1
+[PASS] Live Bridge 4.0.0-phase3-live.1
+
+STATIC VALIDATION
+[PASS] manager-match-engine-v4-core.js JavaScript syntax
+[PASS] manager-match-engine-v4-phase3-adapter.js JavaScript syntax
+[PASS] manager-match-engine-v4-phase3-live-bridge.js JavaScript syntax
+[PASS] manager-match-engine-v4-phase3.bundle.js JavaScript syntax
+
+BALL CONTROL REGRESSION
+[PASS] Pass uses a timed physical flight state
+[PASS] Ball position advances between passer and target
+[PASS] Clean first touch transfers controlled ownership
+[PASS] Heavy first touch creates a loose ball
+[PASS] Loose ball creates a second-ball contest
+[PASS] Second-ball winner takes controlled possession
+[PASS] Geometric interception resolves on the pass line
+[PASS] Shot window requests terminal authority handoff
+[PASS] Authority safely returns to V4 passing
+
+LIVE AUTHORITY REGRESSION
+[PASS] V4 writes official visual2D ball coordinates during passing play
+[PASS] V4 writes official visual2D possession during passing play
+[PASS] Pass-stat deltas are written once into legacy UEFA fields
+[PASS] Legacy terminal event suspends V4 ball authority
+[PASS] Legacy ball remains authoritative during terminal event
+[PASS] Official legacy score is mirrored into V4 context
+[PASS] Authority returns to V4 after terminal window
+
+LIVE BRIDGE REGRESSION
+[PASS] DOM ball follows V4 official ball coordinates
+[PASS] In-flight pass class is rendered
+[PASS] Pass trajectory line is rendered
+[PASS] Loose-ball class is rendered
+[PASS] External terminal class is rendered
+[PASS] Phase 3 diagnostic HUD is injected
+
+20-MATCH CALIBRATION
+[PASS] Goals per match: 2.50
+[PASS] Shots per match: 26.75
+[PASS] Corners per match: 2.40
+[PASS] Pass attempts per match: 974.20
+[PASS] Completed passes per match: 796.30
+[PASS] Pass accuracy: 81.74%
+[PASS] Interceptions per match: 53.70
+[PASS] Deterministic replay: true
+
+INSTALLATION SAFETY
+[PASS] Existing manager-match-engine.js remains loaded first
+[PASS] Phase 2 bundle must be replaced, not loaded in parallel
+[PASS] No new Supabase SQL required
+[PASS] No mandatory career JSON schema migration
+[PASS] Score, fixture, ELO and career persistence remain legacy-authoritative
+
+LOCAL VALIDATION LIMITATION
+GitHub Pages deployment, browser Service Worker cache, real Supabase project and an active official career were not available in the local validation environment. A deployed-browser smoke test remains required after upload.
+
+COMMANDS
+node tests/v4-phase3-ball-control-regression.js
+node tests/v4-phase3-live-authority-regression.js
+node tests/v4-phase3-live-bridge-regression.js
+node tests/v4-phase3-calibration.js

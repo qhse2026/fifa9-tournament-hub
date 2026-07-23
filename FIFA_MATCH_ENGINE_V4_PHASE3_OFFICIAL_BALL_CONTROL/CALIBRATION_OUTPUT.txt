@@ -1,0 +1,67 @@
+V4 PHASE 3 CALIBRATION: PASS
+{
+  "matches": 20,
+  "averages": {
+    "goals": 2.5,
+    "shots": 26.75,
+    "corners": 2.4,
+    "passesAttempted": 974.2,
+    "passesCompleted": 796.3,
+    "badTouches": 54.35,
+    "looseBalls": 182.45,
+    "secondBallsWon": 120.05,
+    "interceptions": 53.7,
+    "recoveries": 191.75,
+    "turnovers": 191.75,
+    "crosses": 28.3,
+    "passAccuracy": 81.74
+  },
+  "deterministic": true,
+  "samples": [
+    {
+      "score": {
+        "home": 0,
+        "away": 2
+      },
+      "shots": 40,
+      "passes": 981,
+      "accuracy": 87
+    },
+    {
+      "score": {
+        "home": 2,
+        "away": 0
+      },
+      "shots": 28,
+      "passes": 976,
+      "accuracy": 78
+    },
+    {
+      "score": {
+        "home": 1,
+        "away": 1
+      },
+      "shots": 22,
+      "passes": 985,
+      "accuracy": 90
+    },
+    {
+      "score": {
+        "home": 1,
+        "away": 2
+      },
+      "shots": 29,
+      "passes": 978,
+      "accuracy": 82
+    },
+    {
+      "score": {
+        "home": 1,
+        "away": 2
+      },
+      "shots": 26,
+      "passes": 963,
+      "accuracy": 78
+    }
+  ]
+}
