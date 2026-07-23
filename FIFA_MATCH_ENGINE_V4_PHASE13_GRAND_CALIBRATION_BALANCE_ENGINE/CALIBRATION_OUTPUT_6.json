@@ -1,0 +1,286 @@
+{
+  "version": "4.0.0-phase13.1",
+  "calibrationVersion": 13,
+  "manifest": "ME4-BALANCE-2026.07-R1",
+  "profile": {
+    "id": "masterpiece",
+    "label": "Masterpiece Balanced R1",
+    "tempoScale": 0.98,
+    "riskScale": 0.98,
+    "pressingScale": 0.96,
+    "directnessScale": 1.01,
+    "setPieceRiskScale": 1.04,
+    "tacklingRiskScale": 0.96,
+    "homeRatingBonus": 0.6,
+    "refereeProfile": "balanced"
+  },
+  "seedPrefix": "phase13-validation",
+  "startedAt": "2026-07-23T19:21:43.816Z",
+  "elapsedMs": 21575,
+  "metrics": {
+    "matches": 6,
+    "goalsPerMatch": 2.5,
+    "goalsCi95": 1.515,
+    "shotsPerMatch": 20,
+    "shotsOnTargetPerMatch": 7,
+    "xgPerMatch": 3.921,
+    "passAccuracy": 78.602,
+    "cornersPerMatch": 2.667,
+    "foulsPerMatch": 7.833,
+    "yellowCardsPerMatch": 2.833,
+    "redCardsPerMatch": 0.833,
+    "injuriesPerMatch": 0,
+    "setPieceGoalShare": 0.242,
+    "homeWinRate": 0.5,
+    "drawRate": 0.333,
+    "awayWinRate": 0.167,
+    "strongerTeamNonLossRate": 0.833,
+    "averageRuntimeMs": 3595,
+    "p95RuntimeMs": 4237,
+    "goalDistribution": {
+      "zero": 1,
+      "one": 2,
+      "two": 0,
+      "three": 0,
+      "fourPlus": 3
+    }
+  },
+  "evaluation": {
+    "score": 87.1,
+    "status": "WARN",
+    "checks": {
+      "goalsPerMatch": {
+        "value": 2.5,
+        "min": 2,
+        "max": 3.1,
+        "unit": "goals",
+        "status": "PASS",
+        "distance": 0
+      },
+      "shotsPerMatch": {
+        "value": 20,
+        "min": 20,
+        "max": 31,
+        "unit": "shots",
+        "status": "PASS",
+        "distance": 0
+      },
+      "shotsOnTargetPerMatch": {
+        "value": 7,
+        "min": 8,
+        "max": 15,
+        "unit": "shots",
+        "status": "WARN",
+        "distance": 1
+      },
+      "xgPerMatch": {
+        "value": 3.921,
+        "min": 2.8,
+        "max": 4.8,
+        "unit": "xG",
+        "status": "PASS",
+        "distance": 0
+      },
+      "passAccuracy": {
+        "value": 78.602,
+        "min": 76,
+        "max": 86,
+        "unit": "%",
+        "status": "PASS",
+        "distance": 0
+      },
+      "cornersPerMatch": {
+        "value": 2.667,
+        "min": 3,
+        "max": 9,
+        "unit": "corners",
+        "status": "WARN",
+        "distance": 0.333
+      },
+      "foulsPerMatch": {
+        "value": 7.833,
+        "min": 14,
+        "max": 34,
+        "unit": "fouls",
+        "status": "WARN",
+        "distance": 6.167
+      },
+      "yellowCardsPerMatch": {
+        "value": 2.833,
+        "min": 1.5,
+        "max": 7,
+        "unit": "cards",
+        "status": "PASS",
+        "distance": 0
+      },
+      "redCardsPerMatch": {
+        "value": 0.833,
+        "min": 0,
+        "max": 0.3,
+        "unit": "cards",
+        "status": "FAIL",
+        "distance": 0.533
+      },
+      "injuriesPerMatch": {
+        "value": 0,
+        "min": 0,
+        "max": 0.3,
+        "unit": "injuries",
+        "status": "PASS",
+        "distance": 0
+      },
+      "drawRate": {
+        "value": 0.333,
+        "min": 0.2,
+        "max": 0.36,
+        "unit": "ratio",
+        "status": "PASS",
+        "distance": 0
+      },
+      "homeWinRate": {
+        "value": 0.5,
+        "min": 0.34,
+        "max": 0.54,
+        "unit": "ratio",
+        "status": "PASS",
+        "distance": 0
+      },
+      "awayWinRate": {
+        "value": 0.167,
+        "min": 0.18,
+        "max": 0.4,
+        "unit": "ratio",
+        "status": "WARN",
+        "distance": 0.013
+      },
+      "strongerTeamNonLossRate": {
+        "value": 0.833,
+        "min": 0.62,
+        "max": 0.9,
+        "unit": "ratio",
+        "status": "PASS",
+        "distance": 0
+      },
+      "setPieceGoalShare": {
+        "value": 0.242,
+        "min": 0.08,
+        "max": 0.28,
+        "unit": "ratio",
+        "status": "PASS",
+        "distance": 0
+      }
+    }
+  },
+  "recommendations": [
+    {
+      "area": "DISCIPLINE",
+      "direction": "DOWN",
+      "action": "Raise direct-red severity threshold and reduce repeated-foul escalation."
+    }
+  ],
+  "fingerprint": "1bfebf80",
+  "sample": [
+    {
+      "goals": 0,
+      "shots": 9,
+      "shotsOnTarget": 4,
+      "xg": 1.446699228111783,
+      "passAccuracy": 81.93743693239153,
+      "corners": 2,
+      "fouls": 8,
+      "yellowCards": 0,
+      "redCards": 1,
+      "injuries": 0,
+      "setPieceGoalShare": 0,
+      "result": "draw",
+      "strongerNonLoss": true,
+      "score": "0-0",
+      "elapsedMs": 3023
+    },
+    {
+      "goals": 1,
+      "shots": 18,
+      "shotsOnTarget": 4,
+      "xg": 4.148358451085706,
+      "passAccuracy": 76.9162210338681,
+      "corners": 2,
+      "fouls": 7,
+      "yellowCards": 3,
+      "redCards": 1,
+      "injuries": 0,
+      "setPieceGoalShare": 0,
+      "result": "home",
+      "strongerNonLoss": false,
+      "score": "1-0",
+      "elapsedMs": 3670
+    },
+    {
+      "goals": 4,
+      "shots": 23,
+      "shotsOnTarget": 9,
+      "xg": 4.2653889426762905,
+      "passAccuracy": 75.22750252780587,
+      "corners": 1,
+      "fouls": 13,
+      "yellowCards": 7,
+      "redCards": 1,
+      "injuries": 0,
+      "setPieceGoalShare": 0,
+      "result": "home",
+      "strongerNonLoss": true,
+      "score": "3-1",
+      "elapsedMs": 3308
+    },
+    {
+      "goals": 4,
+      "shots": 26,
+      "shotsOnTarget": 10,
+      "xg": 5.69672988249138,
+      "passAccuracy": 78.96825396825396,
+      "corners": 6,
+      "fouls": 9,
+      "yellowCards": 2,
+      "redCards": 1,
+      "injuries": 0,
+      "setPieceGoalShare": 0.25,
+      "result": "draw",
+      "strongerNonLoss": true,
+      "score": "2-2",
+      "elapsedMs": 3219
+    },
+    {
+      "goals": 5,
+      "shots": 28,
+      "shotsOnTarget": 9,
+      "xg": 5.0433524622209704,
+      "passAccuracy": 80.35398230088495,
+      "corners": 4,
+      "fouls": 6,
+      "yellowCards": 5,
+      "redCards": 1,
+      "injuries": 0,
+      "setPieceGoalShare": 0.2,
+      "result": "home",
+      "strongerNonLoss": true,
+      "score": "3-2",
+      "elapsedMs": 4237
+    },
+    {
+      "goals": 1,
+      "shots": 16,
+      "shotsOnTarget": 6,
+      "xg": 2.9267723672203623,
+      "passAccuracy": 78.20867959372114,
+      "corners": 1,
+      "fouls": 4,
+      "yellowCards": 0,
+      "redCards": 0,
+      "injuries": 0,
+      "setPieceGoalShare": 1,
+      "result": "away",
+      "strongerNonLoss": true,
+      "score": "0-1",
+      "elapsedMs": 4113
+    }
+  ]
+}

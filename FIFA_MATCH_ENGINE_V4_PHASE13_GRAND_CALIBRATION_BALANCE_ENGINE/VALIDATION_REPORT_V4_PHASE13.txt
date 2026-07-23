@@ -1,0 +1,48 @@
+MATCH ENGINE V4 — PHASE 13 VALIDATION REPORT
+
+Version: 4.0.0-phase13.1
+Balance manifest: ME4-BALANCE-2026.07-R1
+Profile: Masterpiece Balanced R1
+Validation matches: 8
+Fingerprint: 5b163a64
+Balance score: 92.4 / 100
+Gate status: WARN
+
+FINAL VALIDATION METRICS
+Goals per match: 2.25
+Shots per match: 20.25
+Shots on target per match: 8.25
+xG per match: 3.917
+Pass accuracy: 80.684%
+Corners per match: 2.875
+Fouls per match: 10.5
+Yellow cards per match: 3.5
+Red cards per match: 0
+Injuries per match: 0
+Set-piece goal share: 0.271
+Home win rate: 0.5
+Draw rate: 0.125
+Away win rate: 0.375
+Stronger-team non-loss rate: 0.833
+Average batch runtime per match: 3858.25 ms
+P95 runtime: 5663 ms
+
+VERIFIED
+- Phase 13 API contract
+- balance profile metadata
+- profile idempotency
+- neutral-profile Phase 12 parity
+- deterministic repeatability
+- batch KPI generation
+- target gate pass/warn/fail logic
+- sample-size-aware ratio evaluation
+- automatic tuning recommendations
+- baseline regression comparison
+- team identity preservation
+- rating-spread strength calibration
+- calibrated foul / DOGSO / second-yellow logic
+- batch memory registry cleanup
+- stuck-match safety watchdog
+
+OPEN STATISTICAL WARNING
+The eight-match validation sample produced a draw rate below the preferred target. Because rate confidence is wide at this sample size, the gate is WARN rather than FAIL. Release-candidate approval should use at least 100 matches; final production lock should use 1,000+ seeds.

@@ -1,0 +1,27 @@
+MATCH ENGINE V4 — PHASE 13 KURULUM
+
+1. manager-match-engine-v4-phase13.bundle.js dosyasını repository köküne yükleyin.
+2. index.html içindeki Phase 12 script satırını kaldırın.
+3. manager-match-engine.js satırının hemen altına şunu ekleyin:
+   <script src="manager-match-engine-v4-phase13.bundle.js?v=4.0.0-phase13.1"></script>
+4. Önceki phase bundle dosyalarını Phase 13 ile birlikte yüklemeyin.
+5. Service Worker cache sürümünü artırın ve hard refresh yapın.
+6. Yeni maç başlatın.
+
+PHASE 13
+- Sürümlü Masterpiece Balance Profile
+- 1–10.000 maçlık batch calibration API
+- KPI target gate
+- Home/draw/away dağılımı
+- Güçlü takım non-loss adaleti
+- Determinism audit
+- Baseline karşılaştırma ve regression gate
+- Otomatik tuning önerileri
+- Balance manifest ve fingerprint
+
+Yeni Supabase migration gerekmez.
+
+CI QUICK GATE:
+ME4_CAL_MATCHES=4 node tests/v4-phase13-ci-gate.js
+
+RELEASE CANDIDATE: en az 100 maç; production balance lock: 1.000+ seed önerilir.

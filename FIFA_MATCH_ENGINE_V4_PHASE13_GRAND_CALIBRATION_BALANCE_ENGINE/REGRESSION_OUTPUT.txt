@@ -1,0 +1,14 @@
+PASS Phase 13 API contract
+PASS Balance profile is attached to engine snapshot and report
+PASS Neutral profile preserves Phase 12 outcome
+PASS Determinism audit passes
+PASS Batch calibration produces required metrics
+PASS Evaluation distinguishes pass and fail ranges
+PASS Recommendations identify scoring excess
+PASS Baseline comparison detects regression
+PASS Masterpiece profile preserves team identity
+{
+  "tests": 9,
+  "passed": 9,
+  "failed": 0
+}

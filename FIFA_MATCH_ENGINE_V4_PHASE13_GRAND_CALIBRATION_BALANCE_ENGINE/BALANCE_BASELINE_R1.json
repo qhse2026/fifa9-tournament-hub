@@ -1,0 +1,176 @@
+{
+  "name": "ME4 Masterpiece Balance R1",
+  "version": "4.0.0-phase13.1",
+  "manifest": "ME4-BALANCE-2026.07-R1",
+  "createdAt": "2026-07-23T19:35:26.895Z",
+  "profile": {
+    "id": "masterpiece",
+    "label": "Masterpiece Balanced R1",
+    "tempoScale": 1.03,
+    "riskScale": 1.04,
+    "pressingScale": 0.96,
+    "directnessScale": 1.03,
+    "setPieceRiskScale": 1.08,
+    "tacklingRiskScale": 0.96,
+    "homeRatingBonus": 0.6,
+    "ratingSpreadScale": 1.25,
+    "refereeProfile": "balanced"
+  },
+  "metrics": {
+    "matches": 8,
+    "goalsPerMatch": 2.25,
+    "goalsCi95": 0.3,
+    "shotsPerMatch": 20.25,
+    "shotsOnTargetPerMatch": 8.25,
+    "xgPerMatch": 3.917,
+    "passAccuracy": 80.684,
+    "cornersPerMatch": 2.875,
+    "foulsPerMatch": 10.5,
+    "yellowCardsPerMatch": 3.5,
+    "redCardsPerMatch": 0,
+    "injuriesPerMatch": 0,
+    "setPieceGoalShare": 0.271,
+    "homeWinRate": 0.5,
+    "drawRate": 0.125,
+    "awayWinRate": 0.375,
+    "strongerTeamNonLossRate": 0.833,
+    "averageRuntimeMs": 3858.25,
+    "p95RuntimeMs": 5663,
+    "goalDistribution": {
+      "zero": 0,
+      "one": 0,
+      "two": 6,
+      "three": 2,
+      "fourPlus": 0
+    }
+  },
+  "evaluation": {
+    "score": 92.4,
+    "status": "WARN",
+    "checks": {
+      "goalsPerMatch": {
+        "value": 2.25,
+        "min": 2,
+        "max": 3.1,
+        "unit": "goals",
+        "status": "PASS",
+        "distance": 0
+      },
+      "shotsPerMatch": {
+        "value": 20.25,
+        "min": 20,
+        "max": 31,
+        "unit": "shots",
+        "status": "PASS",
+        "distance": 0
+      },
+      "shotsOnTargetPerMatch": {
+        "value": 8.25,
+        "min": 8,
+        "max": 15,
+        "unit": "shots",
+        "status": "PASS",
+        "distance": 0
+      },
+      "xgPerMatch": {
+        "value": 3.917,
+        "min": 2.8,
+        "max": 4.8,
+        "unit": "xG",
+        "status": "PASS",
+        "distance": 0
+      },
+      "passAccuracy": {
+        "value": 80.684,
+        "min": 76,
+        "max": 86,
+        "unit": "%",
+        "status": "PASS",
+        "distance": 0
+      },
+      "cornersPerMatch": {
+        "value": 2.875,
+        "min": 3,
+        "max": 9,
+        "unit": "corners",
+        "status": "WARN",
+        "distance": 0.125
+      },
+      "foulsPerMatch": {
+        "value": 10.5,
+        "min": 14,
+        "max": 34,
+        "unit": "fouls",
+        "status": "WARN",
+        "distance": 3.5
+      },
+      "yellowCardsPerMatch": {
+        "value": 3.5,
+        "min": 1.5,
+        "max": 7,
+        "unit": "cards",
+        "status": "PASS",
+        "distance": 0
+      },
+      "redCardsPerMatch": {
+        "value": 0,
+        "min": 0,
+        "max": 0.3,
+        "unit": "cards",
+        "status": "PASS",
+        "distance": 0
+      },
+      "injuriesPerMatch": {
+        "value": 0,
+        "min": 0,
+        "max": 0.3,
+        "unit": "injuries",
+        "status": "PASS",
+        "distance": 0
+      },
+      "drawRate": {
+        "value": 0.125,
+        "min": 0.2,
+        "max": 0.36,
+        "unit": "ratio",
+        "status": "WARN",
+        "distance": 0.075
+      },
+      "homeWinRate": {
+        "value": 0.5,
+        "min": 0.34,
+        "max": 0.54,
+        "unit": "ratio",
+        "status": "PASS",
+        "distance": 0
+      },
+      "awayWinRate": {
+        "value": 0.375,
+        "min": 0.18,
+        "max": 0.4,
+        "unit": "ratio",
+        "status": "PASS",
+        "distance": 0
+      },
+      "strongerTeamNonLossRate": {
+        "value": 0.833,
+        "min": 0.62,
+        "max": 0.9,
+        "unit": "ratio",
+        "status": "PASS",
+        "distance": 0
+      },
+      "setPieceGoalShare": {
+        "value": 0.271,
+        "min": 0.08,
+        "max": 0.28,
+        "unit": "ratio",
+        "status": "PASS",
+        "distance": 0
+      }
+    }
+  },
+  "fingerprint": "5b163a64",
+  "sampleSize": 8,
+  "note": "Approval baseline generated from the Phase 13 validation batch. Use larger release-candidate batches before locking production tolerances."
+}

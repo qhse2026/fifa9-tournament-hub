@@ -1,0 +1,66 @@
+{
+  "version": "4.0.0-phase13.1",
+  "manifest": "ME4-BALANCE-2026.07-R1",
+  "targets": {
+    "goalsPerMatch": [
+      2.0,
+      3.1
+    ],
+    "shotsPerMatch": [
+      20,
+      31
+    ],
+    "shotsOnTargetPerMatch": [
+      8,
+      15
+    ],
+    "xgPerMatch": [
+      2.8,
+      4.8
+    ],
+    "passAccuracy": [
+      76,
+      86
+    ],
+    "cornersPerMatch": [
+      3,
+      9
+    ],
+    "foulsPerMatch": [
+      14,
+      34
+    ],
+    "yellowCardsPerMatch": [
+      1.5,
+      7.0
+    ],
+    "redCardsPerMatch": [
+      0,
+      0.3
+    ],
+    "injuriesPerMatch": [
+      0,
+      0.3
+    ],
+    "drawRate": [
+      0.2,
+      0.36
+    ],
+    "homeWinRate": [
+      0.34,
+      0.54
+    ],
+    "awayWinRate": [
+      0.18,
+      0.4
+    ],
+    "strongerTeamNonLossRate": [
+      0.62,
+      0.9
+    ],
+    "setPieceGoalShare": [
+      0.08,
+      0.28
+    ]
+  }
+}
