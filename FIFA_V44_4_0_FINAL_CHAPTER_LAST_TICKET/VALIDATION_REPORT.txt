@@ -1,0 +1,22 @@
+FIFA V44.4.0 VALIDATION REPORT
+
+[PASS] app.js JavaScript syntax: node --check
+[PASS] service-worker.js JavaScript syntax: node --check
+[PASS] Sultan Atasaral withdrawal constant present
+[PASS] Lucky-quarterfinalist draw removed
+[PASS] 8-player main qualification validation present
+[PASS] 4 main-round losers routed to second-chance semifinals
+[PASS] 2 second-chance semifinal winners routed to second-chance final
+[PASS] Second-chance final winner included as eighth quarterfinalist
+[PASS] Quarterfinal uniqueness check requires 8 distinct players
+[PASS] New stages included in match lookup and result persistence
+[PASS] New stages use the 4-star playoff team pool
+[PASS] Result edit locks follow the new stage order
+[PASS] Final Chapter maximum match estimate updated to 40
+[PASS] Service Worker cache key updated
+
+Bracket arithmetic:
+3 direct QF + 4 main-round winners + 1 Last Ticket winner = 8 quarterfinalists.
+Maximum series matches: 12 + 6 + 3 + 12 + 6 + 1 = 40.
+
+Browser/Supabase end-to-end execution must be confirmed after GitHub Pages deployment.

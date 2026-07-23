@@ -1,0 +1,30 @@
+FIFA V44.4.0 — FINAL CHAPTER SON BİLET
+
+GITHUB'A YÜKLENECEK DOSYALAR
+ZIP içindeki github klasöründen yalnızca şu üç dosyayı repository köküne yükleyin:
+
+1. app.js
+2. styles.css
+3. service-worker.js
+
+Aynı adlı mevcut dosyaların üzerine yazın. Diğer dosyaları silmeyin.
+
+YÜKLEME SONRASI
+1. GitHub Pages deploy işleminin tamamlanmasını bekleyin.
+2. Siteyi açın.
+3. Ctrl + Shift + R yapın.
+4. Eski format görünürse tarayıcı geliştirici araçlarından Application > Service Workers > Unregister yapın ve tekrar yenileyin.
+
+YENİ AKIŞ
+- Sultan Atasaral: turnuva dışında.
+- Doğrudan QF: Oğuzhan Dindar, Aziz Sarıoğlu, Ercan Köseoğlu.
+- 8 oyuncu: 4 adet BO3 ana eleme.
+- 4 ana eleme galibi: QF.
+- 4 ana eleme kaybedeni: 2 adet BO3 Son Bilet yarı finali.
+- Yarı final galipleri: 1 adet BO3 Son Bilet finali.
+- Son Bilet galibi: 8. çeyrek finalist.
+
+KAYIT UYUMLULUĞU
+- League Phase, Altın Grup ve Gümüş Grup sonuçları korunur.
+- Final Chapter henüz oynanmadıysa eski hazırlık yeni formata otomatik çevrilir.
+- Eski Final Chapter formatında sonuç girilmişse güvenlik amacıyla otomatik dönüşüm yapılmaz.
