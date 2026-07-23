@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Match Engine V4 — Phase 2 Visual Takeover Lab</title>
+<style>
+:root{color-scheme:dark;font-family:Inter,Segoe UI,Arial,sans-serif;background:#06111c;color:#eaf3f7}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 20% 0,#12344a 0,transparent 34%),#06111c}.shell{max-width:1180px;margin:auto;padding:24px}.lab-head{display:flex;justify-content:space-between;gap:18px;align-items:center;margin-bottom:16px}.lab-head span{color:#6fc7ef;font-size:11px;font-weight:900;letter-spacing:.14em}.lab-head h1{margin:6px 0;font-size:28px}.lab-head p{margin:0;color:#8da3b1}.controls{display:flex;gap:8px;flex-wrap:wrap}.controls button{padding:10px 14px;border:1px solid #2c5b73;border-radius:10px;background:#0a2233;color:#eaf3f7;font-weight:800;cursor:pointer}.controls button.active{border-color:#dbb45f;background:#8c6222}.manager-match-shell{padding:14px;border:1px solid #17384c;border-radius:20px;background:rgba(4,17,28,.88)}.manager-2d-view>header{display:flex;align-items:center;gap:14px;min-height:54px;padding:0 4px}.manager-2d-view>header>div:first-child span{color:#63c5ee;font-size:9px;font-weight:900;letter-spacing:.13em}.manager-2d-view>header strong{display:block;margin-top:5px}.manager-2d-pitch{position:relative;overflow:hidden;aspect-ratio:105/68;border:2px solid rgba(255,255,255,.28);border-radius:17px;background:repeating-linear-gradient(90deg,#123e2d 0,#123e2d 10%,#174a35 10%,#174a35 20%);box-shadow:inset 0 0 65px rgba(0,0,0,.4),0 12px 35px rgba(0,0,0,.2)}.manager-2d-pitch:before{content:"";position:absolute;inset:10px;border:1px solid rgba(255,255,255,.35)}.manager-2d-pitch:after{content:"";position:absolute;left:50%;top:10px;bottom:10px;border-left:1px solid rgba(255,255,255,.35)}.circle{position:absolute;left:50%;top:50%;width:14%;aspect-ratio:1;border:1px solid rgba(255,255,255,.35);border-radius:50%;transform:translate(-50%,-50%)}.box{position:absolute;top:27%;width:13%;height:46%;border:1px solid rgba(255,255,255,.35)}.box.home{left:10px;border-left:0}.box.away{right:10px;border-right:0}.match-player{position:absolute;z-index:5;width:27px;height:27px;display:grid;place-items:center;transform:translate(-50%,-50%);border:2px solid #fff;border-radius:50%;box-shadow:0 5px 12px rgba(0,0,0,.45)}.match-player.human{background:#12a6b2}.match-player.rival{background:#d8535b}.match-player b{font-size:8px}.match-player small{position:absolute;top:28px;padding:2px 4px;border-radius:4px;background:rgba(0,0,0,.68);font-size:6px}.match-ball{position:absolute;z-index:7;transform:translate(-50%,-50%);font-size:18px;transition:left .14s linear,top .14s linear}.scorebar{display:grid;grid-template-columns:1fr auto 1fr;gap:14px;align-items:center;margin-bottom:12px;padding:12px 16px;border-radius:14px;background:#081d2c}.scorebar strong:last-child{text-align:right}.scorebar b{font-size:24px;color:#eac66e}.telemetry{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-top:12px}.telemetry article{padding:11px;border:1px solid #17394d;border-radius:12px;background:#071a29}.telemetry span{display:block;color:#7792a3;font-size:8px}.telemetry strong{display:block;margin-top:5px;font-size:14px}.note{margin-top:14px;padding:12px;border-left:3px solid #d5aa52;background:#0a1d2b;color:#9fb1bc;font-size:12px;line-height:1.55}@media(max-width:760px){.lab-head{display:block}.controls{margin-top:12px}.telemetry{grid-template-columns:1fr 1fr}.match-player{width:21px;height:21px}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="lab-head"><div><span>PHASE 2 · LIVE VISUAL TAKEOVER</span><h1>V4 Player AI + Resmî Top Akışı</h1><p>Oyuncu geometrisi V4 tarafından, top ve skor ise resmî legacy akış tarafından yönetilir.</p></div><div class="controls"><button id="playBtn" class="active">Duraklat</button><button id="tacticBtn">Bekleri Hücuma Çıkar</button><button id="resetBtn">Sıfırla</button></div></div>
+  <section id="managerMatchMount" class="manager-match-shell">
+    <div class="scorebar"><strong>HOME XI</strong><b><span id="homeScore">0</span> — <span id="awayScore">0</span></b><strong>AWAY XI</strong></div>
+    <section class="manager-2d-view">
+      <header><div><span>MATCH ENGINE V4 · EVENT-LOCKED VISUAL</span><strong id="phaseLabel">YERLEŞİK HÜCUM</strong></div></header>
+      <div class="manager-2d-pitch">
+        <i class="circle"></i><i class="box home"></i><i class="box away"></i>
+        <span class="match-ball home" data-live-ball style="left:50%;top:50%">⚽</span>
+      </div>
+    </section>
+    <div class="telemetry"><article><span>MAÇ SAATİ</span><strong id="clock">00:00</strong></article><article><span>RESMÎ TOP</span><strong id="ballRead">50 · 50</strong></article><article><span>V4 FAZ</span><strong id="v4Phase">—</strong></article><article><span>REST DEFENCE</span><strong id="restRead">—</strong></article></div>
+    <div class="note">Bu laboratuvarda topun yolu bağımsız olarak üretilir; V4 oyuncuları bu resmî top konumuna kilitlenerek bindirme, pres, savunma bloğu ve koşu kararlarını günceller.</div>
+  </section>
+</div>
+<script>
+(() => {
+  const pitch=document.querySelector('.manager-2d-pitch');
+  const roles=['GK','LB','LCB','RCB','RB','DM','LCM','RCM','LW','ST','RW'];
+  for(const side of ['home','away']) roles.forEach((role,index)=>{
+    const node=document.createElement('span');node.className=`match-player ${side==='home'?'human':'rival'}`;node.dataset.motionPlayer='';node.dataset.side=side;node.dataset.index=index;node.style.left=side==='home'?'18%':'82%';node.style.top=`${8+index*8}%`;node.innerHTML=`<b>${index+1}</b><small>${role}</small>`;pitch.appendChild(node);
+  });
+  const fixture={id:'LAB-ME4-P2',homeId:'H',awayId:'A',homeTeam:'home',awayTeam:'away',matchEngine:{status:'live',clockSeconds:0,minute:0,humanSide:'home',scoreHome:0,scoreAway:0,stats:{home:{shots:0},away:{shots:0}},visual2D:{ball:{x:50,y:50},possession:'home',phase:'YERLEŞİK HÜCUM'},userPlan:{formation:'4-3-3',mentality:'balanced',pressing:'mid',buildUp:'central',tempo:'normal',risk:'measured',positionRoles:{LB:'fullback-defend',RB:'fullback-defend',GK:'playmaker-keeper'},phaseBehaviors:{inPossession:'positional',outPossession:'mid-block',winTransition:'counter',lossTransition:'regroup'}},aiPlan:{formation:'4-2-3-1',mentality:'controlled',pressing:'mid',buildUp:'patient',tempo:'normal',risk:'safe',positionRoles:{LB:'fullback-defend',RB:'fullback-defend',GK:'line-keeper'},phaseBehaviors:{inPossession:'patient',outPossession:'mid-block',winTransition:'secure',lossTransition:'regroup'}}}};
+  const career={id:'LAB-C',activeMatchFixtureId:fixture.id,fixtures:[fixture],actors:[{id:'H',type:'human',clubName:'Home XI',styleSeed:{tempo:56,pressing:55,risk:52,width:58}},{id:'A',type:'ai',clubName:'Away XI',styleSeed:{tempo:49,pressing:52,risk:45,width:48}}]};
+  window.FIFA_MANAGER_ROOM={getActiveCareer:()=>career,getActor:(c,id)=>c.actors.find(a=>a.id===id),getTeamForActor:(_f,id)=>({id,clubName:id==='H'?'Home XI':'Away XI',overall:id==='H'?83:81})};
+  window.__ME4_LAB={career,fixture};
+})();
+</script>
+<script src="manager-match-engine-v4-live.bundle.js"></script>
+<script>
+(() => {
+  const {fixture}=window.__ME4_LAB;let playing=true;let attacking=false;let real=0;
+  const ball=document.querySelector('[data-live-ball]');
+  const clock=document.getElementById('clock');
+  const fmt=s=>`${String(Math.floor(s/60)).padStart(2,'0')}:${String(Math.floor(s%60)).padStart(2,'0')}`;
+  function tick(){if(!playing)return;real+=1;fixture.matchEngine.clockSeconds=Math.min(5400,real*8);fixture.matchEngine.minute=fixture.matchEngine.clockSeconds/60;const t=fixture.matchEngine.clockSeconds/28;const possession=Math.sin(t/4)>-.08?'home':'away';const direction=possession==='home'?1:-1;const base=possession==='home'?25:75;const x=Math.max(5,Math.min(95,base+direction*(25+22*Math.sin(t*.31))));const y=50+34*Math.sin(t*.47);fixture.matchEngine.visual2D.ball={x,y};fixture.matchEngine.visual2D.possession=possession;fixture.matchEngine.visual2D.phase=x>72||x<28?'SON ÜÇÜNCÜ BÖLGE':'YERLEŞİK HÜCUM';ball.style.left=`${x}%`;ball.style.top=`${y}%`;ball.className=`match-ball ${possession}`;clock.textContent=fmt(fixture.matchEngine.clockSeconds);document.getElementById('ballRead').textContent=`${Math.round(x)} · ${Math.round(y)}`;document.getElementById('phaseLabel').textContent=fixture.matchEngine.visual2D.phase;window.FIFA_MATCH_ENGINE_V4_SHADOW.poll();const snap=window.FIFA_MATCH_ENGINE_V4_SHADOW.getSnapshot().simulation;document.getElementById('v4Phase').textContent=snap?.phase||'—';document.getElementById('restRead').textContent=snap?`${Math.round(snap.restDefence.home)} · ${Math.round(snap.restDefence.away)}`:'—';if(fixture.matchEngine.clockSeconds>=5400)playing=false;}
+  const timer=setInterval(tick,100);
+  document.getElementById('playBtn').onclick=e=>{playing=!playing;e.currentTarget.textContent=playing?'Duraklat':'Devam Et';e.currentTarget.classList.toggle('active',playing)};
+  document.getElementById('tacticBtn').onclick=e=>{attacking=!attacking;fixture.matchEngine.userPlan.positionRoles.LB=attacking?'attacking-wingback':'fullback-defend';fixture.matchEngine.userPlan.positionRoles.RB=attacking?'attacking-wingback':'fullback-defend';fixture.matchEngine.userPlan.mentality=attacking?'aggressive':'balanced';fixture.matchEngine.userPlan.buildUp=attacking?'wings':'central';e.currentTarget.textContent=attacking?'Bekleri Dengede Tut':'Bekleri Hücuma Çıkar';e.currentTarget.classList.toggle('active',attacking);window.FIFA_MATCH_ENGINE_V4_SHADOW.poll()};
+  document.getElementById('resetBtn').onclick=()=>location.reload();
+  window.addEventListener('beforeunload',()=>clearInterval(timer));
+})();
+</script>
+</body>
+</html>

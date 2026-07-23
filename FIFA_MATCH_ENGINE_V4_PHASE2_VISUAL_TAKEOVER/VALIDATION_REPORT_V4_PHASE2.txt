@@ -1,0 +1,37 @@
+FIFA MATCH ENGINE V4 — PHASE 2 VALIDATION REPORT
+
+STATIC VALIDATION
+[PASS] manager-match-engine-v4-core.js JavaScript syntax
+[PASS] manager-match-engine-v4-shadow-adapter.js JavaScript syntax
+[PASS] manager-match-engine-v4-live-bridge.js JavaScript syntax
+[PASS] standalone manager-match-engine-v4-live.bundle.js JavaScript syntax
+[PASS] standalone bundle exposes Core, Shadow and Live APIs
+
+INTEGRATION REGRESSION
+[PASS] Shadow engine synchronizes to legacy clock
+[PASS] Current positionRoles are mapped
+[PASS] Current phaseBehaviors are mapped
+[PASS] Manager Room team rating API is used
+[PASS] Goalkeeper role is mapped to goalkeeper archetype
+[PASS] Tactical plan changes rebuild V4 configuration
+[PASS] Rebuilt engine catches up to the current live second
+[PASS] Legacy official ball coordinates synchronize to V4
+[PASS] Legacy official possession synchronizes to V4
+[PASS] 68m pitch width converts correctly to DOM percentage
+[PASS] V4 player point updates live player DOM coordinates
+[PASS] Player intent and energy metadata are produced
+[PASS] Legacy ball, score, statistics and persistence remain authoritative
+
+100-MATCH CORE CALIBRATION
+See VALIDATION_OUTPUT.txt for exact generated values.
+Expected acceptance windows:
+- Goals per match: 1.4–4.2
+- Shots per match: 14–30
+- Pass attempts per match: 550–1200
+- Determinism: true
+
+COMMAND
+node tests/v4-phase2-integration-regression.js
+
+LIMITATION
+GitHub Pages, browser Service Worker and the user's Supabase project were not available in the local validation environment. Final deployed-browser smoke testing is still required after upload.

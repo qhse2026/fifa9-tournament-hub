@@ -1,0 +1,16 @@
+[Match Engine V4] Shadow mode enabled · 4.0.0-shadow.2
+V4 PHASE 2 INTEGRATION REGRESSION: PASS
+{
+  "clock": 720,
+  "formation": "4-2-3-1",
+  "fullbackDuty": "defend",
+  "mappedPoint": {
+    "x": 55,
+    "y": 50
+  },
+  "sampleScore": {
+    "home": 0,
+    "away": 1
+  },
+  "sampleShots": 26
+}

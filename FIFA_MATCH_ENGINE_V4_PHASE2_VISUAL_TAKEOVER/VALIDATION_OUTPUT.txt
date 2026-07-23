@@ -1,0 +1,11 @@
+{
+  "matches": 100,
+  "goals": 2.29,
+  "shots": 25.23,
+  "xg": 3.98,
+  "corners": 2.87,
+  "passesAttempted": 1140.11,
+  "passesCompleted": 876.55,
+  "crossesAttempted": 21.3,
+  "deterministic": true
+}

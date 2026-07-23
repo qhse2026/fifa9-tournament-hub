@@ -1,0 +1,61 @@
+FIFA MATCH ENGINE V4 — PHASE 2 LIVE VISUAL TAKEOVER
+KURULUM VE TEST TALİMATI
+
+BU SÜRÜM NE YAPIYOR?
+- 22 oyuncunun canlı saha koordinatlarını Match Engine V4 üretir.
+- Bek bindirmesi, iç koridor koşusu, rest-defence, pres, kompakt blok, forvet koşusu ve kaleci başlangıç pozisyonu V4 üzerinden görünür.
+- V4, resmî maç saatine, resmî top koordinatına ve resmî topa sahip olan takıma kilitlenir.
+- Resmî top animasyonu, skor, UEFA istatistikleri, maç sonu sonucu, ELO, fikstür ve kariyer kaydı mevcut motor tarafından korunur.
+- Maç içi formation / positionRoles / phaseBehaviors değişiklikleri V4 tarafından otomatik algılanır.
+
+EN KOLAY KURULUM — 2 DOSYA İŞLEMİ
+1. manager-match-engine-v4-live.bundle.js dosyasını GitHub repository KÖK dizinine yükleyin.
+2. Repository kökündeki index.html dosyasını düzenleyin.
+3. Mevcut şu satırı bulun:
+   <script src="manager-match-engine.js"></script>
+4. Hemen ALTINA şu satırı ekleyin:
+   <script src="manager-match-engine-v4-live.bundle.js?v=4.0.0-live-visual.1"></script>
+5. Commit changes seçin.
+6. GitHub Pages yayını tamamlandıktan sonra Ctrl + Shift + R yapın.
+
+OPSİYONEL SERVICE WORKER GÜNCELLEMESİ
+Offline kullanım da isteniyorsa service-worker.js APP_SHELL listesine ekleyin:
+  "./manager-match-engine-v4-live.bundle.js",
+Ayrıca CACHE anahtarını yeni bir sürüme yükseltin.
+Online GitHub Pages kullanımında bu adım zorunlu değildir; mevcut network-first yapı bundle dosyasını ağdan yükler.
+
+İLK TEST
+1. Test kariyeri açın.
+2. Bir maç başlatın.
+3. 2D sahanın üst kısmında "ME4 PLAYER AI" ve "V4 HAREKET" rozetlerini görün.
+4. Bir beki attacking-wingback yapın veya bekleri hücuma çıkaran plan uygulayın.
+5. Bekin daha yüksek hatta çıktığını, ters bekin / merkez oyuncularının rest-defence güvenliği oluşturduğunu izleyin.
+6. Taktik değişikliğinde sayfayı yenilemeden saha şeklinin yeniden kurulmasını kontrol edin.
+
+KONSOL KONTROLLERİ
+Durum:
+  FIFA_MATCH_ENGINE_V4_LIVE.getStatus()
+
+V4 hareketini geçici kapat:
+  FIFA_MATCH_ENGINE_V4_LIVE.disable()
+
+Tekrar aç:
+  FIFA_MATCH_ENGINE_V4_LIVE.enable()
+
+Shadow snapshot:
+  FIFA_MATCH_ENGINE_V4_SHADOW.getSnapshot()
+
+100 maç kalibrasyon:
+  FIFA_MATCH_ENGINE_V4_SHADOW.runCalibration(100)
+
+GERİ ALMA
+- index.html içinden manager-match-engine-v4-live.bundle.js script satırını kaldırın.
+- Bundle dosyasını silmek zorunlu değildir.
+- Mevcut kariyer ve maç kayıtları değişmez.
+
+LAB
+match-engine-v4-phase2-lab.html ile manager-match-engine-v4-live.bundle.js aynı klasördeyken HTML dosyasını açın.
+"Bekleri Hücuma Çıkar" düğmesiyle V4 saha geometrisinin canlı değişimini izleyebilirsiniz.
+
+SQL
+Bu sürüm için yeni Supabase SQL gerekmez.
