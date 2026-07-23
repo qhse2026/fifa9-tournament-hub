@@ -1,0 +1,37 @@
+FIFA 9 TOURNAMENT HUB — MATCH ENGINE 4.0 FOUNDATION VALIDATION
+Generated: 2026-07-23
+
+RESULT
+PASS — Foundation core, shadow adapter and regression suite completed successfully.
+
+STATIC VALIDATION
+[PASS] manager-match-engine-v4-core.js — node --check
+[PASS] manager-match-engine-v4-shadow-adapter.js — node --check
+[PASS] tests/v4-foundation-regression.js — node --check
+[PASS] match-engine-v4-lab.html inline JavaScript — node --check
+
+DETERMINISM
+[PASS] Same seed produced the same full-time score.
+[PASS] Same seed produced the same home and away shot totals.
+
+SIMULATION CONTRACT
+[PASS] 11 home players + 11 away players in snapshots.
+[PASS] Ball state, positions, targets, velocity and facing data available.
+[PASS] Fullback tactical intents observed across the first 30 simulated minutes.
+[PASS] Rest-defence security metric available for both teams.
+[PASS] Goalkeeper archetype present in the player snapshot.
+[PASS] Corner event includes taker/primary target/secondary target/edge player/rest-defence assignments.
+
+40-MATCH FOUNDATION CALIBRATION
+- Average goals: 2.38
+- Average shots: 26.25
+- Average corners: 2.95
+- Average pass attempts: 1,137.28
+- Average completed passes: 874.88
+- Average crosses: 23.00
+- Average carries: 113.78
+- Deterministic reference score: 1-0
+- Corner events retained in capped reports: 15
+
+SCOPE LIMITATION
+This release is a shadow/foundation integration. It intentionally does not replace the V44.5/V44.6 official score resolver, career persistence, ELO, fixture advancement or Supabase snapshots. Direct ownership of the live 2D renderer and official result pipeline requires patching against the exact current repository root files.

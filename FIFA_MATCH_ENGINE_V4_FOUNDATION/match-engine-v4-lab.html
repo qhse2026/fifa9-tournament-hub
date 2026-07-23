@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Match Engine 4.0 — Simulation Lab</title>
+  <style>
+    :root{color-scheme:dark;--bg:#08110f;--panel:#111d1a;--line:rgba(255,255,255,.14);--text:#f4f7f6;--muted:#97aaa4;--gold:#e8c56a}
+    *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top,#17302a 0,#08110f 48%,#050a09 100%);color:var(--text);font:14px/1.4 Inter,system-ui,sans-serif;min-height:100vh}
+    .shell{max-width:1420px;margin:auto;padding:24px}.top{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin-bottom:18px}.eyebrow{color:var(--gold);font-weight:800;letter-spacing:.18em;font-size:11px}.top h1{font-size:clamp(26px,4vw,50px);line-height:1;margin:5px 0}.top p{color:var(--muted);max-width:780px;margin:0}.controls{display:flex;flex-wrap:wrap;gap:8px}.controls button{border:1px solid var(--line);background:#182823;color:#fff;border-radius:999px;padding:10px 14px;font-weight:750;cursor:pointer}.controls button.active,.controls button:hover{border-color:var(--gold);color:var(--gold)}
+    .grid{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:16px}.pitch-card,.side{background:rgba(17,29,26,.92);border:1px solid var(--line);border-radius:20px;box-shadow:0 22px 60px rgba(0,0,0,.28)}.scorebar{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line)}.team:last-child{text-align:right}.team span{display:block;color:var(--muted);font-size:11px;letter-spacing:.12em}.team strong{font-size:18px}.clock{text-align:center}.clock strong{display:block;font-size:26px}.clock small{color:var(--gold);font-weight:800}.canvas-wrap{padding:14px}canvas{display:block;width:100%;aspect-ratio:100/68;border-radius:14px;background:#1d7047}.telemetry{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:0 14px 14px}.metric{background:#0c1714;border:1px solid var(--line);border-radius:12px;padding:10px}.metric span{display:block;color:var(--muted);font-size:10px;text-transform:uppercase}.metric strong{font-size:18px}.side{padding:16px;display:flex;flex-direction:column;min-height:600px}.side h2{font-size:18px;margin:0 0 4px}.side p{color:var(--muted);font-size:12px;margin:0 0 14px}.event-list{display:flex;flex-direction:column;gap:8px;overflow:auto;max-height:510px}.event{border-left:3px solid var(--line);background:#0c1714;border-radius:0 10px 10px 0;padding:9px 10px}.event.goal{border-color:var(--gold)}.event b{font-size:11px;color:var(--gold);margin-right:7px}.event span{font-size:12px}.footer{color:var(--muted);font-size:11px;margin-top:auto;padding-top:12px;border-top:1px solid var(--line)}
+    @media(max-width:900px){.grid{grid-template-columns:1fr}.side{min-height:320px}.telemetry{grid-template-columns:repeat(2,1fr)}.top{align-items:flex-start;flex-direction:column}}
+  </style>
+</head>
+<body>
+<div class="shell">
+  <header class="top">
+    <div><div class="eyebrow">FIFA 9 · MATCH ENGINE 4.0</div><h1>Simulation Laboratory</h1><p>Bu ekran, V4 çekirdeğinin 22 oyunculu koordinatlarını, takım şekillerini, top hareketini, bek kararlarını, kaleci karakterini ve gerçek event zincirini doğrudan render eder.</p></div>
+    <div class="controls"><button id="toggle">Başlat</button><button data-speed="1">×1</button><button data-speed="4" class="active">×4</button><button data-speed="16">×16</button><button id="reset">Yeni Maç</button></div>
+  </header>
+  <main class="grid">
+    <section class="pitch-card">
+      <div class="scorebar"><div class="team"><span>HOME · 4-3-3</span><strong id="homeName">Anatolia Athletic</strong></div><div class="clock"><strong id="score">0 — 0</strong><small id="clock">00:00</small></div><div class="team"><span>AWAY · 4-2-3-1</span><strong id="awayName">Northern City</strong></div></div>
+      <div class="canvas-wrap"><canvas id="pitch" width="1200" height="816"></canvas></div>
+      <div class="telemetry"><div class="metric"><span>Faz</span><strong id="phase">KICK OFF</strong></div><div class="metric"><span>Topa sahip</span><strong id="possession">HOME</strong></div><div class="metric"><span>Şut</span><strong id="shots">0–0</strong></div><div class="metric"><span>xG</span><strong id="xg">0.00–0.00</strong></div><div class="metric"><span>Rest Defence</span><strong id="rest">0–0</strong></div></div>
+    </section>
+    <aside class="side"><h2>Live Event Stream</h2><p>Kararların sonuçtan bağımsız, fiziksel saha olayları olarak kaydedildiği akış.</p><div id="events" class="event-list"></div><div class="footer">Deterministik seed · gerçek snapshot · renderer maç sonucuna karar vermez.</div></aside>
+  </main>
+</div>
+<script src="manager-match-engine-v4-core.js"></script>
+<script>
+(() => {
+  const core = window.FIFA_MATCH_ENGINE_V4;
+  const canvas = document.getElementById('pitch');
+  const ctx = canvas.getContext('2d');
+  let engine, running = false, speed = 4, last = performance.now(), shownEvents = 0;
+  const $ = id => document.getElementById(id);
+  function newMatch(){
+    const seed = `lab-${Date.now()}`;
+    engine = core.createEngine(core.createDefaultConfig({seed}));
+    shownEvents = 0; $('events').innerHTML=''; running=false; $('toggle').textContent='Başlat'; render();
+  }
+  function field(){
+    const w=canvas.width,h=canvas.height; ctx.clearRect(0,0,w,h);
+    const g=ctx.createLinearGradient(0,0,w,0);g.addColorStop(0,'#155f3c');g.addColorStop(.5,'#207a4b');g.addColorStop(1,'#155f3c');ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
+    ctx.strokeStyle='rgba(255,255,255,.68)';ctx.lineWidth=3;ctx.strokeRect(18,18,w-36,h-36);ctx.beginPath();ctx.moveTo(w/2,18);ctx.lineTo(w/2,h-18);ctx.stroke();ctx.beginPath();ctx.arc(w/2,h/2,90,0,Math.PI*2);ctx.stroke();
+    const boxW=190,boxH=360;ctx.strokeRect(18,(h-boxH)/2,boxW,boxH);ctx.strokeRect(w-18-boxW,(h-boxH)/2,boxW,boxH);ctx.strokeRect(18,(h-170)/2,78,170);ctx.strokeRect(w-96,(h-170)/2,78,170);
+    ctx.fillStyle='rgba(255,255,255,.8)';ctx.beginPath();ctx.arc(w/2,h/2,5,0,7);ctx.fill();
+  }
+  function toCanvas(point){return {x:18+(point.x/100)*(canvas.width-36),y:18+(point.y/68)*(canvas.height-36)}}
+  function drawPlayer(p,side){
+    const q=toCanvas(p.point), target=toCanvas(p.targetPoint);ctx.strokeStyle=side==='home'?'rgba(100,190,255,.28)':'rgba(255,110,100,.28)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(q.x,q.y);ctx.lineTo(target.x,target.y);ctx.stroke();
+    ctx.fillStyle=side==='home'?'#55b7ff':'#ff655d';ctx.beginPath();ctx.arc(q.x,q.y,p.hasBall?14:11,0,7);ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();ctx.fillStyle='#07110e';ctx.font='700 10px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(p.number,q.x,q.y);
+  }
+  function render(){
+    if(!engine)return; const s=engine.getSnapshot(); field();s.teams.home.players.forEach(p=>drawPlayer(p,'home'));s.teams.away.players.forEach(p=>drawPlayer(p,'away'));
+    const b=toCanvas(s.ball.position);ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(b.x,b.y,7,0,7);ctx.fill();ctx.strokeStyle='#111';ctx.stroke();
+    $('score').textContent=`${s.score.home} — ${s.score.away}`;$('clock').textContent=`${String(Math.floor(s.simulationTime/60)).padStart(2,'0')}:${String(Math.floor(s.simulationTime%60)).padStart(2,'0')}`;$('phase').textContent=s.phase.replaceAll('_',' ');$('possession').textContent=(s.possessionSide||'—').toUpperCase();$('shots').textContent=`${s.teams.home.stats.shots}–${s.teams.away.stats.shots}`;$('xg').textContent=`${s.teams.home.stats.xg.toFixed(2)}–${s.teams.away.stats.xg.toFixed(2)}`;$('rest').textContent=`${Math.round(s.restDefence.home)}–${Math.round(s.restDefence.away)}`;
+    const report=engine.getReport(); if(report.events.length>shownEvents){report.events.slice(shownEvents).forEach(e=>{const node=document.createElement('div');node.className=`event ${e.type==='GOAL'?'goal':''}`;node.innerHTML=`<b>${Math.floor(e.second/60)}'</b><span>${e.type.replaceAll('_',' ')} · ${(e.side||'neutral').toUpperCase()}</span>`;$('events').prepend(node)});shownEvents=report.events.length}
+    if(s.status==='fulltime'){running=false;$('toggle').textContent='Tamamlandı'}
+  }
+  function loop(now){const dt=Math.min(.05,(now-last)/1000);last=now;if(running&&engine){engine.step(dt*speed);render()}requestAnimationFrame(loop)}
+  $('toggle').onclick=()=>{if(engine.getSnapshot().status==='fulltime')newMatch();running=!running;$('toggle').textContent=running?'Duraklat':'Devam'};
+  document.querySelectorAll('[data-speed]').forEach(btn=>btn.onclick=()=>{speed=Number(btn.dataset.speed);document.querySelectorAll('[data-speed]').forEach(x=>x.classList.toggle('active',x===btn))});
+  $('reset').onclick=newMatch;newMatch();requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+MATCH ENGINE V4 FOUNDATION REGRESSION: PASS
+{
+  "matches": 40,
+  "averages": {
+    "goals": 2.38,
+    "shots": 26.25,
+    "corners": 2.95,
+    "passes": 1137.28,
+    "completedPasses": 874.88,
+    "crosses": 23,
+    "carries": 113.78
+  },
+  "deterministicScore": {
+    "home": 1,
+    "away": 0
+  },
+  "cornerEvents": 15
+}

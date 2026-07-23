@@ -1,0 +1,65 @@
+FIFA 9 TOURNAMENT HUB — MATCH ENGINE 4.0 FOUNDATION / SHADOW MODE
+
+BU PAKET NE YAPAR?
+- Mevcut V44.5/V44.6 kariyer ve fikstür sistemine dokunmadan yeni Match Engine 4 çekirdeğini paralel çalıştırır.
+- 22 oyuncunun gerçek saha koordinatlarını, hedef pozisyonlarını ve niyetlerini üretir.
+- Bek bindirmesi / bindirmeyi iptal etme kararını rest-defence güvenliğiyle birlikte hesaplar.
+- Forvetlerin savunma arkası koşularını pasör baskısı, boşluk, hız ve off-ball özellikleriyle hesaplar.
+- Son bölümde gol gerektiğinde hava hâkimiyeti yüksek bir stoperi acil hedef oyuncu olarak ileri gönderebilir.
+- Kaleci arketipleri farklı başlangıç, süpürme, orta hâkimiyeti, refleks ve dağıtım davranışı üretir.
+- Kornerlerde kullanıcı, ana hava hedefi, ikinci hedef, ceza yayı oyuncusu ve geride kalan iki oyuncuyu organize eder.
+- Aynı seed ile aynı simülasyonu tekrar üretir.
+
+ÖNEMLİ
+Bu foundation paketi mevcut canlı maçın skorunu değiştirmez. Shadow mode yalnızca paralel simülasyon ve teşhis üretir. Bu bilinçli güvenlik tasarımıdır.
+
+DOSYALAR
+1. manager-match-engine-v4-core.js
+2. manager-match-engine-v4-shadow-adapter.js
+3. match-engine-v4-lab.html
+4. tests/v4-foundation-regression.js
+5. MATCH_ENGINE_V4_FOUNDATION_REPORT.md
+6. VALIDATION_REPORT_V4_FOUNDATION.txt
+
+GEÇİCİ TEST KURULUMU
+1. İki JavaScript dosyasını GitHub repository köküne yükleyin.
+2. index.html içinde mevcut manager-match-engine.js satırından SONRA ekleyin:
+
+<script src="manager-match-engine-v4-core.js?v=4.0.0-foundation.1"></script>
+<script src="manager-match-engine-v4-shadow-adapter.js?v=4.0.0-shadow.1"></script>
+
+3. Service Worker APP_SHELL listesine şu iki dosyayı ekleyin:
+   ./manager-match-engine-v4-core.js
+   ./manager-match-engine-v4-shadow-adapter.js
+4. Cache anahtarını yeni bir sürüme yükseltin.
+5. Siteyi Ctrl+Shift+R ile açın.
+6. Tarayıcı Console bölümünde çalıştırın:
+   FIFA_MATCH_ENGINE_V4_SHADOW.enable()
+7. Canlı maç başladıktan sonra teşhis için:
+   FIFA_MATCH_ENGINE_V4_SHADOW.getSnapshot()
+8. 100 maçlık hızlı kalibrasyon için:
+   FIFA_MATCH_ENGINE_V4_SHADOW.runCalibration(100)
+9. Kapatmak için:
+   FIFA_MATCH_ENGINE_V4_SHADOW.disable()
+
+2D LAB TESTİ
+- Üç dosyayı aynı klasörde tutun:
+  manager-match-engine-v4-core.js
+  manager-match-engine-v4-shadow-adapter.js
+  match-engine-v4-lab.html
+- match-engine-v4-lab.html dosyasını tarayıcıda açın.
+- Başlat / Duraklat ve ×1 / ×4 / ×16 kontrolleriyle 22 oyunculu simülasyonu izleyin.
+
+NODE TESTİ
+node tests/v4-foundation-regression.js
+
+DOĞRULANAN 40 MAÇ ORTALAMASI
+- 2,38 gol
+- 26,25 şut
+- 2,95 korner
+- 1.137,28 pas denemesi
+- 874,88 tamamlanan pas
+- 23 orta
+
+SONRAKİ ENTEGRASYON AŞAMASI
+Güncel V44.6 repository ZIP'i üzerinden mevcut advanceLiveMotion(), simulateMinute(), paintLiveFrame() ve maç sonu persistence akışı V4 snapshot/event sözleşmesine bağlanacaktır. Bu işlemden önce shadow telemetrisinin stabil olduğu doğrulanmalıdır.
