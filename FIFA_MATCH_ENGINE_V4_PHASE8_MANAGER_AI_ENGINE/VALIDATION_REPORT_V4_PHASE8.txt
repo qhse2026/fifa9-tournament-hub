@@ -1,0 +1,39 @@
+MATCH ENGINE 4.0 — PHASE 8 VALIDATION
+=====================================
+
+Bundle version: 4.0.0-phase8.1
+Manager AI version: 8
+
+PASSED REGRESSION SCENARIOS
+---------------------------
+1. Deterministic score, manager decisions and substitutions
+2. Human-controlled side receives recommendations only
+3. AI switches to DIRECT_ATTACK when chasing late
+4. AI switches to PROTECT_LEAD and time wasting when ahead late
+5. Fatigue-driven substitution
+6. Yellow-card defensive-risk substitution
+7. ALL_OUT emergency attack and centre-back target-forward move
+8. Manual tactical plan and substitution API
+9. Snapshot/report/official statistics contract
+
+20-MATCH PARALLEL CALIBRATION
+-----------------------------
+Goals per match: 1.55
+Shots per match: 21.00
+Shots on target per match: 7.60
+xG per match: 3.69
+Pass attempts per match: 989.40
+Completed passes per match: 789.65
+Pass accuracy: 79.81%
+Corners per match: 3.85
+Manager reviews per match: 22.00
+Tactical changes per match: 5.10
+Substitutions per match: 5.10
+Emergency moves per match: 0.50
+Time-wasting weighted seconds per match: 154.59
+
+NOTES
+-----
+- Statistics above combine both teams.
+- Fatigue/card substitutions are scenario-tested; default calibration produced tactical substitutions because the current Phase 7 fatigue and booking rates rarely crossed the emergency thresholds.
+- Final competition-level balancing belongs to the large-scale calibration phase.

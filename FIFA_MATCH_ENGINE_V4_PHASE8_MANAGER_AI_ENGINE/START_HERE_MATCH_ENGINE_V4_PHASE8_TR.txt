@@ -1,0 +1,40 @@
+MATCH ENGINE 4.0 — PHASE 8 KURULUM
+===================================
+
+1. Repository kök dizinine yükle:
+   manager-match-engine-v4-phase8.bundle.js
+
+2. index.html içinde eski Phase 7 satırını kaldır:
+   <script src="manager-match-engine-v4-phase7.bundle.js?v=4.0.0-phase7.1"></script>
+
+3. Ana legacy motor satırının hemen altına ekle:
+   <script src="manager-match-engine.js"></script>
+   <script src="manager-match-engine-v4-phase8.bundle.js?v=4.0.0-phase8.1"></script>
+
+4. Phase 2–7 bundle dosyalarını Phase 8 ile birlikte yükleme.
+
+5. Service Worker/cache sürümünü artır ve Ctrl+Shift+R ile hard refresh yap.
+
+6. Phase 8'i devam eden maçın ortasında değil, yeni başlayacak maçtan itibaren kullan.
+
+PHASE 8 YETKİLERİ
+-----------------
+- AI takımının skor ve dakikaya göre taktik değiştirmesi
+- İnsan takımında otomatik değişiklik yerine menajer önerisi
+- Kondisyon, kart riski ve taktik ihtiyaca göre oyuncu değişikliği
+- En fazla 5 değişiklik ve değişiklik penceresi takibi
+- Son bölümde stoperi hedef forvete gönderme
+- Skoru koruma, zaman geçirme, düşük blok ve kontrollü tempo
+- Gol arama, yüksek pres, geniş/direkt hücum ve all-out planları
+- Canlı managerAI snapshot ve resmî istatistik aktarımı
+
+SUPABASE
+--------
+Yeni SQL veya zorunlu migration gerekmiyor. Yeni managerAI ve istatistik alanları mevcut matchEngine nesnesine eklenir.
+
+HIZLI TEST
+----------
+1. match-engine-v4-phase8-lab.html dosyasını aç.
+2. Dakika 80, skor 0-1, iki taraf AI seç.
+3. Ev sahibinin DIRECT_ATTACK; 86+ dakikada ALL_OUT planına geçmesini kontrol et.
+4. Ev sahibi HUMAN seçildiğinde taktiğin otomatik değişmemesi, MANAGER_RECOMMENDATION oluşması gerekir.

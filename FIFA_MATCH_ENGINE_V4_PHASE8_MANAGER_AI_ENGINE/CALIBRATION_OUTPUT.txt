@@ -1,0 +1,81 @@
+{
+  "version": "4.0.0-phase8.1",
+  "matches": 20,
+  "averages": {
+    "goals": 1.55,
+    "shots": 21,
+    "onTarget": 7.6,
+    "xg": 3.69,
+    "passes": 989.4,
+    "completed": 789.65,
+    "corners": 3.85,
+    "managerReviews": 22,
+    "tacticalChanges": 5.1,
+    "subs": 5.1,
+    "fatigueSubs": 0,
+    "cardSubs": 0,
+    "tacticalSubs": 5.1,
+    "emergencyMoves": 0.5,
+    "timeWasting": 154.59,
+    "recommendations": 0,
+    "passAccuracy": 79.81
+  },
+  "finalPlanCounts": {
+    "PROTECT_LEAD": 10,
+    "ALL_OUT": 10,
+    "BALANCED": 12,
+    "HIGH_PRESS": 8
+  },
+  "samples": [
+    {
+      "score": {
+        "home": 1,
+        "away": 0
+      },
+      "homePlan": "PROTECT_LEAD",
+      "awayPlan": "ALL_OUT",
+      "homeSubs": 3,
+      "awaySubs": 4
+    },
+    {
+      "score": {
+        "home": 1,
+        "away": 0
+      },
+      "homePlan": "PROTECT_LEAD",
+      "awayPlan": "ALL_OUT",
+      "homeSubs": 3,
+      "awaySubs": 3
+    },
+    {
+      "score": {
+        "home": 0,
+        "away": 0
+      },
+      "homePlan": "BALANCED",
+      "awayPlan": "HIGH_PRESS",
+      "homeSubs": 0,
+      "awaySubs": 4
+    },
+    {
+      "score": {
+        "home": 0,
+        "away": 1
+      },
+      "homePlan": "ALL_OUT",
+      "awayPlan": "PROTECT_LEAD",
+      "homeSubs": 4,
+      "awaySubs": 4
+    },
+    {
+      "score": {
+        "home": 0,
+        "away": 0
+      },
+      "homePlan": "BALANCED",
+      "awayPlan": "BALANCED",
+      "homeSubs": 0,
+      "awaySubs": 0
+    }
+  ]
+}
