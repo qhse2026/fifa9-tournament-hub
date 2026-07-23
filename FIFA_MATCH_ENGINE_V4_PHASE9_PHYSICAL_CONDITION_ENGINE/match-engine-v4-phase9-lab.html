@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Match Engine V4 — Phase 9 Physical Condition Lab</title>
+<style>
+:root{font-family:Inter,system-ui,sans-serif;color:#edf7f8;background:#07141b}*{box-sizing:border-box}
+body{margin:0;padding:20px;background:radial-gradient(circle at top,#184354,#07141b 60%)}
+main{max-width:1260px;margin:auto}.head,.panel{background:rgba(7,28,39,.95);border:1px solid rgba(124,210,231,.2);border-radius:16px;box-shadow:0 20px 55px rgba(0,0,0,.34)}
+.head{padding:18px 20px;margin-bottom:14px}.head small{color:#f2cd70;font-weight:950;letter-spacing:.12em}.head h1{margin:6px 0}.head p{margin:0;color:#a9c4cc}
+.grid{display:grid;grid-template-columns:350px 1fr;gap:14px}.panel{padding:14px}
+label{display:block;color:#9ebbc4;font-size:11px;font-weight:900;margin:9px 0 4px}
+select,input,button{width:100%;border:1px solid rgba(127,210,235,.22);border-radius:9px;background:#0b2633;color:#edf8fa;padding:9px;font-weight:850}
+button{margin-top:8px;cursor:pointer;background:#18475a}.primary{background:#7a6022;color:#fff1b9}.danger{background:#713536}.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:12px}.stat{padding:10px;background:#0a222d;border-radius:10px}.stat span{display:block;color:#86a8b3;font-size:9px;font-weight:900}.stat strong{display:block;color:#f1d175;font-size:17px;margin-top:3px}
+.pitch{position:relative;aspect-ratio:100/68;overflow:hidden;border-radius:14px;background:repeating-linear-gradient(90deg,#1b7547 0 10%,#207e4d 10% 20%);border:3px solid rgba(255,255,255,.75)}
+.pitch:before{content:"";position:absolute;inset:4%;border:2px solid rgba(255,255,255,.72)}.mid{position:absolute;left:50%;top:4%;bottom:4%;border-left:2px solid rgba(255,255,255,.7)}
+.player{position:absolute;transform:translate(-50%,-50%);width:25px;height:25px;border-radius:50%;display:grid;place-items:center;font-size:9px;font-weight:950;border:2px solid #fff;transition:left .12s linear,top .12s linear;cursor:pointer}
+.home{background:#126ca8}.away{background:#bd493f}.player.selected{box-shadow:0 0 0 5px rgba(255,210,74,.55)}.player.limited{border-color:#ffcb58}.player.injured{border-color:#ff5252;box-shadow:0 0 0 5px rgba(255,50,50,.35)}
+.ball{position:absolute;width:10px;height:10px;border-radius:50%;background:white;border:2px solid #111;transform:translate(-50%,-50%);z-index:6}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}.card{background:#0a222d;border-radius:12px;padding:11px}.card b{color:#f1ce70;font-size:19px}.card p{margin:4px 0 0;color:#9eb8c1;font-size:11px}
+.events{margin-top:10px;max-height:220px;overflow:auto;background:#081d27;border-radius:10px;padding:8px;font-size:11px}.event{padding:7px;border-bottom:1px solid rgba(255,255,255,.06);color:#b7cbd1}.event b{color:#f0d078}
+@media(max-width:900px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body><main>
+<section class="head"><small>PHASE 9 · PHYSICAL CONDITION, FATIGUE & INJURY</small><h1>Fiziksel Yük ve Sakatlık Laboratuvarı</h1><p>Anlık enerji, biriken yorgunluk, yüksek pres yükü, fiziksel performans düşüşü ve sakatlık kararlarını test eder.</p></section>
+<div class="grid">
+<aside class="panel">
+<label>Ev sahibi savunma planı</label><select id="homePress"><option value="high-press">HIGH PRESS</option><option value="mid-block">MID BLOCK</option><option value="low-block">LOW BLOCK</option></select>
+<label>Deplasman savunma planı</label><select id="awayPress"><option value="low-block">LOW BLOCK</option><option value="mid-block">MID BLOCK</option><option value="high-press">HIGH PRESS</option></select>
+<label>Hedef dakika</label><select id="minute"><option>30</option><option>60</option><option selected>75</option><option>90</option></select>
+<button class="primary" id="runTo">Dakikaya ilerle</button><button id="full">Tam maçı oynat</button><button id="reset">Yeni maç</button>
+<label>Seçili oyuncu enerjisi</label><input id="energy" type="number" min="20" max="100" value="42">
+<button id="setEnergy">Enerjiyi uygula</button>
+<div class="row"><button id="knock">Darbe</button><button id="tight">Kas gerginliği</button></div>
+<button class="danger" id="injury">Ciddi sakatlık</button>
+<div class="stats">
+<div class="stat"><span>DAKİKA</span><strong id="clock">0</strong></div><div class="stat"><span>SKOR</span><strong id="score">0–0</strong></div>
+<div class="stat"><span>ORT. ENERJİ</span><strong id="avgEnergy">—</strong></div><div class="stat"><span>ORT. YORGUNLUK</span><strong id="avgFatigue">—</strong></div>
+<div class="stat"><span>MESAFE</span><strong id="distance">—</strong></div><div class="stat"><span>SPRİNT</span><strong id="sprint">—</strong></div>
+<div class="stat"><span>UYARI</span><strong id="warnings">0</strong></div><div class="stat"><span>SAKATLIK</span><strong id="injuries">0</strong></div>
+</div>
+</aside>
+<section class="panel">
+<div class="cards"><div class="card"><span>EV SAHİBİ</span><br><b id="homePhysical">—</b><p id="homeDetail">—</p></div><div class="card"><span>DEPLASMAN</span><br><b id="awayPhysical">—</b><p id="awayDetail">—</p></div></div>
+<div class="pitch" id="pitch"><div class="mid"></div><div class="ball" id="ball"></div></div>
+<div class="events" id="events"></div>
+</section>
+</div></main>
+<script src="manager-match-engine-v4-phase9.bundle.js"></script>
+<script>
+const core=window.FIFA_MATCH_ENGINE_V4,$=id=>document.getElementById(id);let engine,seed=1,selected=null,nodes=new Map();
+function config(){return core.createDefaultConfig({seed:`phase9-lab-${seed}`,home:{managerControl:"HUMAN",tactics:{outPossession:$("homePress").value,pressing:$("homePress").value==="high-press"?82:$("homePress").value==="low-block"?28:52}},away:{managerControl:"HUMAN",tactics:{outPossession:$("awayPress").value,pressing:$("awayPress").value==="high-press"?82:$("awayPress").value==="low-block"?28:52}}})}
+function make(){engine=core.createEngine(config());selected=null;nodes.forEach(n=>n.remove());nodes.clear();render()}
+function playerNode(p,side){let n=nodes.get(p.id);if(!n){n=document.createElement("div");n.className=`player ${side}`;n.textContent=p.number;n.onclick=()=>{selected=p.id;render()};$("pitch").appendChild(n);nodes.set(p.id,n)}return n}
+function drawTeam(team,side){team.players.forEach(p=>{const n=playerNode(p,side);n.style.left=`${p.point.x}%`;n.style.top=`${p.point.y/68*100}%`;n.classList.toggle("selected",p.id===selected);n.classList.toggle("limited",p.availability==="LIMITED");n.classList.toggle("injured",p.availability==="REMOVE");n.style.opacity=String(.55+Math.min(1,p.shortTermEnergy/100)*.45);n.title=`${p.name} | ${p.role} | Enerji ${Math.round(p.shortTermEnergy)} | Yorgunluk ${Math.round(p.accumulatedFatigue)} | ${p.physicalStatus}`})}
+function render(){const s=engine.getSnapshot(),h=s.teams.home,a=s.teams.away;$("clock").textContent=s.minute;$("score").textContent=`${s.score.home}–${s.score.away}`;$("avgEnergy").textContent=`${h.physical.averageEnergy} · ${a.physical.averageEnergy}`;$("avgFatigue").textContent=`${h.physical.averageFatigue} · ${a.physical.averageFatigue}`;$("distance").textContent=`${((h.stats.totalDistance+a.stats.totalDistance)/1000).toFixed(1)} km`;$("sprint").textContent=`${((h.stats.sprintDistance+a.stats.sprintDistance)/1000).toFixed(1)} km`;$("warnings").textContent=h.stats.fatigueWarnings+a.stats.fatigueWarnings;$("injuries").textContent=h.stats.playersInjured+a.stats.playersInjured+h.stats.cramps+a.stats.cramps+h.stats.knocks+a.stats.knocks;$("homePhysical").textContent=`ENERJİ ${h.physical.averageEnergy}`;$("awayPhysical").textContent=`ENERJİ ${a.physical.averageEnergy}`;$("homeDetail").textContent=`Yorgunluk ${h.physical.averageFatigue} · HIR ${h.physical.highIntensityRuns} · Limit ${h.physical.limitedPlayers}`;$("awayDetail").textContent=`Yorgunluk ${a.physical.averageFatigue} · HIR ${a.physical.highIntensityRuns} · Limit ${a.physical.limitedPlayers}`;drawTeam(h,"home");drawTeam(a,"away");$("ball").style.left=`${s.ball.position.x}%`;$("ball").style.top=`${s.ball.position.y/68*100}%`;const items=engine.events.slice(-22).reverse();$("events").innerHTML=items.map(e=>`<div class="event"><b>${Math.floor(e.at/60)}'</b> ${e.type.replaceAll("_"," ")} ${e.playerId||""}</div>`).join("")||'<div class="event">Henüz fiziksel olay yok.</div>'}
+function chosen(){if(selected)return selected;const s=engine.getSnapshot();return s.teams.home.players.find(p=>p.group!=="GK").id}
+$("runTo").onclick=()=>{engine.runTo(Number($("minute").value)*60);render()};$("full").onclick=()=>{engine.runFullMatch();render()};$("reset").onclick=()=>{seed++;make()};$("setEnergy").onclick=()=>{engine.debugSetPlayerEnergy(chosen(),Number($("energy").value));engine.step(.2);render()};$("knock").onclick=()=>{engine.debugInjurePlayer(chosen(),"KNOCK","LAB_CONTACT");render()};$("tight").onclick=()=>{engine.debugInjurePlayer(chosen(),"TIGHTNESS","LAB_MUSCLE");render()};$("injury").onclick=()=>{engine.debugInjurePlayer(chosen(),"INJURED","LAB_CONTACT");engine.step(.2);render()};make();
+</script>
+</body></html>

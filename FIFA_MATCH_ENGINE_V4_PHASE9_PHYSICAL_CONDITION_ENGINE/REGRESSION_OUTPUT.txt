@@ -1,0 +1,43 @@
+{
+  "tests": 9,
+  "passed": 9,
+  "failed": 0,
+  "results": [
+    {
+      "name": "Phase 9 API and snapshot contract",
+      "status": "PASS"
+    },
+    {
+      "name": "Deterministic score and physical output",
+      "status": "PASS"
+    },
+    {
+      "name": "High press carries greater physical cost",
+      "status": "PASS"
+    },
+    {
+      "name": "Low energy reduces performance modifier",
+      "status": "PASS"
+    },
+    {
+      "name": "Fatigue warning is emitted",
+      "status": "PASS"
+    },
+    {
+      "name": "AI replaces an injured player",
+      "status": "PASS"
+    },
+    {
+      "name": "Human manager receives recommendation without automatic substitution",
+      "status": "PASS"
+    },
+    {
+      "name": "Supplied condition and injury proneness are preserved",
+      "status": "PASS"
+    },
+    {
+      "name": "Official stats bridge includes physical metrics",
+      "status": "PASS"
+    }
+  ]
+}

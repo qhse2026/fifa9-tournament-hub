@@ -1,0 +1,36 @@
+MATCH ENGINE V4 — PHASE 9 VALIDATION
+
+Bundle syntax: PASS
+Laboratory inline syntax: PASS
+Regression tests: PASS
+Regression scenarios: 9
+Calibration matches: 30
+
+CALIBRATION AVERAGES — TWO TEAMS TOTAL UNLESS NOTED
+Goals: 1.80
+Shots: 21.17
+Pass accuracy: 79.28%
+Final active-player energy: 87.61
+Final active-player fatigue: 9.06
+Distance: 179.08 km
+Sprint distance: 9.43 km
+High-intensity runs: 845.27
+Fatigue warnings: 1.13
+Knocks: 0.13
+Muscle tightness: 0.03
+Serious injuries: 0.07
+Injury substitutions: 0.10
+
+VERIFIED
+- deterministic physical output
+- high-press physical cost
+- fatigue performance modifier
+- fatigue warning event
+- AI injury substitution
+- human recommendation mode
+- supplied condition / injury-proneness mapping
+- official stats bridge
+- physical snapshot contract
+
+NOTE
+The running-distance model uses normalized pitch coordinates and is calibrated for believable match totals, not certified GPS analysis.

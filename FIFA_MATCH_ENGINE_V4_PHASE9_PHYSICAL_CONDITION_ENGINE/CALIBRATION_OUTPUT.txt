@@ -1,0 +1,20 @@
+{
+  "matches": 30,
+  "averages": {
+    "goals": 1.8,
+    "shots": 21.17,
+    "passAccuracy": 79.28,
+    "finalEnergy": 87.61,
+    "finalFatigue": 9.06,
+    "distanceKm": 179.08,
+    "sprintKm": 9.43,
+    "highIntensityRuns": 845.27,
+    "fatigueWarnings": 1.13,
+    "cramps": 0.0,
+    "knocks": 0.13,
+    "muscleTightness": 0.03,
+    "seriousInjuries": 0.07,
+    "injurySubstitutions": 0.1
+  },
+  "note": "Two-team totals unless stated otherwise. Final energy/fatigue represent active players after AI substitutions."
+}

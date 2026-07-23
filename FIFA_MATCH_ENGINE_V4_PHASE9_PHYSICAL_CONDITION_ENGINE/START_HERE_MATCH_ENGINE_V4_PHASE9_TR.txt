@@ -1,0 +1,22 @@
+MATCH ENGINE V4 — PHASE 9 KURULUM
+
+1. manager-match-engine-v4-phase9.bundle.js dosyasını repository kök dizinine yükleyin.
+2. index.html içindeki Phase 8 script satırını kaldırın.
+3. manager-match-engine.js satırının hemen altına şunu ekleyin:
+   <script src="manager-match-engine-v4-phase9.bundle.js?v=4.0.0-phase9.1"></script>
+4. Phase 2–8 bundle dosyalarını Phase 9 ile birlikte yüklemeyin.
+5. Service Worker cache sürümünü artırın.
+6. Ctrl + Shift + R ile hard refresh yapın.
+7. Devam eden maç yerine yeni bir maç başlatın.
+
+PHASE 9 YENİLİKLERİ
+- Anlık enerji ve biriken yorgunluk ayrımı
+- Pre-match condition, natural fitness ve injury proneness
+- Sprint, pres, koşu, ikili mücadele ve patlayıcı aksiyon yükleri
+- Fiziksel/teknik/mental performans düşüşü
+- Kramp, darbe, kas gerginliği, temas ve kas sakatlığı
+- AI sakatlık değişikliği; insan takımında öneri modu
+- Mesafe, sprint, high-intensity runs ve fiziksel yük istatistikleri
+- Canlı oyuncu tooltip ve fiziksel HUD
+
+Yeni Supabase SQL veya zorunlu kariyer migration'ı gerekmiyor.
