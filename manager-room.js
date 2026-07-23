@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "44.5.0";
+  const VERSION = "44.6.1";
   const STORAGE_KEY = "fifa-manager-room-v42";
   const RECOVERY_KEY = "fifa-manager-room-recovery-v43";
   const CATALOG_URL = "data/manager-team-catalog-fc25.json";
@@ -12,6 +12,8 @@
     { id: 2, label: "2. Devre", stars: 4.5 },
     { id: 3, label: "3. Devre", stars: 5 }
   ];
+  const LEAGUE_DIVISIONS = ["premier", "championship", "league-a"];
+  const FIXTURE_INTEGRITY_VERSION = 2;
 
   let bootstrap = null;
   let teamCatalog = null;
@@ -432,15 +434,196 @@
 
   function syntheticActor(index){const names=["Atlas Koral","Mert Vardar","Levent Kuzey","Arda Tanay"],name=names[index%names.length],id=`AI-V44-${index+1}-${slug(name)}`,power=980+index*17,item={id,type:"ai",managerName:name,clubName:managerClubName(name),shortName:initials(managerClubName(name),4),division:"league-a",power,powerClass:"Competitive",tacticalIQ:Math.round(52+index*2),reputation:48+index,formRating:50,styleVisible:false,styleSeed:{tempo:44+index*5,directness:52+index*4,pressing:48+index*6,risk:46+index*5,adaptation:54+index*3,width:45+index*7}};item.personality=buildManagerPersonality(item);item.managerAttributes={adaptation:item.tacticalIQ,gameReading:item.tacticalIQ,riskManagement:50,bigMatch:50,consistency:50,mentality:50};item.managerMemory={meetings:0,wins:0,draws:0,losses:0,plans:{},lastPlan:null,confidence:50,notes:[]};item.psychology={confidence:50,pressure:35,composure:55,streak:0,mood:"DENGELİ"};return item;}
 
-  function assignThreeLeagueDivisions(actors,humanId){const human=actors.find(a=>a.id===humanId),ai=actors.filter(a=>a.id!==humanId).sort((a,b)=>Number(b.power||0)-Number(a.power||0)||String(a.id).localeCompare(String(b.id))).slice(0,26);while(ai.length<26)ai.push(syntheticActor(ai.length));ai.forEach((item,index)=>{item.division=index<9?"premier":index<17?"championship":"league-a";});if(human)human.division="championship";return [...ai,human].filter(Boolean);}
+  function assignThreeLeagueDivisions(actors, humanId) {
+    const human = actors.find(actor => actor.id === humanId);
+    const ai = actors
+      .filter(actor => actor.id !== humanId)
+      .sort((a, b) => Number(b.power || 0) - Number(a.power || 0) || String(a.id).localeCompare(String(b.id)))
+      .slice(0, 26);
+    while (ai.length < 26) ai.push(syntheticActor(ai.length));
+    ai.forEach((item, index) => { item.division = index < 9 ? "premier" : index < 17 ? "championship" : "league-a"; });
+    if (human) human.division = "championship";
+    return [...ai, human].filter(Boolean);
+  }
 
-  function buildThreeLeagueActors(playerName,human){const source=[...(bootstrap.premierPlayerNames||[]),...(bootstrap.championshipPlayerNames||[])].filter((name,index,rows)=>rows.indexOf(name)===index&&String(name).toLocaleLowerCase("tr-TR")!==String(playerName).toLocaleLowerCase("tr-TR"));const ai=createActors(source.slice(0,26),"league-a");while(ai.length<26)ai.push(syntheticActor(ai.length));return assignThreeLeagueDivisions([...ai,human],human.id);}
+  function buildThreeLeagueActors(playerName, human) {
+    const source = [...(bootstrap.premierPlayerNames || []), ...(bootstrap.championshipPlayerNames || [])]
+      .filter((name, index, rows) => rows.indexOf(name) === index && String(name).toLocaleLowerCase("tr-TR") !== String(playerName).toLocaleLowerCase("tr-TR"));
+    const ai = createActors(source.slice(0, 26), "league-a");
+    while (ai.length < 26) ai.push(syntheticActor(ai.length));
+    return assignThreeLeagueDivisions([...ai, human], human.id);
+  }
 
-  function buildLeagueFixtures(actors,offset=0){return [1,2,3].flatMap(leg=>["premier","championship","league-a"].flatMap(division=>roundRobin(actors.filter(a=>a.division===division).map(a=>a.id),division,leg))).map(fixture=>({...fixture,matchday:Number(fixture.matchday||0)+offset}));}
+  function buildLeagueFixtures(actors, offset = 0) {
+    return [1, 2, 3]
+      .flatMap(leg => LEAGUE_DIVISIONS.flatMap(division => roundRobin(actors.filter(actor => actor.division === division).map(actor => actor.id), division, leg)))
+      .map(fixture => ({ ...fixture, matchday: Number(fixture.matchday || 0) + offset }));
+  }
 
-  function rebuildThreeLeagueTables(career){const oldRows=new Map(Object.values(career.tables||{}).flat().map(row=>[row.actorId,row]));career.tables={};["premier","championship","league-a"].forEach(division=>{career.tables[division]=initialTable(career.actors.filter(a=>a.division===division)).map(row=>({...row,...(oldRows.get(row.actorId)||{})}));});}
+  function divisionMapIsValid(career, map) {
+    if (!map || typeof map !== "object") return false;
+    const actorIds = new Set((career.actors || []).map(actor => actor.id));
+    const counts = { premier: 0, championship: 0, "league-a": 0 };
+    for (const actorId of actorIds) {
+      const division = map[actorId];
+      if (!LEAGUE_DIVISIONS.includes(division)) return false;
+      counts[division] += 1;
+    }
+    return actorIds.size === 27 && LEAGUE_DIVISIONS.every(division => counts[division] === 9);
+  }
 
-  function ensureThreeLeagueUniverse(career){if(!career?.actors?.length)return;const originalIds=new Set(career.actors.map(a=>a.id));career.actors=assignThreeLeagueDivisions(career.actors,career.humanActorId);const changed=career.competitionStructureVersion!==4||career.actors.some(a=>!originalIds.has(a.id));rebuildThreeLeagueTables(career);if(!changed)return;const playedLeague=career.fixtures.filter(f=>f.competition==="league"&&f.status==="played"),other=career.fixtures.filter(f=>f.competition!=="league"),lastPlayedMd=Math.max(0,...playedLeague.map(f=>Number(f.matchday||0))),generated=buildLeagueFixtures(career.actors,lastPlayedMd),used=new Set(playedLeague.map(f=>f.id));career.fixtures=[...playedLeague,...generated.filter(f=>!used.has(f.id)),...other];career.competitionStructureVersion=4;career.competitionMigration=lastPlayedMd?{appliedAt:now(),preservedMatches:playedLeague.length,newScheduleStarts:lastPlayedMd+1}:null;career.division=career.actors.find(a=>a.id===career.humanActorId)?.division||"championship";}
+  function inferSeasonDivisionMap(career) {
+    if (divisionMapIsValid(career, career.seasonDivisionMap)) return { ...career.seasonDivisionMap };
+
+    const membership = new Map();
+    (career.fixtures || []).forEach(fixture => {
+      if (fixture.competition !== "league" || !LEAGUE_DIVISIONS.includes(fixture.division)) return;
+      [fixture.homeId, fixture.awayId].forEach(actorId => {
+        if (!actorId) return;
+        if (!membership.has(actorId)) membership.set(actorId, { premier: 0, championship: 0, "league-a": 0 });
+        membership.get(actorId)[fixture.division] += 1;
+      });
+    });
+
+    const fromFixtures = {};
+    (career.actors || []).forEach(actor => {
+      const counts = membership.get(actor.id);
+      if (!counts) return;
+      const ranked = LEAGUE_DIVISIONS
+        .map(division => [division, Number(counts[division] || 0)])
+        .sort((a, b) => b[1] - a[1]);
+      if (ranked[0][1] > 0 && ranked[0][1] > ranked[1][1]) fromFixtures[actor.id] = ranked[0][0];
+    });
+    if (divisionMapIsValid(career, fromFixtures)) return fromFixtures;
+
+    const fromActors = Object.fromEntries((career.actors || []).map(actor => [actor.id, actor.division]));
+    if (divisionMapIsValid(career, fromActors)) return fromActors;
+
+    career.actors = assignThreeLeagueDivisions(career.actors || [], career.humanActorId);
+    return Object.fromEntries(career.actors.map(actor => [actor.id, actor.division]));
+  }
+
+  function applySeasonDivisionMap(career, map) {
+    career.seasonDivisionMap = { ...map };
+    (career.actors || []).forEach(actor => {
+      if (LEAGUE_DIVISIONS.includes(map[actor.id])) actor.division = map[actor.id];
+    });
+    career.division = map[career.humanActorId] || career.division || "championship";
+  }
+
+  function rebuildThreeLeagueTables(career) {
+    const rowsByDivision = {};
+    LEAGUE_DIVISIONS.forEach(division => {
+      rowsByDivision[division] = new Map(
+        (career.actors || [])
+          .filter(actor => career.seasonDivisionMap?.[actor.id] === division)
+          .map(actor => [actor.id, { actorId: actor.id, mp: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0 }])
+      );
+    });
+
+    (career.fixtures || []).forEach(fixture => {
+      if (fixture.competition !== "league" || fixture.status !== "played" || !LEAGUE_DIVISIONS.includes(fixture.division)) return;
+      const homeScore = Number(fixture.homeScore);
+      const awayScore = Number(fixture.awayScore);
+      if (!Number.isFinite(homeScore) || !Number.isFinite(awayScore)) return;
+      const divisionRows = rowsByDivision[fixture.division];
+      if (!divisionRows) return;
+      const ensureRow = actorId => {
+        if (!divisionRows.has(actorId)) divisionRows.set(actorId, { actorId, mp: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0 });
+        return divisionRows.get(actorId);
+      };
+      const home = ensureRow(fixture.homeId);
+      const away = ensureRow(fixture.awayId);
+      home.mp += 1; away.mp += 1;
+      home.gf += homeScore; home.ga += awayScore;
+      away.gf += awayScore; away.ga += homeScore;
+      if (homeScore > awayScore) { home.w += 1; away.l += 1; home.pts += 3; }
+      else if (awayScore > homeScore) { away.w += 1; home.l += 1; away.pts += 3; }
+      else { home.d += 1; away.d += 1; home.pts += 1; away.pts += 1; }
+      home.gd = home.gf - home.ga;
+      away.gd = away.gf - away.ga;
+      fixture.tableApplied = true;
+    });
+
+    career.tables = Object.fromEntries(LEAGUE_DIVISIONS.map(division => [division, [...rowsByDivision[division].values()]]));
+  }
+
+  function repairLeagueSchedule(career) {
+    const nonLeague = (career.fixtures || []).filter(fixture => fixture.competition !== "league");
+    const existingLeague = (career.fixtures || []).filter(fixture => fixture.competition === "league");
+    const seenIds = new Set();
+    const repaired = [];
+    let removedDuplicates = 0;
+    let removedStale = 0;
+
+    existingLeague.forEach(fixture => {
+      if (seenIds.has(fixture.id)) { removedDuplicates += 1; return; }
+      seenIds.add(fixture.id);
+      const homeDivision = career.seasonDivisionMap?.[fixture.homeId];
+      const awayDivision = career.seasonDivisionMap?.[fixture.awayId];
+      const validMembership = homeDivision === fixture.division && awayDivision === fixture.division;
+      if (!validMembership && fixture.status !== "played") { removedStale += 1; return; }
+      repaired.push(fixture);
+    });
+
+    const audit = {};
+    LEAGUE_DIVISIONS.forEach(division => {
+      const rows = repaired.filter(fixture => fixture.division === division);
+      const pairCounts = new Map();
+      const actorCounts = new Map();
+      const matchdayActors = new Map();
+      rows.forEach(fixture => {
+        const pairKey = [fixture.homeId, fixture.awayId].sort().join("|");
+        pairCounts.set(pairKey, Number(pairCounts.get(pairKey) || 0) + 1);
+        [fixture.homeId, fixture.awayId].forEach(actorId => actorCounts.set(actorId, Number(actorCounts.get(actorId) || 0) + 1));
+        const mdKey = Number(fixture.matchday || 0);
+        if (!matchdayActors.has(mdKey)) matchdayActors.set(mdKey, new Set());
+        [fixture.homeId, fixture.awayId].forEach(actorId => matchdayActors.get(mdKey).add(actorId));
+      });
+      const members = Object.entries(career.seasonDivisionMap || {}).filter(([, value]) => value === division).map(([actorId]) => actorId);
+      const complete = rows.length === 108
+        && members.length === 9
+        && members.every(actorId => actorCounts.get(actorId) === 24)
+        && pairCounts.size === 36
+        && [...pairCounts.values()].every(count => count === 3)
+        && [...matchdayActors.entries()].every(([matchday, actors]) => matchday >= 1 && matchday <= 27 && actors.size === 8);
+      audit[division] = { complete, fixtures: rows.length, uniquePairs: pairCounts.size };
+    });
+
+    repaired.sort((a, b) => Number(a.matchday || 0) - Number(b.matchday || 0) || String(a.division).localeCompare(String(b.division)) || String(a.id).localeCompare(String(b.id)));
+    career.fixtures = [...repaired, ...nonLeague];
+    return { addedMissing: 0, removedDuplicates, removedStale, audit };
+  }
+
+
+  function ensureThreeLeagueUniverse(career) {
+    if (!career?.actors?.length) return;
+    career.fixtures = Array.isArray(career.fixtures) ? career.fixtures : [];
+
+    const hasFullLeagueUniverse = career.fixtures.filter(fixture => fixture.competition === "league").length >= 300;
+    if (!hasFullLeagueUniverse || career.competitionStructureVersion !== 4) {
+      const playedLeague = career.fixtures.filter(fixture => fixture.competition === "league" && fixture.status === "played");
+      const other = career.fixtures.filter(fixture => fixture.competition !== "league");
+      career.actors = assignThreeLeagueDivisions(career.actors, career.humanActorId);
+      const lastPlayedMd = Math.max(0, ...playedLeague.map(fixture => Number(fixture.matchday || 0)));
+      const generated = buildLeagueFixtures(career.actors, lastPlayedMd);
+      const used = new Set(playedLeague.map(fixture => fixture.id));
+      career.fixtures = [...playedLeague, ...generated.filter(fixture => !used.has(fixture.id)), ...other];
+      career.competitionStructureVersion = 4;
+      career.competitionMigration = lastPlayedMd ? { appliedAt: now(), preservedMatches: playedLeague.length, newScheduleStarts: lastPlayedMd + 1 } : null;
+    }
+
+    const seasonMap = inferSeasonDivisionMap(career);
+    applySeasonDivisionMap(career, seasonMap);
+    const scheduleRepair = repairLeagueSchedule(career);
+    rebuildThreeLeagueTables(career);
+    career.fixtureIntegrity = {
+      version: FIXTURE_INTEGRITY_VERSION,
+      checkedAt: now(),
+      ...scheduleRepair,
+      leagueFixtures: career.fixtures.filter(fixture => fixture.competition === "league").length
+    };
+  }
 
   function roundRobin(ids, division, leg) {
     const list = [...ids];
@@ -535,6 +718,8 @@
       tables: { premier: initialTable(actors.filter(a=>a.division==="premier")), championship: initialTable(actors.filter(a=>a.division==="championship")), "league-a": initialTable(actors.filter(a=>a.division==="league-a")) },
       fixtures,
       competitionStructureVersion:4,
+      seasonDivisionMap: Object.fromEntries(actors.map(actor => [actor.id, actor.division])),
+      fixtureIntegrity: { version: FIXTURE_INTEGRITY_VERSION, checkedAt: now(), addedMissing: 0, removedDuplicates: 0, removedStale: 0, leagueFixtures: fixtures.filter(fixture => fixture.competition === "league").length },
       rules: bootstrap.competitionRules,
       teamCatalogVersion: teamCatalog?.version || VERSION,
       teamDrawHistory: [],
@@ -1306,7 +1491,7 @@
     if (type === "experience-level") { const c=activeCareer(); if(c){c.managerIdentity.level=action.dataset.level||"manager";saveLocal();ctx()?.refreshView?.();} }
     if (type === "toggle-sound") { const c=activeCareer(); if(c){c.managerIdentity.sound=!c.managerIdentity.sound;saveLocal();ctx()?.refreshView?.();} }
     if (type === "upgrade-skill") { const c=activeCareer(),key=action.dataset.skill;if(c&&key&&c.careerPoints>=100&&Number(c.managerIdentity.skills[key]||0)<5){c.careerPoints-=100;c.managerIdentity.skills[key]=Number(c.managerIdentity.skills[key]||0)+1;c.managerIdentity.reputation=Math.min(100,c.managerIdentity.reputation+2);saveLocal();ctx()?.toast?.("Manager yeteneği geliştirildi.","success");ctx()?.refreshView?.();} }
-    if (type === "new-season") { const c=activeCareer(); if(c&&!c.fixtures.some(f=>["scheduled","in-progress"].includes(f.status))){const premierWinner=actor(c,sortedLeagueRows(c,"premier")[0]?.actorId),championshipWinner=actor(c,sortedLeagueRows(c,"championship")[0]?.actorId),leagueAWinner=actor(c,sortedLeagueRows(c,"league-a")[0]?.actorId),managerOfYear=[...c.actors].sort((a,b)=>(b.managerRating||b.tacticalIQ||50)-(a.managerRating||a.tacticalIQ||50)||b.power-a.power)[0];c.seasonAwards||=[];c.seasonAwards.push({seasonNo:c.seasonNo,premier:premierWinner?.clubName,championship:championshipWinner?.clubName,leagueA:leagueAWinner?.clubName,oruc:actor(c,c.orucCup?.championId)?.clubName||null,managerOfYear:managerOfYear?.managerName,createdAt:now()});c.seasonArchive||=[];c.seasonArchive.push({seasonNo:c.seasonNo,fixtures:c.fixtures,endedAt:now()});c.seasonNo+=1;c.matchday=1;c.fixtures=buildLeagueFixtures(c.actors);c.tables={premier:initialTable(c.actors.filter(a=>a.division==="premier")),championship:initialTable(c.actors.filter(a=>a.division==="championship")),"league-a":initialTable(c.actors.filter(a=>a.division==="league-a"))};c.orucCup=null;ensureOrucCup(c);saveLocal();ctx()?.toast?.(`Sezon ${c.seasonNo} başladı.`,"success");activeTab="overview";ctx()?.refreshView?.();} }
+    if (type === "new-season") { const c=activeCareer(); if(c&&!c.fixtures.some(f=>["scheduled","in-progress"].includes(f.status))){const premierWinner=actor(c,sortedLeagueRows(c,"premier")[0]?.actorId),championshipWinner=actor(c,sortedLeagueRows(c,"championship")[0]?.actorId),leagueAWinner=actor(c,sortedLeagueRows(c,"league-a")[0]?.actorId),managerOfYear=[...c.actors].sort((a,b)=>(b.managerRating||b.tacticalIQ||50)-(a.managerRating||a.tacticalIQ||50)||b.power-a.power)[0];c.seasonAwards||=[];c.seasonAwards.push({seasonNo:c.seasonNo,premier:premierWinner?.clubName,championship:championshipWinner?.clubName,leagueA:leagueAWinner?.clubName,oruc:actor(c,c.orucCup?.championId)?.clubName||null,managerOfYear:managerOfYear?.managerName,createdAt:now()});c.seasonArchive||=[];c.seasonArchive.push({seasonNo:c.seasonNo,fixtures:c.fixtures,endedAt:now()});c.seasonNo+=1;c.matchday=1;c.seasonDivisionMap=Object.fromEntries(c.actors.map(a=>[a.id,a.division]));c.fixtures=buildLeagueFixtures(c.actors);c.tables={premier:initialTable(c.actors.filter(a=>a.division==="premier")),championship:initialTable(c.actors.filter(a=>a.division==="championship")),"league-a":initialTable(c.actors.filter(a=>a.division==="league-a"))};c.fixtureIntegrity={version:FIXTURE_INTEGRITY_VERSION,checkedAt:now(),addedMissing:0,removedDuplicates:0,removedStale:0,leagueFixtures:c.fixtures.filter(f=>f.competition==="league").length};c.orucCup=null;ensureOrucCup(c);saveLocal();ctx()?.toast?.(`Sezon ${c.seasonNo} başladı.`,"success");activeTab="overview";ctx()?.refreshView?.();} }
     if (type === "set-tab") {
       activeTab = action.dataset.tab || "overview";
       ctx()?.refreshView?.();
@@ -1397,6 +1582,6 @@
     starText,
     powerLabel
     ,advanceOrucCup,
-    __diagnostics:{roundRobin,assignThreeLeagueDivisions,buildLeagueFixtures,ensureOrucCup,advanceOrucCup}
+    __diagnostics:{roundRobin,assignThreeLeagueDivisions,buildLeagueFixtures,inferSeasonDivisionMap,rebuildThreeLeagueTables,repairLeagueSchedule,ensureThreeLeagueUniverse,ensureOrucCup,advanceOrucCup}
   };
 })();
