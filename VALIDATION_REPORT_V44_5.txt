@@ -1,0 +1,74 @@
+FIFA 9 TOURNAMENT HUB V44.5.0 — VALIDATION REPORT
+
+SONUÇ
+31/31 statik ve yapısal kontrol geçti.
+
+1. JAVASCRIPT SÖZDİZİMİ
+PASS app.js
+PASS manager-room.js
+PASS manager-match-engine.js
+PASS language.js
+PASS service-worker.js
+PASS cloud.js
+PASS chat.js
+PASS community.js
+PASS season-hub.js
+PASS season-experience.js
+
+2. RUNTIME AÇILIŞ / FINAL CHAPTER
+Node VM üzerinde gerçek app.js yüklendi.
+Önceki runtime problemi tespit edildi: FINAL_CHAPTER_FORMAT_VERSION, loadState() çağrısından sonra tanımlanıyordu ve ReferenceError oluşturuyordu.
+Sabitler state yüklemesinden önceye taşındı.
+
+Final Chapter gerçek fonksiyon akışı VM üzerinde tamamlandı:
+- aktif oyuncu: 11
+- doğrudan çeyrek finalist: 3
+- ana eleme serisi: 4
+- Son Bilet yarı final serisi: 2
+- Son Bilet final serisi: 1
+- çeyrek finalist: 8 farklı oyuncu
+- Sultan Atasaral: çeyrek final havuzu dışında
+PASS
+
+3. KARİYERDEN ÇIKIŞ
+Node VM testinde localStorage bilinçli olarak QuotaExceededError üretecek şekilde ayarlandı.
+- aktif maç durduruldu
+- activeCareerId null oldu
+- kayıtlı kariyer sayısı değişmedi
+- ilk kariyer otomatik yeniden açılmadı
+- Manager ekranı yenilendi
+PASS
+
+4. TELEFON–BİLGİSAYAR SENKRONİZASYONU
+Mock Supabase RPC ile iki yönlü test:
+- uzak revision daha yeni olduğunda Matchday 8 cihaza çekildi
+- cihaz Matchday 9’a ilerlediğinde buluta gönderildi
+- yerel ve uzak revision 4 olarak eşitlendi
+- durum synced oldu
+PASS
+
+5. YORGUNLUK MODELİ
+Deterministik 90 dakika testi:
+Dengeli maç:
+- İnsan: 87.09
+- AI: 86.87
+
+Aşırı yüksek pres/tempo/risk:
+- İnsan: 79.75
+- AI: 79.75
+PASS — simetri ve dramatik olmayan taktik farkı doğrulandı.
+
+6. MAÇ SONU RAPORU
+- Varsayılan kısa rapor doğrulandı.
+- Detay paneli varsayılan kapalıdır.
+- Detay içerikleri yalnızca toggle sonrasında render edilir.
+PASS
+
+7. SERVICE WORKER / DOSYA BÜTÜNLÜĞÜ
+- V44.5 cache anahtarı doğrulandı.
+- Index cache-bust referansları doğrulandı.
+- APP_SHELL içindeki 27 kaynağın tamamı dosya sisteminde mevcut.
+PASS
+
+SINIRLAMA
+Bu ortamdan kullanıcının gerçek GitHub Pages URL’sine ve gerçek Supabase projesine giriş yapılarak canlı ağ testi uygulanmadı. GitHub deploy, tarayıcı Service Worker yenilenmesi ve gerçek Supabase kimlik bilgileriyle son kabul testi kullanıcı ortamında yapılmalıdır. Kodun runtime, state, RPC akışı ve turnuva matematiği yerel VM/mocked testlerle doğrulandı.

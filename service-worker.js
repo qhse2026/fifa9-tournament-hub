@@ -1,4 +1,4 @@
-const CACHE = "fifa-tournament-hub-v44-1-0-tactical-reality";
+const CACHE = "fifa-tournament-hub-v44-5-0-unified-career";
 const APP_SHELL = [
   "./",
   "./index.html",

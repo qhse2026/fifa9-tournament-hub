@@ -1,0 +1,67 @@
+FIFA 9 TOURNAMENT HUB — V44.5.0 UNIFIED FIX
+KURULUM VE YAYINLAMA TALİMATI
+
+NEDEN ÖNCEKİ PAKETLER ÇALIŞMADI?
+Tam GitHub deposu incelendiğinde önceki paketlerin “github/...” ve “FIFA_V44_.../...” adlı alt klasörlerin içine yüklendiği görüldü. GitHub Pages ise repository kökündeki index.html, app.js, manager-room.js ve service-worker.js dosyalarını çalıştırmaya devam ediyordu. Bu nedenle yeni kodlar sunucuda bulunmasına rağmen oyun tarafından hiç kullanılmadı.
+
+BU PAKETTEKİ TEMEL DÜZELTMELER
+1. Kariyerden Çık artık gerçek Manager ana ekranına döner.
+2. Tarayıcı kayıt kotası dolu olsa bile çıkış işlemi yarıda kalmaz.
+3. Telefon ve bilgisayar arasında resmî kariyer snapshot senkronizasyonu çalışır.
+4. Senkronizasyon çakışmasında “Buluttan Al” ve “Bu Cihazı Gönder” seçenekleri görünür.
+5. İnsan ve AI yorgunluğu aynı temel formülle hesaplanır.
+6. Dengeli maç sonu fizik yaklaşık 87; çok yoğun maç yaklaşık 80 seviyesindedir.
+7. Maç sonu raporu kısa açılır; ayrıntılar talep edilince oluşturulur.
+8. Final Chapter onaylanmış Son Bilet formatına çevrilmiştir:
+   - Sultan Atasaral oynamaz.
+   - Şanslı çeyrek finalist yoktur.
+   - 3 doğrudan çeyrek finalist vardır.
+   - Kalan 8 oyuncu 4 adet Best of 3 ana eleme oynar.
+   - Elenen 4 oyuncu 2 adet Best of 3 yarı final ve 1 adet Best of 3 Son Bilet finali oynar.
+   - Son Bilet galibi sekizinci çeyrek finalist olur.
+9. Service Worker ve bütün ana dosyalar V44.5.0 cache anahtarıyla yenilenmiştir.
+
+ÖNERİLEN KURULUM — ROOT UPDATE PAKETİ
+1. ZIP dosyasını bilgisayarda açın.
+2. ZIP’in İÇİNDEKİ dosyaları seçin. ZIP veya üst klasörün kendisini GitHub’a yüklemeyin.
+3. GitHub repository ana sayfasına gidin. Ekranda index.html dosyasını gördüğünüz kök dizinde olun.
+4. Add file > Upload files seçin.
+5. Şu dosyaları doğrudan repository köküne sürükleyin ve aynı adlı dosyaların üzerine yazın:
+   index.html
+   app.js
+   language.js
+   manager-room.js
+   manager-match-engine.js
+   service-worker.js
+   styles.css
+   manager-room.css
+   manager-v42-5-levels.css
+6. Commit changes seçin.
+7. GitHub Pages yayınının tamamlanmasını bekleyin.
+
+SUPABASE — BİR KEZ ÇALIŞTIRILACAK SQL
+Resmî kariyer, PIN ile açma veya cihazlar arası senkronizasyon daha önce kurulmadıysa:
+1. Supabase > SQL Editor > New query açın.
+2. SUPABASE_RUN_ONCE/V44_5_MANAGER_CLOUD_SYNC.sql dosyasının tamamını yapıştırın.
+3. Run seçin.
+4. Sonuçta şu üç RPC görünmelidir:
+   manager_create_career
+   manager_unlock_career
+   manager_save_career_snapshot
+Bu SQL güvenli biçimde tekrar çalıştırılabilir.
+
+İLK AÇILIŞ
+1. Siteyi açın.
+2. Ctrl + Shift + R yapın.
+3. Eski sürüm görünüyorsa Chrome > Site settings > Clear data uygulayın ve sayfayı yeniden açın.
+4. Sol alt köşede Manager Room v44.5.0 yazısını kontrol edin.
+
+TELEFON–BİLGİSAYAR DEVAM AKIŞI
+1. Kariyer Resmî Kariyer olmalıdır. Test kariyeri yalnızca yereldir.
+2. Telefonda maçı duraklatın veya SENKRONİZE düğmesine basın.
+3. Durum SENKRONİZE olunca bilgisayarda Kariyerimi Aç seçeneğine girin.
+4. Aynı oyuncu adı ve 6 haneli PIN’i kullanın.
+5. İki cihazda aynı anda ilerleme kaydetmeyin. Çakışma oluşursa hangi kaydın korunacağını ekrandan seçin.
+
+KAYIT GÜVENLİĞİ
+Mevcut localStorage anahtarları değiştirilmemiştir. Kariyerler ve maç geçmişi silinmez. Yine de yüklemeden önce oyunun Veri & Yedek ekranından JSON yedeği alınması önerilir.

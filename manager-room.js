@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "44.1.0";
+  const VERSION = "44.5.0";
   const STORAGE_KEY = "fifa-manager-room-v42";
   const RECOVERY_KEY = "fifa-manager-room-recovery-v43";
   const CATALOG_URL = "data/manager-team-catalog-fc25.json";
@@ -26,6 +26,18 @@
   let selectedFixtureMatchday = "all";
   let selectedCupRound = null;
   let calendarFilter = "all";
+  let cloudSyncTimer = null;
+  let cloudSyncInFlight = false;
+  let cloudPollInFlight = false;
+  let lastCloudPollAt = 0;
+  let storageWarningShown = false;
+  const dirtyCareerIds = new Set();
+  const CLOUD_SYNC_DEBOUNCE_MS = 1200;
+  const CLOUD_POLL_INTERVAL_MS = 30000;
+  const STORAGE_SOFT_LIMIT = 4_250_000;
+  const DEVICE_KEY = "fifa-manager-device-id-v1";
+  const CLOUD_CONFLICT_TOLERANCE_MS = 1500;
+  let cloudSyncPromise = null;
 
   function seededNumber(seedText){let h=2166136261;for(const char of String(seedText)){h^=char.charCodeAt(0);h=Math.imul(h,16777619);}return ()=>{h+=0x6D2B79F5;let t=h;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
   function shuffled(rows,seedText){const next=seededNumber(seedText),copy=[...rows];for(let i=copy.length-1;i>0;i--){const j=Math.floor(next()*(i+1));[copy[i],copy[j]]=[copy[j],copy[i]];}return copy;}
@@ -56,6 +68,15 @@
     : String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
   const now = () => new Date().toISOString();
   const uid = prefix => `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2, 9)}`;
+
+  function deviceId() {
+    let id = localStorage.getItem(DEVICE_KEY);
+    if (!id) {
+      id = uid("device");
+      try { localStorage.setItem(DEVICE_KEY, id); } catch (_) {}
+    }
+    return id;
+  }
 
   function loadLocal() {
     try {
@@ -151,16 +172,117 @@
   }
 
   managerState.careers = Array.isArray(managerState.careers) ? managerState.careers.map(migrateCareer) : [];
+  managerState.careers.forEach(career => {
+    career.cloudSync ||= {};
+    career.cloudSync.revision = Math.max(0, Number(career.cloudSync.revision || 0));
+    if (career.mode === "official" && ["pending", "error", "conflict"].includes(career.cloudSync.status)) dirtyCareerIds.add(career.id);
+  });
   managerState.version = VERSION;
+
+  function isQuotaError(error) {
+    return Boolean(error && (error.name === "QuotaExceededError" || error.code === 22 || error.code === 1014));
+  }
+
+  function importantArchivedEvent(event) {
+    return ["goal","penalty","penalty-goal","penalty-miss","red","yellow","var-overturn","woodwork","decision","adapt","auto-order","shootout","full-time"].includes(event?.type);
+  }
+
+  function compactMatchEngine(engine, aggressive = false) {
+    if (!engine || typeof engine !== "object") return engine;
+    const copy = JSON.parse(JSON.stringify(engine));
+    const finished = ["finished","full-time"].includes(copy.status);
+    const keepTail = (rows, size) => Array.isArray(rows) ? rows.slice(-size) : [];
+    if (finished) {
+      copy.events = (copy.events || []).filter(importantArchivedEvent).slice(-(aggressive ? 12 : 24));
+      copy.commentary = [];
+      copy.geometryHistory = aggressive ? [] : keepTail(copy.geometryHistory, 8);
+      copy.causalEvents = keepTail(copy.causalEvents, aggressive ? 5 : 10);
+      copy.pulse = keepTail(copy.pulse, aggressive ? 24 : 45);
+      copy.possessionChains = keepTail(copy.possessionChains, aggressive ? 4 : 10);
+      copy.turningPoints = keepTail(copy.turningPoints, 8);
+      copy.shotMap = keepTail(copy.shotMap, aggressive ? 18 : 32);
+      copy.managerBattle = keepTail(copy.managerBattle, 12);
+      delete copy.visual2D;
+      delete copy.matchFlow;
+      delete copy.motion;
+      delete copy.geometryCache;
+      delete copy.squads;
+    } else {
+      copy.events = keepTail(copy.events, aggressive ? 55 : 90);
+      copy.commentary = keepTail(copy.commentary, aggressive ? 12 : 24);
+      copy.geometryHistory = keepTail(copy.geometryHistory, aggressive ? 16 : 30);
+      copy.causalEvents = keepTail(copy.causalEvents, aggressive ? 8 : 16);
+      copy.pulse = keepTail(copy.pulse, 90);
+      copy.possessionChains = keepTail(copy.possessionChains, aggressive ? 8 : 16);
+      copy.shotMap = keepTail(copy.shotMap, 45);
+      if (copy.matchFlow?.passTrail) copy.matchFlow.passTrail = keepTail(copy.matchFlow.passTrail, 14);
+    }
+    return copy;
+  }
+
+  function compactCareerSnapshot(career, aggressive = false) {
+    const copy = JSON.parse(JSON.stringify(career));
+    copy.fixtures = (copy.fixtures || []).map(fixture => {
+      if (!fixture?.matchEngine) return fixture;
+      return { ...fixture, matchEngine: compactMatchEngine(fixture.matchEngine, aggressive) };
+    });
+    copy.seasonArchive = (copy.seasonArchive || []).slice(-(aggressive ? 1 : 3)).map(season => ({
+      ...season,
+      fixtures: (season.fixtures || []).map(fixture => fixture?.matchEngine ? { ...fixture, matchEngine: compactMatchEngine(fixture.matchEngine, true) } : fixture)
+    }));
+    copy.matchHistory = (copy.matchHistory || []).slice(0, aggressive ? 80 : 180);
+    copy.storyFeed = (copy.storyFeed || []).slice(0, aggressive ? 30 : 60);
+    return copy;
+  }
+
+  function compactManagerState(aggressive = false) {
+    const copy = {
+      ...managerState,
+      version: VERSION,
+      careers: (managerState.careers || []).map(career => compactCareerSnapshot(career, aggressive)),
+      saveSlots: {}
+    };
+    Object.entries(managerState.saveSlots || {}).forEach(([careerId, slots]) => {
+      copy.saveSlots[careerId] = {};
+      Object.entries(slots || {}).forEach(([slot, row]) => {
+        if (!row?.career) return;
+        copy.saveSlots[careerId][slot] = { ...row, career: compactCareerSnapshot(row.career, true) };
+      });
+    });
+    return copy;
+  }
 
   function saveLocal() {
     managerState.version = VERSION;
-    const previous=localStorage.getItem(STORAGE_KEY);if(previous)try{JSON.parse(previous);localStorage.setItem(RECOVERY_KEY,previous);}catch(_){}
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(managerState));
+    let payload = JSON.stringify(compactManagerState(false));
+    if (payload.length > STORAGE_SOFT_LIMIT) payload = JSON.stringify(compactManagerState(true));
+    try {
+      localStorage.removeItem(RECOVERY_KEY);
+      localStorage.setItem(STORAGE_KEY, payload);
+      storageWarningShown = false;
+      return true;
+    } catch (error) {
+      if (isQuotaError(error)) {
+        try {
+          localStorage.removeItem(RECOVERY_KEY);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(compactManagerState(true)));
+          if (!storageWarningShown) ctx()?.toast?.("Kayıt alanı optimize edildi; eski ağır maç telemetrileri küçültüldü.", "warning");
+          storageWarningShown = true;
+          return true;
+        } catch (retryError) {
+          console.error("Manager local save quota exceeded", retryError);
+          if (!storageWarningShown) ctx()?.toast?.("Tarayıcı kayıt alanı dolu. Kariyer buluta senkronize edilmeye devam edecek.", "warning");
+          storageWarningShown = true;
+          return false;
+        }
+      }
+      console.error("Manager local save failed", error);
+      return false;
+    }
   }
 
   function activeCareer() {
-    return managerState.careers.find(item => item.id === managerState.activeCareerId) || managerState.careers[0] || null;
+    return managerState.careers.find(item => item.id === managerState.activeCareerId) || null;
   }
 
   function setSessionPin(career, pin) {
@@ -454,10 +576,19 @@
     if (!/^\d{6}$/.test(pin)) throw new Error("Bulut kaydı için kariyeri PIN ile yeniden açman gerekiyor.");
     const supabase = client();
     if (!supabase) throw new Error("Supabase bağlantısı bulunamadı.");
+    const snapshot = compactCareerSnapshot(career, false);
+    snapshot.cloudSync = {
+      ...(snapshot.cloudSync || {}),
+      status: "synced",
+      detail: "Bulut kayıt noktası",
+      lastSyncedAt: now(),
+      lastWriterDevice: deviceId(),
+      revision: Math.max(0, Number(career.cloudSync?.revision || 0))
+    };
     const { data, error } = await supabase.rpc("manager_save_career_snapshot", {
       p_career_id: career.cloudCareerId,
       p_pin: pin,
-      p_snapshot: career,
+      p_snapshot: snapshot,
       p_division: career.division,
       p_season_no: career.seasonNo,
       p_matchday: career.matchday,
@@ -473,23 +604,20 @@
     return true;
   }
 
-  async function persistCareer(career, { silent = false } = {}) {
-    career.updatedAt = now();
-    migrateCareer(career);
-    saveLocal();
-    if (career.mode === "official" && career.cloudCareerId) {
-      try {
-        await saveRemoteCareer(career);
-        if (!silent) ctx()?.toast?.("Kariyer yerel ve bulut kaydına işlendi.", "success");
-      } catch (error) {
-        if (!silent) ctx()?.toast?.(`${error.message} Değişiklik cihazda korundu.`, "warning");
-        throw error;
-      }
-    }
-    return true;
+  function careerTimestamp(career) {
+    const value = Date.parse(career?.updatedAt || career?.cloudSync?.lastChangedAt || 0);
+    return Number.isFinite(value) ? value : 0;
   }
 
-  async function unlockRemoteCareer(playerName, pin) {
+  function setCareerSyncStatus(career, status, detail = "") {
+    if (!career) return;
+    career.cloudSync ||= {};
+    career.cloudSync.status = status;
+    career.cloudSync.detail = detail;
+    if (status === "synced") career.cloudSync.lastSyncedAt = now();
+  }
+
+  async function fetchRemoteCareerSnapshot(playerName, pin) {
     const supabase = client();
     if (!supabase) throw new Error("Supabase bağlantısı bulunamadı.");
     const { data, error } = await supabase.rpc("manager_unlock_career", { p_player_name: playerName, p_pin: pin });
@@ -498,11 +626,143 @@
     if (!row?.career_id || !row?.snapshot) throw new Error("Oyuncu adı veya Manager PIN doğrulanamadı.");
     const career = migrateCareer({ ...row.snapshot, cloudCareerId: row.career_id, mode: "official" });
     career.id ||= uid("career");
+    return career;
+  }
+
+  function replaceCareerFromCloud(localCareer, remoteCareer, pin) {
+    const index = managerState.careers.findIndex(item => item.id === localCareer?.id || item.playerName?.toLocaleLowerCase("tr-TR") === remoteCareer.playerName?.toLocaleLowerCase("tr-TR"));
+    if (index >= 0) managerState.careers[index] = remoteCareer;
+    else managerState.careers.push(remoteCareer);
+    managerState.activeCareerId = remoteCareer.id;
+    setSessionPin(remoteCareer, pin);
+    dirtyCareerIds.delete(remoteCareer.id);
+    setCareerSyncStatus(remoteCareer, "synced", "Buluttaki en güncel kayıt yüklendi.");
+    saveLocal();
+    return remoteCareer;
+  }
+
+  async function syncOfficialCareer(career, { mode = "auto", silent = true, overwriteRemote = false } = {}) {
+    if (!career || career.mode !== "official" || !career.cloudCareerId) return career;
+    const pin = getSessionPin(career);
+    if (!/^\d{6}$/.test(pin)) {
+      setCareerSyncStatus(career, "pin-required", "Bu cihazda Manager PIN ile kariyeri bir kez açmalısın.");
+      saveLocal();
+      if (!silent) throw new Error("Senkronizasyon için bu cihazda Manager PIN ile kariyeri açmalısın.");
+      return career;
+    }
+    if (cloudSyncPromise) return cloudSyncPromise;
+
+    cloudSyncPromise = (async () => {
+      cloudSyncInFlight = true;
+      setCareerSyncStatus(career, "syncing", "Bulut kaydı karşılaştırılıyor.");
+      try {
+        const remoteCareer = await fetchRemoteCareerSnapshot(career.playerName, pin);
+        const remoteTime = careerTimestamp(remoteCareer);
+        const localTime = careerTimestamp(career);
+        const remoteRevision = Math.max(0, Number(remoteCareer.cloudSync?.revision || 0));
+        const localRevision = Math.max(0, Number(career.cloudSync?.revision || 0));
+        const localDirty = dirtyCareerIds.has(career.id) || career.cloudSync?.status === "pending";
+        const remoteNewer = remoteRevision > localRevision || (remoteRevision === localRevision && remoteTime > localTime + CLOUD_CONFLICT_TOLERANCE_MS);
+        const localNewer = localRevision > remoteRevision || (localRevision === remoteRevision && localTime > remoteTime + CLOUD_CONFLICT_TOLERANCE_MS);
+
+        if (mode === "pull") {
+          const loaded = replaceCareerFromCloud(career, remoteCareer, pin);
+          if (!silent) ctx()?.toast?.("Buluttaki kariyer bu cihaza yüklendi.", "success");
+          return loaded;
+        }
+
+        if (remoteNewer && localDirty && !overwriteRemote) {
+          setCareerSyncStatus(career, "conflict", "Bulutta ve bu cihazda farklı ilerleme var. Hangi kaydın korunacağını seç.");
+          saveLocal();
+          throw new Error("Senkronizasyon çakışması: Bulutta daha yeni bir kayıt var.");
+        }
+
+        if (remoteNewer && !overwriteRemote) {
+          const loaded = replaceCareerFromCloud(career, remoteCareer, pin);
+          if (!silent) ctx()?.toast?.("Buluttaki daha yeni kariyer bu cihaza yüklendi.", "success");
+          return loaded;
+        }
+
+        const shouldPush = overwriteRemote || localDirty || localNewer || mode === "push";
+        if (shouldPush) {
+          career.updatedAt = now();
+          career.cloudSync ||= {};
+          career.cloudSync.revision = Math.max(localRevision, remoteRevision) + (localDirty || localNewer || overwriteRemote ? 1 : 0);
+          career.cloudSync.lastWriterDevice = deviceId();
+          await saveRemoteCareer(career, pin);
+          dirtyCareerIds.delete(career.id);
+          setCareerSyncStatus(career, "synced", "Telefon ve bilgisayar aynı kariyer kayıt noktasını kullanıyor.");
+          saveLocal();
+          if (!silent) ctx()?.toast?.("Kariyer bulutla senkronize edildi.", "success");
+          return career;
+        }
+
+        setCareerSyncStatus(career, "synced", "Bulut ve cihaz kayıtları eşit.");
+        saveLocal();
+        return career;
+      } catch (error) {
+        if (career.cloudSync?.status !== "conflict") setCareerSyncStatus(career, "error", error.message || "Bulut senkronizasyonu başarısız.");
+        saveLocal();
+        if (!silent) throw error;
+        console.warn("Manager cloud sync failed", error);
+        return career;
+      } finally {
+        cloudSyncInFlight = false;
+        cloudSyncPromise = null;
+      }
+    })();
+
+    return cloudSyncPromise;
+  }
+
+  function scheduleCloudSync(career, { reason = "autosave", force = false } = {}) {
+    if (!career) return Promise.resolve(false);
+    career.updatedAt = now();
+    career.cloudSync ||= {};
+    career.cloudSync.lastChangedAt = career.updatedAt;
+    career.cloudSync.reason = reason;
+    career.cloudSync.lastWriterDevice = deviceId();
+    career.cloudSync.revision = Math.max(0, Number(career.cloudSync.revision || 0)) + 1;
+    if (career.mode === "official" && career.cloudCareerId) {
+      dirtyCareerIds.add(career.id);
+      setCareerSyncStatus(career, "pending", "Yerel değişiklik buluta gönderilecek.");
+    }
+    saveLocal();
+    if (career.mode !== "official" || !career.cloudCareerId || !/^\d{6}$/.test(getSessionPin(career))) return Promise.resolve(false);
+    clearTimeout(cloudSyncTimer);
+    if (force) return syncOfficialCareer(career, { mode: "auto", silent: true }).then(result => result?.cloudSync?.status === "synced");
+    cloudSyncTimer = window.setTimeout(() => syncOfficialCareer(career, { mode: "auto", silent: true }), CLOUD_SYNC_DEBOUNCE_MS);
+    return Promise.resolve(true);
+  }
+
+  async function persistCareer(career, { silent = false } = {}) {
+    career.updatedAt = now();
+    migrateCareer(career);
+    dirtyCareerIds.add(career.id);
+    saveLocal();
+    if (career.mode === "official" && career.cloudCareerId) {
+      try {
+        await syncOfficialCareer(career, { mode: "auto", silent });
+      } catch (error) {
+        if (!silent) ctx()?.toast?.(`${error.message} Değişiklik cihazda korundu.`, "warning");
+        throw error;
+      }
+    } else {
+      dirtyCareerIds.delete(career.id);
+      if (!silent) ctx()?.toast?.("Kariyer bu cihazda kaydedildi.", "success");
+    }
+    return true;
+  }
+
+  async function unlockRemoteCareer(playerName, pin) {
+    const career = await fetchRemoteCareerSnapshot(playerName, pin);
     const existingIndex = managerState.careers.findIndex(item => item.playerName.toLocaleLowerCase("tr-TR") === career.playerName.toLocaleLowerCase("tr-TR"));
     if (existingIndex >= 0) managerState.careers[existingIndex] = career;
     else managerState.careers.push(career);
     managerState.activeCareerId = career.id;
     setSessionPin(career, pin);
+    dirtyCareerIds.delete(career.id);
+    setCareerSyncStatus(career, "synced", "Buluttaki kariyer bu cihaza yüklendi.");
     saveLocal();
     return career;
   }
@@ -531,7 +791,7 @@
     const options = bootstrap.aiProfiles.map(profile => `<option value="${esc(profile.name)}">${esc(profile.name)}</option>`).join("");
     ctx()?.openModal?.("Yeni Manager Kariyeri", `
       <form id="managerCareerForm" class="manager-career-form">
-        <div class="manager-form-intro"><div class="eyebrow">THE MANAGER'S ROOM · V42.5</div><h3>Championship'ten kendi hikâyeni başlat</h3><p>Gerçek oyuncu evrenine ilave kulüp olarak katılacaksın. Maç öncesi Avrupa kulüpleri, devrenin yıldız havuzundan kilitli kura ile belirlenecek.</p></div>
+        <div class="manager-form-intro"><div class="eyebrow">THE MANAGER'S ROOM · V44.3</div><h3>Championship'ten kendi hikâyeni başlat</h3><p>Gerçek oyuncu evrenine ilave kulüp olarak katılacaksın. Maç öncesi Avrupa kulüpleri, devrenin yıldız havuzundan kilitli kura ile belirlenecek.</p></div>
         <div class="manager-form-grid">
           <label>Oyuncu kimliğin<select name="playerName" required><option value="">Oyuncu seç</option>${options}</select></label>
           <label>Kulüp adı<input name="clubName" maxlength="34" placeholder="Örn. CCT Athletic" required></label>
@@ -672,13 +932,19 @@
     return { homeTeam, awayTeam };
   }
 
+  function renderSavedCareers() {
+    const rows = (managerState.careers || []).slice().sort((a,b)=>careerTimestamp(b)-careerTimestamp(a));
+    if (!rows.length) return "";
+    return `<section class="manager-saved-careers"><div class="manager-section-head"><div><span>KAYITLI KARİYERLER</span><h3>Kaldığın yerden devam et</h3></div><small>Resmî kariyerler bulutla, test kariyerleri yalnızca bu cihazla çalışır.</small></div><div>${rows.map(career=>{const active=career.activeMatchFixtureId&&career.fixtures?.find(f=>f.id===career.activeMatchFixtureId&&f.status!=="played");const sync=careerSyncLabel(career);return `<article><div class="manager-saved-badge" style="--saved-primary:${esc(career.primaryColor||"#0b2440")};--saved-secondary:${esc(career.secondaryColor||"#d5a84e")}">${esc(career.shortName||"FC")}</div><section><span>${career.mode==="official"?"RESMÎ · CLOUD":"TEST · LOCAL"}</span><h4>${esc(career.clubName)}</h4><p>${esc(career.playerName)} · Sezon ${career.seasonNo} · Matchday ${career.matchday}${active?` · ${Math.floor(Number(active.matchEngine?.minute||0))}' canlı maç`:""}</p><small class="sync-${sync.className}">${esc(sync.label)}</small></section><button class="btn btn-gold" data-manager-action="resume-career" data-career-id="${esc(career.id)}">${active?"Canlı Maça Dön":"Devam Et"}</button></article>`}).join("")}</div></section>`;
+  }
+
   function renderLanding(view) {
     const ready = bootstrap?.readiness || {};
     const catalogCounts = teamCatalog?.counts || {};
     view.innerHTML = `
       <section class="manager-hero">
         <div class="manager-hero-copy">
-          <div class="eyebrow">V42.5 · MASTERPIECE UNIVERSE</div>
+          <div class="eyebrow">V44.5 · UNIFIED CAREER</div>
           <h2>The Manager's Room</h2>
           <p>Kendi kulübünü kur, Championship'ten başla ve gerçek Oruç Reis turnuva tarihinden üretilen AI menajerlere karşı kalıcı bir kariyer oluştur. Her maçın Avrupa kulüpleri kura ile belirlenir; ardından canlı momentum, saha hâkimiyeti ve bağlamsal taktik kararlarıyla yaklaşık beş dakikalık maç oynanır.</p>
           <div class="manager-hero-actions"><button class="btn btn-gold" data-manager-action="open-career">Yeni Kariyer</button><button class="btn btn-ghost" data-manager-action="open-unlock">Kariyerimi Aç</button></div>
@@ -690,8 +956,9 @@
         <article><span>AI MENAJER EVRENİ</span><strong>${ready.combinedAiPlayers ?? "—"}</strong><small>Tarihî + FIFA09 aktif oyuncular</small></article>
         <article><span>FC 25 KULÜP HAVUZU</span><strong>${catalogCounts.total ?? "—"}</strong><small>${catalogCounts["4"] || 0} × 4★ · ${catalogCounts["4.5"] || 0} × 4.5★ · ${catalogCounts["5"] || 0} × 5★</small></article>
         <article><span>CHAMPIONSHIP</span><strong>${ready.championshipWithHumanClub ?? "—"}</strong><small>AI kulüpleri + senin kulübün</small></article>
-        <article><span>ALTYAPI DURUMU</span><strong>V42.5</strong><small>Masterpiece Universe aktif</small></article>
+        <article><span>ALTYAPI DURUMU</span><strong>V44.5</strong><small>Unified exit · fatigue · sync · Final Chapter</small></article>
       </section>
+      ${renderSavedCareers()}
       ${renderRulesStrip()}
       ${renderBuildRoadmap()}
     `;
@@ -717,6 +984,16 @@
     return `<section class="manager-roadmap"><div class="manager-section-head"><div><span>DEVELOPMENT ROADMAP</span><h3>İlk oynanabilir maç motoru oyuna bağlandı</h3></div><small>Takım kurası, Manager ELO, gizli AI stili, canlı momentum ve taktik kararları artık aynı maç state’inde çalışır.</small></div><div class="manager-roadmap-grid">${items.map(item => `<article class="${item[3] ? "active" : ""}"><b>${item[0]}</b><strong>${item[1]}</strong><p>${item[2]}</p><span>${item[3] ? "BUILD COMPLETE" : "NEXT BUILD"}</span></article>`).join("")}</div></section>`;
   }
 
+  function careerSyncLabel(career) {
+    if (career?.mode !== "official") return { label:"YEREL", className:"local", title:"Test kariyeri yalnızca bu cihazda saklanır." };
+    const status = career.cloudSync?.status || (/^\d{6}$/.test(getSessionPin(career)) ? "ready" : "pin-required");
+    const labels = {
+      synced:"SENKRONİZE", syncing:"SENKRONİZE EDİLİYOR", pending:"BULUTA GÖNDERİLECEK", error:"SENKRON HATASI",
+      conflict:"KAYIT ÇAKIŞMASI", "pin-required":"PIN GEREKLİ", ready:"BULUT HAZIR"
+    };
+    return { label:labels[status] || "BULUT HAZIR", className:status, title:career.cloudSync?.detail || "Telefon ve bilgisayar arasında ortak kariyer kaydı." };
+  }
+
   function renderCareer(view, career) {
     const next = nextHumanFixture(career);
     const opponentId = next ? (next.homeId === career.humanActorId ? next.awayId : next.homeId) : null;
@@ -730,7 +1007,7 @@
     const championshipCount = career.actors.filter(item => item.division === "championship").length;
     const leagueACount = career.actors.filter(item => item.division === "league-a").length;
     const legInfo = LEGS.find(item => item.id === Number(next?.leg || 1)) || LEGS[0];
-    const tabs = [["overview", "Bugün"], ["calendar", "Football Calendar"], ["universe", "Lig Evreni"], ["oruc", "Oruç Reis Kupası"], ["intelligence", "Career Intelligence"], ["rivalry", "Rivalry History"], ["stories", "Season Stories"], ["statistics", "İstatistik Merkezi"], ["identity", "Manager Identity"], ["draw", "Team Draw Theatre"], ["match", "Canlı Maç"], ["scouting", "AI Rakipler"], ["engine", "V44.1 Lab"]];
+    const tabs = [["overview", "Bugün"], ["calendar", "Football Calendar"], ["universe", "Lig Evreni"], ["oruc", "Oruç Reis Kupası"], ["intelligence", "Career Intelligence"], ["rivalry", "Rivalry History"], ["stories", "Season Stories"], ["statistics", "İstatistik Merkezi"], ["identity", "Manager Identity"], ["draw", "Team Draw Theatre"], ["match", "Canlı Maç"], ["scouting", "AI Rakipler"], ["engine", "V44.5 Lab"]];
     const slots=managerState.saveSlots?.[career.id]||{};
     view.innerHTML = `
       <section class="manager-club-hero" style="--club-primary:${esc(career.primaryColor)};--club-secondary:${esc(career.secondaryColor)}">
@@ -739,7 +1016,7 @@
         <div class="manager-season-ring"><strong>${career.matchday}</strong><span>MATCHDAY</span><small>${esc(legInfo.label)} · ${starText(legInfo.stars)}</small></div>
       </section>
       <nav class="manager-tabs">${tabs.map(([id, label]) => `<button class="${activeTab === id ? "active" : ""}" data-manager-action="set-tab" data-tab="${id}">${label}</button>`).join("")}</nav>
-      <div class="manager-career-toolbar"><span>${career.mode === "official" ? "RESMÎ KARİYER" : "TEST KARİYERİ"} · SEZON ${career.seasonNo}</span><div>${[1,2,3].map(slot=>`<button class="slot" data-manager-action="save-slot" data-slot="${slot}">S${slot} KAYDET</button>${slots[slot]?`<button class="slot load" data-manager-action="load-slot" data-slot="${slot}">YÜKLE</button>`:""}`).join("")}<button data-manager-action="exit-career">Kariyerden Çık</button></div></div>
+      <div class="manager-career-toolbar"><span>${career.mode === "official" ? "RESMÎ KARİYER" : "TEST KARİYERİ"} · SEZON ${career.seasonNo}</span><div>${career.mode === "official" ? `<button class="manager-sync-button ${careerSyncLabel(career).className}" data-manager-action="sync-career" title="${esc(careerSyncLabel(career).title)}">↻ ${careerSyncLabel(career).label}</button>${career.cloudSync?.status === "conflict" ? `<button class="manager-conflict-pull" data-manager-action="pull-career">Buluttan Al</button><button class="manager-conflict-push" data-manager-action="push-career">Bu Cihazı Gönder</button>` : ""}` : ""}${[1,2,3].map(slot=>`<button class="slot" data-manager-action="save-slot" data-slot="${slot}">S${slot} KAYDET</button>${slots[slot]?`<button class="slot load" data-manager-action="load-slot" data-slot="${slot}">YÜKLE</button>`:""}`).join("")}<button data-manager-action="exit-career">Kariyerden Çık</button></div></div>
       ${activeTab === "overview" ? renderOverview(career, human, rival, next) : activeTab === "calendar" || activeTab === "fixtures" ? renderCalendar(career) : activeTab === "oruc" ? renderOrucCup(career) : activeTab === "intelligence" ? renderCareerIntelligence(career, rival) : activeTab === "rivalry" ? renderRivalryHistory(career) : activeTab === "stories" ? renderSeasonStories(career) : activeTab === "statistics" ? renderStatistics(career) : activeTab === "identity" ? renderIdentity(career) : activeTab === "archive" ? renderArchive(career) : activeTab === "draw" ? renderTeamDraw(career, human, rival, next) : activeTab === "match" ? (window.FIFA_MANAGER_MATCH?.render?.(career, human, matchRival, matchFixture) || `<section class="manager-loading"><h2>Maç motoru yükleniyor</h2></section>`) : activeTab === "universe" ? renderUniverse(career, premierCount, championshipCount, leagueACount) : activeTab === "scouting" ? renderScouting(career) : renderEngineLab(career)}
     `;
   }
@@ -757,9 +1034,9 @@
         <div class="manager-match-lock"><span>TEAM DRAW STATUS</span><strong>${drawReady ? `${esc(userTeam.clubName)} vs ${esc(rivalTeam.clubName)}` : "Takım kurası bekleniyor"}</strong><small>${drawReady ? `Kura ${next.teamDraw?.locked ? "resmî olarak kilitli" : "test modunda açık"}.` : `${starText(next.stars)} havuzundan iki farklı Avrupa kulübü çekilecek.`}</small></div>
         <button class="btn btn-gold btn-wide" data-manager-action="set-tab" data-tab="${drawReady ? "match" : "draw"}">${drawReady ? (next.matchEngine?.status === "finished" ? "Maç Raporunu Aç" : next.matchEngine ? "Canlı Maça Dön" : "Taktik Odasına Geç") : "Takım Kurasına Geç"}</button>` : `<div class="empty-state">Yeni sezon oluşturulması gerekiyor.</div>`}
       </article>
-      <article class="manager-progress-panel"><div class="manager-panel-head"><div><span>MANAGER DEVELOPMENT</span><h3>Performance Lab</h3></div><em>V44.1</em></div>${[["Manager ELO", career.managerElo, 2200], ["Manager Rating", career.managerRating||50, 100], ["Taktik IQ", career.tacticalIQ, 100], ["Oyun Okuma", career.managerAttributes?.gameReading||50, 100], ["Adaptasyon", career.managerAttributes?.adaptation||50, 100], ["Risk Yönetimi", career.managerAttributes?.riskManagement||50, 100]].map(row => `<div class="manager-meter"><span>${row[0]}</span><i><b style="width:${Math.max(3, Math.min(100, row[1] / row[2] * 100))}%"></b></i><strong>${row[1]}</strong></div>`).join("")}<div class="manager-dev-kpis"><div><span>FORM</span><b>${(career.matchHistory || []).slice(0,5).map(item => item.result).join(" · ") || "—"}</b></div><div><span>OYUNCU TARZI</span><b>${esc(career.playerStyle?.label||"ANALİZ BEKLİYOR")}</b></div><div><span>KARAR / MAÇ</span><b>${career.matchEngineStats?.matches ? (career.matchEngineStats.decisions / career.matchEngineStats.matches).toFixed(1) : "0.0"}</b></div><div><span>GOL FARKI</span><b>${(career.matchEngineStats?.goalsFor || 0) - (career.matchEngineStats?.goalsAgainst || 0)}</b></div></div><div class="manager-baseline-note">Gelişim; sonuçtan tek başına değil, rakip gücü, oyun okuma, rol uyumu, risk yönetimi ve maç içi karar kalitesinden hesaplanır.</div></article>
+      <article class="manager-progress-panel"><div class="manager-panel-head"><div><span>MANAGER DEVELOPMENT</span><h3>Performance Lab</h3></div><em>V44.5</em></div>${[["Manager ELO", career.managerElo, 2200], ["Manager Rating", career.managerRating||50, 100], ["Taktik IQ", career.tacticalIQ, 100], ["Oyun Okuma", career.managerAttributes?.gameReading||50, 100], ["Adaptasyon", career.managerAttributes?.adaptation||50, 100], ["Risk Yönetimi", career.managerAttributes?.riskManagement||50, 100]].map(row => `<div class="manager-meter"><span>${row[0]}</span><i><b style="width:${Math.max(3, Math.min(100, row[1] / row[2] * 100))}%"></b></i><strong>${row[1]}</strong></div>`).join("")}<div class="manager-dev-kpis"><div><span>FORM</span><b>${(career.matchHistory || []).slice(0,5).map(item => item.result).join(" · ") || "—"}</b></div><div><span>OYUNCU TARZI</span><b>${esc(career.playerStyle?.label||"ANALİZ BEKLİYOR")}</b></div><div><span>KARAR / MAÇ</span><b>${career.matchEngineStats?.matches ? (career.matchEngineStats.decisions / career.matchEngineStats.matches).toFixed(1) : "0.0"}</b></div><div><span>GOL FARKI</span><b>${(career.matchEngineStats?.goalsFor || 0) - (career.matchEngineStats?.goalsAgainst || 0)}</b></div></div><div class="manager-baseline-note">Gelişim; sonuçtan tek başına değil, rakip gücü, oyun okuma, rol uyumu, risk yönetimi ve maç içi karar kalitesinden hesaplanır.</div></article>
       <article class="manager-trophy-panel"><div class="manager-panel-head"><div><span>CLUB MUSEUM</span><h3>Kupa Kabini</h3></div></div><div class="manager-mini-trophies">${[["Premier", career.trophies.premier], ["Championship", career.trophies.championship], ["Oruç Reis", career.trophies.oruc], ["Süper Kupa", career.trophies.super]].map(row => `<div><span>♜</span><strong>${row[1]}</strong><small>${row[0]}</small></div>`).join("")}</div></article>
-      <article class="manager-status-panel"><div class="manager-panel-head"><div><span>ENGINE STATUS</span><h3>Tactical Reality Build</h3></div><em>V44.1</em></div><ul><li class="done">Savunma çizgisi, ofsayt ve yarım alan geometrisi</li><li class="done">Taktik kararı için fiziksel sebep–sonuç kaydı</li><li class="done">Rakip hafızası ve anti-exploit hazırlığı</li><li class="done">Korner ve serbest vuruş aksiyonları</li><li class="done">×1–×16 deterministik hız</li><li class="done">Sabit canlı anlatım ve kontrol paneli</li></ul></article>
+      <article class="manager-status-panel"><div class="manager-panel-head"><div><span>ENGINE STATUS</span><h3>Tactical Reality Build</h3></div><em>V44.5</em></div><ul><li class="done">Savunma çizgisi, ofsayt ve yarım alan geometrisi</li><li class="done">Taktik kararı için fiziksel sebep–sonuç kaydı</li><li class="done">Rakip hafızası ve anti-exploit hazırlığı</li><li class="done">Korner ve serbest vuruş aksiyonları</li><li class="done">×1–×16 deterministik hız</li><li class="done">Sabit canlı anlatım ve kontrol paneli</li></ul></article>
     </section>`;
   }
 
@@ -929,7 +1206,7 @@
       ["Adaptive Intelligence", 84, "Rakip hafızası, taktik aldatma ve anti-exploit"],
       ["Cause & Effect", 86, "Her kritik pozisyon için fiziksel taktik açıklaması"]
     ];
-    const cal=career?.calibrationReport;return `<section class="manager-engine-lab"><div class="manager-engine-core"><div class="manager-core-ring"><span>V44.1</span><strong>ENGINE 4.1</strong></div><div><span>TACTICAL REALITY FOOTBALL</span><h3>Her taktik kararını saha geometrisi, rakip hafızası ve fiziksel aksiyonla görünür hâle getiren maç çekirdeği</h3><p>Kadro/transfer yoktur. Savunma çizgisi, yarım alan, baskı mesafesi, duran top ve pozisyonun sebebi aynı deterministik motor tarafından çözülür.</p></div></div><div class="manager-module-grid">${modules.map(row => `<article><div><span>${row[0]}</span><strong>${row[1]}%</strong></div><i><b style="width:${row[1]}%"></b></i><p>${row[2]}</p></article>`).join("")}</div><section class="manager-calibration-lab"><div><span>10.000 MATCH SIMULATION</span><h3>Calibration Lab</h3><p>Gol, şut, beraberlik, disiplin ve güç dengesi dağılımını deterministik seed ile test eder.</p></div><button class="btn btn-gold" data-manager-action="run-calibration">10.000 MAÇ TEST ET</button>${cal?`<div class="manager-calibration-results">${[["Gol / Maç",cal.goalsPerMatch],["Şut / Maç",cal.shotsPerMatch],["Beraberlik",`${cal.drawRate}%`],["Kırmızı",`${cal.redEvery} maçta 1`],["Penaltı",`${cal.penaltyEvery} maçta 1`],["Güçlü Taraf",`${cal.strongSideWinRate}%`]].map(([k,v])=>`<article><span>${k}</span><strong>${v}</strong></article>`).join("")}</div>`:""}</section><div class="manager-engine-contract"><strong>V44.1 MATCH ENGINE 4.1</strong><span>Futbol geometrisi, ofsayt, duran top, taktiksel sebep–sonuç, rakip hafızası ve anti-exploit katmanı aktiftir.</span></div></section>`;
+    const cal=career?.calibrationReport;return `<section class="manager-engine-lab"><div class="manager-engine-core"><div class="manager-core-ring"><span>V44.3</span><strong>ENGINE 4.3</strong></div><div><span>TACTICAL REALITY FOOTBALL</span><h3>Her taktik kararını saha geometrisi, rakip hafızası ve fiziksel aksiyonla görünür hâle getiren maç çekirdeği</h3><p>Kadro/transfer yoktur. Savunma çizgisi, yarım alan, baskı mesafesi, duran top ve pozisyonun sebebi aynı deterministik motor tarafından çözülür.</p></div></div><div class="manager-module-grid">${modules.map(row => `<article><div><span>${row[0]}</span><strong>${row[1]}%</strong></div><i><b style="width:${row[1]}%"></b></i><p>${row[2]}</p></article>`).join("")}</div><section class="manager-calibration-lab"><div><span>10.000 MATCH SIMULATION</span><h3>Calibration Lab</h3><p>Gol, şut, beraberlik, disiplin ve güç dengesi dağılımını deterministik seed ile test eder.</p></div><button class="btn btn-gold" data-manager-action="run-calibration">10.000 MAÇ TEST ET</button>${cal?`<div class="manager-calibration-results">${[["Gol / Maç",cal.goalsPerMatch],["Şut / Maç",cal.shotsPerMatch],["Beraberlik",`${cal.drawRate}%`],["Kırmızı",`${cal.redEvery} maçta 1`],["Penaltı",`${cal.penaltyEvery} maçta 1`],["Güçlü Taraf",`${cal.strongSideWinRate}%`]].map(([k,v])=>`<article><span>${k}</span><strong>${v}</strong></article>`).join("")}</div>`:""}</section><div class="manager-engine-contract"><strong>V44.3 MATCH ENGINE 4.3</strong><span>Futbol geometrisi, ofsayt, duran top, taktiksel sebep–sonuç, rakip hafızası ve anti-exploit katmanı aktiftir.</span></div></section>`;
   }
 
   function render(view) {
@@ -985,7 +1262,7 @@
         const career = await unlockRemoteCareer(String(data.get("playerName") || ""), pin);
         ctx()?.closeModal?.();
         ctx()?.toast?.(`${career.clubName} buluttan açıldı.`, "success");
-        activeTab = "overview";
+        activeTab = career.activeMatchFixtureId ? "match" : "overview";
       }
       ctx()?.refreshView?.();
     } catch (error) {
@@ -995,19 +1272,35 @@
     }
   }
 
+  function exitCareerToLanding() {
+    const career = activeCareer();
+    window.FIFA_MANAGER_MATCH?.stop?.();
+    managerState.activeCareerId = null;
+    activeTab = "overview";
+    const saved = saveLocal();
+    ctx()?.refreshView?.();
+    ctx()?.toast?.(saved ? "Kariyer kaydedildi. Manager ana ekranındasın." : "Ana ekrana dönüldü; yerel kayıt alanı dolu olduğu için bulut kaydı deneniyor.", saved ? "success" : "warning");
+    if (career) scheduleCloudSync(career, { reason: "exit", force: true }).catch(error => console.warn("Exit cloud sync failed", error));
+    return true;
+  }
+
   async function handleClick(event) {
     const action = event.target.closest("[data-manager-action]");
     if (!action) return;
     const type = action.dataset.managerAction;
     if (type === "open-career") openCareerModal();
-    if (type === "exit-career") { window.FIFA_MANAGER_MATCH?.stop?.(); managerState.activeCareerId=null; activeTab="overview"; saveLocal(); ctx()?.toast?.("Kariyer kaydedildi ve Manager ana ekranına dönüldü.","success"); ctx()?.refreshView?.(); }
+    if (type === "resume-career") { const career=managerState.careers.find(item=>item.id===action.dataset.careerId); if(!career)return; managerState.activeCareerId=career.id; activeTab=career.activeMatchFixtureId?"match":"overview"; saveLocal(); if(career.mode==="official"&&/^\d{6}$/.test(getSessionPin(career))) await syncOfficialCareer(career,{mode:"auto",silent:true}).catch(()=>{}); ctx()?.refreshView?.(); }
+    if (type === "exit-career") { exitCareerToLanding(); return; }
+    if (type === "sync-career") { const career=activeCareer(); if(!career)return; if(!/^\d{6}$/.test(getSessionPin(career))){ctx()?.toast?.("Bu cihazda önce Kariyerimi Aç üzerinden Manager PIN ile giriş yap.","warning");openUnlockModal();return;} await syncOfficialCareer(career,{mode:"auto",silent:false}).catch(error=>ctx()?.toast?.(error.message,"error"));ctx()?.refreshView?.(); }
+    if (type === "pull-career") { const career=activeCareer(); if(!career||!window.confirm("Bu cihazdaki senkronize edilmemiş ilerleme silinip buluttaki kayıt yüklensin mi?"))return; await syncOfficialCareer(career,{mode:"pull",silent:false}).catch(error=>ctx()?.toast?.(error.message,"error"));ctx()?.refreshView?.(); }
+    if (type === "push-career") { const career=activeCareer(); if(!career||!window.confirm("Bu cihazdaki ilerleme buluttaki daha yeni kaydın üzerine yazılsın mı?"))return; await syncOfficialCareer(career,{mode:"push",silent:false,overwriteRemote:true}).catch(error=>ctx()?.toast?.(error.message,"error"));ctx()?.refreshView?.(); }
     if (type === "open-unlock") openUnlockModal();
     if (type === "open-match") { activeTab = "match"; ctx()?.refreshView?.(); }
     if (type === "open-archive") { selectedArchiveFixtureId = action.dataset.fixtureId || null; activeTab = "archive"; ctx()?.refreshView?.(); }
     if (type === "fixture-matchday") { selectedFixtureMatchday=action.dataset.matchday||"all"; ctx()?.refreshView?.(); }
     if (type === "calendar-filter") { calendarFilter=action.dataset.filter||"all"; ctx()?.refreshView?.(); }
     if (type === "cup-round") { selectedCupRound=Number(action.dataset.round||1); ctx()?.refreshView?.(); }
-    if(type==="save-slot"){const c=activeCareer(),slot=String(action.dataset.slot||1);if(c){managerState.saveSlots||={};managerState.saveSlots[c.id]||={};managerState.saveSlots[c.id][slot]={savedAt:now(),career:JSON.parse(JSON.stringify(c))};saveLocal();ctx()?.toast?.(`Kariyer S${slot} yuvasına kaydedildi.`,"success");}}
+    if(type==="save-slot"){const c=activeCareer(),slot=String(action.dataset.slot||1);if(c){managerState.saveSlots||={};managerState.saveSlots[c.id]||={};managerState.saveSlots[c.id][slot]={savedAt:now(),career:JSON.parse(JSON.stringify(c))};saveLocal();scheduleCloudSync(c,{reason:`slot-${slot}`});ctx()?.toast?.(`Kariyer S${slot} yuvasına kaydedildi.`,"success");}}
     if(type==="load-slot"){const c=activeCareer(),slot=String(action.dataset.slot||1),saved=c&&managerState.saveSlots?.[c.id]?.[slot];if(saved&&window.confirm(`S${slot} kaydı yüklensin mi? Mevcut ilerleme bu yuvaya dönmeden önce korunmaz.`)){const restored=migrateCareer(JSON.parse(JSON.stringify(saved.career)));const index=managerState.careers.findIndex(x=>x.id===c.id);managerState.careers[index]=restored;saveLocal();ctx()?.toast?.(`S${slot} kaydı yüklendi.`,"success");ctx()?.refreshView?.();}}
     if(type==="run-calibration"){const c=activeCareer();if(c&&window.FIFA_MANAGER_MATCH?.calibrate){c.calibrationReport=window.FIFA_MANAGER_MATCH.calibrate(c,10000);saveLocal();ctx()?.toast?.("10.000 maçlık kalibrasyon tamamlandı.","success");ctx()?.refreshView?.();}}
     if (type === "experience-level") { const c=activeCareer(); if(c){c.managerIdentity.level=action.dataset.level||"manager";saveLocal();ctx()?.refreshView?.();} }
@@ -1046,6 +1339,34 @@
     }
   }
 
+  async function pollCloudCareer() {
+    const career = activeCareer();
+    if (!career || career.mode !== "official" || !career.cloudCareerId || !/^\d{6}$/.test(getSessionPin(career))) return;
+    if (document.visibilityState === "hidden" || cloudPollInFlight || dirtyCareerIds.has(career.id)) return;
+    if (Date.now() - lastCloudPollAt < CLOUD_POLL_INTERVAL_MS) return;
+    cloudPollInFlight = true;
+    lastCloudPollAt = Date.now();
+    try {
+      const previousId = career.id;
+      const current = await syncOfficialCareer(career, { mode:"auto", silent:true });
+      if (current?.id !== previousId || careerTimestamp(current) > careerTimestamp(career)) ctx()?.refreshView?.();
+    } finally {
+      cloudPollInFlight = false;
+    }
+  }
+
+  document.addEventListener("visibilitychange", () => {
+    const career = activeCareer();
+    if (!career) return;
+    if (document.visibilityState === "hidden") scheduleCloudSync(career, { reason:"background", force:true }).catch(()=>{});
+    else pollCloudCareer().catch(()=>{});
+  });
+  window.addEventListener("pagehide", () => {
+    const career = activeCareer();
+    if (career) scheduleCloudSync(career, { reason:"pagehide", force:true }).catch(()=>{});
+  });
+  window.setInterval(() => pollCloudCareer().catch(()=>{}), CLOUD_POLL_INTERVAL_MS);
+
   document.addEventListener("click", handleClick);
   document.addEventListener("submit", handleSubmit);
 
@@ -1064,6 +1385,13 @@
     getBootstrap: () => bootstrap,
     persistCareer,
     saveLocal,
+    scheduleCloudSync,
+    syncOfficialCareer,
+    exitCareerToLanding,
+    getManagerState: () => managerState,
+    scheduleCloudSync,
+    syncOfficialCareer,
+    compactCareerSnapshot,
     setActiveTab: tab => { activeTab = tab || "overview"; ctx()?.refreshView?.(); },
     refresh: () => ctx()?.refreshView?.(),
     starText,

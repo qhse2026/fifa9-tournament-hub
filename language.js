@@ -954,6 +954,28 @@
     return supported.has(localStorage.getItem(STORAGE_KEY)) ? localStorage.getItem(STORAGE_KEY) : initial;
   }
 
+  Object.assign(dictionary, {
+    "Kariyer kaydedildi. Manager ana ekranındasın.": "Career saved. You are now on the Manager home screen.",
+    "Ana ekrana dönüldü; yerel kayıt alanı dolu olduğu için bulut kaydı deneniyor.": "Returned to the home screen; cloud save is being attempted because local storage is full.",
+    "Buluttan Al": "Use Cloud Save",
+    "Bu Cihazı Gönder": "Upload This Device",
+    "Senkronizasyon çakışması: Bulutta daha yeni bir kayıt var.": "Sync conflict: a newer save exists in the cloud.",
+    "Bulutta ve bu cihazda farklı ilerleme var. Hangi kaydın korunacağını seç.": "There is different progress in the cloud and on this device. Choose which save to keep.",
+    "DETAYLI MAÇ ANALİZİ": "DETAILED MATCH ANALYSIS",
+    "İstatistikleri ve önemli olayları aç": "Open statistics and key events",
+    "Detayı Kapat": "Close Details",
+    "Onaylanan Final Chapter formatı hazır": "The approved Final Chapter format is ready",
+    "Onaylanan Formatı Başlat": "Start Approved Format",
+    "YÖNETİCİ BAŞLATMASI BEKLENİYOR": "AWAITING ADMIN START",
+    "ANA ELEME": "MAIN QUALIFIER",
+    "SON BİLET PLAY-OFF YARI FİNALLERİ": "LAST TICKET PLAY-OFF SEMIFINALS",
+    "SON BİLET PLAY-OFF FİNALİ": "LAST TICKET PLAY-OFF FINAL",
+    "ÇEKİLDİ": "WITHDRAWN",
+    "8. çeyrek finalist": "8th quarterfinalist",
+    "Maç duraklatıldı ve bu cihazda kaydedildi.": "The match was paused and saved on this device.",
+    "Maç duraklatıldı ve buluta kaydedildi. Diğer cihazdan devam edebilirsin.": "The match was paused and saved to the cloud. You can continue on another device."
+  });
+
   function translateExact(value, lang = currentLanguage()) {
     if (lang === "tr") return reverse[value] || value;
     return dictionary[value] || value;
