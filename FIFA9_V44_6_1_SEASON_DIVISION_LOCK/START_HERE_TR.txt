@@ -1,0 +1,32 @@
+FIFA 9 TOURNAMENT HUB — V44.6.1 SEASON DIVISION LOCK
+
+BU DÜZELTME NEYİ ÇÖZER?
+- Sezon devam ederken ELO değiştiği için AI menajerlerinin lig değiştirmesini durdurur.
+- Lig üyeliğini mevcut sezon fikstüründen çıkarır ve sezon sonuna kadar kilitler.
+- Puan tablolarını oynanmış lig maçlarından yeniden hesaplar.
+- Oynanmış skorları, ELO değişimlerini, kupa durumunu ve kullanıcı kariyerini korur.
+
+YÜKLENECEK DOSYALAR
+ZIP içindeki aşağıdaki iki dosyayı GitHub repository ana dizinine, index.html ile aynı seviyeye yükleyin:
+1. manager-room.js
+2. service-worker.js
+
+Aynı adlı mevcut dosyaların üzerine yazın. Alt klasör oluşturmayın.
+
+YÜKLEME SONRASI
+1. GitHub Pages deployment tamamlanana kadar bekleyin.
+2. Siteyi Ctrl + Shift + R ile sert yenileyin.
+3. Manager Room'u açın.
+4. Yıldız FC artık Lig A'da, Sabuncu Rovers Championship'te görünmelidir.
+5. Üst çubuktaki SENKRONİZE düğmesine bir kez basın. Böylece düzeltilmiş kariyer buluta gönderilir ve telefon/bilgisayar aynı kayıt noktasını kullanır.
+
+BEKLENEN DÜZELTİLMİŞ DURUM
+- Yıldız FC: Lig A, 8 maç, 18 puan
+- Sabuncu Rovers: Championship, 9 maç, 12 puan
+- Çınar City: Championship, 9 maç, 8 puan
+- Her lig: 108 fikstür
+- Toplam lig fikstürü: 324
+- Her menajer: 24 lig maçı
+
+YEDEK
+fifa-manager-career-2026-07-23-REPAIRED-V44.6.1.json dosyası, kullanıcının yüklediği kariyer kaydının düzeltilmiş inceleme kopyasıdır. Normal kurulum için bu JSON'u içe aktarmanız gerekmez; kod açılışta mevcut tarayıcı kaydını otomatik düzeltir.

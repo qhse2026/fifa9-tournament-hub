@@ -1,0 +1,55 @@
+FIFA 9 V44.6.1 — FIXTURE / SEASON DIVISION VALIDATION
+
+TEST KAYNAĞI
+- Kullanıcının gerçek kariyer kaydı: fifa-manager-career-2026-07-23.json
+- Kayıt sürümü: 44.5.0
+- 27 aktör, 381 toplam fikstür
+
+TESPİT
+1. Lig fikstürleri aslında eksik değildir:
+   - Premier League: 108
+   - Championship: 108
+   - Lig A: 108
+   - Toplam lig: 324
+2. Her ligde 36 farklı eşleşme vardır ve her eşleşme 3 kez oynanacak şekilde kurulmuştur.
+3. Hata, assignThreeLeagueDivisions fonksiyonunun her kariyer yüklemesinde AI oyuncularını güncel ELO/power değerine göre tekrar sıralamasıdır.
+4. Fikstürler eski lig üyeliğini korurken actor.division ve puan tablosu yeni üyeliğe geçirilmiştir.
+
+GERÇEK KAYITTAKİ ÇELİŞKİ
+- Yıldız FC:
+  actor.division = championship
+  gerçek lig fikstürü = league-a
+  lig fikstürü = 24
+  oynanmış = 8
+  doğru tablo = 8 maç, 5G 3B 0M, 12-2, 18 puan
+- Sabuncu Rovers:
+  actor.division = league-a
+  gerçek lig fikstürü = championship
+  lig fikstürü = 24
+  oynanmış = 9
+  doğru tablo = 9 maç, 3G 3B 3M, 8-9, 12 puan
+- Çınar City:
+  kayıtlı tablo = 7 maç
+  oynanmış fikstür kaynağı = 9 maç
+  doğru tablo = 9 maç, 8 puan
+
+UYGULANAN DÜZELTME
+- seasonDivisionMap ile sezon üyeliği fikstürden türetilip kilitlendi.
+- ELO/power değişimi artık sezon ortasında division değiştirmiyor.
+- Puan tabloları source-of-truth olan played league fixtures üzerinden sıfırdan hesaplanıyor.
+- Eksik/duplicate/stale fikstür denetimi eklendi.
+- Mevcut kayıtta eklenen veya silinen lig fikstürü: 0
+- Oynanmış skor değişikliği: 0
+- Kupa verisi değişikliği: 0
+
+OTOMATİK TEST SONUÇLARI
+- JavaScript syntax check: PASS
+- Gerçek kayıt migration: PASS
+- Yıldız FC division lock: league-a PASS
+- Sabuncu Rovers division lock: championship PASS
+- ELO değişiminden sonra lig üyeliğinin korunması: PASS
+- Premier fixtures: 108 PASS
+- Championship fixtures: 108 PASS
+- League A fixtures: 108 PASS
+- Total league fixtures: 324 PASS
+- Division counts: 9 / 9 / 9 PASS
