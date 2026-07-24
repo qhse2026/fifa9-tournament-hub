@@ -1,9 +1,11 @@
-const CACHE = "fifa-tournament-hub-v44-7-6-me4-worker-w2-2-friendly-hall";
+const CACHE = "fifa-tournament-hub-v44-8-0-experience-hub";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./styles.css",
+  "./fifa9-experience-hub.css",
   "./app.js",
+  "./fifa9-experience-hub.js",
   "./season-hub.js",
   "./season-hub.css",
   "./season-experience.js",

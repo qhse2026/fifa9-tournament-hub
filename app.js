@@ -50,7 +50,7 @@
   const toastStack = $("#toastStack");
 
   const titleMap = {
-    dashboard: "Dashboard",
+    dashboard: "FIFA 9 Ana Merkezi",
     livematch: "Canlı Maç Merkezi",
     livestats: "Canlı İstatistikler",
     form: "Form Merkezi",
@@ -75,11 +75,10 @@
     finalpoll: "FIFA09 Final Chapter Kararı"
   };
 
-  let activeView = "finalpoll";
+  let activeView = "dashboard";
   let museumSelectedEdition = 9;
   let museumSelectedPlayerName = "";
   let state = loadState();
-  if (state.current?.finalChapter?.enabled) activeView = "knockout";
   let allTimeSelectedPlayerName = "";
   let allTimeRivalryA = "";
   let allTimeRivalryB = "";
@@ -1838,80 +1837,130 @@
 
   function renderDashboard() {
     const leagueDone = leagueMatches().filter(matchComplete).length;
-    const groupDone = [...goldMatches(), ...silverMatches()].filter(matchComplete).length;
+    const goldDone = goldMatches().filter(matchComplete).length;
+    const silverDone = silverMatches().filter(matchComplete).length;
     const champ = state.current.knockout.championId;
-    const leagueTable = state.current.league.generated ? leagueStandings() : [];
-    const top = leagueTable[0];
-    const historyTop = combinedAllTime()[0];
+    const stage = currentStage();
+    const season = (seasonSystem().seasons || []).find(item => Number(item.edition) === Number(seasonSystem().activeEdition || 10));
+    const managerCareer = window.FIFA_MANAGER_ROOM?.getActiveCareer?.();
+    const leagueStatus = state.current.league.generated ? `${leagueDone} / 48 maç` : "Kura bekleniyor";
+    const goldStatus = state.current.groups?.gold?.generated ? `${goldDone} / 15 maç` : "League Phase sonrası";
+    const silverStatus = state.current.groups?.silver?.generated ? `${silverDone} / 15 maç` : "League Phase sonrası";
+    const finalStatus = champ ? `${playerName(champ)} · Şampiyon` : finalChapterIsEnabled() ? "Final Chapter aktif" : "Altın / Gümüş sonrası";
+    const stageLabel = {
+      setup:"KURA HAZIRLIĞI",
+      league:"LEAGUE PHASE",
+      "phase2-ready":"GRUPLAR HAZIR",
+      phase2:"ALTIN + GÜMÜŞ",
+      "knockout-ready":"FINAL CHAPTER HAZIR",
+      knockout:"FINAL CHAPTER",
+      completed:"TAMAMLANDI"
+    }[stage] || "FIFA 09";
 
     view.innerHTML = `
-      <section class="hero">
-        <div class="hero-copy">
-          <div class="hero-kicker">✦ LEAGUE PHASE FORMAT</div>
-          <h2><span>FIFA 9</span><br>Turnuva Merkezi</h2>
-          <p>16 oyunculu League Phase, Altın ve Gümüş ligleri, üç maçlık eleme serileri ve sekiz turnuvalık tarihçe tek bir merkezde. Sonuçlar yönetici tarafından girilir; puan tabloları, sıralamalar ve eşleşmeler bütün cihazlarda otomatik güncellenir.</p>
-          <div class="hero-actions">
-            <button class="btn btn-gold" data-nav="${state.current.league.generated ? "league" : "setup"}">${state.current.league.generated ? "Canlı Turnuvaya Git" : "Oyuncuları Kaydet & Kura Çek"}</button>
-            <button class="btn btn-ghost" data-nav="archive">8 Turnuvalık Arşivi Aç</button>
-            <button class="btn btn-blue" data-action="share-site">WhatsApp'ta Paylaş</button>
+      <section class="f9-command-hero">
+        <div class="f9-command-copy">
+          <div class="f9-command-kicker"><span>FIFA 9</span><i></i><b>EXPERIENCE HUB</b></div>
+          <h2>Tek merkez.<br><em>İki büyük oyun modu.</em></h2>
+          <p>FIFA 09 turnuvası, Final Chapter yolculuğu ve kalıcı FIFA Lig Sistemi artık birbirinden ayrılmış, düzenli ve hızlı erişilebilir bir yapıda.</p>
+          <div class="f9-command-actions">
+            <button class="btn btn-gold" data-nav="league">Turnuva Modunu Aç</button>
+            <button class="btn btn-blue" data-nav="seasonhub">FIFA Lig Sistemine Git</button>
+            <button class="btn btn-ghost" id="dashboardModeLauncher">Tüm Alanları Gör</button>
           </div>
         </div>
-        <div class="hero-visual">
-          <div class="trophy-orbit">
-            ${trophySVG()}
-            <span class="orbit-badge orbit-one">16 PLAYERS</span>
-            <span class="orbit-badge orbit-two">ROAD TO GLORY</span>
+        <div class="f9-command-status">
+          <div class="f9-edition-orbit">
+            <span class="f9-edition-number">09</span>
+            <i class="orbit orbit-a"></i><i class="orbit orbit-b"></i>
+            <small>${stageLabel}</small>
+          </div>
+          <div class="f9-command-progress">
+            <span>Turnuva İlerlemesi</span>
+            <strong>%${progressPercent()}</strong>
+            <i><b style="width:${progressPercent()}%"></b></i>
           </div>
         </div>
       </section>
 
       ${renderDashboardLiveMatch()}
 
-      <div class="kpi-grid">
-        ${kpiCard("Turnuva Durumu", statusLabel(), `Genel ilerleme %${progressPercent()}`, progressPercent())}
-        ${kpiCard("League Phase", `${leagueDone} / 48`, "Tamamlanan lig maçı", Math.round(leagueDone / 48 * 100))}
-        ${kpiCard("Altın + Gümüş", `${groupDone} / 30`, "İkinci aşama maçı", Math.round(groupDone / 30 * 100))}
-        ${kpiCard("Şampiyon", champ ? playerName(champ) : "Henüz Belirlenmedi", champ ? "FIFA 9 Şampiyonu" : "Final yolu devam ediyor")}
-      </div>
+      <section class="f9-mode-grid">
+        <article class="f9-mode-card tournament-mode">
+          <header>
+            <div class="f9-mode-symbol">09</div>
+            <div><span>FIFA 09</span><h3>Turnuva Modu</h3><p>League Phase’den büyük finale uzanan mevcut turnuva evreni.</p></div>
+            <b>${stageLabel}</b>
+          </header>
+          <div class="f9-stage-grid">
+            <button class="f9-stage-card league" data-nav="league">
+              <span>01</span><div><strong>League Phase</strong><small>48 maç · tek lig</small></div><em>${leagueStatus}</em>
+            </button>
+            <button class="f9-stage-card gold" data-nav="gold">
+              <span>02A</span><div><strong>Altın Grup</strong><small>İlk 6 · elit yarış</small></div><em>${goldStatus}</em>
+            </button>
+            <button class="f9-stage-card silver" data-nav="silver">
+              <span>02B</span><div><strong>Gümüş Grup</strong><small>7–12 · ikinci yol</small></div><em>${silverStatus}</em>
+            </button>
+            <button class="f9-stage-card final" data-nav="knockout">
+              <span>03</span><div><strong>FIFA09 Final Chapter</strong><small>Playoff · eleme · final</small></div><em>${finalStatus}</em>
+            </button>
+          </div>
+          <footer>
+            <button data-nav="setup">Kura & Oyuncular</button>
+            <button data-nav="livematch">Canlı Maç</button>
+            <button data-nav="intelligence">Zekâ Merkezi</button>
+            <button data-nav="finalpoll">Final Chapter Kararı</button>
+          </footer>
+        </article>
 
-      <section class="panel mt-16">
-        <div class="panel-header">
-          <div><h3 class="panel-title">Turnuva Yol Haritası</h3><div class="panel-subtitle">Kura çekiminden kupaya kadar otomatik aşama kontrolü.</div></div>
-          <span class="badge ${currentStage() === "completed" ? "badge-green" : "badge-gold"}">${statusLabel()}</span>
-        </div>
-        ${progressRail()}
+        <article class="f9-mode-card league-system-mode">
+          <header>
+            <div class="f9-mode-symbol">LS</div>
+            <div><span>KALICI KARİYER EVRENİ</span><h3>FIFA Lig Sistemi</h3><p>Premier League, Championship, Manager kariyeri ve kupa müzesi.</p></div>
+            <b>${season?.status ? String(season.status).toUpperCase() : "HAZIR"}</b>
+          </header>
+          <div class="f9-league-system-preview">
+            <div><span>Aktif Sezon</span><strong>FIFA ${seasonSystem().activeEdition || 10}</strong><small>${season?.players?.length || 0} kayıtlı oyuncu</small></div>
+            <div><span>Manager Kariyeri</span><strong>${managerCareer ? escapeHTML(managerCareer.clubName) : "Hazır"}</strong><small>${managerCareer ? `${escapeHTML(managerCareer.playerName)} · ELO ${managerCareer.managerElo}` : "Kariyerini aç veya oluştur"}</small></div>
+            <div><span>Kalıcı Format</span><strong>Premier + Championship</strong><small>Yükselme, düşme ve kupalar</small></div>
+          </div>
+          <div class="f9-system-actions">
+            <button class="primary" data-nav="seasonhub"><span>⚽</span><div><strong>Lig Merkezini Aç</strong><small>Sezon, fikstür ve tablolar</small></div></button>
+            <button data-nav="managerroom"><span>♟</span><div><strong>Manager's Room</strong><small>Kariyer ve maç motoru</small></div></button>
+            <button data-nav="managerhall"><span>♛</span><div><strong>Manager Hall</strong><small>Profiller ve Friendly Arena</small></div></button>
+            <button data-nav="museum"><span>♜</span><div><strong>Kupa Müzesi</strong><small>Sezonlar ve başarılar</small></div></button>
+          </div>
+        </article>
       </section>
 
-      <div class="grid-2">
-        <section class="panel">
-          <div class="panel-header">
-            <div><h3 class="panel-title">Canlı League Phase Tablosu</h3><div class="panel-subtitle">İlk 6 Altın Gruba, 7–12 Gümüş Gruba yükselir.</div></div>
-            <button class="btn btn-ghost btn-small" data-nav="league">Tümünü Gör</button>
-          </div>
-          ${state.current.league.generated ? standingsTable(leagueTable.slice(0, 8), "league-preview") : emptyState("◎", "Henüz kura çekilmedi", "16 oyuncuyu kaydedip League Phase fikstürünü oluşturduğunda canlı puan tablosu burada görünecek.", `<button class="btn btn-gold" data-nav="setup">Kura Sayfasına Git</button>`) }
-        </section>
+      <section class="f9-tool-section">
+        <div class="f9-section-head"><div><span>TURNuva OPERASYON MASASI</span><h3>Canlı, analiz ve topluluk araçları</h3></div><small>Her araç kendi amacıyla ayrı tutuldu.</small></div>
+        <div class="f9-tool-grid">
+          <button data-nav="livematch"><span class="live">●</span><strong>Canlı Maç</strong><small>Skor, yayın ve maç akışı</small></button>
+          <button data-nav="livestats"><span>⌁</span><strong>Canlı İstatistikler</strong><small>xT, momentum ve performans</small></button>
+          <button data-nav="form"><span>↗</span><strong>Form Merkezi</strong><small>Son maçlar ve güç eğrisi</small></button>
+          <button data-nav="odds"><span>1X2</span><strong>Maç Oranları</strong><small>Tahmin ve olasılıklar</small></button>
+          <button data-nav="intelligence"><span>✦</span><strong>Zekâ Merkezi</strong><small>AI analiz ve senaryolar</small></button>
+          <button data-nav="chat"><span>◌</span><strong>Turnuva Sohbeti</strong><small>Oyuncu topluluğu</small></button>
+        </div>
+      </section>
 
-        <section class="panel">
-          <div class="panel-header">
-            <div><h3 class="panel-title">Turnuva İstatistiği</h3><div class="panel-subtitle">Geçmiş sekiz turnuvanın kalıcı kayıtları.</div></div>
-            <button class="btn btn-ghost btn-small" data-nav="alltime">Sıralamayı Aç</button>
+      <section class="f9-bottom-grid">
+        <article class="f9-archive-card">
+          <div><span>ARŞİV & REKORLAR</span><h3>FIFA tarihini tek yerde tut</h3><p>Turnuva arşivi, tüm zamanlar tablosu ve takım istatistikleri ayrı, sade bir bölüm altında.</p></div>
+          <div>
+            <button data-nav="archive">Turnuva Arşivi</button>
+            <button data-nav="alltime">Tüm Zamanlar</button>
+            <button data-nav="teams">Takım İstatistikleri</button>
           </div>
-          <div class="format-list">
-            <div class="format-row"><div class="format-icon">8</div><div><div class="format-title">Tamamlanan turnuva</div><div class="format-desc">FIFA 1’den FIFA 8’e kadar arşivlendi.</div></div></div>
-            <div class="format-row"><div class="format-icon">${historical.summary?.matches || 382}</div><div><div class="format-title">Kayıtlı tarihî maç</div><div class="format-desc">Takımlar, skorlar ve final aşamaları dahil.</div></div></div>
-            <div class="format-row"><div class="format-icon">${historical.summary?.goals || "–"}</div><div><div class="format-title">Tarihî gol</div><div class="format-desc">Tüm turnuvaların birleşik gol arşivi.</div></div></div>
-            <div class="format-row"><div class="format-icon">♛</div><div><div class="format-title">Tüm zamanlar lideri</div><div class="format-desc">${historyTop ? `${escapeHTML(historyTop.name)} · ${historyTop.points} puan` : "Arşiv yükleniyor"}</div></div></div>
-            ${top ? `<div class="format-row"><div class="format-icon">1</div><div><div class="format-title">FIFA 9 mevcut lideri</div><div class="format-desc">${displayName(top.id)} · ${top.pts} puan · ${formatGD(top.gd)} averaj</div></div></div>` : ""}
-          </div>
-        </section>
-      </div>
-
-      <h3 class="section-title">Şampiyonlar Kulübü</h3>
-      <div class="champion-strip">
-        ${combinedChampions().map(c => `<div class="champion-chip"><div class="name">${escapeHTML(c.name)}</div><div class="titles">${c.titles}×</div><div class="small">Şampiyonluk · ${c.finals} final · ${c.podiums} podyum</div></div>`).join("")}
-      </div>`;
+        </article>
+        <article class="f9-safety-card">
+          <span>SİSTEM & VERİ</span><h3>Yedek ve yönetim merkezi</h3><p>Turnuva veya kariyer modlarından bağımsız veri koruma alanı.</p>
+          <button class="btn btn-ghost" data-nav="backup">Veri & Yedek Alanını Aç</button>
+        </article>
+      </section>`;
   }
-
 
   function getLiveState() {
     if (!state.current.live || typeof state.current.live !== "object") state.current.live = { active: null, archive: {} };

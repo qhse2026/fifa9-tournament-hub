@@ -16,7 +16,8 @@
   <link rel="stylesheet" href="manager-v42-5.css?v=44.5.0" />
   <link rel="stylesheet" href="manager-v42-5-levels.css?v=44.5.0" />
   <link rel="stylesheet" href="me4-simulate.css?v=44.7.5-simulate1">
-  <link rel="stylesheet" href="manager-friendly.css?v=44.7.6-friendly1">
+  <link rel="stylesheet" href="manager-friendly.css?v=44.7.7-profiles1">
+  <link rel="stylesheet" href="fifa9-experience-hub.css?v=44.8.0-hub1" />
 </head>
 <body>
   <div class="ambient ambient-one"></div>
@@ -28,40 +29,91 @@
         <img src="assets/f9-mark.svg" alt="F9" class="brand-mark" />
         <div>
           <div class="brand-title">FIFA 9</div>
-          <div class="brand-subtitle">TOURNAMENT HUB</div>
+          <div class="brand-subtitle">EXPERIENCE HUB</div><div class="brand-edition-line">EDITION 09 · FINAL CHAPTER</div>
         </div>
       </div>
 
-      <nav class="main-nav" aria-label="Ana menü">
-        <button class="nav-item" data-nav="dashboard"><span class="nav-icon">◈</span><span>Dashboard</span></button>
-        <button class="nav-item" data-nav="livematch"><span class="nav-icon live-nav-icon">●</span><span>Canlı Maç</span></button>
-        <button class="nav-item" data-nav="livestats"><span class="nav-icon">⌁</span><span>Canlı İstatistikler</span></button>
-        <button class="nav-item" data-nav="form"><span class="nav-icon form-nav-icon">↗</span><span>Form Merkezi</span></button>
-        <button class="nav-item" data-nav="odds"><span class="nav-icon odds-nav-icon">1X2</span><span>Maç Oranları</span></button>
-        <button class="nav-item intelligence-nav" data-nav="intelligence"><span class="nav-icon">✦</span><span>Zekâ Merkezi</span></button>
-        <button class="nav-item" data-nav="chat"><span class="nav-icon chat-nav-icon">✦</span><span>Sohbet</span></button>
-        <button class="nav-item" data-nav="setup"><span class="nav-icon">◎</span><span>Kura & Oyuncular</span></button>
-        <button class="nav-item" data-nav="league"><span class="nav-icon">▦</span><span>League Phase</span></button>
-        <button class="nav-item" data-nav="gold"><span class="nav-icon gold-dot">●</span><span>Altın Grup</span></button>
-        <button class="nav-item" data-nav="silver"><span class="nav-icon silver-dot">●</span><span>Gümüş Grup</span></button>
-        <button class="nav-item" data-nav="knockout"><span class="nav-icon">⌁</span><span>FIFA09 Final Chapter</span></button>
-        <button class="nav-item" data-nav="print"><span class="nav-icon">▤</span><span>Çıktı Merkezi</span></button>
-        <div class="nav-divider"></div>
-        <button class="nav-item active" data-nav="finalpoll"><span class="nav-icon">✓</span><span>FIFA09 Final Chapter Kararı</span></button>
-        <div class="nav-divider"></div>
-        <button class="nav-item" data-nav="seasonhub"><span class="nav-icon">⚽</span><span>FIFA Lig Sistemi</span></button>
-        <button class="nav-item" data-nav="managerroom"><span class="nav-icon">♟</span><span>The Manager's Room</span></button>
-        <button class="nav-item" data-nav="managerhall"><span class="nav-icon">♛</span><span>Manager Hall</span></button>
-        <button class="nav-item" data-nav="museum"><span class="nav-icon">♜</span><span>Sezonlar & Kupa Müzesi</span></button>
-        <button class="nav-item" data-nav="archive"><span class="nav-icon">◇</span><span>Turnuva Arşivi</span></button>
-        <button class="nav-item" data-nav="alltime"><span class="nav-icon">♛</span><span>Tüm Zamanlar</span></button>
-        <button class="nav-item" data-nav="teams"><span class="nav-icon">◉</span><span>Takım İstatistikleri</span></button>
-        <button class="nav-item" data-nav="backup"><span class="nav-icon">⇩</span><span>Veri & Yedek</span></button>
+      <nav class="main-nav hub-nav" aria-label="FIFA 9 ana navigasyonu">
+        <button class="nav-item hub-home-link active" data-nav="dashboard">
+          <span class="nav-icon">⌂</span>
+          <span><strong>FIFA 9 Ana Merkezi</strong><small>Tüm modlar ve durum özeti</small></span>
+        </button>
+
+        <section class="nav-cluster is-open" data-nav-cluster="tournament">
+          <button class="nav-cluster-toggle" type="button" data-nav-cluster-toggle="tournament" aria-expanded="true">
+            <span class="nav-cluster-icon tournament">09</span>
+            <span><strong>Turnuva Modu</strong><small>FIFA 09 Final Chapter</small></span>
+            <i>⌄</i>
+          </button>
+          <div class="nav-cluster-body">
+            <div class="nav-subheading">Canlı Merkez</div>
+            <button class="nav-item" data-nav="livematch"><span class="nav-icon live-nav-icon">●</span><span>Canlı Maç</span></button>
+            <button class="nav-item" data-nav="livestats"><span class="nav-icon">⌁</span><span>Canlı İstatistikler</span></button>
+            <button class="nav-item" data-nav="form"><span class="nav-icon form-nav-icon">↗</span><span>Form Merkezi</span></button>
+            <button class="nav-item" data-nav="odds"><span class="nav-icon odds-nav-icon">1X2</span><span>Maç Oranları</span></button>
+            <button class="nav-item intelligence-nav" data-nav="intelligence"><span class="nav-icon">✦</span><span>Zekâ Merkezi</span></button>
+            <button class="nav-item" data-nav="chat"><span class="nav-icon chat-nav-icon">◌</span><span>Turnuva Sohbeti</span></button>
+
+            <div class="nav-subheading">Turnuva Yönetimi</div>
+            <button class="nav-item" data-nav="setup"><span class="nav-icon">◎</span><span>Kura & Oyuncular</span></button>
+
+            <div class="nav-stage-stack" aria-label="Turnuva aşamaları">
+              <button class="nav-item stage league-stage" data-nav="league">
+                <span class="nav-stage-code">LP</span>
+                <span><strong>League Phase</strong><small>48 maç · tek lig tablosu</small></span>
+              </button>
+              <button class="nav-item stage gold-stage" data-nav="gold">
+                <span class="nav-stage-code">G</span>
+                <span><strong>Altın Grup</strong><small>İlk 6 · elit yarış</small></span>
+              </button>
+              <button class="nav-item stage silver-stage" data-nav="silver">
+                <span class="nav-stage-code">S</span>
+                <span><strong>Gümüş Grup</strong><small>7–12 · ikinci yol</small></span>
+              </button>
+            </div>
+
+            <div class="nav-subheading final-heading">Final Chapter</div>
+            <button class="nav-item final-chapter-link" data-nav="knockout">
+              <span class="nav-icon">◆</span>
+              <span><strong>FIFA09 Final Chapter</strong><small>Playoff · eleme · büyük final</small></span>
+            </button>
+            <button class="nav-item" data-nav="finalpoll"><span class="nav-icon">✓</span><span>Final Chapter Kararı</span></button>
+            <button class="nav-item" data-nav="print"><span class="nav-icon">▤</span><span>Çıktı Merkezi</span></button>
+          </div>
+        </section>
+
+        <section class="nav-cluster" data-nav-cluster="league-system">
+          <button class="nav-cluster-toggle" type="button" data-nav-cluster-toggle="league-system" aria-expanded="false">
+            <span class="nav-cluster-icon league-system">LS</span>
+            <span><strong>FIFA Lig Sistemi</strong><small>Kalıcı sezon ve kariyer evreni</small></span>
+            <i>⌄</i>
+          </button>
+          <div class="nav-cluster-body">
+            <button class="nav-item" data-nav="seasonhub"><span class="nav-icon">⚽</span><span>Lig Merkezi</span></button>
+            <button class="nav-item" data-nav="managerroom"><span class="nav-icon">♟</span><span>The Manager's Room</span></button>
+            <button class="nav-item" data-nav="managerhall"><span class="nav-icon">♛</span><span>Manager Hall</span></button>
+            <button class="nav-item" data-nav="museum"><span class="nav-icon">♜</span><span>Sezonlar & Kupa Müzesi</span></button>
+          </div>
+        </section>
+
+        <section class="nav-cluster" data-nav-cluster="records">
+          <button class="nav-cluster-toggle" type="button" data-nav-cluster-toggle="records" aria-expanded="false">
+            <span class="nav-cluster-icon records">AR</span>
+            <span><strong>Arşiv & Yönetim</strong><small>Tarihçe, istatistik ve yedek</small></span>
+            <i>⌄</i>
+          </button>
+          <div class="nav-cluster-body">
+            <button class="nav-item" data-nav="archive"><span class="nav-icon">◇</span><span>Turnuva Arşivi</span></button>
+            <button class="nav-item" data-nav="alltime"><span class="nav-icon">♛</span><span>Tüm Zamanlar</span></button>
+            <button class="nav-item" data-nav="teams"><span class="nav-icon">◉</span><span>Takım İstatistikleri</span></button>
+            <button class="nav-item" data-nav="backup"><span class="nav-icon">⇩</span><span>Veri & Yedek</span></button>
+          </div>
+        </section>
       </nav>
 
       <div class="sidebar-footer">
         <div class="save-indicator" id="sidebarCloudStatus"><span class="status-dot"></span> Canlı bağlantı hazırlanıyor</div>
-        <div class="sidebar-version">FIFA 09 · Manager Room v44.7.6 · ME4 Worker W2.2 + Friendly Hall</div>
+        <div class="sidebar-version">FIFA 09 · v44.8.0 · Experience Hub</div>
       </div>
     </aside>
 
@@ -69,9 +121,10 @@
       <header class="topbar">
         <button class="mobile-menu" id="mobileMenu" aria-label="Menüyü aç">☰</button>
         <div>
-          <div class="eyebrow">FIFA TURNUVA MERKEZİ</div>
-          <h1 id="pageTitle">FIFA09 Final Chapter Kararı</h1>
+          <div class="hub-breadcrumb" id="hubBreadcrumb"><span>FIFA 9</span><i>›</i><b>Ana Merkez</b></div>
+          <h1 id="pageTitle">FIFA 9 Ana Merkezi</h1>
         </div>
+        <div class="topbar-mode-tools"><button class="hub-launcher-button" id="hubLauncherButton" type="button"><span>⌘</span><b>Mod Değiştir</b></button></div>
         <div class="topbar-actions">
           <div class="language-switch" id="languageSwitch" role="group" aria-label="Dil seçimi">
             <button type="button" class="language-option" data-language-option="tr" aria-label="Türkçe">TR</button>
@@ -104,6 +157,30 @@
 
   <div class="toast-stack" id="toastStack" aria-live="assertive"></div>
 
+  <div class="hub-launcher-backdrop hidden" id="hubLauncherBackdrop">
+    <section class="hub-launcher" role="dialog" aria-modal="true" aria-labelledby="hubLauncherTitle">
+      <header>
+        <div><span>FIFA 9 EXPERIENCE HUB</span><h2 id="hubLauncherTitle">Nereye gitmek istiyorsun?</h2></div>
+        <button type="button" id="hubLauncherClose" aria-label="Kapat">×</button>
+      </header>
+      <div class="hub-launcher-grid">
+        <button data-nav="dashboard" class="home"><span>⌂</span><strong>Ana Merkez</strong><small>Tüm modlar ve güncel durum</small></button>
+        <button data-nav="league" class="tournament"><span>09</span><strong>Turnuva Modu</strong><small>League Phase ve Final Chapter</small></button>
+        <button data-nav="seasonhub" class="league"><span>LS</span><strong>FIFA Lig Sistemi</strong><small>Sezonlar, ligler ve kupalar</small></button>
+        <button data-nav="managerroom" class="manager"><span>MR</span><strong>Manager's Room</strong><small>Kariyer, canlı maç ve taktik</small></button>
+      </div>
+    </section>
+  </div>
+
+  <nav class="mobile-hub-dock" aria-label="Hızlı mobil navigasyon">
+    <button data-nav="dashboard"><span>⌂</span><small>Ana</small></button>
+    <button data-nav="livematch"><span>●</span><small>Canlı</small></button>
+    <button data-nav="league"><span>09</span><small>Turnuva</small></button>
+    <button data-nav="seasonhub"><span>LS</span><small>Lig</small></button>
+    <button data-nav="managerroom"><span>♟</span><small>Manager</small></button>
+  </nav>
+
+
   <script src="data/historical-data.js"></script>
   <script src="language.js?v=44.5.0"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -111,11 +188,12 @@
   <script src="cloud.js?v=44.5.0"></script>
   <script src="chat.js?v=44.5.0"></script>
   <script src="community.js?v=44.5.0"></script>
-  <script src="app.js?v=44.5.0"></script>
+  <script src="app.js?v=44.8.0-hub1"></script>
   <script src="season-hub.js?v=44.5.0"></script>
  <script src="season-experience.js?v=44.7.5-worker2-1-simulate"></script>
 <script src="manager-room.js?v=44.7.6-worker2-2-friendly"></script>
 <script src="manager-match-engine.js?v=44.7.6-worker2-2-friendly"></script>
 <script src="me4-worker-bridge.js?v=4.0.0-worker-bridge-w2.1-final.1"></script>
+  <script src="fifa9-experience-hub.js?v=44.8.0-hub1"></script>
 </body>
 </html>
