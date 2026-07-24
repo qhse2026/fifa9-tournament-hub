@@ -1,4 +1,4 @@
-const CACHE = "fifa-tournament-hub-v44-7-4-me4-worker-w2-final";
+const CACHE = "fifa-tournament-hub-v44-7-5-me4-worker-w2-1-simulate";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -14,6 +14,7 @@ const APP_SHELL = [
   "./me4-match-worker.js",
   "./manager-match-engine-v4-phase13-safe.bundle.js",
   "./manager-room.css",
+  "./me4-simulate.css",
   "./manager-v42-4.css",
   "./manager-v42-5.css",
   "./manager-v42-5-levels.css",

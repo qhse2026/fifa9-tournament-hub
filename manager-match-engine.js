@@ -1702,13 +1702,23 @@
       setBroadcast(engine, "half-time", "neutral", "İLK YARI", `${engine.scoreHome} — ${engine.scoreAway} · Devre arası taktik değerlendirmesi`);
     }
 
-    if (engine.minute % 2 === 0) room()?.scheduleCloudSync?.(career,{reason:"live-match"});
+    if (!engine.quickSimulation && engine.minute % 2 === 0) room()?.scheduleCloudSync?.(career,{reason:"live-match"});
     if (engine.minute >= 90) {
       engine.status = "full-time";
+      if (engine.quickSimulation) {
+        engine.broadcastEvent = null;
+        return;
+      }
       setBroadcast(engine, "full-time", "neutral", "MAÇ SONU", `${engine.scoreHome} — ${engine.scoreAway}`);
       stopTimer();
       refreshMount(career, fixture);
       window.setTimeout(() => { engine.broadcastEvent = null; finishMatch(career, fixture); }, 2400);
+      return;
+    }
+    if (engine.quickSimulation) {
+      engine.broadcastEvent = null;
+      engine.currentDecision = null;
+      engine.status = "live";
       return;
     }
     if (engine.broadcastEvent) {
@@ -2187,7 +2197,7 @@
         <fieldset class="manager-fog-diagnosis"><legend>TACTICAL FOG OF WAR · İLK TEŞHİSİN</legend><p>Rakibin görünen karakterinden gerçek başlangıç planını tahmin et. Bazı sinyaller aldatma olabilir.</p><div>${[["press","Yüksek baskıyla başlayacak"],["counter","Alan bırakıp kontra arayacak"],["control","Topu ve tempoyu kontrol edecek"],["chaos","Öngörülemez/kaotik başlayacak"]].map(([id,label],i)=>`<label><input type="radio" name="diagnosis" value="${id}" ${i===2?"checked":""}><span>${label}</span></label>`).join("")}</div></fieldset>
         <fieldset class="manager-motivation-group"><legend>MAÇ ÖNCESİ MOTİVASYON KONUŞMASI</legend><div>${MOTIVATION_TALKS.map((item, index) => `<label><input type="radio" name="motivation" value="${item.id}" ${index === 0 ? "checked" : ""}><span><b>${item.label}</b><small>${item.note}</small></span></label>`).join("")}</div><small>Konuşma doğru bağlamda pozitif etki yaratabilir; etkisiz kalabilir veya ters tepebilir. Sonuç maç başladığında açıklanır.</small></fieldset>
         <fieldset class="manager-press-conference"><legend>BASIN TOPLANTISI · MEDYA ETKİSİ</legend><div>${PRESS_ANSWERS.map((item,index)=>`<label><input type="radio" name="pressAnswer" value="${item.id}" ${index===0?"checked":""}><span><b>“${item.label}”</b><small>${item.note}</small></span></label>`).join("")}</div><small>Basın mesajı bağlama göre olumlu, nötr veya negatif başlangıç etkisi yaratır; sonucu maç başladığında görürsün.</small></fieldset>
-        <div class="manager-plan-footer"><div><span>RAKİP PROFİLİ</span><strong>GÜÇ ${rival.power} · STİL GİZLİ</strong><small>Rakibin davranışı maç içindeki sinyallerden okunmalıdır.</small></div><button class="btn btn-gold manager-kickoff-btn" type="submit">Maçı Başlat</button></div>
+        <div class="manager-plan-footer"><div><span>RAKİP PROFİLİ</span><strong>GÜÇ ${rival.power} · STİL GİZLİ</strong><small>Rakibin davranışı maç içindeki sinyallerden okunmalıdır.</small></div><div class="manager-kickoff-actions"><button class="btn btn-ghost manager-simulate-btn" type="button" data-match-action="simulate-match" data-fixture-id="${esc(fixture.id)}">Maçı Simüle Et</button><button class="btn btn-gold manager-kickoff-btn" type="submit">Maçı Oyna</button></div></div>
       </form>
     </section>`;
   }
@@ -2470,6 +2480,78 @@
     mount.replaceWith(wrapper.firstElementChild);
   }
 
+
+  function nextBrowserTurn() {
+    return new Promise(resolve => window.setTimeout(resolve, 0));
+  }
+
+  function readPlanForm(form) {
+    const data = new FormData(form);
+    const plan = selectedPlan(data);
+    readPositionSetup(data, plan);
+    readPhaseSetup(data, plan);
+    readAutoOrders(data, plan);
+    plan.pressAnswer = String(data.get("pressAnswer") || "confident");
+    plan.diagnosis = String(data.get("diagnosis") || "control");
+    return { data, plan, motivation: String(data.get("motivation") || "belief") };
+  }
+
+  async function simulateEntireMatch(career, fixture, form, button) {
+    if (runtime.busy) return;
+    runtime.busy = true;
+    stopTimer();
+    const originalText = button?.textContent || "Maçı Simüle Et";
+    if (button) { button.disabled = true; button.textContent = "Simülasyon hazırlanıyor..."; }
+    form?.querySelectorAll("button").forEach(row => { if (row !== button) row.disabled = true; });
+    try {
+      const { plan, motivation } = readPlanForm(form);
+      const engine = initializeMatch(career, fixture, plan, motivation);
+      engine.quickSimulation = true;
+      engine.simulationMode = "instant";
+      engine.playbackSpeed = 16;
+      engine.nextDecisionMinute = 999;
+      engine.broadcastEvent = null;
+      engine.currentDecision = null;
+      fixture.simulated = true;
+      fixture.simulationMode = "instant-manager";
+      fixture.simulatedAt = now();
+      for (let startMinute = 1; startMinute <= 90; startMinute += 5) {
+        const endMinute = Math.min(90, startMinute + 4);
+        for (let minute = startMinute; minute <= endMinute; minute += 1) {
+          if (engine.status !== "live" && engine.status !== "full-time") engine.status = "live";
+          const previousSecond = Number(engine.clockSeconds || 0);
+          const targetSecond = minute * 60;
+          engine.clockSeconds = targetSecond;
+          engine.minute = minute;
+          advanceLiveMotion(career, fixture, Math.max(0, targetSecond - previousSecond));
+          engine.lastSimulatedMinute = minute;
+          simulateMinute(career, fixture, minute);
+          engine.broadcastEvent = null;
+          engine.currentDecision = null;
+          if (minute < 90) engine.status = "live";
+        }
+        if (button) button.textContent = `Simüle ediliyor · %${Math.round(endMinute / 90 * 100)}`;
+        await nextBrowserTurn();
+      }
+      engine.quickSimulation = false;
+      engine.simulationMode = "instant-completed";
+      engine.broadcastEvent = null;
+      engine.currentDecision = null;
+      engine.status = "full-time";
+      runtime.busy = false;
+      await finishMatch(career, fixture);
+      const sides = getSides(career, fixture);
+      app()?.toast?.(`Simülasyon tamamlandı: ${sides.homeTeam.clubName} ${fixture.homeScore}-${fixture.awayScore} ${sides.awayTeam.clubName}`, "success");
+    } catch (error) {
+      runtime.busy = false;
+      const engine = fixture?.matchEngine;
+      if (engine) { engine.quickSimulation = false; engine.broadcastEvent = null; if (engine.status !== "finished") engine.status = "live"; }
+      app()?.toast?.(error?.message || "Maç simülasyonu tamamlanamadı.", "error");
+      if (button) { button.disabled = false; button.textContent = originalText; }
+      form?.querySelectorAll("button").forEach(row => { row.disabled = false; });
+    }
+  }
+
   async function handleSubmit(event) {
     if (event.target.id !== "managerMatchPlanForm") return;
     event.preventDefault();
@@ -2481,14 +2563,8 @@
     button.disabled = true;
     button.textContent = "Maç motoru hazırlanıyor...";
     try {
-      const data = new FormData(event.target);
-      const plan = selectedPlan(data);
-      readPositionSetup(data, plan);
-      readPhaseSetup(data, plan);
-      readAutoOrders(data, plan);
-      plan.pressAnswer = String(data.get("pressAnswer") || "confident");
-      plan.diagnosis = String(data.get("diagnosis") || "control");
-      const engine = initializeMatch(career, fixture, plan, String(data.get("motivation") || "belief"));
+      const { plan, motivation } = readPlanForm(event.target);
+      const engine = initializeMatch(career, fixture, plan, motivation);
       setBroadcast(engine, "kickoff", "neutral", "MAÇ BAŞLIYOR", `${getSides(career, fixture).homeTeam.clubName} — ${getSides(career, fixture).awayTeam.clubName}`);
       await room()?.persistCareer?.(career, { silent: true });
       refreshMount(career, fixture);
@@ -2497,7 +2573,7 @@
     } catch (error) {
       app()?.toast?.(error.message, "error");
       button.disabled = false;
-      button.textContent = "Maçı Başlat";
+      button.textContent = "Maçı Oyna";
     }
   }
 
@@ -2548,6 +2624,14 @@
     const fixture = target.dataset.fixtureId ? career?.fixtures?.find(item=>item.id===target.dataset.fixtureId) : career?.activeMatchFixtureId ? career.fixtures.find(item => item.id === career.activeMatchFixtureId) : room()?.getNextHumanFixture?.(career);
     if (!career || !fixture) return;
     const action = target.dataset.matchAction;
+    if (action === "simulate-match") {
+      const form = target.closest("#managerMatchPlanForm") || document.getElementById("managerMatchPlanForm");
+      if (!form) { app()?.toast?.("Maç planı formu bulunamadı.", "error"); return; }
+      const confirmed = window.confirm("Maç 90 dakika hızlı simüle edilecek ve sonuç kariyere kaydedilecek. Devam edilsin mi?");
+      if (!confirmed) return;
+      await simulateEntireMatch(career, fixture, form, target);
+      return;
+    }
     if(action==="set-speed"){
       const speed=Number(target.dataset.speed);
       if(PLAYBACK_SPEEDS.includes(speed)){fixture.matchEngine.playbackSpeed=speed;room()?.saveLocal?.();paintLiveFrame(fixture.matchEngine);}
@@ -2631,7 +2715,7 @@
     },
     stop: stopTimer,
     calibrate,
-    __diagnostics: { initializeMatch, advanceLiveMotion, simulateMinute, ensureLiveRuntime, tick },
+    __diagnostics: { initializeMatch, advanceLiveMotion, simulateMinute, simulateEntireMatch, ensureLiveRuntime, tick },
     resume: () => {
       const career = room()?.getActiveCareer?.();
       const fixture = career?.activeMatchFixtureId ? career.fixtures.find(item => item.id === career.activeMatchFixtureId) : null;

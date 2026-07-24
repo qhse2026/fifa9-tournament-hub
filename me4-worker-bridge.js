@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "4.0.0-worker-bridge-w2-final.1";
+  const VERSION = "4.0.0-worker-bridge-w2.1-final.1";
   const WORKER_URL = "./me4-match-worker.js?v=4.0.0-worker-w2-final.1";
   const SUPPORTED_FORMATIONS = new Set(["4-3-3", "4-2-3-1", "4-4-2", "3-5-2"]);
 
@@ -49,6 +49,7 @@
     if (!career?.activeMatchFixtureId) return null;
     const fixture = career.fixtures?.find?.(row => row.id === career.activeMatchFixtureId);
     if (!fixture?.matchEngine || fixture.matchEngine.status !== "live") return null;
+    if (fixture.matchEngine.quickSimulation || fixture.matchEngine.simulationMode === "instant") return null;
     return { career, fixture, engine: fixture.matchEngine };
   }
 
