@@ -1,0 +1,32 @@
+{
+  "build": "FIFA 9 v44.8.1 Final Chapter Progression & Locked Draw Control",
+  "syntax": {
+    "app.js": "PASS",
+    "service-worker.js": "PASS",
+    "fifa9-experience-hub.js": "PASS"
+  },
+  "assertions": {
+    "drawPolicyState": true,
+    "automaticLockedDraw": true,
+    "manualLockedDraw": true,
+    "automaticProgression": true,
+    "winnerLoserRouting": true,
+    "noRedrawControls": true,
+    "policyPanel": true,
+    "stageEntrants": true
+  },
+  "drawPolicies": [
+    "ask",
+    "automatic",
+    "manual"
+  ],
+  "lockedAfterCreation": true,
+  "automaticRoutes": {
+    "playoffWinner": "quarterfinal pool",
+    "playoffLoser": "last-ticket semifinal",
+    "lastTicketSemiWinner": "last-ticket final",
+    "lastTicketFinalWinner": "quarterfinal slot 8",
+    "quarterfinalWinner": "semifinal pool",
+    "semifinalWinner": "grand final"
+  }
+}

@@ -670,7 +670,8 @@
         quarterfinalStars: 4.5,
         semifinalStars: 5,
         finalStars: 5,
-        preventTeamRepeat: true
+        preventTeamRepeat: true,
+        drawPolicy: "ask"
       },
       teamPools: {
         playoff: [],
@@ -678,11 +679,11 @@
         semifinal: [],
         final: []
       },
-      playoff: { drawn: false, locked: false, drawSeed: null, luckyId: null, series: [] },
-      secondChanceSemi: { drawn: false, locked: false, drawSeed: null, series: [] },
-      secondChanceFinal: { drawn: false, locked: false, drawSeed: null, series: [] },
-      quarterfinal: { drawn: false, locked: false, drawSeed: null, series: [] },
-      semifinal: { drawn: false, locked: false, drawSeed: null, series: [] },
+      playoff: { drawn: false, locked: false, drawSeed: null, luckyId: null, drawMethod: null, entrantIds: [], drawnAt: null, lockedAt: null, series: [] },
+      secondChanceSemi: { drawn: false, locked: false, drawSeed: null, drawMethod: null, entrantIds: [], drawnAt: null, lockedAt: null, series: [] },
+      secondChanceFinal: { drawn: false, locked: false, drawSeed: null, drawMethod: null, entrantIds: [], drawnAt: null, lockedAt: null, series: [] },
+      quarterfinal: { drawn: false, locked: false, drawSeed: null, drawMethod: null, entrantIds: [], drawnAt: null, lockedAt: null, series: [] },
+      semifinal: { drawn: false, locked: false, drawSeed: null, drawMethod: null, entrantIds: [], drawnAt: null, lockedAt: null, series: [] },
       final: { match: null, championId: null },
       history: []
     };
@@ -1056,6 +1057,222 @@
     return series.length > 0 && series.every(item => Boolean(seriesWinner(item)));
   }
 
+
+  const FINAL_CHAPTER_FLOW_STAGES = ["playoff", "secondChanceSemi", "secondChanceFinal", "quarterfinal", "semifinal"];
+
+  function finalChapterDrawPolicy() {
+    const value = String(finalChapterState().settings?.drawPolicy || "ask");
+    return ["ask", "automatic", "manual"].includes(value) ? value : "ask";
+  }
+
+  function finalChapterStageEntrants(stage) {
+    const fc = finalChapterState();
+    if (stage === "playoff") return fc.participantIds.filter(id => !fc.directQuarterFinalistIds.includes(id));
+    if (stage === "secondChanceSemi") return finalChapterStageLosers("playoff");
+    if (stage === "secondChanceFinal") return finalChapterStageWinners("secondChanceSemi");
+    if (stage === "quarterfinal") return [
+      ...fc.directQuarterFinalistIds,
+      ...finalChapterStageWinners("playoff"),
+      ...finalChapterStageWinners("secondChanceFinal")
+    ].filter(Boolean);
+    if (stage === "semifinal") return finalChapterStageWinners("quarterfinal");
+    return [];
+  }
+
+  function finalChapterStageReady(stage) {
+    const fc = finalChapterState();
+    if (!fc.enabled) return false;
+    if (stage === "playoff") return finalChapterStageEntrants(stage).length === 8;
+    if (stage === "secondChanceSemi") return fc.playoff.locked && finalChapterStageComplete("playoff") && finalChapterStageEntrants(stage).length === 4;
+    if (stage === "secondChanceFinal") return fc.secondChanceSemi.locked && finalChapterStageComplete("secondChanceSemi") && finalChapterStageEntrants(stage).length === 2;
+    if (stage === "quarterfinal") return fc.secondChanceFinal.locked && finalChapterStageComplete("secondChanceFinal") && finalChapterStageEntrants(stage).length === 8 && new Set(finalChapterStageEntrants(stage)).size === 8;
+    if (stage === "semifinal") return fc.quarterfinal.locked && finalChapterStageComplete("quarterfinal") && finalChapterStageEntrants(stage).length === 4;
+    return false;
+  }
+
+  function finalChapterStagePairCount(stage) {
+    return ({ playoff: 4, secondChanceSemi: 2, secondChanceFinal: 1, quarterfinal: 4, semifinal: 2 })[stage] || 0;
+  }
+
+  function finalChapterDrawMethodLabel(method) {
+    return ({ automatic: "SİTE KURASI", manual: "MANUEL KURA", legacy: "MEVCUT KURA" })[method] || "KURA";
+  }
+
+  function finalChapterDrawPolicyLabel(policy = finalChapterDrawPolicy()) {
+    return ({ ask: "HER TURDA SOR", automatic: "SİTE OTOMATİK & KİLİTLİ", manual: "MANUEL EŞLEŞME" })[policy] || "HER TURDA SOR";
+  }
+
+  function validateFinalChapterPairings(stage, pairs) {
+    const entrants = finalChapterStageEntrants(stage);
+    const expectedCount = finalChapterStagePairCount(stage);
+    if (!finalChapterStageReady(stage)) return `${finalChapterStageLabel(stage)} henüz kura için hazır değil.`;
+    if (!Array.isArray(pairs) || pairs.length !== expectedCount) return `${expectedCount} eşleşme girilmelidir.`;
+    const selected = pairs.flat();
+    if (selected.some(id => !id)) return "Bütün eşleşme alanları doldurulmalıdır.";
+    if (selected.some(id => !entrants.includes(id))) return "Kura havuzunda olmayan bir oyuncu seçildi.";
+    if (new Set(selected).size !== entrants.length || selected.length !== entrants.length) return "Her oyuncu yalnızca bir kez kullanılmalıdır.";
+    if (pairs.some(([a, b]) => a === b)) return "Bir oyuncu kendisiyle eşleşemez.";
+    return "";
+  }
+
+  function commitFinalChapterStageDraw(stage, pairs, method, drawSeed = null) {
+    const fc = finalChapterState();
+    const target = fc[stage];
+    if (!target || target.drawn || target.locked || finalChapterHasCompletedGames(stage)) return false;
+    const error = validateFinalChapterPairings(stage, pairs);
+    if (error) throw new Error(error);
+    const nowIso = new Date().toISOString();
+    target.drawSeed = drawSeed;
+    target.drawMethod = method;
+    target.entrantIds = finalChapterStageEntrants(stage);
+    target.series = pairs.map((pair, index) => createFinalChapterSeries(stage, index + 1, pair[0], pair[1]));
+    target.drawn = true;
+    target.locked = true;
+    target.drawnAt = nowIso;
+    target.lockedAt = nowIso;
+    finalChapterHistory(`${stage}-drawn-and-locked`, {
+      playerIds: [...target.entrantIds],
+      drawSeed,
+      drawMethod: method,
+      pairings: pairs.map(pair => [...pair])
+    });
+    return true;
+  }
+
+  function automaticFinalChapterDraw(stage, options = {}) {
+    const target = finalChapterState()[stage];
+    if (!target || target.drawn || target.locked) return false;
+    const players = finalChapterStageEntrants(stage);
+    const seed = randomSeed();
+    const order = shuffled(players, seed);
+    const pairs = Array.from({ length: finalChapterStagePairCount(stage) }, (_, index) => [order[index * 2], order[index * 2 + 1]]);
+    try {
+      const created = commitFinalChapterStageDraw(stage, pairs, "automatic", seed);
+      if (created && !options.silent) toast(`${finalChapterStageLabel(stage)} site tarafından çekildi ve kilitlendi.`, "success");
+      return created;
+    } catch (error) {
+      if (!options.silent) toast(error.message, "error");
+      return false;
+    }
+  }
+
+  function processAutomaticFinalChapterProgression() {
+    if (finalChapterDrawPolicy() !== "automatic") return false;
+    for (const stage of FINAL_CHAPTER_FLOW_STAGES) {
+      const target = finalChapterState()[stage];
+      if (!target.drawn && !target.locked && finalChapterStageReady(stage)) {
+        return automaticFinalChapterDraw(stage, { silent: true });
+      }
+    }
+    return false;
+  }
+
+  function finalChapterNextDestination(stage, resultType) {
+    const map = {
+      playoff: { winner: "Çeyrek Final Havuzu", loser: "Son Bilet Yarı Final Havuzu" },
+      secondChanceSemi: { winner: "Son Bilet Finali", loser: "Final Chapter'dan Elendi" },
+      secondChanceFinal: { winner: "Çeyrek Final · 8. Kontenjan", loser: "Final Chapter'dan Elendi" },
+      quarterfinal: { winner: "Yarı Final Havuzu", loser: "Final Chapter'dan Elendi" },
+      semifinal: { winner: "Büyük Final", loser: "Final Chapter'dan Elendi" }
+    };
+    return map[stage]?.[resultType] || "Bekliyor";
+  }
+
+  function finalChapterPlayerChips(ids, emptyText = "Sonuç bekleniyor") {
+    return ids.length
+      ? ids.map(id => `<span class="fc-route-player">${escapeHTML(displayName(id))}</span>`).join("")
+      : `<span class="fc-route-empty">${escapeHTML(emptyText)}</span>`;
+  }
+
+  function finalChapterProgressionBoard() {
+    const fc = finalChapterState();
+    const playoffWinners = finalChapterStageWinners("playoff");
+    const playoffLosers = finalChapterStageLosers("playoff");
+    const lastTicketSemiWinners = finalChapterStageWinners("secondChanceSemi");
+    const lastTicketSemiLosers = finalChapterStageLosers("secondChanceSemi");
+    const lastTicketWinner = finalChapterStageWinners("secondChanceFinal");
+    const lastTicketLoser = finalChapterStageLosers("secondChanceFinal");
+    const qfWinners = finalChapterStageWinners("quarterfinal");
+    const qfLosers = finalChapterStageLosers("quarterfinal");
+    const sfWinners = finalChapterStageWinners("semifinal");
+    const sfLosers = finalChapterStageLosers("semifinal");
+    const eliminated = [...lastTicketSemiLosers, ...lastTicketLoser, ...qfLosers, ...sfLosers].filter(Boolean);
+    return `<section class="fc-progression-centre">
+      <div class="fc-progression-head"><div><span>OTOMATİK TUR AKTARIM MERKEZİ</span><h3>Kazanan ve kaybedenlerin yolu</h3><p>Sonuç tamamlandığı anda oyuncu doğru sonraki havuza otomatik aktarılır. Kura yöntemi yalnızca eşleşmenin nasıl kurulacağını belirler.</p></div><aside><strong>${finalChapterDrawPolicyLabel()}</strong><small>AKTİF KURA POLİTİKASI</small></aside></div>
+      <div class="fc-route-grid">
+        <article><header><b>ANA ELEME KAZANANLARI</b><span>→ ÇEYREK FİNAL</span></header><div>${finalChapterPlayerChips(playoffWinners, "4 tur atlayan bekleniyor")}</div></article>
+        <article><header><b>ANA ELEME KAYBEDENLERİ</b><span>→ SON BİLET YF</span></header><div>${finalChapterPlayerChips(playoffLosers, "4 kaybeden bekleniyor")}</div></article>
+        <article><header><b>SON BİLET YF GALİPLERİ</b><span>→ SON BİLET FİNALİ</span></header><div>${finalChapterPlayerChips(lastTicketSemiWinners, "2 finalist bekleniyor")}</div></article>
+        <article><header><b>SON BİLET ŞAMPİYONU</b><span>→ QF 8. KONTENJAN</span></header><div>${finalChapterPlayerChips(lastTicketWinner, "Son bilet sahibi bekleniyor")}</div></article>
+        <article><header><b>ÇEYREK FİNAL GALİPLERİ</b><span>→ YARI FİNAL</span></header><div>${finalChapterPlayerChips(qfWinners, "4 yarı finalist bekleniyor")}</div></article>
+        <article><header><b>YARI FİNAL GALİPLERİ</b><span>→ BÜYÜK FİNAL</span></header><div>${finalChapterPlayerChips(sfWinners, "2 finalist bekleniyor")}</div></article>
+      </div>
+      <div class="fc-eliminated-route"><span>ELENENLER</span><div>${finalChapterPlayerChips(eliminated, "Henüz kesinleşen elenen yok")}</div></div>
+    </section>`;
+  }
+
+  function finalChapterDrawPolicyPanel() {
+    if (!canEdit()) return "";
+    const policy = finalChapterDrawPolicy();
+    const choices = [
+      ["ask", "Her Turda Sor", "Hazır olan her turda site veya manuel kura seçimi gösterilir."],
+      ["automatic", "Site Otomatik & Kilitli", "Sonuçlar tamamlanınca site kurayı çeker ve anında değiştirilemez şekilde kilitler."],
+      ["manual", "Kuraları Biz Çekeceğiz", "Oyuncular doğru havuza aktarılır; eşleşmeleri siz girer ve tek onayla kilitlersiniz."]
+    ];
+    return `<section class="fc-draw-policy-panel"><div><span>KURA YÖNETİMİ</span><h3>Final Chapter kura politikası</h3><p>Bu seçim yalnızca henüz oluşturulmamış gelecek turları etkiler. Kilitli eşleşmeler değişmez.</p></div><div class="fc-policy-options">${choices.map(([value,label,desc]) => `<button class="${policy === value ? "active" : ""}" data-action="fc-set-draw-policy" data-policy="${value}"><strong>${label}</strong><small>${desc}</small></button>`).join("")}</div></section>`;
+  }
+
+  function openFinalChapterManualDraw(stage) {
+    if (!canEdit()) return;
+    const target = finalChapterState()[stage];
+    if (!target || target.drawn || target.locked) { toast("Bu turun kurası zaten oluşturulmuş veya kilitlenmiş.", "error"); return; }
+    if (!finalChapterStageReady(stage)) { toast(`${finalChapterStageLabel(stage)} henüz kura için hazır değil.`, "error"); return; }
+    const entrants = finalChapterStageEntrants(stage);
+    const optionRows = `<option value="">Oyuncu seç</option>${entrants.map(id => `<option value="${id}">${escapeHTML(displayName(id))}</option>`).join("")}`;
+    const pairRows = Array.from({ length: finalChapterStagePairCount(stage) }, (_, index) => `<article class="fc-manual-pair"><span>EŞLEŞME ${index + 1}</span><select name="pair-${index}-a" required>${optionRows}</select><b>VS</b><select name="pair-${index}-b" required>${optionRows}</select></article>`).join("");
+    openModal(`${finalChapterStageLabel(stage)} · Manuel Kura`, `<form id="finalChapterManualDrawForm" data-stage="${stage}">
+      <section class="fc-manual-draw-intro"><span>KURA HAVUZU · ${entrants.length} OYUNCU</span><div>${finalChapterPlayerChips(entrants)}</div><p>Eşleşmeleri kendi kuranızın sonucuna göre girin. Onaylandığında kura anında kilitlenir ve daha sonra değiştirilemez.</p></section>
+      <div class="fc-manual-pair-grid">${pairRows}</div>
+      <label class="fc-lock-confirm"><input type="checkbox" name="confirmLock" value="yes" required><span>Eşleşmelerin doğru olduğunu ve onaydan sonra değiştirilemeyeceğini kabul ediyorum.</span></label>
+      <div class="modal-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">Vazgeç</button><button type="submit" class="btn btn-gold">Eşleşmeleri Onayla ve Kilitle</button></div>
+    </form>`, "MANUAL LOCKED DRAW");
+  }
+
+  function saveFinalChapterManualDraw(form) {
+    if (!canEdit()) return;
+    const stage = String(form.dataset.stage || "");
+    if (!FINAL_CHAPTER_FLOW_STAGES.includes(stage)) return;
+    const data = new FormData(form);
+    if (data.get("confirmLock") !== "yes") { toast("Kilit onayını işaretle.", "error"); return; }
+    const pairs = Array.from({ length: finalChapterStagePairCount(stage) }, (_, index) => [String(data.get(`pair-${index}-a`) || ""), String(data.get(`pair-${index}-b`) || "")]);
+    const error = validateFinalChapterPairings(stage, pairs);
+    if (error) { toast(error, "error"); return; }
+    if (!window.confirm("Bu eşleşmeler kilitlenecek ve daha sonra değiştirilemeyecek. Devam edilsin mi?")) return;
+    try {
+      commitFinalChapterStageDraw(stage, pairs, "manual", null);
+      refreshFinalChapter();
+      closeModal();
+      saveState(true, true);
+      toast(`${finalChapterStageLabel(stage)} manuel kura ile oluşturuldu ve kilitlendi.`, "success");
+      renderFinalChapterEngine();
+    } catch (error) {
+      toast(error.message, "error");
+    }
+  }
+
+  function setFinalChapterDrawPolicy(policy) {
+    if (!canEdit()) return;
+    if (!["ask", "automatic", "manual"].includes(policy)) return;
+    const fc = finalChapterState();
+    fc.settings.drawPolicy = policy;
+    finalChapterHistory("draw-policy-changed", { policy });
+    const autoCreated = policy === "automatic" ? processAutomaticFinalChapterProgression() : false;
+    refreshFinalChapter();
+    saveState(true, true);
+    toast(autoCreated ? "Kura politikası kaydedildi; hazır tur site tarafından çekilip kilitlendi." : `Kura politikası: ${finalChapterDrawPolicyLabel(policy)}.`, "success");
+    renderFinalChapterEngine();
+  }
+
   function finalChapterEditLockReason(match) {
     if (!match?.finalChapterStage) return "";
     const fc = finalChapterState();
@@ -1070,6 +1287,7 @@
   function refreshFinalChapter() {
     const fc = finalChapterState();
     if (!fc.enabled) return;
+    processAutomaticFinalChapterProgression();
     if (fc.semifinal.drawn && finalChapterStageComplete("semifinal")) {
       const winners = finalChapterStageWinners("semifinal");
       if (winners.length === 2 && (!fc.final.match || ![fc.final.match.homeId, fc.final.match.awayId].every(id => winners.includes(id)))) {
@@ -1157,59 +1375,16 @@
     const fc = finalChapterState();
     if (!fc.enabled) { toast("Önce Final Chapter formatını etkinleştir.", "error"); return; }
     const target = fc[stage];
-    if (!target || target.locked || finalChapterHasCompletedGames(stage)) {
-      toast("Bu tur kilitli veya sonuç girişi başladığı için kura değiştirilemez.", "error");
+    if (!target || target.drawn || target.locked || finalChapterHasCompletedGames(stage)) {
+      toast("Bu turun kurası oluşturulmuş, kilitlenmiş veya sonuç girişi başlamış.", "error");
       return;
     }
-    let players = [];
-    if (stage === "playoff") {
-      players = fc.participantIds.filter(id => !fc.directQuarterFinalistIds.includes(id));
-      if (players.length !== 8) { toast("Ana eleme kurası için 8 oyuncu bulunmalıdır.", "error"); return; }
-      const seed = randomSeed();
-      const order = shuffled(players, seed);
-      target.drawSeed = seed;
-      target.luckyId = null;
-      target.series = [0, 1, 2, 3].map(index => createFinalChapterSeries("playoff", index + 1, order[index * 2], order[index * 2 + 1]));
-    } else if (stage === "secondChanceSemi") {
-      if (!fc.playoff.locked || !finalChapterStageComplete("playoff")) { toast("Önce dört ana eleme serisi tamamlanmalıdır.", "error"); return; }
-      players = finalChapterStageLosers("playoff");
-      if (players.length !== 4) { toast("Son Bilet play-off'u için dört elenen oyuncu bulunmalıdır.", "error"); return; }
-      const seed = randomSeed();
-      const order = shuffled(players, seed);
-      target.drawSeed = seed;
-      target.series = [0, 1].map(index => createFinalChapterSeries("secondChanceSemi", index + 1, order[index * 2], order[index * 2 + 1]));
-    } else if (stage === "secondChanceFinal") {
-      if (!fc.secondChanceSemi.locked || !finalChapterStageComplete("secondChanceSemi")) { toast("Önce Son Bilet play-off yarı finalleri tamamlanmalıdır.", "error"); return; }
-      players = finalChapterStageWinners("secondChanceSemi");
-      if (players.length !== 2) { toast("Son Bilet finali için iki oyuncu bulunmalıdır.", "error"); return; }
-      const seed = randomSeed();
-      const order = shuffled(players, seed);
-      target.drawSeed = seed;
-      target.series = [createFinalChapterSeries("secondChanceFinal", 1, order[0], order[1])];
-    } else if (stage === "quarterfinal") {
-      if (!fc.secondChanceFinal.locked || !finalChapterStageComplete("secondChanceFinal")) { toast("Önce Son Bilet play-off finali tamamlanmalıdır.", "error"); return; }
-      players = [...fc.directQuarterFinalistIds, ...finalChapterStageWinners("playoff"), ...finalChapterStageWinners("secondChanceFinal")].filter(Boolean);
-      if (players.length !== 8 || new Set(players).size !== 8) { toast("Çeyrek final kurası için sekiz farklı oyuncu bulunmalıdır.", "error"); return; }
-      const seed = randomSeed();
-      const order = shuffled(players, seed);
-      target.drawSeed = seed;
-      target.series = [0, 1, 2, 3].map(index => createFinalChapterSeries("quarterfinal", index + 1, order[index * 2], order[index * 2 + 1]));
-    } else if (stage === "semifinal") {
-      if (!fc.quarterfinal.locked || !finalChapterStageComplete("quarterfinal")) { toast("Önce çeyrek final serileri tamamlanmalıdır.", "error"); return; }
-      players = finalChapterStageWinners("quarterfinal");
-      if (players.length !== 4) { toast("Yarı final kurası için 4 oyuncu bulunmalıdır.", "error"); return; }
-      const seed = randomSeed();
-      const order = shuffled(players, seed);
-      target.drawSeed = seed;
-      target.series = [0, 1].map(index => createFinalChapterSeries("semifinal", index + 1, order[index * 2], order[index * 2 + 1]));
-    } else return;
-    target.drawn = true;
-    target.locked = false;
-    finalChapterHistory(`${stage}-drawn`, { playerIds: players, drawSeed: target.drawSeed });
-    refreshFinalChapter();
-    saveState(true, true);
-    toast(`${finalChapterStageLabel(stage)} kurası oluşturuldu. Onayladıktan sonra kilitle.`, "success");
-    renderFinalChapterEngine();
+    if (!finalChapterStageReady(stage)) { toast(`${finalChapterStageLabel(stage)} henüz kura için hazır değil.`, "error"); return; }
+    if (automaticFinalChapterDraw(stage)) {
+      refreshFinalChapter();
+      saveState(true, true);
+      renderFinalChapterEngine();
+    }
   }
 
   function lockFinalChapterStage(stage) {
@@ -1218,7 +1393,10 @@
     if (!target?.drawn) { toast("Önce kurayı oluştur.", "error"); return; }
     if (target.locked) return;
     target.locked = true;
-    finalChapterHistory(`${stage}-locked`, { drawSeed: target.drawSeed });
+    target.drawMethod = target.drawMethod || "legacy";
+    target.entrantIds = target.entrantIds?.length ? target.entrantIds : finalChapterStageEntrants(stage);
+    target.lockedAt = target.lockedAt || new Date().toISOString();
+    finalChapterHistory(`${stage}-locked`, { drawSeed: target.drawSeed, drawMethod: target.drawMethod });
     saveState(true, true);
     toast(`${finalChapterStageLabel(stage)} kurası kilitlendi.`, "success");
     renderFinalChapterEngine();
@@ -1315,10 +1493,20 @@
 
   function finalChapterStageControls(stage) {
     const target = finalChapterState()[stage];
-    if (!canEdit()) return "";
-    if (!target.drawn) return `<button class="btn btn-gold" data-action="fc-draw-stage" data-stage="${stage}">Kura Çek</button>`;
-    if (!target.locked && !finalChapterHasCompletedGames(stage)) return `<button class="btn btn-ghost" data-action="fc-draw-stage" data-stage="${stage}">Kurayı Yenile</button><button class="btn btn-gold" data-action="fc-lock-stage" data-stage="${stage}">Kurayı Kilitle</button>`;
-    return `<span class="badge badge-green">KURA KİLİTLİ</span>`;
+    if (!canEdit()) return target?.locked ? `<span class="badge badge-green">${finalChapterDrawMethodLabel(target.drawMethod || "legacy")} · KİLİTLİ</span>` : "";
+    if (target.drawn && target.locked) return `<span class="badge badge-green">${finalChapterDrawMethodLabel(target.drawMethod || "legacy")} · KİLİTLİ</span>`;
+    if (target.drawn && !target.locked && !finalChapterHasCompletedGames(stage)) return `<button class="btn btn-gold" data-action="fc-lock-stage" data-stage="${stage}">Mevcut Kurayı Kilitle</button>`;
+    if (!finalChapterStageReady(stage)) return "";
+    const policy = finalChapterDrawPolicy();
+    if (policy === "automatic") return `<button class="btn btn-gold" data-action="fc-auto-draw-stage" data-stage="${stage}">Site Kurasını Çek ve Kilitle</button>`;
+    if (policy === "manual") return `<button class="btn btn-blue" data-action="fc-open-manual-draw" data-stage="${stage}">Manuel Eşleşmeleri Gir</button>`;
+    return `<button class="btn btn-gold" data-action="fc-auto-draw-stage" data-stage="${stage}">Site Çeksin · Kilitle</button><button class="btn btn-blue" data-action="fc-open-manual-draw" data-stage="${stage}">Kendi Kuramızı Gir</button>`;
+  }
+
+  function finalChapterEntrantPool(stage) {
+    const entrants = finalChapterStageEntrants(stage);
+    if (!entrants.length) return "";
+    return `<div class="fc-stage-entrant-pool"><span>KURA HAVUZU · ${entrants.length} OYUNCU</span><div>${finalChapterPlayerChips(entrants)}</div></div>`;
   }
 
   function finalChapterGameRow(game, series, stageLocked, winner, index) {
@@ -1340,7 +1528,7 @@
     return `<article class="fc-engine-series ${winner ? "complete" : ""}">
       <div class="fc-engine-series-head"><div><small>${escapeHTML(finalChapterStageLabel(series.finalChapterStage))} · ${escapeHTML(String(series.stars))}★</small><h4>${displayName(series.playerAId)} <span>vs</span> ${displayName(series.playerBId)}</h4></div><div class="fc-series-score"><b>${wins.a}</b><span>–</span><b>${wins.b}</b></div></div>
       <div class="fc-engine-games">${series.games.map((game, index) => finalChapterGameRow(game, series, stageLocked, winner, index)).join("")}</div>
-      ${winner ? `<div class="fc-series-winner">✓ ${series.finalChapterStage === "secondChanceFinal" ? "8. çeyrek finalist" : "Tur atlayan"}: <strong>${displayName(winner)}</strong></div>` : ""}
+      ${winner ? `<div class="fc-series-winner fc-series-routing"><span>✓ <strong>${displayName(winner)}</strong></span><em>→ ${escapeHTML(finalChapterNextDestination(series.finalChapterStage, "winner"))}</em><small>${escapeHTML(displayName(winner === series.playerAId ? series.playerBId : series.playerAId))} → ${escapeHTML(finalChapterNextDestination(series.finalChapterStage, "loser"))}</small></div>` : ""}
     </article>`;
   }
 
@@ -1348,8 +1536,10 @@
     const fc = finalChapterState();
     const target = fc[stage];
     if (!ready && !target.drawn) return `<section class="panel fc-engine-stage locked"><div class="fc-engine-stage-head"><div><div class="eyebrow">${escapeHTML(title)}</div><h3>${escapeHTML(waitingText)}</h3><p>${escapeHTML(subtitle)}</p></div><span class="fc-stage-lock">⌛</span></div></section>`;
+    const method = target.drawn ? finalChapterDrawMethodLabel(target.drawMethod || "legacy") : "KURA YÖNTEMİ BEKLENİYOR";
     return `<section class="panel fc-engine-stage ${target.drawn ? "drawn" : "ready"}">
-      <div class="fc-engine-stage-head"><div><div class="eyebrow">${escapeHTML(title)}</div><h3>${target.drawn ? `${target.series.length} eşleşme hazır` : "Kura çekimine hazır"}</h3><p>${escapeHTML(subtitle)}</p></div><div class="fc-engine-stage-actions">${finalChapterStageControls(stage)}</div></div>
+      <div class="fc-engine-stage-head"><div><div class="eyebrow">${escapeHTML(title)}</div><h3>${target.drawn ? `${target.series.length} eşleşme hazır · ${method}` : "Oyuncular doğru havuza aktarıldı"}</h3><p>${escapeHTML(subtitle)}</p></div><div class="fc-engine-stage-actions">${finalChapterStageControls(stage)}</div></div>
+      ${!target.drawn ? finalChapterEntrantPool(stage) : ""}
       ${target.drawn ? `<div class="fc-engine-series-grid">${target.series.map(series => finalChapterSeriesCard(series, target.locked)).join("")}</div>` : ""}
     </section>`;
   }
@@ -1375,6 +1565,8 @@
     view.innerHTML = `<div class="fc-engine-page">
       <section class="fc-engine-hero"><div><div class="eyebrow">FIFA09 · FINAL CHAPTER</div><h2>Road to the Final</h2><p>Ana eleme ve Son Bilet play-off'u 4★, çeyrek final 4.5★, yarı final 5★. Bütün seriler Best of 3; iki galibiyet tur getirir. Büyük final tek maç ve aynı takım formatındadır.</p><div class="fc-direct-mini">${directNames.map(name => `<span>QF · ${name}</span>`).join("")}${withdrawnNames.map(name => `<span class="withdrawn">ÇEKİLDİ · ${name}</span>`).join("")}</div></div><div class="fc-engine-mark"><strong>${champion ? "🏆" : "09"}</strong><span>${champion ? `${displayName(champion)}<br>ŞAMPİYON` : "FINAL<br>CHAPTER"}</span></div></section>
       <div class="fc-engine-toolbar"><div><span class="badge badge-gold">${escapeHTML(fc.status.toLocaleUpperCase("tr-TR"))}</span><small>Aktivasyon: ${fc.activatedAt ? new Date(fc.activatedAt).toLocaleString("tr-TR") : "—"}</small></div>${canEdit() ? `<div><button class="btn btn-ghost" data-action="open-fc-team-pools">Takım Havuzları</button><button class="btn btn-danger" data-action="fc-cancel-format">Formatı İptal Et</button></div>` : ""}</div>
+      ${finalChapterDrawPolicyPanel()}
+      ${finalChapterProgressionBoard()}
       <section class="fc-direct-panel"><div><small>DOĞRUDAN ÇEYREK FİNAL</small><h3>Üç sabit kontenjan</h3></div>${fc.directQuarterFinalistIds.map((id, index) => `<article><span>${index + 1}</span><strong>${displayName(id)}</strong></article>`).join("")}</section>
       <section class="fc-withdrawn-panel"><span>ÇEKİLME</span><strong>${withdrawnNames.join(", ") || "Sultan Atasaral"}</strong><p>Final Chapter eşleşmelerine dahil edilmez; şanslı çeyrek finalist kontenjanı kaldırılmıştır.</p></section>
       ${finalChapterStageSection("playoff", "01 · ANA ELEME", "Doğrudan çeyrek finalistler dışında kalan 8 oyuncu, dört Best of 3 eşleşmeye girer. Dört kazanan çeyrek finale yükselir; dört kaybeden Son Bilet play-off'una gider. 4★.", playoffReady, "Ana eleme kurulumu bekleniyor")}
@@ -9354,7 +9546,9 @@ ${shareData.url}`)}`;
     if (type === "manage-final-poll") { manageFinalPoll(action.dataset.pollAction); return; }
     if (type === "activate-final-chapter") { activateFinalChapter(); return; }
     if (type === "fc-cancel-format") { cancelFinalChapter(); return; }
-    if (type === "fc-draw-stage") { drawFinalChapterStage(action.dataset.stage); return; }
+    if (type === "fc-set-draw-policy") { setFinalChapterDrawPolicy(action.dataset.policy); return; }
+    if (type === "fc-auto-draw-stage" || type === "fc-draw-stage") { drawFinalChapterStage(action.dataset.stage); return; }
+    if (type === "fc-open-manual-draw") { openFinalChapterManualDraw(action.dataset.stage); return; }
     if (type === "fc-lock-stage") { lockFinalChapterStage(action.dataset.stage); return; }
     if (type === "fc-draw-teams") { drawFinalChapterGameTeams(action.dataset.matchId); return; }
     if (type === "open-fc-team-pools") { openFinalChapterTeamPools(); return; }
@@ -9587,6 +9781,7 @@ ${shareData.url}`)}`;
     if (event.target.id === "playerClaimForm") { event.preventDefault(); handlePlayerClaim(event.target); return; }
     if (event.target.id === "honourRecordForm") { event.preventDefault(); saveHonourRecord(event.target); return; }
     if (event.target.id === "finalChapterPoolsForm") { event.preventDefault(); saveFinalChapterTeamPools(event.target); return; }
+    if (event.target.id === "finalChapterManualDrawForm") { event.preventDefault(); saveFinalChapterManualDraw(event.target); return; }
     if (event.target.id === "matchForm") {
       event.preventDefault();
       saveMatch(event.target);
