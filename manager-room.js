@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "44.6.1";
+  const VERSION = "44.7.6";
   const STORAGE_KEY = "fifa-manager-room-v42";
   const RECOVERY_KEY = "fifa-manager-room-recovery-v43";
   const CATALOG_URL = "data/manager-team-catalog-fc25.json";
@@ -24,6 +24,8 @@
   let remoteLeaderboard = [];
   let remoteLoading = false;
   let remoteLoadedAt = 0;
+  let selectedFriendlyOpponent = null;
+  const FRIENDLY_HISTORY_LIMIT = 60;
   let selectedArchiveFixtureId = null;
   let selectedFixtureMatchday = "all";
   let selectedCupRound = null;
@@ -107,6 +109,9 @@
     career.development.competitionProgression = Boolean(career.development.competitionProgression);
     career.fixtures = Array.isArray(career.fixtures) ? career.fixtures : [];
     career.matchHistory = Array.isArray(career.matchHistory) ? career.matchHistory : [];
+    career.friendlyHistory = Array.isArray(career.friendlyHistory) ? career.friendlyHistory.slice(0, FRIENDLY_HISTORY_LIMIT) : [];
+    career.friendlyGuests = Array.isArray(career.friendlyGuests) ? career.friendlyGuests.slice(-40) : [];
+    career.friendlyStats ||= { matches: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0 };
     career.matchEngineStats ||= { matches: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, decisions: 0 };
     career.managerIdentity ||= { level:"manager", sound:true, reputation:50, dna:{ attack:50, control:50, adaptability:50, motivation:50, bigMatch:50 }, skills:{ tacticalReading:0, motivation:0, fitness:0, scouting:0 } };
     career.rivalries ||= {};
@@ -233,6 +238,8 @@
       fixtures: (season.fixtures || []).map(fixture => fixture?.matchEngine ? { ...fixture, matchEngine: compactMatchEngine(fixture.matchEngine, true) } : fixture)
     }));
     copy.matchHistory = (copy.matchHistory || []).slice(0, aggressive ? 80 : 180);
+    copy.friendlyHistory = (copy.friendlyHistory || []).slice(0, aggressive ? 25 : FRIENDLY_HISTORY_LIMIT);
+    copy.friendlyGuests = (copy.friendlyGuests || []).slice(-(aggressive ? 15 : 40));
     copy.storyFeed = (copy.storyFeed || []).slice(0, aggressive ? 30 : 60);
     return copy;
   }
@@ -1009,7 +1016,9 @@
   }
 
   function actor(career, id) {
-    return career.actors.find(item => item.id === id) || { id, managerName: "—", clubName: "—", power: 0 };
+    return career.actors.find(item => item.id === id)
+      || (career.friendlyGuests || []).find(item => item.id === id)
+      || { id, managerName: "—", clubName: "—", power: 0 };
   }
 
   function nextHumanFixture(career) {
@@ -1407,18 +1416,258 @@
   function localLeaderboard() {
     return [...managerState.careers]
       .sort((a, b) => b.careerPoints - a.careerPoints || b.managerElo - a.managerElo)
-      .map((item, index) => ({ rank: index + 1, player_name: item.playerName, club_name: item.clubName, division: item.division, season_no: item.seasonNo, career_points: item.careerPoints, manager_elo: item.managerElo, tactical_iq: item.tacticalIQ, trophy_count: trophyCount(item), source: "local" }));
+      .map((item, index) => ({
+        rank: index + 1,
+        career_id: item.cloudCareerId || item.id,
+        player_name: item.playerName,
+        club_name: item.clubName,
+        club_short_name: item.shortName,
+        primary_color: item.primaryColor,
+        secondary_color: item.secondaryColor,
+        division: item.division,
+        season_no: item.seasonNo,
+        career_points: item.careerPoints,
+        manager_elo: item.managerElo,
+        tactical_iq: item.tacticalIQ,
+        trophy_count: trophyCount(item),
+        source: "local"
+      }));
+  }
+
+  function friendlyKey(row) {
+    return String(row?.career_id || row?.id || `${row?.player_name || "manager"}|${row?.club_name || "club"}`);
+  }
+
+  function sameManager(row, career) {
+    if (!row || !career) return false;
+    if (row.career_id && career.cloudCareerId && String(row.career_id) === String(career.cloudCareerId)) return true;
+    return String(row.player_name || "").trim().toLocaleLowerCase("tr-TR") === String(career.playerName || "").trim().toLocaleLowerCase("tr-TR");
+  }
+
+  function publicFriendlyRows(rows, career) {
+    return (rows || []).filter(row => row?.player_name && row?.club_name && !sameManager(row, career));
+  }
+
+  function friendlyHistoryAgainst(career, row) {
+    const key = friendlyKey(row);
+    return (career?.friendlyHistory || []).filter(item => item.opponentKey === key || String(item.opponentPlayerName || "").toLocaleLowerCase("tr-TR") === String(row.player_name || "").toLocaleLowerCase("tr-TR"));
+  }
+
+  function friendlyFormLine(career, row) {
+    const rows = friendlyHistoryAgainst(career, row).slice(0, 5);
+    return rows.length ? rows.map(item => item.result).join(" · ") : "İLK RANDEVU";
+  }
+
+  function deterministicFriendlyTeam(row, excludedId = null) {
+    const elo = Number(row?.manager_elo || 1000);
+    const stars = elo >= 1500 ? 5 : elo >= 1225 ? 4.5 : 4;
+    let pool = poolFor(stars).filter(team => team.id !== excludedId);
+    if (!pool.length) pool = (teamCatalog?.teams || []).filter(team => team.active !== false && team.id !== excludedId);
+    if (!pool.length) return null;
+    const random = seededNumber(`FRIENDLY|${friendlyKey(row)}|${elo}|${row?.season_no || 1}`);
+    return pool[Math.floor(random() * pool.length)] || pool[0];
+  }
+
+  function recentHumanFriendlyTeam(career, excludedId = null) {
+    const active = career?.activeMatchFixtureId ? career.fixtures?.find(item => item.id === career.activeMatchFixtureId) : null;
+    const candidates = [
+      active ? teamForActor(active, career.humanActorId)?.id : null,
+      ...(career?.matchHistory || []).map(item => item.humanTeamId),
+      ...(career?.friendlyHistory || []).map(item => item.humanTeamId)
+    ].filter(Boolean);
+    const found = candidates.find(id => id !== excludedId && teamById(id));
+    if (found) return teamById(found);
+    return deterministicFriendlyTeam({ player_name: career?.playerName, club_name: career?.clubName, manager_elo: career?.managerElo }, excludedId);
+  }
+
+  function friendlyTeamOptions(selectedId) {
+    return (teamCatalog?.teams || [])
+      .filter(team => team.active !== false)
+      .sort((a, b) => Number(b.stars || 0) - Number(a.stars || 0) || String(a.clubName).localeCompare(String(b.clubName), "tr"))
+      .map(team => `<option value="${esc(team.id)}" ${team.id === selectedId ? "selected" : ""}>${esc(team.clubName)} · ${starText(team.stars)} · OVR ${team.overall}</option>`)
+      .join("");
+  }
+
+  function openFriendlyModal(row) {
+    const career = activeCareer();
+    if (!career) {
+      ctx()?.toast?.("Friendly Match için önce Manager Room kariyerini açmalısın.", "warning");
+      ctx()?.navigate?.("managerroom");
+      return;
+    }
+    if (!(teamCatalog?.teams || []).length) {
+      ctx()?.toast?.("FC 25 takım kataloğu henüz yükleniyor. Birkaç saniye sonra tekrar dene.", "warning");
+      ensureResources();
+      return;
+    }
+    const activeFixture = career.activeMatchFixtureId ? career.fixtures?.find(item => item.id === career.activeMatchFixtureId) : null;
+    if (activeFixture?.matchEngine && activeFixture.matchEngine.status !== "finished") {
+      ctx()?.toast?.("Önce devam eden maçı tamamla veya maç merkezinden çık.", "warning");
+      return;
+    }
+
+    selectedFriendlyOpponent = { ...row };
+    let opponentTeam = teamById(row.current_team_id || row.team_id || row.club_team_id || row.active_team_id) || deterministicFriendlyTeam(row);
+    let humanTeam = recentHumanFriendlyTeam(career, opponentTeam?.id);
+    if (!opponentTeam) opponentTeam = deterministicFriendlyTeam(row, humanTeam?.id);
+    if (!humanTeam) humanTeam = deterministicFriendlyTeam({ player_name: career.playerName, club_name: career.clubName, manager_elo: career.managerElo }, opponentTeam?.id);
+    if (humanTeam?.id === opponentTeam?.id) opponentTeam = deterministicFriendlyTeam(row, humanTeam.id);
+
+    const meetings = friendlyHistoryAgainst(career, row);
+    const record = {
+      w: meetings.filter(item => item.result === "W").length,
+      d: meetings.filter(item => item.result === "D").length,
+      l: meetings.filter(item => item.result === "L").length
+    };
+
+    ctx()?.openModal?.("Manager Hall Friendly Match", `
+      <form id="managerFriendlyForm" class="manager-career-form manager-friendly-form">
+        <input type="hidden" name="opponentKey" value="${esc(friendlyKey(row))}">
+        <div class="manager-form-intro manager-friendly-modal-hero">
+          <div class="eyebrow">ASYNC MANAGER FRIENDLY</div>
+          <h3>${esc(career.clubName)} vs ${esc(row.club_name)}</h3>
+          <p>${esc(row.player_name)} adlı Manager'ın Manager Hall'daki güncel public ELO ve Taktik IQ profili rakip AI kimliği olarak kullanılacaktır. Bu canlı çok oyunculu maç değildir.</p>
+          <div class="manager-friendly-modal-stats"><span>RAKİP ELO <b>${Number(row.manager_elo || 1000)}</b></span><span>TAKTİK IQ <b>${Number(row.tactical_iq || 50)}</b></span><span>FRIENDLY SERİSİ <b>${record.w}G · ${record.d}B · ${record.l}M</b></span></div>
+        </div>
+        <div class="manager-form-grid manager-friendly-team-selectors">
+          <label>Senin FC 25 takımın<select name="humanTeamId" required>${friendlyTeamOptions(humanTeam?.id)}</select></label>
+          <label>Rakibin FC 25 takımı<select name="opponentTeamId" required>${friendlyTeamOptions(opponentTeam?.id)}</select></label>
+        </div>
+        <fieldset class="manager-friendly-venue"><legend>Maç Yeri</legend><label><input type="radio" name="venue" value="home" checked><span><b>Ev Sahibi</b><small>Sen solda ve ev sahibi olarak başlarsın.</small></span></label><label><input type="radio" name="venue" value="away"><span><b>Deplasman</b><small>Rakip ev sahibi olur.</small></span></label></fieldset>
+        <div class="manager-friendly-rules"><b>FRIENDLY KURALLARI</b><span>Puan tablosu değişmez</span><span>Manager ELO değişmez</span><span>Kariyer puanı verilmez</span><span>Sonuç yalnızca Friendly History'ye yazılır</span></div>
+        <div class="manager-modal-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">Vazgeç</button><button class="btn btn-gold" type="submit">Friendly Maçını Kur</button></div>
+      </form>
+    `, "MANAGER HALL · EXHIBITION ARENA");
+  }
+
+  function friendlyStyleSeed(row) {
+    const random = seededNumber(`FRIENDLY-STYLE|${friendlyKey(row)}`);
+    const value = () => Math.round(36 + random() * 42);
+    return {
+      tempo: Number(row.tempo || row.style_tempo || value()),
+      directness: Number(row.directness || row.style_directness || value()),
+      pressing: Number(row.pressing || row.style_pressing || value()),
+      risk: Number(row.risk || row.style_risk || value()),
+      adaptation: Number(row.adaptation || row.tactical_iq || value()),
+      width: Number(row.width || row.style_width || value()),
+      control: Number(row.control || row.style_control || value()),
+      resilience: Number(row.resilience || value())
+    };
+  }
+
+  function upsertFriendlyGuest(career, row) {
+    career.friendlyGuests ||= [];
+    const key = friendlyKey(row);
+    const id = `FRIENDLY-${slug(key).slice(0, 58) || slug(row.player_name)}`;
+    let guest = career.friendlyGuests.find(item => item.id === id);
+    const power = Math.max(700, Math.min(2200, Number(row.manager_elo || 1000)));
+    const iq = Math.max(20, Math.min(99, Number(row.tactical_iq || 50)));
+    const seed = friendlyStyleSeed(row);
+    const payload = {
+      id,
+      type: "friendly-guest",
+      friendlyGuest: true,
+      publicCareerKey: key,
+      managerName: String(row.player_name || "Guest Manager"),
+      clubName: String(row.club_name || "Guest Club"),
+      shortName: String(row.club_short_name || initials(row.club_name || row.player_name, 4)).toUpperCase().slice(0, 5),
+      division: "friendly",
+      power,
+      powerClass: powerLabel(power),
+      tacticalIQ: iq,
+      reputation: Math.max(35, Math.min(100, Math.round(45 + (power - 900) / 18))),
+      formRating: 50,
+      styleVisible: true,
+      styleSeed: seed,
+      primaryColor: row.primary_color || "#102f46",
+      secondaryColor: row.secondary_color || "#75dcff",
+      managerMemory: guest?.managerMemory || { meetings:0, wins:0, draws:0, losses:0, plans:{}, lastPlan:null, confidence:50, notes:[], patterns:{formations:{},buildUps:{},pressing:{},mentalities:{},phaseBehaviors:{},responses:{}} },
+      psychology: { confidence:55, pressure:25, composure:60, streak:0, mood:"FRIENDLY" },
+      managerAttributes: { adaptation:iq, gameReading:iq, riskManagement:50, bigMatch:50, consistency:50, mentality:50 },
+      friendlySource: { source: row.source || "manager-hall", seasonNo:Number(row.season_no || 1), division:row.division || "—", careerPoints:Number(row.career_points || 0), trophyCount:Number(row.trophy_count || 0), updatedAt:now() }
+    };
+    if (guest) Object.assign(guest, payload);
+    else { guest = payload; guest.personality = buildManagerPersonality(guest); career.friendlyGuests.push(guest); }
+    career.friendlyGuests = career.friendlyGuests.slice(-40);
+    return guest;
+  }
+
+  async function createManagerHallFriendly(formData) {
+    const career = activeCareer();
+    const row = selectedFriendlyOpponent;
+    if (!career || !row) throw new Error("Friendly rakibi artık seçili değil. Manager Hall'dan yeniden seç.");
+    if (String(formData.get("opponentKey") || "") !== friendlyKey(row)) throw new Error("Friendly rakip doğrulaması başarısız.");
+
+    const humanTeam = teamById(String(formData.get("humanTeamId") || ""));
+    const opponentTeam = teamById(String(formData.get("opponentTeamId") || ""));
+    if (!humanTeam || !opponentTeam) throw new Error("İki FC 25 takımı da seçilmelidir.");
+    if (humanTeam.id === opponentTeam.id) throw new Error("Friendly maçında iki farklı takım seçmelisin.");
+
+    const activeFixture = career.activeMatchFixtureId ? career.fixtures?.find(item => item.id === career.activeMatchFixtureId) : null;
+    if (activeFixture?.matchEngine && activeFixture.matchEngine.status !== "finished") throw new Error("Devam eden maç varken yeni Friendly başlatılamaz.");
+
+    // Remove abandoned unplayed friendlies so they cannot block or bloat the career.
+    career.fixtures = (career.fixtures || []).filter(item => !(item.competition === "friendly" && item.status === "scheduled" && !item.matchEngine));
+    const guest = upsertFriendlyGuest(career, row);
+    const humanHome = String(formData.get("venue") || "home") !== "away";
+    const fixtureId = uid("friendly");
+    const fixture = {
+      id: fixtureId,
+      competition: "friendly",
+      division: "friendly",
+      friendly: true,
+      officialImpact: false,
+      friendlySource: "manager-hall",
+      friendlyOpponentKey: friendlyKey(row),
+      friendlyOpponentPlayerName: guest.managerName,
+      friendlyOpponentClubName: guest.clubName,
+      leg: 0,
+      matchday: Number(career.matchday || 1),
+      stars: Math.max(Number(humanTeam.stars || 4), Number(opponentTeam.stars || 4)),
+      homeId: humanHome ? career.humanActorId : guest.id,
+      awayId: humanHome ? guest.id : career.humanActorId,
+      homeTeam: humanHome ? humanTeam.id : opponentTeam.id,
+      awayTeam: humanHome ? opponentTeam.id : humanTeam.id,
+      status: "scheduled",
+      homeScore: null,
+      awayScore: null,
+      decisions: [],
+      teamDraw: { id:uid("friendly-draw"), version:VERSION, stars:Math.max(Number(humanTeam.stars || 4), Number(opponentTeam.stars || 4)), drawnAt:now(), locked:true, method:"manager-hall-friendly-selection" },
+      createdAt: now()
+    };
+    career.fixtures.push(fixture);
+    career.activeMatchFixtureId = fixture.id;
+    career.status = "friendly-ready";
+    career.lastFriendlyOpponentKey = friendlyKey(row);
+    await persistCareer(career, { silent:true });
+    return fixture;
+  }
+
+  function renderFriendlyArena(rows, career) {
+    const opponents = publicFriendlyRows(rows, career);
+    if (!career) {
+      return `<section class="manager-friendly-arena manager-friendly-locked"><div><span>MANAGER HALL FRIENDLY ARENA</span><h3>Diğer Manager kulüplerine meydan oku</h3><p>Friendly maç oluşturmak için önce The Manager's Room içinden bir kariyer açmalısın.</p></div><button class="btn btn-gold" data-manager-action="friendly-open-career">Kariyerimi Aç</button></section>`;
+    }
+    const stats = career.friendlyStats || {matches:0,wins:0,draws:0,losses:0};
+    const cards = opponents.slice(0, 12).map((row, index) => {
+      const meetings = friendlyHistoryAgainst(career, row);
+      const record = {w:meetings.filter(item=>item.result==="W").length,d:meetings.filter(item=>item.result==="D").length,l:meetings.filter(item=>item.result==="L").length};
+      return `<article class="manager-friendly-card"><header><span>#${Number(row.rank || index + 1)} · ${esc(row.division || "Manager Hall")}</span><b>ELO ${Number(row.manager_elo || 1000)}</b></header><div class="manager-friendly-club-mark" style="--friendly-primary:${esc(row.primary_color || "#12364b")};--friendly-secondary:${esc(row.secondary_color || "#75dcff")}">${esc(String(row.club_short_name || initials(row.club_name, 4)).slice(0,4))}</div><section><h4>${esc(row.club_name)}</h4><p>${esc(row.player_name)} · IQ ${Number(row.tactical_iq || 50)} · Sezon ${Number(row.season_no || 1)}</p><small>${meetings.length ? `${record.w}G · ${record.d}B · ${record.l}M · ${friendlyFormLine(career,row)}` : "Henüz Friendly oynanmadı"}</small></section><button class="btn btn-gold" data-manager-action="friendly-challenge" data-friendly-index="${index}">Friendly Match</button></article>`;
+    }).join("");
+    return `<section class="manager-friendly-arena"><div class="manager-friendly-arena-head"><div><span>MANAGER HALL FRIENDLY ARENA</span><h3>Public Manager profillerine karşı hazırlık maçı</h3><p>Rakibin güncel Manager Hall ELO ve Taktik IQ profili AI kimliği olarak kullanılır. Friendly sonuçları lig, kupa, ELO ve kariyer puanını etkilemez.</p></div><aside><strong>${stats.matches || 0}</strong><span>FRIENDLY</span><small>${stats.wins || 0}G · ${stats.draws || 0}B · ${stats.losses || 0}M</small></aside></div>${opponents.length ? `<div class="manager-friendly-grid">${cards}</div>` : `<div class="empty-state">Meydan okunabilecek başka bir Manager kariyeri bulunamadı.</div>`}</section>`;
   }
 
   function renderHall(view) {
     ensureResources();
     refreshLeaderboard();
     const rows = remoteLeaderboard.length ? remoteLeaderboard : localLeaderboard();
-    view.innerHTML = `<section class="manager-hall-hero"><div><div class="eyebrow">GLOBAL CAREER RANKING</div><h2>Manager Hall</h2><p>Bütün bağımsız kariyerlerin ortak prestij, güç ve taktik zekâ sıralaması. Resmî kariyerler farklı cihazlardan aynı tabloda görünür.</p></div><div class="manager-hall-stat"><strong>${rows.length}</strong><span>AKTİF KARİYER</span></div></section><section class="manager-hall-table"><div class="manager-panel-head"><div><span>ALL MANAGERS</span><h3>Kariyer Liderlik Tablosu</h3></div><em>${remoteLeaderboard.length ? "SUPABASE LIVE" : "LOCAL TEST"}</em></div>${rows.length ? `<table><thead><tr><th>#</th><th>Manager / Kulüp</th><th>Lig</th><th>Sezon</th><th>Taktik IQ</th><th>ELO</th><th>Kupa</th><th>Kariyer Puanı</th></tr></thead><tbody>${rows.map((row, index) => `<tr><td><b>${index + 1}</b></td><td><strong>${esc(row.player_name)}</strong><small>${esc(row.club_name)}</small></td><td>${esc(row.division || "Championship")}</td><td>${row.season_no || 1}</td><td>${row.tactical_iq || 50}</td><td>${row.manager_elo || 1000}</td><td>${row.trophy_count || 0}</td><td><strong>${row.career_points || 0}</strong></td></tr>`).join("")}</tbody></table>` : `<div class="empty-state">İlk Manager kariyeri henüz kurulmadı.</div>`}</section>`;
+    const career = activeCareer();
+    const opponents = publicFriendlyRows(rows, career);
+    view.innerHTML = `<section class="manager-hall-hero"><div><div class="eyebrow">GLOBAL CAREER RANKING</div><h2>Manager Hall</h2><p>Bütün bağımsız kariyerlerin ortak prestij, güç ve taktik zekâ sıralaması. Artık public Manager profilleriyle puansız Friendly Match oynanabilir.</p></div><div class="manager-hall-stat"><strong>${rows.length}</strong><span>AKTİF KARİYER</span></div></section>${renderFriendlyArena(rows, career)}<section class="manager-hall-table"><div class="manager-panel-head"><div><span>ALL MANAGERS</span><h3>Kariyer Liderlik Tablosu</h3></div><em>${remoteLeaderboard.length ? "SUPABASE LIVE" : "LOCAL TEST"}</em></div>${rows.length ? `<table><thead><tr><th>#</th><th>Manager / Kulüp</th><th>Lig</th><th>Sezon</th><th>Taktik IQ</th><th>ELO</th><th>Kupa</th><th>Kariyer Puanı</th><th>Friendly</th></tr></thead><tbody>${rows.map((row, index) => {const opponentIndex=opponents.findIndex(item=>friendlyKey(item)===friendlyKey(row));return `<tr><td><b>${index + 1}</b></td><td><strong>${esc(row.player_name)}</strong><small>${esc(row.club_name)}</small></td><td>${esc(row.division || "Championship")}</td><td>${row.season_no || 1}</td><td>${row.tactical_iq || 50}</td><td>${row.manager_elo || 1000}</td><td>${row.trophy_count || 0}</td><td><strong>${row.career_points || 0}</strong></td><td>${career && opponentIndex >= 0 ? `<button class="manager-friendly-table-button" data-manager-action="friendly-challenge" data-friendly-index="${opponentIndex}">Oyna</button>` : sameManager(row,career) ? `<span class="manager-friendly-self">SEN</span>` : `<span>—</span>`}</td></tr>`;}).join("")}</tbody></table>` : `<div class="empty-state">İlk Manager kariyeri henüz kurulmadı.</div>`}</section>`;
   }
 
   async function handleSubmit(event) {
-    if (!["managerCareerForm", "managerUnlockForm"].includes(event.target.id)) return;
+    if (!["managerCareerForm", "managerUnlockForm", "managerFriendlyForm"].includes(event.target.id)) return;
     event.preventDefault();
     const form = event.target;
     const button = form.querySelector("button[type=submit]");
@@ -1426,6 +1675,16 @@
     const original = button.textContent;
     try {
       const data = new FormData(form);
+      if (form.id === "managerFriendlyForm") {
+        button.textContent = "Friendly hazırlanıyor...";
+        const fixture = await createManagerHallFriendly(data);
+        selectedFriendlyOpponent = null;
+        ctx()?.closeModal?.();
+        activeTab = "match";
+        ctx()?.toast?.(`${fixture.friendlyOpponentClubName} ile Friendly Match hazır.`, "success");
+        ctx()?.navigate?.("managerroom");
+        return;
+      }
       const pin = String(data.get("pin") || "");
       if (form.id === "managerCareerForm") {
         button.textContent = "Evren oluşturuluyor...";
@@ -1473,6 +1732,17 @@
     const action = event.target.closest("[data-manager-action]");
     if (!action) return;
     const type = action.dataset.managerAction;
+    if (type === "friendly-open-career") { ctx()?.navigate?.("managerroom"); return; }
+    if (type === "friendly-challenge") {
+      const career = activeCareer();
+      if (!career) { ctx()?.toast?.("Friendly Match için önce kariyerini açmalısın.", "warning"); ctx()?.navigate?.("managerroom"); return; }
+      const rows = remoteLeaderboard.length ? remoteLeaderboard : localLeaderboard();
+      const opponents = publicFriendlyRows(rows, career);
+      const row = opponents[Number(action.dataset.friendlyIndex)];
+      if (!row) { ctx()?.toast?.("Friendly rakibi artık listede bulunamadı. Manager Hall'ı yenile.", "error"); return; }
+      openFriendlyModal(row);
+      return;
+    }
     if (type === "open-career") openCareerModal();
     if (type === "resume-career") { const career=managerState.careers.find(item=>item.id===action.dataset.careerId); if(!career)return; managerState.activeCareerId=career.id; activeTab=career.activeMatchFixtureId?"match":"overview"; saveLocal(); if(career.mode==="official"&&/^\d{6}$/.test(getSessionPin(career))) await syncOfficialCareer(career,{mode:"auto",silent:true}).catch(()=>{}); ctx()?.refreshView?.(); }
     if (type === "exit-career") { exitCareerToLanding(); return; }
@@ -1491,7 +1761,7 @@
     if (type === "experience-level") { const c=activeCareer(); if(c){c.managerIdentity.level=action.dataset.level||"manager";saveLocal();ctx()?.refreshView?.();} }
     if (type === "toggle-sound") { const c=activeCareer(); if(c){c.managerIdentity.sound=!c.managerIdentity.sound;saveLocal();ctx()?.refreshView?.();} }
     if (type === "upgrade-skill") { const c=activeCareer(),key=action.dataset.skill;if(c&&key&&c.careerPoints>=100&&Number(c.managerIdentity.skills[key]||0)<5){c.careerPoints-=100;c.managerIdentity.skills[key]=Number(c.managerIdentity.skills[key]||0)+1;c.managerIdentity.reputation=Math.min(100,c.managerIdentity.reputation+2);saveLocal();ctx()?.toast?.("Manager yeteneği geliştirildi.","success");ctx()?.refreshView?.();} }
-    if (type === "new-season") { const c=activeCareer(); if(c&&!c.fixtures.some(f=>["scheduled","in-progress"].includes(f.status))){const premierWinner=actor(c,sortedLeagueRows(c,"premier")[0]?.actorId),championshipWinner=actor(c,sortedLeagueRows(c,"championship")[0]?.actorId),leagueAWinner=actor(c,sortedLeagueRows(c,"league-a")[0]?.actorId),managerOfYear=[...c.actors].sort((a,b)=>(b.managerRating||b.tacticalIQ||50)-(a.managerRating||a.tacticalIQ||50)||b.power-a.power)[0];c.seasonAwards||=[];c.seasonAwards.push({seasonNo:c.seasonNo,premier:premierWinner?.clubName,championship:championshipWinner?.clubName,leagueA:leagueAWinner?.clubName,oruc:actor(c,c.orucCup?.championId)?.clubName||null,managerOfYear:managerOfYear?.managerName,createdAt:now()});c.seasonArchive||=[];c.seasonArchive.push({seasonNo:c.seasonNo,fixtures:c.fixtures,endedAt:now()});c.seasonNo+=1;c.matchday=1;c.seasonDivisionMap=Object.fromEntries(c.actors.map(a=>[a.id,a.division]));c.fixtures=buildLeagueFixtures(c.actors);c.tables={premier:initialTable(c.actors.filter(a=>a.division==="premier")),championship:initialTable(c.actors.filter(a=>a.division==="championship")),"league-a":initialTable(c.actors.filter(a=>a.division==="league-a"))};c.fixtureIntegrity={version:FIXTURE_INTEGRITY_VERSION,checkedAt:now(),addedMissing:0,removedDuplicates:0,removedStale:0,leagueFixtures:c.fixtures.filter(f=>f.competition==="league").length};c.orucCup=null;ensureOrucCup(c);saveLocal();ctx()?.toast?.(`Sezon ${c.seasonNo} başladı.`,"success");activeTab="overview";ctx()?.refreshView?.();} }
+    if (type === "new-season") { const c=activeCareer(); if(c&&!c.fixtures.some(f=>f.competition!=="friendly"&&["scheduled","in-progress"].includes(f.status))){const premierWinner=actor(c,sortedLeagueRows(c,"premier")[0]?.actorId),championshipWinner=actor(c,sortedLeagueRows(c,"championship")[0]?.actorId),leagueAWinner=actor(c,sortedLeagueRows(c,"league-a")[0]?.actorId),managerOfYear=[...c.actors].sort((a,b)=>(b.managerRating||b.tacticalIQ||50)-(a.managerRating||a.tacticalIQ||50)||b.power-a.power)[0];c.seasonAwards||=[];c.seasonAwards.push({seasonNo:c.seasonNo,premier:premierWinner?.clubName,championship:championshipWinner?.clubName,leagueA:leagueAWinner?.clubName,oruc:actor(c,c.orucCup?.championId)?.clubName||null,managerOfYear:managerOfYear?.managerName,createdAt:now()});c.seasonArchive||=[];c.seasonArchive.push({seasonNo:c.seasonNo,fixtures:c.fixtures,endedAt:now()});c.seasonNo+=1;c.matchday=1;c.seasonDivisionMap=Object.fromEntries(c.actors.map(a=>[a.id,a.division]));c.fixtures=buildLeagueFixtures(c.actors);c.tables={premier:initialTable(c.actors.filter(a=>a.division==="premier")),championship:initialTable(c.actors.filter(a=>a.division==="championship")),"league-a":initialTable(c.actors.filter(a=>a.division==="league-a"))};c.fixtureIntegrity={version:FIXTURE_INTEGRITY_VERSION,checkedAt:now(),addedMissing:0,removedDuplicates:0,removedStale:0,leagueFixtures:c.fixtures.filter(f=>f.competition==="league").length};c.orucCup=null;ensureOrucCup(c);saveLocal();ctx()?.toast?.(`Sezon ${c.seasonNo} başladı.`,"success");activeTab="overview";ctx()?.refreshView?.();} }
     if (type === "set-tab") {
       activeTab = action.dataset.tab || "overview";
       ctx()?.refreshView?.();
@@ -1574,6 +1844,8 @@
     syncOfficialCareer,
     exitCareerToLanding,
     getManagerState: () => managerState,
+    getFriendlyRows: () => publicFriendlyRows(remoteLeaderboard.length ? remoteLeaderboard : localLeaderboard(), activeCareer()),
+    getFriendlyHistory: career => (career || activeCareer())?.friendlyHistory || [],
     scheduleCloudSync,
     syncOfficialCareer,
     compactCareerSnapshot,

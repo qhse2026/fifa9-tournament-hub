@@ -739,6 +739,7 @@
     if (recent.filter(item => item.result === "L").length >= 2) tags.push("bounceback");
     if (meetings >= 2) tags.push("rivalry");
     if (fixture.competition === "oruc") tags.push("cup");
+    if (fixture.competition === "friendly" || fixture.friendly) tags.push("friendly");
     return tags;
   }
 
@@ -1977,6 +1978,85 @@
     return { lines, avgQuality: Math.round(avgQuality) };
   }
 
+  function isFriendlyFixture(fixture) {
+    return fixture?.competition === "friendly" || fixture?.friendly === true;
+  }
+
+  async function finishFriendlyMatch(career, fixture, engine) {
+    const sides = getSides(career, fixture);
+    const humanGoals = sides.humanIsHome ? engine.scoreHome : engine.scoreAway;
+    const aiGoals = sides.humanIsHome ? engine.scoreAway : engine.scoreHome;
+    const result = humanGoals > aiGoals ? 1 : humanGoals === aiGoals ? 0.5 : 0;
+    const analysis = reportLines(career, fixture);
+    const tacticalIntelligence = analyzeTacticalPlan(engine.userPlan || {});
+    const tacticalQuality = clamp(Math.round(analysis.avgQuality * .74 + tacticalIntelligence.chemistry * .16 + tacticalIntelligence.transitionSecurity * .10), 20, 96);
+
+    fixture.officialImpact = false;
+    fixture.tableApplied = false;
+    fixture.eloApplied = false;
+    fixture.friendlyCompletedAt = now();
+    fixture.friendlyResult = result === 1 ? "W" : result === .5 ? "D" : "L";
+
+    engine.report = {
+      mode: "FRIENDLY",
+      result: result === 1 ? "WIN" : result === .5 ? "DRAW" : "LOSS",
+      humanGoals,
+      aiGoals,
+      eloDelta: 0,
+      tacticalDelta: 0,
+      careerPointsEarned: 0,
+      tacticalQuality,
+      lines: [
+        "Bu Manager Hall Friendly sonucu lig, kupa, Manager ELO ve kariyer puanını etkilemedi.",
+        ...analysis.lines
+      ].slice(0, 4),
+      motivation: engine.motivation,
+      pressConference: engine.pressConference,
+      tacticalIntelligence: { opening:engine.tacticalIntelligenceStart?.human || tacticalIntelligence, final:tacticalIntelligence, phaseUsage:engine.phaseUsage, orders:engine.triggeredOrders },
+      totalShots: engine.stats.home.shots + engine.stats.away.shots,
+      totalXg: round1(engine.stats.home.xg + engine.stats.away.xg),
+      revealedStyleHint: "Friendly Match: Rakibin Manager Hall public profili kullanıldı.",
+      managerBattle: [...(engine.managerBattle || [])],
+      managerRating: career.managerRating || 50,
+      managerAttributes: { ...(career.managerAttributes || {}) },
+      playerStyle: { ...(career.playerStyle || {}) }
+    };
+
+    career.friendlyHistory ||= [];
+    career.friendlyStats ||= { matches:0, wins:0, draws:0, losses:0, goalsFor:0, goalsAgainst:0 };
+    career.friendlyHistory.unshift({
+      fixtureId: fixture.id,
+      playedAt: now(),
+      opponentKey: fixture.friendlyOpponentKey || sides.aiActor.publicCareerKey || sides.aiActor.id,
+      opponentPlayerName: fixture.friendlyOpponentPlayerName || sides.aiActor.managerName,
+      opponentClubName: fixture.friendlyOpponentClubName || sides.aiActor.clubName,
+      humanTeamId: sides.humanTeam?.id || null,
+      aiTeamId: sides.aiTeam?.id || null,
+      humanGoals,
+      aiGoals,
+      result: result === 1 ? "W" : result === .5 ? "D" : "L",
+      tacticalQuality,
+      simulated: Boolean(fixture.simulated),
+      officialImpact: false
+    });
+    career.friendlyHistory = career.friendlyHistory.slice(0, 60);
+    career.friendlyStats.matches += 1;
+    if (result === 1) career.friendlyStats.wins += 1;
+    else if (result === .5) career.friendlyStats.draws += 1;
+    else career.friendlyStats.losses += 1;
+    career.friendlyStats.goalsFor += humanGoals;
+    career.friendlyStats.goalsAgainst += aiGoals;
+    career.status = "friendly-report";
+
+    try {
+      await room()?.persistCareer?.(career, { silent:true });
+    } catch (error) {
+      app()?.toast?.(`${error.message} Friendly sonucu bu cihazda korundu.`, "warning");
+    }
+    runtime.busy = false;
+    refreshMount(career, fixture);
+  }
+
   async function finishMatch(career, fixture) {
     if (runtime.busy || fixture.matchEngine?.status === "finished") return;
     runtime.busy = true;
@@ -2000,6 +2080,10 @@
     if(fixture.competition==="oruc"&&engine.scoreHome===engine.scoreAway){const homePens=3+Math.floor(random(engine)*3),awayPens=3+Math.floor(random(engine)*3);fixture.shootout={home:homePens,away:awayPens};if(homePens===awayPens)fixture.shootout[random(engine)<.5?"home":"away"]+=1;fixture.winnerId=fixture.shootout.home>fixture.shootout.away?fixture.homeId:fixture.awayId;engine.events.unshift({minute:90,type:"shootout",side:fixture.winnerId===fixture.homeId?"home":"away",text:`Penaltı atışları ${fixture.shootout.home}-${fixture.shootout.away} tamamlandı.`});}
     fixture.stats = engine.stats;
     fixture.updatedAt = now();
+    if (isFriendlyFixture(fixture)) {
+      await finishFriendlyMatch(career, fixture, engine);
+      return;
+    }
     applyTableResult(career, fixture, engine.scoreHome, engine.scoreAway);
     applyActorElo(career, fixture, engine.scoreHome, engine.scoreAway);
     simulateMatchday(career, fixture);
@@ -2043,7 +2127,7 @@
     const tacticalBonus = Math.max(0, Math.round((analysis.avgQuality - 45) * 1.2));
     career.careerPoints = Number(career.careerPoints || 0) + basePoints + tacticalBonus;
     career.prestige = clamp(Number(career.prestige || 0) + (result === 1 ? 2 : result === 0.5 ? 1 : 0), 0, 100);
-    const humanFixtures = career.fixtures.filter(item => item.status!=="cancelled"&&[item.homeId, item.awayId].includes(career.humanActorId));
+    const humanFixtures = career.fixtures.filter(item => item.competition!=="friendly"&&item.status!=="cancelled"&&[item.homeId, item.awayId].includes(career.humanActorId));
     const playedHuman = humanFixtures.filter(item => item.status === "played");
     career.completionRate = Math.round(playedHuman.length / Math.max(1, humanFixtures.length) * 100);
     career.matchEngineStats ||= { matches: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, decisions: 0 };
@@ -2104,7 +2188,7 @@
     };
     const battle=[...(engine.managerBattle||[])];if(overAggressive)battle.push({minute:90,type:"risk",text:`Agresif yüklenme fizik seviyesini ${Math.round(humanFinalFatigue)}'e indirdi ve geçiş savunmasını zayıflattı.`});if(engine.tacticalDeceptions)battle.push({minute:90,type:"deception",text:`Rakip ${engine.tacticalDeceptions} kez maskeli taktik/yön değişikliği yaptı.`});if(engine.aiMemoryUsed)battle.push({minute:0,type:"memory",text:"Rakip önceki karşılaşma hafızasından karşı plan üretti."});engine.report.managerBattle=battle;engine.report.managerRating=career.managerRating;engine.report.managerAttributes={...attrs};engine.report.playerStyle={...ps};
     const next = career.fixtures
-      .filter(item => item.status === "scheduled" && [item.homeId, item.awayId].includes(career.humanActorId))
+      .filter(item => item.competition !== "friendly" && item.status === "scheduled" && [item.homeId, item.awayId].includes(career.humanActorId))
       .sort((a, b) => a.matchday - b.matchday)[0];
     career.matchday = next?.matchday || fixture.matchday + 1;
     career.status = "match-report";
@@ -2174,8 +2258,9 @@
       return `<section id="managerMatchMount" class="manager-match-shell"><div class="manager-match-empty"><span>TEAM DRAW REQUIRED</span><h2>Önce iki takımın kurasını tamamla</h2><p>Canlı maç motoru takım OVR/ATK/MID/DEF değerlerini, Manager ELO ve gizli rakip stilini aynı state içinde kullanır.</p><button class="btn btn-gold" data-manager-action="set-tab" data-tab="draw">Team Draw Theatre</button></div></section>`;
     }
     const defaults = fixture.matchPlan || { mentality: "balanced", pressing: "mid", buildUp: "patient", tempo: "normal", risk: "measured" };
-    return `<section id="managerMatchMount" class="manager-match-shell">
-      <div class="manager-war-room-head"><div><span>PRE-MATCH WAR ROOM · MATCHDAY ${fixture.matchday}</span><h2>Maç Planını Kur</h2><p>Formasyon, mevki rolleri, dört oyun fazı ve koşullu emirler Tactical Intelligence tarafından tek bir yaşayan maç planına dönüştürülür.</p></div><div class="manager-match-clock"><strong>V44.5</strong><span>UNIFIED ENGINE 4.1</span></div></div>
+    const friendly = isFriendlyFixture(fixture);
+    return `<section id="managerMatchMount" class="manager-match-shell ${friendly ? "manager-friendly-match-shell" : ""}">
+      <div class="manager-war-room-head"><div><span>${friendly ? "MANAGER HALL FRIENDLY · EXHIBITION" : `PRE-MATCH WAR ROOM · MATCHDAY ${fixture.matchday}`}</span><h2>${friendly ? "Friendly Maç Planını Kur" : "Maç Planını Kur"}</h2><p>${friendly ? "Public Manager profiline karşı puansız hazırlık maçı. Sonuç lig, kupa, ELO ve kariyer puanını değiştirmez." : "Formasyon, mevki rolleri, dört oyun fazı ve koşullu emirler Tactical Intelligence tarafından tek bir yaşayan maç planına dönüştürülür."}</p></div><div class="manager-match-clock"><strong>${friendly ? "FR" : "V44.5"}</strong><span>${friendly ? "NO OFFICIAL IMPACT" : "UNIFIED ENGINE 4.1"}</span></div></div>
       <div class="manager-war-room-versus">
         ${compactTeamCard(sides.humanTeam, human, "SEN", career.managerElo)}
         <div class="manager-war-room-core"><span>TACTICAL</span><b>VS</b><small>${room()?.starText?.(fixture.stars) || `${fixture.stars}★`}</small></div>
@@ -2385,8 +2470,9 @@
     const aiFatigue = Math.round(d.aiFatigue);
     const physicalNote = humanFatigue >= 82 ? "NORMAL MAÇ YÜKÜ" : humanFatigue >= 72 ? "YÜKSEK EFOR" : "KRİTİK EFOR";
     const compactMetric = (label, humanValue, aiValue, suffix = "") => `<article><span>${label}</span><b>${humanValue}${suffix}</b><i>${aiValue}${suffix}</i></article>`;
-    return `<section id="managerMatchMount" class="manager-match-report manager-match-report-compact ${resultClass}">
-      <div class="manager-report-hero"><div><span>FULL TIME · MATCHDAY ${fixture.matchday}</span><h2>${resultLabel}</h2><p>${esc(d.humanTeam.clubName)} — ${esc(d.aiTeam.clubName)}</p></div><div class="manager-report-score"><span>${esc(career.shortName)}</span><b>${report.humanGoals ?? d.humanGoals}</b><i>—</i><b>${report.aiGoals ?? d.aiGoals}</b><span>${esc(rival.shortName)}</span></div></div>
+    const friendly = isFriendlyFixture(fixture);
+    return `<section id="managerMatchMount" class="manager-match-report manager-match-report-compact ${resultClass} ${friendly ? "manager-friendly-report" : ""}">
+      <div class="manager-report-hero"><div><span>${friendly ? "FULL TIME · MANAGER HALL FRIENDLY" : `FULL TIME · MATCHDAY ${fixture.matchday}`}</span><h2>${resultLabel}</h2><p>${esc(d.humanTeam.clubName)} — ${esc(d.aiTeam.clubName)}${friendly ? " · PUANSIZ" : ""}</p></div><div class="manager-report-score"><span>${esc(career.shortName)}</span><b>${report.humanGoals ?? d.humanGoals}</b><i>—</i><b>${report.aiGoals ?? d.aiGoals}</b><span>${esc(rival.shortName)}</span></div></div>
       <section class="manager-compact-report-kpis">
         ${compactMetric("xG", round1(d.humanStats.xg), round1(d.aiStats.xg))}
         ${compactMetric("ŞUT", d.humanStats.shots, d.aiStats.shots)}
@@ -2396,7 +2482,7 @@
       <section class="manager-report-summary-card">
         <header><div><span>MAÇ ÖZETİ</span><h3>Üç temel sonuç</h3></div><strong>${physicalNote}</strong></header>
         <ul>${summaryLines.length ? summaryLines.map(line => `<li>${esc(line)}</li>`).join("") : `<li>Maç dengeli bir taktik akışla tamamlandı.</li>`}</ul>
-        <div class="manager-report-rewards"><span>TAKTİK <b>${report.tacticalQuality || 50}</b></span><span>ELO <b>${report.eloDelta >= 0 ? "+" : ""}${report.eloDelta || 0}</b></span><span>IQ <b>${report.tacticalDelta >= 0 ? "+" : ""}${report.tacticalDelta || 0}</b></span><span>KARİYER <b>+${report.careerPointsEarned || 0}</b></span></div>
+        <div class="manager-report-rewards">${friendly ? `<span>STATÜ <b>FRIENDLY</b></span><span>ELO <b>DEĞİŞMEDİ</b></span><span>IQ <b>DEĞİŞMEDİ</b></span><span>KARİYER <b>PUANSIZ</b></span>` : `<span>TAKTİK <b>${report.tacticalQuality || 50}</b></span><span>ELO <b>${report.eloDelta >= 0 ? "+" : ""}${report.eloDelta || 0}</b></span><span>IQ <b>${report.tacticalDelta >= 0 ? "+" : ""}${report.tacticalDelta || 0}</b></span><span>KARİYER <b>+${report.careerPointsEarned || 0}</b></span>`}</div>
       </section>
       ${decisionRows.length ? `<section class="manager-report-compact-decisions"><h3>Son Kritik Kararlar</h3>${decisionRows.map(item => `<article><time>${item.minute}'</time><div><b>${esc(item.chosenLabel)}</b><small>${esc(item.outcome)}</small></div><strong>${item.quality}</strong></article>`).join("")}</section>` : ""}
       ${engine.reportDetailsOpen ? `<section class="manager-report-details manager-report-details-open">
@@ -2417,7 +2503,7 @@
           ${keyEvents.length ? `<section class="manager-key-timeline"><h3>Önemli Olaylar</h3>${keyEvents.map(event=>`<article class="${event.type}"><time>${event.minute}'</time><b>${esc(event.type.replaceAll("-"," ").toUpperCase())}</b><span>${esc(event.text)}</span></article>`).join("")}</section>` : ""}
         </div>
       </section>` : `<button class="manager-report-detail-toggle" data-match-action="toggle-report-details"><span>DETAYLI MAÇ ANALİZİ</span><b>İstatistikleri ve önemli olayları aç</b></button>`}
-      <div class="manager-report-actions"><button class="btn btn-ghost" data-match-action="share-card" data-fixture-id="${esc(fixture.id)}">Maç Kartını Paylaş</button><button class="btn btn-ghost" data-manager-action="set-tab" data-tab="${archiveMode?"fixtures":"universe"}">${archiveMode?"Fikstürlere Dön":"Puan Tablosunu Gör"}</button>${archiveMode?"":`<button class="btn btn-gold" data-match-action="continue-career">Sonraki Matchday</button>`}</div>
+      <div class="manager-report-actions"><button class="btn btn-ghost" data-match-action="share-card" data-fixture-id="${esc(fixture.id)}">Maç Kartını Paylaş</button>${friendly ? `<button class="btn btn-gold" data-match-action="continue-career">Manager Hall'a Dön</button>` : `<button class="btn btn-ghost" data-manager-action="set-tab" data-tab="${archiveMode?"fixtures":"universe"}">${archiveMode?"Fikstürlere Dön":"Puan Tablosunu Gör"}</button>${archiveMode?"":`<button class="btn btn-gold" data-match-action="continue-career">Sonraki Matchday</button>`}`}</div>
     </section>`;
   }
 
@@ -2627,7 +2713,9 @@
     if (action === "simulate-match") {
       const form = target.closest("#managerMatchPlanForm") || document.getElementById("managerMatchPlanForm");
       if (!form) { app()?.toast?.("Maç planı formu bulunamadı.", "error"); return; }
-      const confirmed = window.confirm("Maç 90 dakika hızlı simüle edilecek ve sonuç kariyere kaydedilecek. Devam edilsin mi?");
+      const confirmed = window.confirm(isFriendlyFixture(fixture)
+        ? "Friendly maç 90 dakika hızlı simüle edilecek. Sonuç yalnızca Friendly History'ye yazılacak; ELO ve puanlar değişmeyecek. Devam edilsin mi?"
+        : "Maç 90 dakika hızlı simüle edilecek ve sonuç kariyere kaydedilecek. Devam edilsin mi?");
       if (!confirmed) return;
       await simulateEntireMatch(career, fixture, form, target);
       return;
@@ -2665,12 +2753,16 @@
     }
     if (action === "continue-career") {
       stopTimer();
+      const friendly = isFriendlyFixture(fixture);
       career.activeMatchFixtureId = null;
-      career.status = "team-draw-ready";
+      career.status = friendly ? "team-draw-ready" : "team-draw-ready";
       await room()?.persistCareer?.(career, { silent: true }).catch(() => {});
-      room()?.setActiveTab?.("overview");
+      if (friendly) app()?.navigate?.("managerhall");
+      else room()?.setActiveTab?.("overview");
+      return;
     }
-    if (action === "share-card") { const e=fixture.matchEngine,s=getSides(career,fixture),text=`FIFA 9 · ${s.homeTeam.clubName} ${e.scoreHome}-${e.scoreAway} ${s.awayTeam.clubName}\nMatchday ${fixture.matchday} · ${round1(e.stats.home.xg)}-${round1(e.stats.away.xg)} xG · ${e.stats.home.shots}-${e.stats.away.shots} şut`; if(navigator.share)navigator.share({title:"FIFA 9 Maç Kartı",text}).catch(()=>{});else navigator.clipboard?.writeText(text).then(()=>app()?.toast?.("Maç kartı panoya kopyalandı.","success")); }
+    if (action === "share-card") { const e=fixture.matchEngine,s=getSides(career,fixture),text=`FIFA 9 · ${s.homeTeam.clubName} ${e.scoreHome}-${e.scoreAway} ${s.awayTeam.clubName}
+${isFriendlyFixture(fixture)?"Manager Hall Friendly · Puansız":`Matchday ${fixture.matchday}`} · ${round1(e.stats.home.xg)}-${round1(e.stats.away.xg)} xG · ${e.stats.home.shots}-${e.stats.away.shots} şut`; if(navigator.share)navigator.share({title:"FIFA 9 Maç Kartı",text}).catch(()=>{});else navigator.clipboard?.writeText(text).then(()=>app()?.toast?.("Maç kartı panoya kopyalandı.","success")); }
   }
 
   document.addEventListener("submit", handleSubmit);
@@ -2715,7 +2807,7 @@
     },
     stop: stopTimer,
     calibrate,
-    __diagnostics: { initializeMatch, advanceLiveMotion, simulateMinute, simulateEntireMatch, ensureLiveRuntime, tick },
+    __diagnostics: { initializeMatch, advanceLiveMotion, simulateMinute, simulateEntireMatch, finishFriendlyMatch, isFriendlyFixture, ensureLiveRuntime, tick },
     resume: () => {
       const career = room()?.getActiveCareer?.();
       const fixture = career?.activeMatchFixtureId ? career.fixtures.find(item => item.id === career.activeMatchFixtureId) : null;
