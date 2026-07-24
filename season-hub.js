@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = 40;
+  const VERSION = 41;
   const DEFAULT_SETTINGS = Object.freeze({
     premierSize: 7,
     promotion: 2,
@@ -15,8 +15,8 @@
       { id: "leg-3", label: "3. Devre", stars: 5 }
     ],
     cupStars: 4.5,
-    playoffBestOf: 3,
-    semifinalBestOf: 3,
+    playoffBestOf: 1,
+    semifinalBestOf: 1,
     finalBestOf: 1,
     superCupBestOf: 1
   });
@@ -148,7 +148,22 @@
   }
 
   function emptyOrucCup() {
-    return { status: "locked", generatedAt: null, seeds: null, series: {}, semifinalDraw: [], final: null, championId: null, runnerUpId: null };
+    return {
+      status: "locked",
+      formatVersion: 3,
+      format: "single-match-random-8",
+      generatedAt: null,
+      entrants: [],
+      seeds: null,
+      initialDraw: [],
+      semifinalDraw: [],
+      drawLocked: false,
+      semifinalDrawLocked: false,
+      series: {},
+      final: null,
+      championId: null,
+      runnerUpId: null
+    };
   }
 
   function emptySuperCup() {
@@ -180,8 +195,20 @@
       season.leagues[leagueId].fixtures = Array.isArray(season.leagues[leagueId].fixtures) ? season.leagues[leagueId].fixtures : [];
     }
     season.cups = season.cups || {};
-    season.cups.oruc = { ...emptyOrucCup(), ...(season.cups.oruc || {}) };
+    const existingOruc = season.cups.oruc || {};
+    const legacyOrucHasResults = Object.values(existingOruc.series || {}).some(series =>
+      (series?.matches || []).some(match => hasExplicitScore(match?.homeScore) && hasExplicitScore(match?.awayScore))
+    ) || (existingOruc.final && hasExplicitScore(existingOruc.final.homeScore) && hasExplicitScore(existingOruc.final.awayScore));
+
+    if (Number(existingOruc.formatVersion || 0) < 3 && !legacyOrucHasResults) {
+      season.cups.oruc = emptyOrucCup();
+    } else {
+      season.cups.oruc = { ...emptyOrucCup(), ...existingOruc };
+    }
     season.cups.oruc.series = season.cups.oruc.series || {};
+    season.cups.oruc.entrants = Array.isArray(season.cups.oruc.entrants) ? season.cups.oruc.entrants : [];
+    season.cups.oruc.initialDraw = Array.isArray(season.cups.oruc.initialDraw) ? season.cups.oruc.initialDraw : [];
+    season.cups.oruc.semifinalDraw = Array.isArray(season.cups.oruc.semifinalDraw) ? season.cups.oruc.semifinalDraw : [];
     season.cups.super = { ...emptySuperCup(), ...(season.cups.super || {}) };
 
     for (const leagueId of ["premier", "championship"]) {
@@ -688,19 +715,20 @@
     toast("Maç sonucu silindi.", "success");
   }
 
-  function createSeries(season, id, label, homeId, awayId, stage) {
+  function createSeries(season, id, label, homeId, awayId, stage, bestOf = 1) {
+    const safeBestOf = Math.max(1, Number(bestOf) || 1);
     return {
       id,
       label,
       homeId,
       awayId,
-      bestOf: 3,
+      bestOf: safeBestOf,
       stage,
-      matches: Array.from({ length: 3 }, (_, index) => ({
+      matches: Array.from({ length: safeBestOf }, (_, index) => ({
         id: `S${season.edition}-ORUC-${id.toUpperCase()}-G${index + 1}`,
         competition: "oruc",
         stage,
-        label: `${label} · Maç ${index + 1}`,
+        label: safeBestOf === 1 ? label : `${label} · Maç ${index + 1}`,
         game: index + 1,
         stars: Number(season.settings.cupStars || 4.5),
         homeId: index % 2 === 0 ? homeId : awayId,
@@ -710,6 +738,7 @@
         homeTeam: "",
         awayTeam: "",
         winnerId: null,
+        sameTeam: false,
         updatedAt: null
       }))
     };
@@ -728,9 +757,11 @@
   }
 
   function seriesWinner(series) {
+    if (!series) return null;
     const score = seriesScore(series);
-    if (score.home >= 2) return series.homeId;
-    if (score.away >= 2) return series.awayId;
+    const requiredWins = Math.floor(Number(series.bestOf || 1) / 2) + 1;
+    if (score.home >= requiredWins) return series.homeId;
+    if (score.away >= requiredWins) return series.awayId;
     return null;
   }
 
@@ -738,34 +769,64 @@
     return Boolean(seriesWinner(series));
   }
 
+  function orucQualifiedEntrants(season) {
+    const premier = standings(season, "premier");
+    const championship = standings(season, "championship");
+    return {
+      premier: premier.slice(0, 5).map((row, index) => ({ ...row, seedLabel: `Premier ${index + 1}` })),
+      championship: championship.slice(0, 3).map((row, index) => ({ ...row, seedLabel: `Championship ${index + 1}` }))
+    };
+  }
+
   function generateOrucPlayoffs(season) {
     if (!canEdit()) return;
     if (!bothLeaguesComplete(season)) {
-      toast("Oruç Reis Kupası eşleşmeleri için iki ligin de tamamlanması gerekir.", "error");
+      toast("Oruç Reis Kupası için Premier League ve Championship tamamlanmalıdır.", "error");
       return;
     }
-    const premier = standings(season, "premier");
-    const championship = standings(season, "championship");
-    if (premier.length < 5 || championship.length < 1) return;
+
+    const qualified = orucQualifiedEntrants(season);
+    if (qualified.premier.length < 5 || qualified.championship.length < 3) {
+      toast("Oruç Reis Kupası için Premier ilk 5 ve Championship ilk 3 gereklidir.", "error");
+      return;
+    }
+
+    const entrants = [...qualified.premier, ...qualified.championship];
+    const draw = shuffle(entrants.map(row => row.id));
     const cup = season.cups.oruc = emptyOrucCup();
-    cup.status = "playoffs";
+
+    cup.status = "quarterfinals";
     cup.generatedAt = now();
+    cup.entrants = entrants.map(row => ({
+      id: row.id,
+      league: qualified.premier.some(item => item.id === row.id) ? "premier" : "championship",
+      qualification: row.seedLabel
+    }));
     cup.seeds = {
-      premier1: premier[0].id,
-      premier2: premier[1].id,
-      premier3: premier[2].id,
-      premier4: premier[3].id,
-      premier5: premier[4].id,
-      championship1: championship[0].id
+      premierTop5: qualified.premier.map(row => row.id),
+      championshipTop3: qualified.championship.map(row => row.id)
     };
-    cup.series.po1 = createSeries(season, "po1", "Play-off 1", cup.seeds.premier3, cup.seeds.championship1, "playoff");
-    cup.series.po2 = createSeries(season, "po2", "Play-off 2", cup.seeds.premier4, cup.seeds.premier5, "playoff");
-    season.phase = "oruc-playoffs";
+    cup.initialDraw = [...draw];
+    cup.drawLocked = true;
+
+    for (let index = 0; index < 4; index += 1) {
+      cup.series[`qf${index + 1}`] = createSeries(
+        season,
+        `qf${index + 1}`,
+        `Çeyrek Final ${index + 1}`,
+        draw[index * 2],
+        draw[index * 2 + 1],
+        "quarterfinal",
+        1
+      );
+    }
+
+    season.phase = "oruc-quarterfinals";
     syncLeagueHonours(season);
     save(true);
     selectedTab = "oruc";
     rerender();
-    toast("Oruç Reis Kupası play-off eşleşmeleri oluşturuldu.", "success");
+    toast("Oruç Reis Kupası rastgele çeyrek final kurası çekildi ve kilitlendi.", "success");
   }
 
   function shuffle(values) {
@@ -780,21 +841,26 @@
   function drawOrucSemifinals(season) {
     if (!canEdit()) return;
     const cup = season.cups.oruc;
-    const po1 = seriesWinner(cup.series.po1);
-    const po2 = seriesWinner(cup.series.po2);
-    if (!po1 || !po2) {
-      toast("Önce iki play-off serisini tamamla.", "error");
+    const winners = [1, 2, 3, 4].map(index => seriesWinner(cup.series[`qf${index}`])).filter(Boolean);
+    if (winners.length !== 4) {
+      toast("Önce dört çeyrek final maçını tamamla.", "error");
       return;
     }
-    const draw = shuffle([cup.seeds.premier1, cup.seeds.premier2, po1, po2]);
-    cup.semifinalDraw = draw;
-    cup.series.sf1 = createSeries(season, "sf1", "Yarı Final 1", draw[0], draw[1], "semifinal");
-    cup.series.sf2 = createSeries(season, "sf2", "Yarı Final 2", draw[2], draw[3], "semifinal");
+    if (cup.semifinalDrawLocked && cup.series.sf1 && cup.series.sf2) {
+      toast("Yarı final kurası daha önce çekildi ve kilitlendi.", "error");
+      return;
+    }
+
+    const draw = shuffle(winners);
+    cup.semifinalDraw = [...draw];
+    cup.semifinalDrawLocked = true;
+    cup.series.sf1 = createSeries(season, "sf1", "Yarı Final 1", draw[0], draw[1], "semifinal", 1);
+    cup.series.sf2 = createSeries(season, "sf2", "Yarı Final 2", draw[2], draw[3], "semifinal", 1);
     cup.status = "semifinals";
     season.phase = "oruc-semifinals";
     save(true);
     rerender();
-    toast("Yarı final kurası çekildi.", "success");
+    toast("Oruç Reis Kupası yarı final kurası rastgele çekildi ve kilitlendi.", "success");
   }
 
   function createOrucFinal(season) {
@@ -803,7 +869,7 @@
     const sf1 = seriesWinner(cup.series.sf1);
     const sf2 = seriesWinner(cup.series.sf2);
     if (!sf1 || !sf2) {
-      toast("Önce iki yarı final serisini tamamla.", "error");
+      toast("Önce iki yarı final maçını tamamla.", "error");
       return;
     }
     cup.final = {
@@ -825,7 +891,7 @@
     season.phase = "oruc-final";
     save(true);
     rerender();
-    toast("Oruç Reis Kupası finali oluşturuldu.", "success");
+    toast("Oruç Reis Kupası tek maçlık finali oluşturuldu.", "success");
   }
 
   function finalizeOrucCup(season) {
@@ -891,7 +957,8 @@
 
   function refreshSeasonProgress(season) {
     const cup = season.cups.oruc;
-    if (cup.status === "playoffs" && seriesComplete(cup.series.po1) && seriesComplete(cup.series.po2)) season.phase = "oruc-semifinal-draw";
+    const quarterfinalsComplete = [1, 2, 3, 4].every(index => seriesComplete(cup.series[`qf${index}`]));
+    if (cup.status === "quarterfinals" && quarterfinalsComplete) season.phase = "oruc-semifinal-draw";
     if (cup.status === "semifinals" && seriesComplete(cup.series.sf1) && seriesComplete(cup.series.sf2)) season.phase = "oruc-final-ready";
     if (cup.status === "final" && cup.final && matchWinnerId(cup.final)) finalizeOrucCup(season);
     if (season.cups.super.status === "ready" && season.cups.super.match && matchWinnerId(season.cups.super.match)) finalizeSuperCup(season);
@@ -1371,7 +1438,7 @@
       <section class="season-format-card movement"><div class="season-format-icon">⇅</div><div><span>YÜKSELME / DÜŞME</span><strong>2 yükselir · 2 düşer</strong><small>Yeni oyuncular Championship'ten başlar</small></div></section>
       <section class="panel season-champion-panel"><div><div class="eyebrow">SEZONUN ANA UNVANI</div><h3>Premier League Şampiyonu</h3><strong>${esc(leagueChampion)}</strong><p>Lig şampiyonluğu ve Oruç Reis Kupası sezonun en prestijli iki başarısıdır.</p></div><img src="assets/trophies/premier-league.svg" alt="Premier League kupası"></section>
       <section class="panel season-roadmap"><div class="panel-header"><div><h3 class="panel-title">Sezon Akışı</h3><div class="panel-subtitle">Kalıcı ve her sezon tekrarlanabilir yapı.</div></div></div>
-        <div class="season-roadmap-steps"><div class="${season.phase !== "setup" ? "done" : "active"}"><b>1</b><span>Oyuncu Kaydı</span><small>Premier 7 + Championship</small></div><div class="${bothLeaguesComplete(season) ? "done" : season.phase === "league" ? "active" : ""}"><b>2</b><span>Üç Devreli Ligler</span><small>4★ / 4.5★ / 5★</small></div><div class="${season.cups.oruc.status === "completed" ? "done" : season.phase.startsWith("oruc") ? "active" : ""}"><b>3</b><span>Oruç Reis Kupası</span><small>Play-off, kura, final</small></div><div class="${season.cups.super.status === "completed" ? "done" : season.phase === "super-cup" ? "active" : ""}"><b>4</b><span>Süper Kupa</span><small>Yeni sezon öncesi tek maç</small></div></div>
+        <div class="season-roadmap-steps"><div class="${season.phase !== "setup" ? "done" : "active"}"><b>1</b><span>Oyuncu Kaydı</span><small>Premier 7 + Championship</small></div><div class="${bothLeaguesComplete(season) ? "done" : season.phase === "league" ? "active" : ""}"><b>2</b><span>Üç Devreli Ligler</span><small>4★ / 4.5★ / 5★</small></div><div class="${season.cups.oruc.status === "completed" ? "done" : season.phase.startsWith("oruc") ? "active" : ""}"><b>3</b><span>Oruç Reis Kupası</span><small>8 oyuncu · tek maç eleme</small></div><div class="${season.cups.super.status === "completed" ? "done" : season.phase === "super-cup" ? "active" : ""}"><b>4</b><span>Süper Kupa</span><small>Yeni sezon öncesi tek maç</small></div></div>
       </section>
       <section class="panel season-policy"><h3>Sonraki Sezon Politikası</h3><p>Premier League ilk 5 oyuncusu ligde kalır. Championship ilk 2 oyuncusu yükselir. Bir hak sahibi katılmazsa kontenjan Championship 3.'sünden başlayarak sıradaki hak sahibine geçer. Yeni ve geri dönen oyuncular doğrudan Championship'ten başlar.</p></section>
       ${renderQuickActions(season)}
@@ -1452,21 +1519,41 @@
     const score = seriesScore(series);
     const winner = seriesWinner(series);
     const neededMatches = winner ? series.matches.filter(matchComplete) : series.matches;
-    return `<section class="season-series-card ${winner ? "completed" : ""}"><div class="season-series-head"><div><span>${esc(series.label)}</span><strong>${esc(playerName(season, series.homeId))} <b>${score.home}–${score.away}</b> ${esc(playerName(season, series.awayId))}</strong></div><small>BEST OF 3 · 4.5★</small></div><div class="season-match-grid">${neededMatches.map(match => renderMatchCard(season, match)).join("")}</div>${winner ? `<div class="season-series-winner">✓ Seri galibi: <strong>${esc(playerName(season, winner))}</strong></div>` : ""}</section>`;
+    const formatLabel = Number(series.bestOf || 1) === 1 ? "TEK MAÇ · UZATMA + PENALTI" : `BEST OF ${series.bestOf}`;
+    return `<section class="season-series-card ${winner ? "completed" : ""}"><div class="season-series-head"><div><span>${esc(series.label)}</span><strong>${esc(playerName(season, series.homeId))} <b>${score.home}–${score.away}</b> ${esc(playerName(season, series.awayId))}</strong></div><small>${formatLabel} · 4.5★</small></div><div class="season-match-grid">${neededMatches.map(match => renderMatchCard(season, match)).join("")}</div>${winner ? `<div class="season-series-winner">✓ Tur atlayan: <strong>${esc(playerName(season, winner))}</strong></div>` : ""}</section>`;
   }
 
   function renderOrucCup(season) {
     const cup = season.cups.oruc;
-    if (cup.status === "locked") return `<section class="season-cup-hero oruc"><img src="assets/trophies/oruc-reis-cup.svg" alt=""><div><div class="eyebrow">ORUÇ REİS KUPASI</div><h2>Sezonun büyük eleme kupası</h2><p>Premier ilk 2 doğrudan yarı finalde. Premier 3 – Championship 1 ve Premier 4 – Premier 5 play-off oynar. Play-off ve yarı final Best of 3, final tek maç ve aynı takım formatındadır.</p>${canEdit() && bothLeaguesComplete(season) ? `<button class="btn btn-gold" data-season-action="generate-oruc">Kupayı Başlat</button>` : `<span class="badge">Liglerin tamamlanması bekleniyor</span>`}</div></section>`;
-    const seeds = cup.seeds || {};
-    return `<div class="season-cup-page">
-      <section class="season-cup-hero oruc"><img src="assets/trophies/oruc-reis-cup.svg" alt=""><div><div class="eyebrow">${seasonLabel(season.edition)}</div><h2>Oruç Reis Kupası</h2><p>4.5 yıldızlı takım havuzu · serilerde farklı takım · finalde aynı takım.</p>${cup.status === "completed" ? `<div class="season-cup-champion"><span>ŞAMPİYON</span><strong>${esc(playerName(season, cup.championId))}</strong></div>` : ""}</div></section>
-      <section class="panel season-seed-board"><div><span>Doğrudan Yarı Final</span><strong>${esc(playerName(season, seeds.premier1))}</strong><strong>${esc(playerName(season, seeds.premier2))}</strong></div><div><span>Play-off 1</span><strong>${esc(playerName(season, seeds.premier3))}</strong><b>vs</b><strong>${esc(playerName(season, seeds.championship1))}</strong></div><div><span>Play-off 2</span><strong>${esc(playerName(season, seeds.premier4))}</strong><b>vs</b><strong>${esc(playerName(season, seeds.premier5))}</strong></div></section>
-      <div class="season-series-grid">${renderSeries(season, cup.series.po1)}${renderSeries(season, cup.series.po2)}</div>
-      ${season.phase === "oruc-semifinal-draw" && canEdit() ? `<section class="panel season-cup-action"><div><h3>Play-off tamamlandı</h3><p>Dört yarı finalist arasında kura çekimi hazır.</p></div><button class="btn btn-gold" data-season-action="draw-semifinals">Yarı Final Kurasını Çek</button></section>` : ""}
-      ${cup.series.sf1 || cup.series.sf2 ? `<div class="season-series-grid">${renderSeries(season, cup.series.sf1)}${renderSeries(season, cup.series.sf2)}</div>` : ""}
-      ${season.phase === "oruc-final-ready" && canEdit() ? `<section class="panel season-cup-action"><div><h3>Finalistler belirlendi</h3><p>Tek maçlık aynı takım finalini oluştur.</p></div><button class="btn btn-gold" data-season-action="create-oruc-final">Finali Oluştur</button></section>` : ""}
-      ${cup.final ? `<section class="season-final-card"><img src="assets/trophies/oruc-reis-cup.svg" alt=""><div><span>BÜYÜK FİNAL · TEK MAÇ · AYNI TAKIM</span><h3>${esc(playerName(season, cup.final.homeId))} <b>vs</b> ${esc(playerName(season, cup.final.awayId))}</h3><p>${cup.final.sharedTeam ? `Ortak takım: ${esc(cup.final.sharedTeam)}` : "Ortak takım henüz belirlenmedi"}</p>${matchComplete(cup.final) ? `<strong class="season-final-score">${cup.final.homeScore} – ${cup.final.awayScore}</strong>` : ""}${canEdit() ? `<button class="btn btn-gold" data-season-action="edit-match" data-match-id="${esc(cup.final.id)}">${matchComplete(cup.final) ? "Final Sonucunu Düzenle" : "Final Sonucu Gir"}</button>` : ""}</div></section>` : ""}
+    if (cup.status === "locked") return `<section class="season-cup-hero oruc"><img src="assets/trophies/oruc-reis-cup.svg" alt=""><div><div class="eyebrow">ORUÇ REİS KUPASI</div><h2>8 oyunculu tek maç eleme kupası</h2><p>Premier League ilk 5 ile Championship ilk 3 katılır. Sekiz oyuncu rastgele eşleşir; çeyrek final, yarı final ve final tek maçtır. Beraberlikte uzatma ve penaltılar uygulanır.</p><div class="oruc-format-tags"><span>PREMIER İLK 5</span><span>CHAMPIONSHIP İLK 3</span><span>RANDOM KURA</span><span>TEK MAÇ ELEME</span></div>${canEdit() && bothLeaguesComplete(season) ? `<button class="btn btn-gold" data-season-action="generate-oruc">Rastgele Kurayı Çek ve Kilitle</button>` : `<span class="badge">Liglerin tamamlanması bekleniyor</span>`}</div></section>`;
+
+    const entrants = cup.entrants || [];
+    const premierEntrants = entrants.filter(item => item.league === "premier");
+    const championshipEntrants = entrants.filter(item => item.league === "championship");
+    const qf = [1, 2, 3, 4].map(index => cup.series[`qf${index}`]).filter(Boolean);
+    const sf = [cup.series.sf1, cup.series.sf2].filter(Boolean);
+
+    return `<div class="season-cup-page oruc-single-match-page">
+      <section class="season-cup-hero oruc"><img src="assets/trophies/oruc-reis-cup.svg" alt=""><div><div class="eyebrow">${seasonLabel(season.edition)} · TEK MAÇ ELEME</div><h2>Oruç Reis Kupası</h2><p>Premier ilk 5 + Championship ilk 3 · rastgele ve kilitli kura · bütün turlar tek maç · final aynı takım.</p>${cup.status === "completed" ? `<div class="season-cup-champion"><span>ŞAMPİYON</span><strong>${esc(playerName(season, cup.championId))}</strong></div>` : `<div class="oruc-draw-lock"><b>🔒 KURA KİLİTLİ</b><span>Eşleşmeler yeniden çekilemez.</span></div>`}</div></section>
+
+      <section class="panel oruc-qualifier-board">
+        <div><span>PREMIER LEAGUE · İLK 5</span><section>${premierEntrants.map(item => `<b>${esc(playerName(season, item.id))}<small>${esc(item.qualification)}</small></b>`).join("")}</section></div>
+        <div><span>CHAMPIONSHIP · İLK 3</span><section>${championshipEntrants.map(item => `<b>${esc(playerName(season, item.id))}<small>${esc(item.qualification)}</small></b>`).join("")}</section></div>
+      </section>
+
+      <section class="oruc-knockout-stage">
+        <div class="oruc-stage-head"><div><span>01 · ÇEYREK FİNAL</span><h3>Rastgele eşleşmeler</h3></div><small>4 tek maç · kazanan yarı finale</small></div>
+        <div class="season-series-grid oruc-quarterfinal-grid">${qf.map(series => renderSeries(season, series)).join("")}</div>
+      </section>
+
+      ${season.phase === "oruc-semifinal-draw" && canEdit() ? `<section class="panel season-cup-action oruc-draw-action"><div><h3>Dört yarı finalist belirlendi</h3><p>Site dört galibi yeniden karıştırarak iki rastgele yarı final eşleşmesi oluşturur ve kurayı kilitler.</p></div><button class="btn btn-gold" data-season-action="draw-semifinals">Yarı Final Kurasını Çek ve Kilitle</button></section>` : ""}
+
+      ${sf.length ? `<section class="oruc-knockout-stage"><div class="oruc-stage-head"><div><span>02 · YARI FİNAL</span><h3>Final için son dört</h3></div><small>2 tek maç · kazanan finale</small></div><div class="season-series-grid">${sf.map(series => renderSeries(season, series)).join("")}</div></section>` : ""}
+
+      ${season.phase === "oruc-final-ready" && canEdit() ? `<section class="panel season-cup-action"><div><h3>Finalistler belirlendi</h3><p>Tek maçlık ve aynı takım formatındaki Oruç Reis Kupası finalini oluştur.</p></div><button class="btn btn-gold" data-season-action="create-oruc-final">Finali Oluştur</button></section>` : ""}
+
+      ${cup.final ? `<section class="season-final-card"><img src="assets/trophies/oruc-reis-cup.svg" alt=""><div><span>BÜYÜK FİNAL · TEK MAÇ · AYNI TAKIM</span><h3>${esc(playerName(season, cup.final.homeId))} <b>vs</b> ${esc(playerName(season, cup.final.awayId))}</h3><p>${cup.final.sharedTeam ? `Ortak takım: ${esc(cup.final.sharedTeam)}` : "Ortak takım henüz belirlenmedi"} · Beraberlikte uzatma ve penaltılar</p>${matchComplete(cup.final) ? `<strong class="season-final-score">${cup.final.homeScore} – ${cup.final.awayScore}</strong>` : ""}${canEdit() ? `<button class="btn btn-gold" data-season-action="edit-match" data-match-id="${esc(cup.final.id)}">${matchComplete(cup.final) ? "Final Sonucunu Düzenle" : "Final Sonucu Gir"}</button>` : ""}</div></section>` : ""}
+
       ${cup.status === "completed" && season.cups.super.status === "locked" && canEdit() ? `<section class="panel season-cup-action"><div><h3>Oruç Reis Kupası tamamlandı</h3><p>Lig şampiyonu ile kupa şampiyonu arasında Süper Kupa oluşturulabilir.</p></div><button class="btn btn-gold" data-season-action="generate-super">Süper Kupayı Oluştur</button></section>` : ""}
     </div>`;
   }
@@ -1493,7 +1580,7 @@
         <article class="panel"><h3>3. Sezonu Başlat</h3><p>Fikstür hazırlandıktan sonra sezonu aktive et. FIFA 10 resmî başlangıcı için FIFA 09 tamamlanmalıdır.</p>${canEdit() ? `<button class="btn btn-gold" data-season-action="activate-season" ${season.status === "active" || season.status === "completed" || season.status === "cancelled" ? "disabled" : ""}>Sezonu Başlat</button>` : ""}</article>
         <article class="panel"><h3>Veri Araçları</h3><p>Sezonu JSON olarak indir, deneme sonuçlarını sıfırla veya sezonu diğer turnuvalara zarar vermeden iptal et.</p><div class="season-tool-buttons"><button class="btn btn-ghost btn-small" data-season-action="export-season">JSON İndir</button>${canEdit() ? `<button class="btn btn-ghost btn-small" data-season-action="confirm-reset">Sonuçları Sıfırla</button><button class="btn btn-danger btn-small" data-season-action="confirm-cancel">Sezonu İptal Et</button>${season.edition > 10 ? `<button class="btn btn-danger btn-small" data-season-action="confirm-delete">Sezonu Sil</button>` : ""}` : ""}</div></article>
       </section>
-      <section class="panel season-rules-box"><h3>Kalıcı Sezon Anayasası</h3><div class="season-rules-grid"><div><b>Premier League</b><span>7 oyuncu · 3 devre · kişi başı 18 maç</span></div><div><b>Championship</b><span>Kalan oyuncular · ilk 2 yükselir</span></div><div><b>Oruç Reis Kupası</b><span>P1/P2 yarı final · P3-C1 ve P4-P5 play-off</span></div><div><b>Süper Kupa</b><span>Lig şampiyonu – kupa şampiyonu/finalisti</span></div><div><b>Yeni Oyuncu</b><span>Her zaman Championship'ten başlar</span></div><div><b>Eksik Katılım</b><span>Championship 3.'den başlayan yedek sırası</span></div></div></section>
+      <section class="panel season-rules-box"><h3>Kalıcı Sezon Anayasası</h3><div class="season-rules-grid"><div><b>Premier League</b><span>7 oyuncu · 3 devre · kişi başı 18 maç</span></div><div><b>Championship</b><span>Kalan oyuncular · ilk 2 yükselir</span></div><div><b>Oruç Reis Kupası</b><span>Premier ilk 5 + Championship ilk 3 · random tek maç eleme</span></div><div><b>Süper Kupa</b><span>Lig şampiyonu – kupa şampiyonu/finalisti</span></div><div><b>Yeni Oyuncu</b><span>Her zaman Championship'ten başlar</span></div><div><b>Eksik Katılım</b><span>Championship 3.'den başlayan yedek sırası</span></div></div></section>
     </div>`;
   }
 
@@ -1590,6 +1677,10 @@
 
   window.FIFA_SEASON_HUB = {
     render, handleClick, handleSubmit, handleChange, handleInput, version: VERSION,
-    __diagnostics: Object.freeze({ scoreNumber, matchComplete, standings, renderMatchCard })
+    __diagnostics: Object.freeze({
+      scoreNumber, matchComplete, standings, renderMatchCard,
+      orucQualifiedEntrants, createSeries, seriesWinner, seriesComplete,
+      generateOrucPlayoffs, drawOrucSemifinals
+    })
   };
 })();

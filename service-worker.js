@@ -1,4 +1,4 @@
-const CACHE = "fifa-tournament-hub-v44-8-4-league-result-integrity";
+const CACHE = "fifa-tournament-hub-v44-8-5-oruc-reis-single-match";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -10,6 +10,7 @@ const APP_SHELL = [
   "./season-hub.js",
   "./season-hub.css",
   "./league-result-integrity.css",
+  "./oruc-reis-single-match.css",
   "./season-experience.js",
   "./season-experience.css",
   "./manager-room.js",

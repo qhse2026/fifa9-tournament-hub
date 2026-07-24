@@ -1,0 +1,29 @@
+FIFA 9 v44.8.5 — ORUÇ REİS SINGLE-MATCH CUP
+
+YENİ FORMAT
+- Premier League ilk 5
+- Championship ilk 3
+- Toplam 8 oyuncu
+- Rastgele ve kilitli çeyrek final kurası
+- Çeyrek final tek maç
+- Dört galip arasında rastgele ve kilitli yarı final kurası
+- Yarı final tek maç
+- Final tek maç ve aynı takım
+- Beraberliklerde uzatma ve penaltı; sonuç ekranında kazanan seçilir
+
+GITHUB KÖKÜNE YÜKLENECEK 4 DOSYA
+- index.html
+- service-worker.js
+- season-hub.js
+- oruc-reis-single-match.css
+
+Commit:
+Install Oruç Reis Single-Match Cup v44.8.5
+
+VERCEL VE CACHE
+1. Deployment Ready + Production
+2. F12 > Application > Service Workers > Unregister
+3. Application > Storage > Clear site data
+4. Bütün FIFA sekmelerini kapatın
+5. https://fifa9-tournament-hub.vercel.app/?oruccup=v4485
+6. Ctrl + Shift + R

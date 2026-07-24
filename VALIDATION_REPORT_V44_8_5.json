@@ -1,0 +1,34 @@
+{
+  "build": "FIFA 9 v44.8.5 Oruç Reis Single-Match Cup",
+  "syntax": {
+    "season-hub.js": "PASS",
+    "service-worker.js": "PASS"
+  },
+  "behavior": {
+    "premierQualified": 5,
+    "championshipQualified": 3,
+    "entrants": 8,
+    "initialDrawLocked": true,
+    "qfSingleMatch": true,
+    "semifinalDrawLocked": true,
+    "sfSingleMatch": true,
+    "saved": 2
+  },
+  "qualification": {
+    "premier": "Top 5",
+    "championship": "Top 3",
+    "total": 8
+  },
+  "format": {
+    "quarterfinals": "4 random locked single matches",
+    "semifinals": "2 random locked single matches",
+    "final": "1 single match, same team",
+    "tie": "extra time and penalties; winner selected in result editor"
+  },
+  "filesToUpload": [
+    "index.html",
+    "service-worker.js",
+    "season-hub.js",
+    "oruc-reis-single-match.css"
+  ]
+}
