@@ -1,4 +1,4 @@
-const CACHE = "fifa-tournament-hub-v44-8-5-oruc-reis-single-match";
+const CACHE = "fifa-tournament-hub-v44-8-6-manager-season-closure";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -19,6 +19,7 @@ const APP_SHELL = [
   "./me4-match-worker.js",
   "./manager-match-engine-v4-phase13-safe.bundle.js",
   "./manager-room.css",
+  "./manager-season-closure.css",
   "./me4-simulate.css",
   "./manager-friendly.css",
   "./manager-v42-4.css",

@@ -1,0 +1,42 @@
+FIFA 9 v44.8.6 — MANAGER SEASON CLOSURE FIX
+
+SORUN
+Manager's Room lig fikstürü tamamlandıktan sonra insan oyuncunun yeni maçı kalmıyordu.
+Ancak yalnızca AI oyuncularının oynayacağı Oruç Reis Kupası maçları scheduled durumda
+kaldığı için kupa ilerlemiyor ve yeni sezon düğmesi açılmıyordu.
+
+DÜZELTME
+- Bugün ekranında Oruç Reis Kupasını Devam Ettir düğmesi görünür.
+- Kalan AI lig/kupa maçları deterministik biçimde otomatik tamamlanır.
+- İnsan oyuncu kupadaysa sıradaki kupa maçı oluşturulup açılır.
+- İnsan oyuncu elendiyse kupa şampiyona kadar ilerletilir.
+- Kupa tamamlanınca Bugün ekranında yeni sezon düğmesi açılır.
+- Yeni sezon düğmesi gerektiğinde AI maçlarını kendisi de otomatik çözer.
+- Mevcut eski Best of 3 kupa kaydı silinmez ve tamamlanır.
+- Gelecek sezon Manager's Room kupası:
+  Premier ilk 5 + Championship ilk 3, 8 oyuncu, random ve tek maç eleme formatıdır.
+
+GITHUB KÖKÜNE YÜKLENECEK 5 DOSYA
+- index.html
+- service-worker.js
+- manager-room.js
+- manager-match-engine.js
+- manager-season-closure.css
+
+Commit:
+Fix Manager Room season closure and Oruç Cup progression v44.8.6
+
+VERCEL VE CACHE
+1. Deployment Ready + Production olmalıdır.
+2. F12 > Application > Service Workers > Unregister
+3. Application > Storage > Clear site data
+4. Bütün FIFA sekmelerini kapatın.
+5. https://fifa9-tournament-hub.vercel.app/?managerseason=v4486
+6. Ctrl + Shift + R
+
+MEVCUT KARİYERDE
+- Manager's Room > Bugün
+- Kupayı Devam Ettir
+- Sistem kalan AI maçlarını tamamlar.
+- Kupada devam ediyorsan sıradaki kupa maçın görünür.
+- Elendiysen kupa tamamlanır ve Sezonu Kapat ve Yeni Sezona Geç düğmesi açılır.

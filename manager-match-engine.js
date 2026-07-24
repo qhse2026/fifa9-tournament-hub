@@ -1958,6 +1958,74 @@
       .forEach(item => simulateAiFixture(career, item, engine));
   }
 
+  function pendingHumanCompetitionFixture(career) {
+    return (career.fixtures || [])
+      .filter(fixture =>
+        fixture.competition !== "friendly" &&
+        ["scheduled","in-progress"].includes(fixture.status) &&
+        [fixture.homeId,fixture.awayId].includes(career.humanActorId)
+      )
+      .sort((a,b)=>Number(a.matchday||0)-Number(b.matchday||0)||String(a.id).localeCompare(String(b.id)))[0] || null;
+  }
+
+  function resolvePendingUniverse(career,{maxBatches=96}={}) {
+    if(!career)return {status:"NO_CAREER",simulated:0,batches:0};
+    const simulationEngine=enginePlaceholder(hashString(`SEASON-GATE-${career.id}-${career.seasonNo}`));
+    const result={status:"RUNNING",simulated:0,batches:0,generatedRounds:0,nextFixtureId:null,cupFinished:false};
+    const limit=Math.max(1,Math.min(256,Number(maxBatches)||96));
+
+    for(let guard=0;guard<limit;guard+=1){
+      const beforeRound=Number(career.orucCup?.round||0);
+      room()?.ensureOrucCup?.(career);
+      room()?.advanceOrucCup?.(career);
+      if(Number(career.orucCup?.round||0)>beforeRound)result.generatedRounds+=1;
+
+      const humanFixture=pendingHumanCompetitionFixture(career);
+      if(humanFixture){
+        result.status="HUMAN_MATCH_READY";
+        result.nextFixtureId=humanFixture.id;
+        break;
+      }
+
+      const pendingAi=(career.fixtures||[])
+        .filter(fixture =>
+          fixture.competition !== "friendly" &&
+          fixture.status === "scheduled" &&
+          ![fixture.homeId,fixture.awayId].includes(career.humanActorId)
+        )
+        .sort((a,b)=>Number(a.matchday||0)-Number(b.matchday||0)||String(a.id).localeCompare(String(b.id)));
+
+      if(!pendingAi.length){
+        room()?.advanceOrucCup?.(career);
+        const afterHuman=pendingHumanCompetitionFixture(career);
+        if(afterHuman){
+          result.status="HUMAN_MATCH_READY";
+          result.nextFixtureId=afterHuman.id;
+        }else if(career.orucCup?.status==="finished"){
+          result.status="SEASON_READY";
+          result.cupFinished=true;
+        }else{
+          result.status="NO_PENDING_FIXTURES";
+        }
+        break;
+      }
+
+      const matchday=Number(pendingAi[0].matchday||0);
+      const batch=pendingAi.filter(fixture=>Number(fixture.matchday||0)===matchday);
+      batch.forEach(fixture=>{
+        simulateAiFixture(career,fixture,simulationEngine);
+        result.simulated+=1;
+      });
+      result.batches+=1;
+      room()?.advanceOrucCup?.(career);
+    }
+
+    if(result.status==="RUNNING")result.status="BATCH_LIMIT";
+    result.cupFinished=career.orucCup?.status==="finished";
+    room()?.saveLocal?.();
+    return result;
+  }
+
   function reportLines(career, fixture) {
     const engine = fixture.matchEngine;
     const sides = getSides(career, fixture);
@@ -2807,7 +2875,13 @@ ${isFriendlyFixture(fixture)?"Manager Hall Friendly · Puansız":`Matchday ${fix
     },
     stop: stopTimer,
     calibrate,
-    __diagnostics: { initializeMatch, advanceLiveMotion, simulateMinute, simulateEntireMatch, finishFriendlyMatch, isFriendlyFixture, ensureLiveRuntime, tick },
+    resolvePendingUniverse,
+    __diagnostics: {
+      initializeMatch, advanceLiveMotion, simulateMinute, simulateEntireMatch,
+      finishFriendlyMatch, isFriendlyFixture, ensureLiveRuntime, tick,
+      simulateAiFixture, simulateMatchday, resolvePendingUniverse,
+      pendingHumanCompetitionFixture
+    },
     resume: () => {
       const career = room()?.getActiveCareer?.();
       const fixture = career?.activeMatchFixtureId ? career.fixtures.find(item => item.id === career.activeMatchFixtureId) : null;

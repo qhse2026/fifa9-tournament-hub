@@ -1,0 +1,47 @@
+{
+  "build": "FIFA 9 v44.8.6 Manager Season Closure Fix",
+  "syntax": {
+    "manager-room.js": "PASS",
+    "manager-match-engine.js": "PASS",
+    "service-worker.js": "PASS"
+  },
+  "behavior": {
+    "legacyResolver": {
+      "status": "SEASON_READY",
+      "simulated": 4,
+      "batches": 4,
+      "generatedRounds": 0,
+      "nextFixtureId": null,
+      "cupFinished": true
+    },
+    "legacyChampion": "C",
+    "seasonUnlocked": true,
+    "modernFormat": 5,
+    "modernEntrants": 8,
+    "modernQuarterfinals": 4
+  },
+  "assertions": {
+    "overviewSeasonClosureButton": true,
+    "overviewNewSeasonButton": true,
+    "legacyCupPreserved": true,
+    "newCupFormatV5": true,
+    "top5Top3": true,
+    "singleMatchCup": true,
+    "aiUniverseResolver": true,
+    "newSeasonAutoResolve": true,
+    "version": true
+  },
+  "filesToUpload": [
+    "index.html",
+    "service-worker.js",
+    "manager-room.js",
+    "manager-match-engine.js",
+    "manager-season-closure.css"
+  ],
+  "dataSafety": {
+    "existingLegacyCupDeleted": false,
+    "existingResultsReset": false,
+    "officialCareerCloudFlowPreserved": true,
+    "futureCupFormat": "Premier Top 5 + Championship Top 3 / 8-player single-match"
+  }
+}
