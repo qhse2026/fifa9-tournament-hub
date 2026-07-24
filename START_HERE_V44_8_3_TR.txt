@@ -1,0 +1,31 @@
+FIFA 9 v44.8.3 — READABLE BRACKET + ADMIN LOGIN FIX
+
+GitHub repository köküne şu 4 dosyayı yükleyin:
+- index.html
+- app.js
+- service-worker.js
+- final-chapter-progression.css
+
+Commit:
+Install Readable Final Chapter Bracket and Admin Fix v44.8.3
+
+Vercel:
+- Yeni deployment Ready ve Production olmalıdır.
+- Gerekirse Redeploy yapın ve mevcut build cache seçeneğini kapatın.
+
+Cache:
+1. F12 > Application > Service Workers > Unregister
+2. Application > Storage > Clear site data
+3. FIFA sekmelerinin tamamını kapatın
+4. https://fifa9-tournament-hub.vercel.app/?finalfix=v4483
+5. Ctrl + Shift + R
+
+Beklenen:
+- Eleme ağacı iki büyük bölüme ayrılır.
+- Oyuncu isimleri ve kartlar belirgin biçimde büyür.
+- Çeyrek Final 1: Oğuzhan Dindar + Ana Eleme 1 galibi
+- Çeyrek Final 2: Aziz Sarıoğlu + Ana Eleme 2 galibi
+- Çeyrek Final 3: Ercan Köseoğlu + Ana Eleme 3 galibi
+- Çeyrek Final 4: Ana Eleme 4 galibi + Son Bilet galibi
+- Mevcut Çağlar Can Tatar sonucu, Ercan Köseoğlu'nun yanında görünür.
+- Yönetici girişinden sonra Final Chapter ekranı ve ekran konumu korunur.

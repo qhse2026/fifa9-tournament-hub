@@ -1,0 +1,38 @@
+{
+  "build": "FIFA 9 v44.8.3 Readable Bracket + Admin Login Fix",
+  "syntax": {
+    "app.js": "PASS",
+    "service-worker.js": "PASS"
+  },
+  "assertions": {
+    "adminContextCaptured": true,
+    "adminScreenRestored": true,
+    "authCallbackGuard": true,
+    "directQfOne": true,
+    "directQfTwo": true,
+    "directQfThree": true,
+    "playoffWinnerThreeAlongsideDirect": true,
+    "lastTicketQf": true,
+    "twoZoneBracket": true,
+    "largerPlayerText": true,
+    "version": true
+  },
+  "quarterfinalPreview": [
+    "Oğuzhan Dindar vs Ana Eleme 1 galibi",
+    "Aziz Sarıoğlu vs Ana Eleme 2 galibi",
+    "Ercan Köseoğlu vs Ana Eleme 3 galibi",
+    "Ana Eleme 4 galibi vs Son Bilet şampiyonu"
+  ],
+  "adminFix": [
+    "active view captured before login",
+    "scroll position captured before login",
+    "duplicate auth renders guarded",
+    "Final Chapter view restored after successful login"
+  ],
+  "filesToUpload": [
+    "index.html",
+    "app.js",
+    "service-worker.js",
+    "final-chapter-progression.css"
+  ]
+}

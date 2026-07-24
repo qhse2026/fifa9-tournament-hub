@@ -127,9 +127,9 @@
 .fc-bracket-scroll{overflow-x:auto;padding:4px 3px 14px;scrollbar-color:#315b70 #071a26}
 .fc-bracket-tree{
   display:grid;
-  grid-template-columns:310px 310px 310px 310px 310px;
+  grid-template-columns:1fr;
   gap:38px;
-  min-width:1700px;
+  min-width:0;
   align-items:stretch
 }
 .fc-tree-stage{position:relative;display:grid;grid-template-rows:auto 1fr;gap:12px}
@@ -221,4 +221,344 @@
   .fc-tree-direct-strip{grid-template-columns:1fr}
   .fc-engine-hero h2{font-size:43px}
   .fc-route-grid{grid-template-columns:1fr}
+}
+
+
+/* FIFA 9 v44.8.3 — Readable bracket and admin-screen preservation */
+
+.fc-engine-page{
+  width:100%;
+  max-width:none;
+}
+.fc-bracket-board-v3{
+  padding:30px;
+}
+.fc-bracket-board-v3 .fc-bracket-board-head h3{
+  font-size:32px;
+}
+.fc-bracket-board-v3 .fc-bracket-board-head p{
+  max-width:920px;
+  font-size:13px;
+  line-height:1.6;
+}
+.fc-entry-route-zone,
+.fc-title-bracket-zone{
+  margin-top:20px;
+  padding:22px;
+  border:1px solid rgba(255,255,255,.075);
+  border-radius:22px;
+  background:rgba(4,21,31,.62);
+}
+.fc-entry-route-zone>header,
+.fc-title-bracket-zone>header{
+  display:flex;
+  align-items:end;
+  justify-content:space-between;
+  gap:15px;
+  margin-bottom:16px;
+}
+.fc-entry-route-zone>header span,
+.fc-title-bracket-zone>header span{
+  color:#72dcff;
+  font-size:8px;
+  font-weight:1000;
+  letter-spacing:.14em;
+}
+.fc-entry-route-zone>header h4,
+.fc-title-bracket-zone>header h4{
+  margin:5px 0 0;
+  color:#fff;
+  font-size:23px;
+}
+.fc-entry-route-zone>header small,
+.fc-title-bracket-zone>header small{
+  color:#738f9a;
+  font-size:9px;
+}
+.fc-entry-route-grid{
+  display:grid;
+  grid-template-columns:minmax(0,1.45fr) 70px minmax(360px,.75fr);
+  align-items:center;
+  gap:18px;
+}
+.fc-route-column{
+  min-width:0;
+}
+.fc-route-column-head,
+.fc-title-stage-head{
+  display:flex;
+  align-items:end;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:10px;
+  padding:0 3px;
+}
+.fc-route-column-head strong,
+.fc-title-stage-head strong{
+  color:#efcb75;
+  font-size:11px;
+  letter-spacing:.08em;
+}
+.fc-route-column-head small,
+.fc-title-stage-head small{
+  color:#708b96;
+  font-size:8px;
+}
+.fc-route-card-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:13px;
+}
+.fc-route-card-grid.ticket-grid{
+  grid-template-columns:1fr;
+}
+.fc-route-arrow,
+.fc-title-connector{
+  display:grid;
+  place-items:center;
+  gap:5px;
+  color:#efc96e;
+}
+.fc-route-arrow span,
+.fc-title-connector span{
+  display:grid;
+  place-items:center;
+  width:46px;
+  height:46px;
+  border:1px solid rgba(230,191,99,.24);
+  border-radius:50%;
+  background:rgba(230,191,99,.06);
+  font-size:27px;
+}
+.fc-route-arrow small{
+  color:#8c784d;
+  font-size:6px;
+  font-weight:1000;
+  letter-spacing:.08em;
+}
+.fc-title-bracket-grid{
+  display:grid;
+  grid-template-columns:minmax(470px,1.25fr) 55px minmax(330px,.8fr) 55px minmax(285px,.65fr);
+  align-items:stretch;
+  gap:14px;
+}
+.fc-title-stage{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+}
+.fc-title-stage-cards{
+  display:flex;
+  flex-direction:column;
+  justify-content:space-around;
+  gap:14px;
+  flex:1;
+}
+.quarterfinal-stage .fc-title-stage-cards{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+}
+.fc-tree-match{
+  min-height:0;
+  border-radius:17px;
+}
+.fc-tree-match>header{
+  min-height:43px;
+  padding:11px 13px;
+}
+.fc-tree-match>header span{
+  font-size:11px;
+}
+.fc-tree-match>header b{
+  padding:5px 7px;
+  font-size:7px;
+}
+.fc-tree-player{
+  grid-template-columns:27px minmax(0,1fr) auto;
+  min-height:54px;
+  padding:10px 13px;
+}
+.fc-tree-player>span{
+  width:25px;
+  height:25px;
+  font-size:8px;
+}
+.fc-tree-player>div{
+  min-width:0;
+  display:grid;
+  gap:3px;
+}
+.fc-tree-player strong{
+  font-size:12px;
+}
+.fc-tree-player small{
+  color:#6f8d98;
+  font-size:7px;
+  font-weight:750;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.fc-tree-player em{
+  padding:4px 6px;
+  font-size:6px;
+}
+.fc-tree-series-score{
+  padding:9px 13px;
+}
+.fc-tree-series-score span{
+  font-size:7px;
+}
+.fc-tree-series-score strong{
+  font-size:14px;
+}
+.fc-tree-match>footer{
+  min-height:29px;
+  padding:8px 13px;
+  font-size:7px;
+}
+.fc-route-preview{
+  border-color:rgba(230,191,99,.18);
+  background:
+    linear-gradient(145deg,rgba(91,65,19,.12),rgba(6,24,35,.98));
+}
+.fc-route-preview.entrants-ready{
+  border-color:rgba(113,220,255,.32);
+}
+.fc-route-preview>header b{
+  color:#e4c574;
+  background:rgba(230,191,99,.08);
+}
+.fc-tree-final{
+  min-height:270px;
+}
+.fc-tree-final .fc-tree-cup{
+  height:80px;
+  font-size:38px;
+}
+.fc-bracket-note{
+  margin-top:17px;
+  padding:12px 14px;
+  border:1px solid rgba(230,191,99,.14);
+  border-radius:12px;
+  background:rgba(230,191,99,.045);
+  color:#829ca7;
+  font-size:9px;
+  line-height:1.55;
+}
+.fc-bracket-note strong{
+  color:#e8c978;
+}
+.fc-bracket-legend{
+  font-size:9px;
+}
+
+/* Larger route and policy cards below the bracket */
+.fc-progression-centre{
+  padding:30px;
+}
+.fc-route-grid{
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:15px;
+}
+.fc-route-grid article{
+  min-height:165px;
+  padding:18px;
+}
+.fc-route-grid header b{
+  font-size:12px;
+}
+.fc-route-grid header span{
+  font-size:8px;
+}
+.fc-route-player{
+  padding:9px 11px;
+  font-size:10px;
+}
+.fc-draw-policy-panel{
+  padding:28px;
+}
+.fc-policy-options button{
+  min-height:125px;
+}
+.fc-policy-options strong{
+  font-size:13px;
+}
+.fc-policy-options small{
+  font-size:9px;
+  line-height:1.45;
+}
+
+/* Admin modal stability and clearer interaction */
+#adminLoginForm{
+  min-width:min(520px,80vw);
+}
+#adminLoginForm .field label{
+  font-size:10px;
+}
+#adminLoginForm input{
+  min-height:46px;
+  font-size:14px;
+}
+body.viewer-mode .fc-bracket-board{
+  opacity:1;
+}
+
+/* Full-HD and ultrawide use the available area instead of shrinking text */
+@media(min-width:1450px){
+  .view{
+    padding-left:24px;
+    padding-right:24px;
+  }
+  .fc-engine-page{
+    max-width:1680px;
+    margin:0 auto;
+  }
+  .fc-engine-hero{
+    min-height:330px;
+    padding:48px 55px;
+  }
+  .fc-engine-hero h2{
+    font-size:82px;
+  }
+}
+@media(max-width:1250px){
+  .fc-entry-route-grid{
+    grid-template-columns:1fr;
+  }
+  .fc-route-arrow{
+    grid-template-columns:auto auto;
+    justify-content:center;
+  }
+  .fc-route-arrow span{
+    transform:rotate(90deg);
+  }
+  .fc-title-bracket-grid{
+    grid-template-columns:1fr;
+  }
+  .fc-title-connector span{
+    transform:rotate(90deg);
+  }
+  .quarterfinal-stage .fc-title-stage-cards{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+@media(max-width:760px){
+  .fc-bracket-board-v3{
+    padding:16px;
+  }
+  .fc-entry-route-zone,
+  .fc-title-bracket-zone{
+    padding:14px;
+  }
+  .fc-route-card-grid,
+  .quarterfinal-stage .fc-title-stage-cards{
+    grid-template-columns:1fr;
+  }
+  .fc-route-grid{
+    grid-template-columns:1fr;
+  }
+  .fc-tree-player strong{
+    font-size:11px;
+  }
 }

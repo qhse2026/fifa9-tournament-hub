@@ -76,6 +76,9 @@
   };
 
   let activeView = "dashboard";
+  let adminLoginInProgress = false;
+  let adminLoginReturnContext = null;
+  let adminAuthRestoreUntil = 0;
   let museumSelectedEdition = 9;
   let museumSelectedPlayerName = "";
   let state = loadState();
@@ -1212,12 +1215,12 @@
   }
 
 
-  function finalChapterBracketPlayer(playerId, side, winnerId) {
+  function finalChapterBracketPlayer(playerId, side, winnerId, placeholder = "Oyuncu bekleniyor", source = "") {
     const exists = Boolean(playerId);
     const isWinner = exists && winnerId === playerId;
     return `<div class="fc-tree-player ${isWinner ? "winner" : ""} ${!exists ? "empty" : ""}">
       <span>${side}</span>
-      <strong>${exists ? escapeHTML(displayName(playerId)) : "Oyuncu bekleniyor"}</strong>
+      <div><strong>${exists ? escapeHTML(displayName(playerId)) : escapeHTML(placeholder)}</strong>${source ? `<small>${escapeHTML(source)}</small>` : ""}</div>
       ${isWinner ? `<em>TUR ATLADI</em>` : ""}
     </div>`;
   }
@@ -1242,12 +1245,70 @@
     </article>`;
   }
 
+  function finalChapterRouteMatch(label, playerAId, playerBId, sourceA, sourceB, destination, status = "ROTA ÖNİZLEMESİ") {
+    return `<article class="fc-tree-match fc-route-preview ${playerAId && playerBId ? "entrants-ready" : "placeholder"}">
+      <header><span>${escapeHTML(label)}</span><b>${escapeHTML(status)}</b></header>
+      ${finalChapterBracketPlayer(playerAId, "A", null, sourceA, sourceA)}
+      ${finalChapterBracketPlayer(playerBId, "B", null, sourceB, sourceB)}
+      <footer>→ ${escapeHTML(destination)}</footer>
+    </article>`;
+  }
+
+  function finalChapterQuarterfinalCards() {
+    const fc = finalChapterState();
+    const actual = fc.quarterfinal?.series || [];
+    if (actual.length) {
+      return Array.from({ length: 4 }, (_, index) =>
+        finalChapterBracketSeries(actual[index], `Çeyrek Final ${index + 1}`, "Yarı Final")
+      );
+    }
+
+    const direct = fc.directQuarterFinalistIds || [];
+    const playoffWinners = finalChapterStageWinners("playoff");
+    const lastTicketWinner = finalChapterStageWinners("secondChanceFinal")[0] || null;
+
+    return [
+      finalChapterRouteMatch(
+        "Çeyrek Final 1",
+        direct[0],
+        playoffWinners[0],
+        "Doğrudan QF · 1. sabit kontenjan",
+        playoffWinners[0] ? "Ana Eleme 1 galibi" : "Ana Eleme 1 galibi bekleniyor",
+        "Yarı Final"
+      ),
+      finalChapterRouteMatch(
+        "Çeyrek Final 2",
+        direct[1],
+        playoffWinners[1],
+        "Doğrudan QF · 2. sabit kontenjan",
+        playoffWinners[1] ? "Ana Eleme 2 galibi" : "Ana Eleme 2 galibi bekleniyor",
+        "Yarı Final"
+      ),
+      finalChapterRouteMatch(
+        "Çeyrek Final 3",
+        direct[2],
+        playoffWinners[2],
+        "Doğrudan QF · 3. sabit kontenjan",
+        playoffWinners[2] ? "Ana Eleme 3 galibi" : "Ana Eleme 3 galibi bekleniyor",
+        "Yarı Final"
+      ),
+      finalChapterRouteMatch(
+        "Çeyrek Final 4",
+        playoffWinners[3],
+        lastTicketWinner,
+        playoffWinners[3] ? "Ana Eleme 4 galibi" : "Ana Eleme 4 galibi bekleniyor",
+        lastTicketWinner ? "Son Bilet şampiyonu" : "Son Bilet şampiyonu bekleniyor",
+        "Yarı Final"
+      )
+    ];
+  }
+
   function finalChapterBracketFinal(match, championId) {
     if (!match) {
       return `<article class="fc-tree-match fc-tree-final placeholder">
         <header><span>BÜYÜK FİNAL</span><b>BEKLİYOR</b></header>
-        ${finalChapterBracketPlayer(null, "A", null)}
-        ${finalChapterBracketPlayer(null, "B", null)}
+        ${finalChapterBracketPlayer(null, "A", null, "Yarı Final 1 galibi", "Yarı Final 1 galibi")}
+        ${finalChapterBracketPlayer(null, "B", null, "Yarı Final 2 galibi", "Yarı Final 2 galibi")}
         <div class="fc-tree-cup">🏆</div>
       </article>`;
     }
@@ -1260,19 +1321,11 @@
     </article>`;
   }
 
-  function finalChapterTreeStage(title, subtitle, cards, className = "") {
-    return `<section class="fc-tree-stage ${className}">
-      <header><span>${escapeHTML(title)}</span><small>${escapeHTML(subtitle)}</small></header>
-      <div class="fc-tree-stage-body">${cards.join("")}</div>
-    </section>`;
-  }
-
   function finalChapterBracketTree() {
     const fc = finalChapterState();
     const playoff = fc.playoff?.series || [];
     const ticketSemi = fc.secondChanceSemi?.series || [];
     const ticketFinal = fc.secondChanceFinal?.series || [];
-    const qf = fc.quarterfinal?.series || [];
     const sf = fc.semifinal?.series || [];
     const finalMatch = fc.final?.match || null;
     const champion = fc.final?.championId || null;
@@ -1287,34 +1340,56 @@
       finalChapterBracketSeries(ticketFinal[0], "Son Bilet Finali", "Çeyrek Final · 8. Kontenjan")
     ];
 
-    const qfCards = Array.from({ length: 4 }, (_, index) =>
-      finalChapterBracketSeries(qf[index], `Çeyrek Final ${index + 1}`, "Yarı Final")
-    );
-
+    const qfCards = finalChapterQuarterfinalCards();
     const sfCards = Array.from({ length: 2 }, (_, index) =>
       finalChapterBracketSeries(sf[index], `Yarı Final ${index + 1}`, "Büyük Final")
     );
 
-    const directPlayers = fc.directQuarterFinalistIds || [];
-    const directStrip = `<div class="fc-tree-direct-strip">
-      <span>DOĞRUDAN ÇEYREK FİNAL</span>
-      <div>${directPlayers.map(id => `<b>${escapeHTML(displayName(id))}</b>`).join("")}</div>
-    </div>`;
-
-    return `<section class="fc-bracket-board">
+    return `<section class="fc-bracket-board fc-bracket-board-v3">
       <div class="fc-bracket-board-head">
-        <div><span>CANLI TURNUVA ELEME AĞACI</span><h3>Final Chapter · Şampiyonluk Yolu</h3><p>Seri sonuçları girildikçe oyuncular ve bağlantılar otomatik olarak bir sonraki tura aktarılır.</p></div>
+        <div><span>CANLI TURNUVA ELEME AĞACI</span><h3>Final Chapter · Şampiyonluk Yolu</h3><p>Ana eleme, Son Bilet ve şampiyonluk turları artık daha büyük ve ayrı bölümlerde gösterilir.</p></div>
         <aside><strong>${champion ? escapeHTML(displayName(champion)) : "09"}</strong><small>${champion ? "ŞAMPİYON" : "ROAD TO FINAL"}</small></aside>
       </div>
-      ${directStrip}
-      <div class="fc-bracket-scroll">
-        <div class="fc-bracket-tree">
-          ${finalChapterTreeStage("01 · ANA ELEME", "4 Best of 3 seri", mainCards, "main-round")}
-          ${finalChapterTreeStage("02–03 · SON BİLET", "Kaybedenler için ikinci yol", ticketCards, "last-ticket-round")}
-          ${finalChapterTreeStage("04 · ÇEYREK FİNAL", "8 oyuncu · 4 seri", qfCards, "quarterfinal-round")}
-          ${finalChapterTreeStage("05 · YARI FİNAL", "4 oyuncu · 2 seri", sfCards, "semifinal-round")}
-          ${finalChapterTreeStage("06 · BÜYÜK FİNAL", "Tek maç · aynı takım", [finalChapterBracketFinal(finalMatch, champion)], "final-round")}
+
+      <section class="fc-entry-route-zone">
+        <header><div><span>GİRİŞ ROTASI</span><h4>Ana Eleme ve Son Bilet</h4></div><small>Çeyrek final havuzunu oluşturan iki yol</small></header>
+        <div class="fc-entry-route-grid">
+          <div class="fc-route-column main-route">
+            <div class="fc-route-column-head"><strong>01 · ANA ELEME</strong><small>4 Best of 3 seri</small></div>
+            <div class="fc-route-card-grid">${mainCards.join("")}</div>
+          </div>
+          <div class="fc-route-arrow"><span>→</span><small>KAYBEDENLER</small></div>
+          <div class="fc-route-column ticket-route">
+            <div class="fc-route-column-head"><strong>02–03 · SON BİLET</strong><small>Kaybedenler için ikinci yol</small></div>
+            <div class="fc-route-card-grid ticket-grid">${ticketCards.join("")}</div>
+          </div>
         </div>
+      </section>
+
+      <section class="fc-title-bracket-zone">
+        <header><div><span>ŞAMPİYONLUK AĞACI</span><h4>Çeyrek Final → Yarı Final → Büyük Final</h4></div><small>Doğrudan finalistler ve tur atlayanlar aynı kartta</small></header>
+        <div class="fc-title-bracket-grid">
+          <section class="fc-title-stage quarterfinal-stage">
+            <div class="fc-title-stage-head"><strong>04 · ÇEYREK FİNAL</strong><small>3 sabit QF + 4 ana eleme galibi + Son Bilet galibi</small></div>
+            <div class="fc-title-stage-cards">${qfCards.join("")}</div>
+          </section>
+          <div class="fc-title-connector"><span>→</span></div>
+          <section class="fc-title-stage semifinal-stage">
+            <div class="fc-title-stage-head"><strong>05 · YARI FİNAL</strong><small>4 oyuncu · 2 seri</small></div>
+            <div class="fc-title-stage-cards">${sfCards.join("")}</div>
+          </section>
+          <div class="fc-title-connector"><span>→</span></div>
+          <section class="fc-title-stage final-stage">
+            <div class="fc-title-stage-head"><strong>06 · BÜYÜK FİNAL</strong><small>Tek maç · aynı takım</small></div>
+            <div class="fc-title-stage-cards">${finalChapterBracketFinal(finalMatch, champion)}</div>
+          </section>
+        </div>
+      </section>
+
+      <div class="fc-bracket-note">
+        <strong>Çeyrek final rota görünümü:</strong>
+        Kura henüz kilitlenmediyse doğrudan finalistler sabit slotlarda, ana eleme galipleri yanlarında gösterilir.
+        Otomatik veya manuel çeyrek final kurası kilitlendiğinde kesin eşleşmeler görüntülenir.
       </div>
       <div class="fc-bracket-legend">
         <span><i class="live"></i> Devam eden seri</span>
@@ -9586,11 +9661,41 @@ ${shareData.url}`)}`;
     }
   }
 
+  function captureAdminReturnContext() {
+    adminLoginReturnContext = {
+      view: activeView,
+      scrollX: window.scrollX,
+      scrollY: window.scrollY,
+      capturedAt: Date.now()
+    };
+    sessionStorage.setItem("fifa9-admin-return-view", activeView);
+  }
+
+  function restoreAdminReturnContext(renderPage = true) {
+    const context = adminLoginReturnContext || {
+      view: sessionStorage.getItem("fifa9-admin-return-view") || activeView,
+      scrollX: window.scrollX,
+      scrollY: window.scrollY
+    };
+    if (context.view && titleMap[context.view]) activeView = context.view;
+    if (renderPage) render();
+    const restoreScroll = () => window.scrollTo({
+      left: Number(context.scrollX || 0),
+      top: Number(context.scrollY || 0),
+      behavior: "auto"
+    });
+    window.requestAnimationFrame(() => {
+      restoreScroll();
+      window.setTimeout(restoreScroll, 80);
+    });
+  }
+
   function openAdminLogin() {
     if (!cloudConfigured) { openCloudHelp(); return; }
     if (cloudUser && !cloudAdmin) { toast("Yönetici hesabına geçmek için önce mevcut oyuncu oturumunu kapat.", "error"); return; }
-    openModal("Yönetici Girişi", `<form id="adminLoginForm">
-      <div class="info-box">Bu ekran yalnızca turnuva yönetimi içindir. Geçici FIFA09 oylaması oyuncular için üyelik gerektirmez.</div>
+    captureAdminReturnContext();
+    openModal("Yönetici Girişi", `<form id="adminLoginForm" action="javascript:void(0)" novalidate>
+      <div class="info-box">Giriş başarılı olduğunda bulunduğun sayfa ve ekran konumu korunur.</div>
       <div class="field mt-16"><label>Yönetici e-postası</label><input type="email" name="email" autocomplete="username" required placeholder="admin@example.com"></div>
       <div class="field"><label>Parola</label><input type="password" name="password" autocomplete="current-password" required placeholder="••••••••"></div>
       <div class="modal-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">İptal</button><button type="submit" class="btn btn-gold">Yönetici Girişi</button></div>
@@ -9610,6 +9715,9 @@ ${shareData.url}`)}`;
   async function handleAdminLogin(form) {
     const data = new FormData(form);
     const button = form.querySelector("button[type=submit]");
+    if (adminLoginInProgress) return;
+    adminLoginInProgress = true;
+    captureAdminReturnContext();
     button.disabled = true;
     button.textContent = "Bağlanıyor...";
     try {
@@ -9618,14 +9726,21 @@ ${shareData.url}`)}`;
         await cloud.signOut();
         throw new Error("Bu hesap yönetici yetkisine sahip değil. Oyuncu hesapları Oyuncu Girişi sayfasını kullanmalıdır.");
       }
+      adminAuthRestoreUntil = Date.now() + 3500;
       closeModal();
-      toast("Yönetici girişi başarılı.", "success");
       updateAuthUI();
-      render();
+      restoreAdminReturnContext(true);
+      toast("Yönetici girişi başarılı. Bulunduğun Final Chapter ekranı korundu.", "success");
+      window.setTimeout(() => {
+        adminLoginInProgress = false;
+        adminLoginReturnContext = null;
+        sessionStorage.removeItem("fifa9-admin-return-view");
+      }, 3600);
     } catch (error) {
+      adminLoginInProgress = false;
       toast(error.message || "Giriş başarısız.", "error");
       button.disabled = false;
-      button.textContent = "Giriş Yap";
+      button.textContent = "Yönetici Girişi";
     }
   }
 
@@ -10055,6 +10170,7 @@ ${shareData.url}`)}`;
           render();
         },
         onAuth: ({ user, isAdmin, playerProfile }) => {
+          const preserveAdminScreen = adminLoginInProgress || Date.now() < adminAuthRestoreUntil;
           cloudUser = user || null;
           cloudAdmin = Boolean(isAdmin);
           cloudPlayerProfile = playerProfile || null;
@@ -10064,7 +10180,11 @@ ${shareData.url}`)}`;
           const replacementResult = applyConfiguredPhase2Replacement({ silent: true });
           updateAuthUI();
           if (replacementResult.changed && cloudAdmin) saveState(false, true);
-          render();
+          if (preserveAdminScreen) {
+            restoreAdminReturnContext(true);
+          } else {
+            render();
+          }
         },
         onStatus: ({ status, detail }) => setCloudState(status, detail)
       });
