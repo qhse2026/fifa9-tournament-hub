@@ -1,0 +1,68 @@
+FIFA 9 v44.8.7 — ALL-TIME ELITE & RECORDS CENTER
+
+YENİ TÜM ZAMANLAR YAPISI
+
+1. FIFA 9 Legacy Rating
+- İlk 10 oyuncu
+- Yalnızca en az 20 tamamlanmış maçı olanlar
+- PPG %25
+- Galibiyet oranı %20
+- Maç başına averaj %15
+- Hücum %10
+- Savunma %10
+- Yenilmezlik %10
+- Kupa başarısı %5
+- Tecrübe %5
+
+2. Elit İlk 10 Kategorileri
+- Ortalama puan / PPG
+- En çok galibiyet
+- Galibiyet oranı
+- Maç başına gol
+- Maç başına en az gol yeme
+- Beraberlik oranı
+- Yenilmezlik oranı
+- Maç başına averaj
+- Clean sheet oranı
+- Maçlarındaki toplam gol ortalaması
+- En uzun galibiyet serisi
+- En uzun yenilmezlik serisi
+
+3. Seri Rekorları
+- Galibiyet serisi
+- Yenilmezlik serisi
+- Gol atma serisi
+- Clean sheet serisi
+
+4. Unutulmaz Maçlar
+- En farklı 15 maç
+- En gollü 15 maç
+- En gollü 15 beraberlik
+
+5. Mevcut bölümler korunur
+- All-Time League Table
+- Puan Gücü
+- Oyuncu Kartları
+- Oyuncu Derin Analizi
+- Rekabet Merkezi
+- Şampiyonlar Kulübü
+
+GITHUB KÖK DİZİNİNE YÜKLENECEK 4 DOSYA
+- index.html
+- app.js
+- service-worker.js
+- all-time-elite.css
+
+Commit:
+Install All-Time Elite and Records Center v44.8.7
+
+VERCEL VE CACHE
+1. Deployment Ready + Production olmalıdır.
+2. F12 > Application > Service Workers > Unregister
+3. Application > Storage > Clear site data
+4. Bütün FIFA sekmelerini kapatın.
+5. https://fifa9-tournament-hub.vercel.app/?alltimeelite=v4487
+6. Ctrl + Shift + R
+
+BEKLENEN SÜRÜM
+FIFA 09 · v44.8.7 · All-Time Elite Records

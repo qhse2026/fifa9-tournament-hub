@@ -1,0 +1,38 @@
+{
+  "build": "FIFA 9 v44.8.7 All-Time Elite & Records Center",
+  "syntax": {
+    "app.js": "PASS",
+    "service-worker.js": "PASS"
+  },
+  "assertions": {
+    "minimum_20_match_rule": true,
+    "legacy_rating": true,
+    "top_10_rankings": true,
+    "biggest_15_matches": true,
+    "highest_scoring_15_matches": true,
+    "highest_scoring_draws": true,
+    "average_points": true,
+    "goals_per_match": true,
+    "least_conceded": true,
+    "draw_rate": true,
+    "win_rate": true,
+    "clean_sheet_rate": true,
+    "unbeaten_rate": true,
+    "streak_records": true,
+    "version": true,
+    "responsive_css": true
+  },
+  "eligibility": {
+    "ratio_rankings_minimum_completed_matches": 20,
+    "all_time_total_table_minimum": 0,
+    "match_record_lists_minimum": 0
+  },
+  "elite_categories": 12,
+  "match_record_lists": 3,
+  "files_to_upload": [
+    "index.html",
+    "app.js",
+    "service-worker.js",
+    "all-time-elite.css"
+  ]
+}

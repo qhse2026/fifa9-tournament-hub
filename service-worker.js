@@ -1,4 +1,4 @@
-const CACHE = "fifa-tournament-hub-v44-8-6-manager-season-closure";
+const CACHE = "fifa-tournament-hub-v44-8-7-all-time-elite-records";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -20,6 +20,7 @@ const APP_SHELL = [
   "./manager-match-engine-v4-phase13-safe.bundle.js",
   "./manager-room.css",
   "./manager-season-closure.css",
+  "./all-time-elite.css",
   "./me4-simulate.css",
   "./manager-friendly.css",
   "./manager-v42-4.css",
