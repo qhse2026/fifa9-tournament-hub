@@ -1,0 +1,31 @@
+{
+  "build": "FIFA 9 v44.8.2 Final Chapter Focus + Live Bracket",
+  "syntax": {
+    "app.js": "PASS",
+    "service-worker.js": "PASS"
+  },
+  "assertions": {
+    "finalChapterAtTop": true,
+    "activeBadge": true,
+    "bracketFunction": true,
+    "bracketRenderedBeforeProgression": true,
+    "fiveBracketStages": true,
+    "largerVisualScale": true,
+    "wideBracket": true
+  },
+  "features": [
+    "Final Chapter moved to the first position in Tournament Mode",
+    "active stage badge",
+    "larger sidebar and Final Chapter cards",
+    "live five-column elimination bracket",
+    "automatic winner progression display",
+    "horizontal scrolling on smaller screens",
+    "existing locked draw controls preserved"
+  ],
+  "filesToUpload": [
+    "index.html",
+    "app.js",
+    "service-worker.js",
+    "final-chapter-progression.css"
+  ]
+}

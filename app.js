@@ -1211,6 +1211,119 @@
     </section>`;
   }
 
+
+  function finalChapterBracketPlayer(playerId, side, winnerId) {
+    const exists = Boolean(playerId);
+    const isWinner = exists && winnerId === playerId;
+    return `<div class="fc-tree-player ${isWinner ? "winner" : ""} ${!exists ? "empty" : ""}">
+      <span>${side}</span>
+      <strong>${exists ? escapeHTML(displayName(playerId)) : "Oyuncu bekleniyor"}</strong>
+      ${isWinner ? `<em>TUR ATLADI</em>` : ""}
+    </div>`;
+  }
+
+  function finalChapterBracketSeries(series, fallbackLabel, destination = "") {
+    if (!series) {
+      return `<article class="fc-tree-match placeholder">
+        <header><span>${escapeHTML(fallbackLabel)}</span><b>BEKLİYOR</b></header>
+        ${finalChapterBracketPlayer(null, "A", null)}
+        ${finalChapterBracketPlayer(null, "B", null)}
+        ${destination ? `<footer>→ ${escapeHTML(destination)}</footer>` : ""}
+      </article>`;
+    }
+    const wins = seriesWins(series);
+    const winnerId = seriesWinner(series);
+    return `<article class="fc-tree-match ${winnerId ? "complete" : "live"}">
+      <header><span>${escapeHTML(fallbackLabel)}</span><b>${winnerId ? "TAMAMLANDI" : `${wins.a} – ${wins.b}`}</b></header>
+      ${finalChapterBracketPlayer(series.playerAId, "A", winnerId)}
+      ${finalChapterBracketPlayer(series.playerBId, "B", winnerId)}
+      <div class="fc-tree-series-score"><span>Best of 3</span><strong>${wins.a} – ${wins.b}</strong></div>
+      ${destination ? `<footer>→ ${escapeHTML(destination)}</footer>` : ""}
+    </article>`;
+  }
+
+  function finalChapterBracketFinal(match, championId) {
+    if (!match) {
+      return `<article class="fc-tree-match fc-tree-final placeholder">
+        <header><span>BÜYÜK FİNAL</span><b>BEKLİYOR</b></header>
+        ${finalChapterBracketPlayer(null, "A", null)}
+        ${finalChapterBracketPlayer(null, "B", null)}
+        <div class="fc-tree-cup">🏆</div>
+      </article>`;
+    }
+    return `<article class="fc-tree-match fc-tree-final ${championId ? "complete" : "live"}">
+      <header><span>BÜYÜK FİNAL</span><b>${championId ? "ŞAMPİYON BELLİ" : "TEK MAÇ"}</b></header>
+      ${finalChapterBracketPlayer(match.homeId, "A", championId)}
+      ${finalChapterBracketPlayer(match.awayId, "B", championId)}
+      <div class="fc-tree-series-score"><span>Final Skoru</span><strong>${matchComplete(match) ? `${match.homeScore} – ${match.awayScore}` : "–"}</strong></div>
+      <div class="fc-tree-cup">${championId ? "🏆" : "◆"}</div>
+    </article>`;
+  }
+
+  function finalChapterTreeStage(title, subtitle, cards, className = "") {
+    return `<section class="fc-tree-stage ${className}">
+      <header><span>${escapeHTML(title)}</span><small>${escapeHTML(subtitle)}</small></header>
+      <div class="fc-tree-stage-body">${cards.join("")}</div>
+    </section>`;
+  }
+
+  function finalChapterBracketTree() {
+    const fc = finalChapterState();
+    const playoff = fc.playoff?.series || [];
+    const ticketSemi = fc.secondChanceSemi?.series || [];
+    const ticketFinal = fc.secondChanceFinal?.series || [];
+    const qf = fc.quarterfinal?.series || [];
+    const sf = fc.semifinal?.series || [];
+    const finalMatch = fc.final?.match || null;
+    const champion = fc.final?.championId || null;
+
+    const mainCards = Array.from({ length: 4 }, (_, index) =>
+      finalChapterBracketSeries(playoff[index], `Ana Eleme ${index + 1}`, "Kazanan: Çeyrek Final · Kaybeden: Son Bilet")
+    );
+
+    const ticketCards = [
+      finalChapterBracketSeries(ticketSemi[0], "Son Bilet Yarı Final 1", "Son Bilet Finali"),
+      finalChapterBracketSeries(ticketSemi[1], "Son Bilet Yarı Final 2", "Son Bilet Finali"),
+      finalChapterBracketSeries(ticketFinal[0], "Son Bilet Finali", "Çeyrek Final · 8. Kontenjan")
+    ];
+
+    const qfCards = Array.from({ length: 4 }, (_, index) =>
+      finalChapterBracketSeries(qf[index], `Çeyrek Final ${index + 1}`, "Yarı Final")
+    );
+
+    const sfCards = Array.from({ length: 2 }, (_, index) =>
+      finalChapterBracketSeries(sf[index], `Yarı Final ${index + 1}`, "Büyük Final")
+    );
+
+    const directPlayers = fc.directQuarterFinalistIds || [];
+    const directStrip = `<div class="fc-tree-direct-strip">
+      <span>DOĞRUDAN ÇEYREK FİNAL</span>
+      <div>${directPlayers.map(id => `<b>${escapeHTML(displayName(id))}</b>`).join("")}</div>
+    </div>`;
+
+    return `<section class="fc-bracket-board">
+      <div class="fc-bracket-board-head">
+        <div><span>CANLI TURNUVA ELEME AĞACI</span><h3>Final Chapter · Şampiyonluk Yolu</h3><p>Seri sonuçları girildikçe oyuncular ve bağlantılar otomatik olarak bir sonraki tura aktarılır.</p></div>
+        <aside><strong>${champion ? escapeHTML(displayName(champion)) : "09"}</strong><small>${champion ? "ŞAMPİYON" : "ROAD TO FINAL"}</small></aside>
+      </div>
+      ${directStrip}
+      <div class="fc-bracket-scroll">
+        <div class="fc-bracket-tree">
+          ${finalChapterTreeStage("01 · ANA ELEME", "4 Best of 3 seri", mainCards, "main-round")}
+          ${finalChapterTreeStage("02–03 · SON BİLET", "Kaybedenler için ikinci yol", ticketCards, "last-ticket-round")}
+          ${finalChapterTreeStage("04 · ÇEYREK FİNAL", "8 oyuncu · 4 seri", qfCards, "quarterfinal-round")}
+          ${finalChapterTreeStage("05 · YARI FİNAL", "4 oyuncu · 2 seri", sfCards, "semifinal-round")}
+          ${finalChapterTreeStage("06 · BÜYÜK FİNAL", "Tek maç · aynı takım", [finalChapterBracketFinal(finalMatch, champion)], "final-round")}
+        </div>
+      </div>
+      <div class="fc-bracket-legend">
+        <span><i class="live"></i> Devam eden seri</span>
+        <span><i class="complete"></i> Tur atlayan belli</span>
+        <span><i class="waiting"></i> Önceki tur bekleniyor</span>
+      </div>
+    </section>`;
+  }
+
   function finalChapterDrawPolicyPanel() {
     if (!canEdit()) return "";
     const policy = finalChapterDrawPolicy();
@@ -1565,8 +1678,9 @@
     view.innerHTML = `<div class="fc-engine-page">
       <section class="fc-engine-hero"><div><div class="eyebrow">FIFA09 · FINAL CHAPTER</div><h2>Road to the Final</h2><p>Ana eleme ve Son Bilet play-off'u 4★, çeyrek final 4.5★, yarı final 5★. Bütün seriler Best of 3; iki galibiyet tur getirir. Büyük final tek maç ve aynı takım formatındadır.</p><div class="fc-direct-mini">${directNames.map(name => `<span>QF · ${name}</span>`).join("")}${withdrawnNames.map(name => `<span class="withdrawn">ÇEKİLDİ · ${name}</span>`).join("")}</div></div><div class="fc-engine-mark"><strong>${champion ? "🏆" : "09"}</strong><span>${champion ? `${displayName(champion)}<br>ŞAMPİYON` : "FINAL<br>CHAPTER"}</span></div></section>
       <div class="fc-engine-toolbar"><div><span class="badge badge-gold">${escapeHTML(fc.status.toLocaleUpperCase("tr-TR"))}</span><small>Aktivasyon: ${fc.activatedAt ? new Date(fc.activatedAt).toLocaleString("tr-TR") : "—"}</small></div>${canEdit() ? `<div><button class="btn btn-ghost" data-action="open-fc-team-pools">Takım Havuzları</button><button class="btn btn-danger" data-action="fc-cancel-format">Formatı İptal Et</button></div>` : ""}</div>
-      ${finalChapterDrawPolicyPanel()}
+      ${finalChapterBracketTree()}
       ${finalChapterProgressionBoard()}
+      ${finalChapterDrawPolicyPanel()}
       <section class="fc-direct-panel"><div><small>DOĞRUDAN ÇEYREK FİNAL</small><h3>Üç sabit kontenjan</h3></div>${fc.directQuarterFinalistIds.map((id, index) => `<article><span>${index + 1}</span><strong>${displayName(id)}</strong></article>`).join("")}</section>
       <section class="fc-withdrawn-panel"><span>ÇEKİLME</span><strong>${withdrawnNames.join(", ") || "Sultan Atasaral"}</strong><p>Final Chapter eşleşmelerine dahil edilmez; şanslı çeyrek finalist kontenjanı kaldırılmıştır.</p></section>
       ${finalChapterStageSection("playoff", "01 · ANA ELEME", "Doğrudan çeyrek finalistler dışında kalan 8 oyuncu, dört Best of 3 eşleşmeye girer. Dört kazanan çeyrek finale yükselir; dört kaybeden Son Bilet play-off'una gider. 4★.", playoffReady, "Ana eleme kurulumu bekleniyor")}

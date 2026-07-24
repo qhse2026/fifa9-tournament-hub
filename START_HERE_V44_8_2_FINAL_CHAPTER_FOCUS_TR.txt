@@ -1,0 +1,28 @@
+FIFA 9 v44.8.2 — FINAL CHAPTER FOCUS + LIVE BRACKET
+
+GitHub repository köküne şu 4 dosyayı yükleyin:
+- index.html
+- app.js
+- service-worker.js
+- final-chapter-progression.css
+
+Commit:
+Install Final Chapter Focus and Live Bracket v44.8.2
+
+Vercel:
+- Deployment Ready ve Production olmalı.
+- Gerekirse Redeploy; mevcut build cache kapalı.
+
+Cache:
+1. F12 > Application > Service Workers > Unregister
+2. Application > Storage > Clear site data
+3. Bütün FIFA sekmelerini kapatın
+4. https://fifa9-tournament-hub.vercel.app/?finalfocus=v4482
+5. Ctrl + Shift + R
+
+Beklenen:
+- Sol menüde Final Chapter en üstte ve AKTİF etiketiyle görünür.
+- Final Chapter kartları ve yazılar daha büyük görünür.
+- Road to the Final bölümünün hemen altında Turnuva Eleme Ağacı görünür.
+- Ağaç: Ana Eleme > Son Bilet > Çeyrek Final > Yarı Final > Büyük Final.
+- Seri sonuçları değiştikçe tur atlayan oyuncular otomatik güncellenir.

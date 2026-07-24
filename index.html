@@ -18,7 +18,7 @@
   <link rel="stylesheet" href="me4-simulate.css?v=44.7.5-simulate1">
   <link rel="stylesheet" href="manager-friendly.css?v=44.7.7-profiles1">
   <link rel="stylesheet" href="fifa9-experience-hub.css?v=44.8.0-hub1" />
-  <link rel="stylesheet" href="final-chapter-progression.css?v=44.8.1-fc1" />
+  <link rel="stylesheet" href="final-chapter-progression.css?v=44.8.2-focus-bracket1" />
 </head>
 <body>
   <div class="ambient ambient-one"></div>
@@ -47,6 +47,14 @@
             <i>⌄</i>
           </button>
           <div class="nav-cluster-body">
+            <div class="nav-subheading final-heading current-stage-heading">Aktif Aşama</div>
+            <button class="nav-item final-chapter-link final-chapter-primary" data-nav="knockout">
+              <span class="nav-icon">◆</span>
+              <span><strong>FIFA09 Final Chapter</strong><small>Playoff · eleme · büyük final</small></span>
+              <em>AKTİF</em>
+            </button>
+            <button class="nav-item final-control-link" data-nav="finalpoll"><span class="nav-icon">✓</span><span>Final Chapter Kararı</span></button>
+
             <div class="nav-subheading">Canlı Merkez</div>
             <button class="nav-item" data-nav="livematch"><span class="nav-icon live-nav-icon">●</span><span>Canlı Maç</span></button>
             <button class="nav-item" data-nav="livestats"><span class="nav-icon">⌁</span><span>Canlı İstatistikler</span></button>
@@ -55,10 +63,8 @@
             <button class="nav-item intelligence-nav" data-nav="intelligence"><span class="nav-icon">✦</span><span>Zekâ Merkezi</span></button>
             <button class="nav-item" data-nav="chat"><span class="nav-icon chat-nav-icon">◌</span><span>Turnuva Sohbeti</span></button>
 
-            <div class="nav-subheading">Turnuva Yönetimi</div>
-            <button class="nav-item" data-nav="setup"><span class="nav-icon">◎</span><span>Kura & Oyuncular</span></button>
-
-            <div class="nav-stage-stack" aria-label="Turnuva aşamaları">
+            <div class="nav-subheading completed-stage-heading">Önceki Aşamalar</div>
+            <div class="nav-stage-stack completed-stages" aria-label="Tamamlanan turnuva aşamaları">
               <button class="nav-item stage league-stage" data-nav="league">
                 <span class="nav-stage-code">LP</span>
                 <span><strong>League Phase</strong><small>48 maç · tek lig tablosu</small></span>
@@ -73,12 +79,8 @@
               </button>
             </div>
 
-            <div class="nav-subheading final-heading">Final Chapter</div>
-            <button class="nav-item final-chapter-link" data-nav="knockout">
-              <span class="nav-icon">◆</span>
-              <span><strong>FIFA09 Final Chapter</strong><small>Playoff · eleme · büyük final</small></span>
-            </button>
-            <button class="nav-item" data-nav="finalpoll"><span class="nav-icon">✓</span><span>Final Chapter Kararı</span></button>
+            <div class="nav-subheading">Turnuva Araçları</div>
+            <button class="nav-item" data-nav="setup"><span class="nav-icon">◎</span><span>Kura & Oyuncular</span></button>
             <button class="nav-item" data-nav="print"><span class="nav-icon">▤</span><span>Çıktı Merkezi</span></button>
           </div>
         </section>
@@ -114,7 +116,7 @@
 
       <div class="sidebar-footer">
         <div class="save-indicator" id="sidebarCloudStatus"><span class="status-dot"></span> Canlı bağlantı hazırlanıyor</div>
-        <div class="sidebar-version">FIFA 09 · v44.8.1 · Final Chapter Draw Control</div>
+        <div class="sidebar-version">FIFA 09 · v44.8.2 · Final Chapter Focus + Bracket</div>
       </div>
     </aside>
 

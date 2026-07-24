@@ -1,4 +1,4 @@
-const CACHE = "fifa-tournament-hub-v44-8-1-final-chapter-draw-control";
+const CACHE = "fifa-tournament-hub-v44-8-2-final-chapter-focus-bracket";
 const APP_SHELL = [
   "./",
   "./index.html",
