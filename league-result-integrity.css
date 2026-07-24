@@ -1,0 +1,12 @@
+.season-no-results-note{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  margin:0 0 10px;padding:10px 12px;border:1px solid rgba(113,220,255,.16);
+  border-radius:10px;background:rgba(17,65,84,.16)
+}
+.season-no-results-note strong{color:#8ce3ff;font-size:10px}
+.season-no-results-note span{color:#77939f;font-size:8px}
+.season-match-card.unplayed .season-match-side>strong{color:#617d89}
+.season-match-card.unplayed{border-style:solid;opacity:.92}
+@media(max-width:700px){
+  .season-no-results-note{align-items:flex-start;flex-direction:column}
+}

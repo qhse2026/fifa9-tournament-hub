@@ -19,7 +19,16 @@
   const esc = value => ctx()?.escapeHTML ? ctx().escapeHTML(String(value ?? "")) : String(value ?? "");
   const seasonLabel = edition => `FIFA${String(Number(edition) || 0).padStart(2, "0")}`;
   const canEdit = () => Boolean(ctx()?.canEdit?.());
-  const complete = match => Number.isFinite(Number(match?.homeScore)) && Number.isFinite(Number(match?.awayScore));
+  const scoreNumber = value => {
+    if (value === null || value === undefined) return null;
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (!trimmed || ["null", "undefined", "nan"].includes(trimmed.toLowerCase())) return null;
+    }
+    const parsed = Number(value);
+    return Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
+  };
+  const complete = match => Boolean(match) && scoreNumber(match.homeScore) !== null && scoreNumber(match.awayScore) !== null;
   const playerName = (season, id) => season?.players?.find(item => item.id === id)?.name || "—";
   const leagueName = id => id === "premier" ? "Premier League" : "Championship";
   const formatDate = value => value ? new Date(value).toLocaleString("tr-TR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—";
@@ -344,5 +353,5 @@
     }
   });
 
-  window.FIFA_SEASON_EXPERIENCE = { render, refreshAvailability, playerAwards, version: 39 };
+  window.FIFA_SEASON_EXPERIENCE = { render, refreshAvailability, playerAwards, version: 40, __diagnostics: Object.freeze({ scoreNumber, complete, legStats }) };
 })();

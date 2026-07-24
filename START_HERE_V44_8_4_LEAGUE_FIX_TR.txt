@@ -1,0 +1,31 @@
+FIFA 9 v44.8.4 — LEAGUE RESULT INTEGRITY FIX
+
+KÖK NEDEN
+JavaScript Number(null) değerini 0 yaptığı için, sonucu girilmemiş fikstürler
+tamamlanmış 0-0 beraberlik gibi hesaplanıyordu.
+
+GITHUB KÖKÜNE YÜKLENECEK 6 DOSYA
+- index.html
+- app.js
+- service-worker.js
+- season-hub.js
+- season-experience.js
+- league-result-integrity.css
+
+Commit:
+Fix unplayed league matches counted as draws v44.8.4
+
+Vercel Ready + Production olduktan sonra:
+1. F12 > Application > Service Workers > Unregister
+2. Application > Storage > Clear site data
+3. Bütün FIFA sekmelerini kapatın
+4. https://fifa9-tournament-hub.vercel.app/?leaguefix=v4484
+5. Ctrl + Shift + R
+
+BEKLENEN
+- Sonucu girilmemiş Premier fikstürleri 0/63 olarak görünür.
+- Sonucu girilmemiş Championship fikstürleri 0/108 olarak görünür.
+- O/G/B/M/AG/YG/AV/P değerleri 0 olur.
+- Maç kartlarında null değil – görünür.
+- Düğme Sonuç Gir olur.
+- Gerçek 0-0 sonucu kaydedildiğinde yalnızca o maç beraberlik sayılır.

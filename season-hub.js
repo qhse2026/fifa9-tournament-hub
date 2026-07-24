@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = 39;
+  const VERSION = 40;
   const DEFAULT_SETTINGS = Object.freeze({
     premierSize: 7,
     promotion: 2,
@@ -39,6 +39,35 @@
   const uid = prefix => `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2, 9)}`;
   const seasonLabel = edition => `FIFA${String(Number(edition) || 0).padStart(2, "0")}`;
   const now = () => new Date().toISOString();
+
+  function scoreNumber(value) {
+    if (value === null || value === undefined) return null;
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (!trimmed || ["null", "undefined", "nan"].includes(trimmed.toLowerCase())) return null;
+    }
+    const parsed = Number(value);
+    return Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
+  }
+
+  function hasExplicitScore(value) {
+    return scoreNumber(value) !== null;
+  }
+
+  function sanitizeMatchScore(match) {
+    if (!match || typeof match !== "object") return match;
+    const home = scoreNumber(match.homeScore);
+    const away = scoreNumber(match.awayScore);
+    if (home === null || away === null) {
+      match.homeScore = null;
+      match.awayScore = null;
+      if (!match.winnerId || ![match.homeId, match.awayId].includes(match.winnerId)) match.winnerId = null;
+      return match;
+    }
+    match.homeScore = home;
+    match.awayScore = away;
+    return match;
+  }
 
   function appState() {
     return ctx()?.getState?.() || {};
@@ -154,6 +183,16 @@
     season.cups.oruc = { ...emptyOrucCup(), ...(season.cups.oruc || {}) };
     season.cups.oruc.series = season.cups.oruc.series || {};
     season.cups.super = { ...emptySuperCup(), ...(season.cups.super || {}) };
+
+    for (const leagueId of ["premier", "championship"]) {
+      season.leagues[leagueId].fixtures.forEach(sanitizeMatchScore);
+    }
+    Object.values(season.cups.oruc.series || {}).forEach(series => {
+      (series?.matches || []).forEach(sanitizeMatchScore);
+    });
+    if (season.cups.oruc.final) sanitizeMatchScore(season.cups.oruc.final);
+    if (season.cups.super.match) sanitizeMatchScore(season.cups.super.match);
+
     const pools = season.teamPools && typeof season.teamPools === "object" ? season.teamPools : {};
     season.teamPools = {};
     Object.entries(DEFAULT_TEAM_POOLS).forEach(([key, value]) => {
@@ -323,7 +362,8 @@
   }
 
   function matchComplete(match) {
-    return Number.isFinite(Number(match?.homeScore)) && Number.isFinite(Number(match?.awayScore));
+    if (!match) return false;
+    return hasExplicitScore(match.homeScore) && hasExplicitScore(match.awayScore);
   }
 
   function matchWinnerId(match) {
@@ -598,9 +638,9 @@
     const season = seasons().find(item => item.edition === Number(data.get("edition")));
     const match = season ? findSeasonMatch(season, String(data.get("matchId"))) : null;
     if (!season || !match) return;
-    const homeScore = Number(data.get("homeScore"));
-    const awayScore = Number(data.get("awayScore"));
-    if (!Number.isInteger(homeScore) || !Number.isInteger(awayScore) || homeScore < 0 || awayScore < 0) {
+    const homeScore = scoreNumber(data.get("homeScore"));
+    const awayScore = scoreNumber(data.get("awayScore"));
+    if (homeScore === null || awayScore === null) {
       toast("Geçerli bir skor gir.", "error");
       return;
     }
@@ -1355,18 +1395,42 @@
   function renderStandingsTable(season, leagueId) {
     const rows = standings(season, leagueId);
     const isPremier = leagueId === "premier";
-    return `<div class="season-table-wrap"><table class="season-standings"><thead><tr><th>#</th><th>Oyuncu</th><th>O</th><th>G</th><th>B</th><th>M</th><th>AG</th><th>YG</th><th>AV</th><th>P</th></tr></thead><tbody>${rows.map((row, index) => {
-      const movement = isPremier ? (index >= rows.length - 2 ? "relegation" : index === 0 ? "champion" : "") : (index < 2 ? "promotion" : index === 2 ? "replacement" : "");
-      return `<tr class="${movement}"><td><b>${row.rank}</b></td><td><button class="season-player-link" data-season-action="open-career" data-player-name="${esc(row.name)}">${esc(row.name)}</button>${movement === "champion" ? `<small>Lig Şampiyonu</small>` : movement === "promotion" ? `<small>Premier'e yükselir</small>` : movement === "relegation" ? `<small>Championship'e düşer</small>` : movement === "replacement" ? `<small>İlk yedek hak sahibi</small>` : ""}</td><td>${row.p}</td><td>${row.w}</td><td>${row.d}</td><td>${row.l}</td><td>${row.gf}</td><td>${row.ga}</td><td class="${row.gd > 0 ? "positive" : row.gd < 0 ? "negative" : ""}">${row.gd > 0 ? "+" : ""}${row.gd}</td><td><strong>${row.pts}</strong></td></tr>`;
-    }).join("")}</tbody></table></div>`;
+    const allMatches = leagueMatches(season, leagueId);
+    const completedCount = allMatches.filter(matchComplete).length;
+    const leagueFinished = allMatches.length > 0 && completedCount === allMatches.length;
+    const noResults = completedCount === 0;
+
+    const statusLabel = movement => {
+      if (!movement) return "";
+      if (movement === "champion") return leagueFinished ? "Lig Şampiyonu" : "Geçici lider";
+      if (movement === "promotion") return leagueFinished ? "Premier'e yükselir" : "Geçici yükselme hattı";
+      if (movement === "relegation") return leagueFinished ? "Championship'e düşer" : "Geçici düşme hattı";
+      if (movement === "replacement") return leagueFinished ? "İlk yedek hak sahibi" : "Geçici yedek hattı";
+      return "";
+    };
+
+    return `<div class="season-table-wrap">
+      ${noResults ? `<div class="season-no-results-note"><strong>Henüz maç sonucu girilmedi.</strong><span>Tablo başlangıç görünümündedir; hiçbir maç beraberlik olarak hesaplanmaz.</span></div>` : ""}
+      <table class="season-standings"><thead><tr><th>#</th><th>Oyuncu</th><th>O</th><th>G</th><th>B</th><th>M</th><th>AG</th><th>YG</th><th>AV</th><th>P</th></tr></thead><tbody>${rows.map((row, index) => {
+        const movement = noResults
+          ? ""
+          : isPremier
+            ? (index >= rows.length - 2 ? "relegation" : index === 0 ? "champion" : "")
+            : (index < 2 ? "promotion" : index === 2 ? "replacement" : "");
+        const label = statusLabel(movement);
+        return `<tr class="${movement}"><td><b>${row.rank}</b></td><td><button class="season-player-link" data-season-action="open-career" data-player-name="${esc(row.name)}">${esc(row.name)}</button>${label ? `<small>${label}</small>` : ""}</td><td>${row.p}</td><td>${row.w}</td><td>${row.d}</td><td>${row.l}</td><td>${row.gf}</td><td>${row.ga}</td><td class="${row.gd > 0 ? "positive" : row.gd < 0 ? "negative" : ""}">${row.gd > 0 ? "+" : ""}${row.gd}</td><td><strong>${row.pts}</strong></td></tr>`;
+      }).join("")}</tbody></table>
+    </div>`;
   }
 
   function renderMatchCard(season, match) {
     const played = matchComplete(match);
-    return `<article class="season-match-card ${played ? "played" : ""}">
+    const homeScore = played ? scoreNumber(match.homeScore) : null;
+    const awayScore = played ? scoreNumber(match.awayScore) : null;
+    return `<article class="season-match-card ${played ? "played" : "unplayed"}">
       <div class="season-match-card-head"><span>${match.stage === "league" ? `${match.round}. Hafta` : esc(match.label || "Kupa")}</span><b>${match.stars}★</b></div>
-      <div class="season-match-side"><span>${esc(playerName(season, match.homeId))}<small>${esc(match.sameTeam ? match.sharedTeam : match.homeTeam || "")}</small></span><strong>${played ? match.homeScore : "–"}</strong></div>
-      <div class="season-match-side"><span>${esc(playerName(season, match.awayId))}<small>${esc(match.sameTeam ? match.sharedTeam : match.awayTeam || "")}</small></span><strong>${played ? match.awayScore : "–"}</strong></div>
+      <div class="season-match-side"><span>${esc(playerName(season, match.homeId))}<small>${esc(match.sameTeam ? match.sharedTeam : match.homeTeam || "")}</small></span><strong>${homeScore === null ? "–" : homeScore}</strong></div>
+      <div class="season-match-side"><span>${esc(playerName(season, match.awayId))}<small>${esc(match.sameTeam ? match.sharedTeam : match.awayTeam || "")}</small></span><strong>${awayScore === null ? "–" : awayScore}</strong></div>
       ${canEdit() ? `<button data-season-action="edit-match" data-match-id="${esc(match.id)}">${played ? "Sonucu Düzenle" : "Sonuç Gir"}</button>` : ""}
     </article>`;
   }
@@ -1524,5 +1588,8 @@
     return false;
   }
 
-  window.FIFA_SEASON_HUB = { render, handleClick, handleSubmit, handleChange, handleInput, version: VERSION };
+  window.FIFA_SEASON_HUB = {
+    render, handleClick, handleSubmit, handleChange, handleInput, version: VERSION,
+    __diagnostics: Object.freeze({ scoreNumber, matchComplete, standings, renderMatchCard })
+  };
 })();

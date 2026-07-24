@@ -1,0 +1,91 @@
+{
+  "build": "FIFA 9 v44.8.4 League Result Integrity Fix",
+  "rootCause": "JavaScript Number(null) evaluates to 0",
+  "syntax": {
+    "app.js": "PASS",
+    "season-hub.js": "PASS",
+    "season-experience.js": "PASS",
+    "service-worker.js": "PASS"
+  },
+  "behavior": {
+    "nullFixtureComplete": false,
+    "emptyFixtureComplete": false,
+    "realZeroDrawComplete": true,
+    "unplayedRows": [
+      {
+        "id": "A",
+        "name": "Alpha",
+        "p": 0,
+        "w": 0,
+        "d": 0,
+        "l": 0,
+        "gf": 0,
+        "ga": 0,
+        "gd": 0,
+        "pts": 0,
+        "rank": 1
+      },
+      {
+        "id": "B",
+        "name": "Beta",
+        "p": 0,
+        "w": 0,
+        "d": 0,
+        "l": 0,
+        "gf": 0,
+        "ga": 0,
+        "gd": 0,
+        "pts": 0,
+        "rank": 2
+      }
+    ],
+    "realDrawRows": [
+      {
+        "id": "A",
+        "name": "Alpha",
+        "p": 1,
+        "w": 0,
+        "d": 1,
+        "l": 0,
+        "gf": 0,
+        "ga": 0,
+        "gd": 0,
+        "pts": 1,
+        "rank": 1
+      },
+      {
+        "id": "B",
+        "name": "Beta",
+        "p": 1,
+        "w": 0,
+        "d": 1,
+        "l": 0,
+        "gf": 0,
+        "ga": 0,
+        "gd": 0,
+        "pts": 1,
+        "rank": 2
+      }
+    ],
+    "unplayedCardShowsDash": true,
+    "unplayedCardShowsNull": false
+  },
+  "filesToUpload": [
+    "index.html",
+    "app.js",
+    "service-worker.js",
+    "season-hub.js",
+    "season-experience.js",
+    "league-result-integrity.css"
+  ],
+  "guarantees": {
+    "nullIsUnplayed": true,
+    "blankIsUnplayed": true,
+    "stringNullIsUnplayed": true,
+    "realZeroZeroIsDraw": true,
+    "unplayedCardUsesDash": true,
+    "unplayedCardDoesNotPrintNull": true,
+    "awardAndRecordCalculationsIgnoreUnplayed": true,
+    "advancedOddsEnvironmentIgnoresUnplayed": true
+  }
+}

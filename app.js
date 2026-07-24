@@ -5081,7 +5081,18 @@
 
 
   function advancedGlobalScoringEnvironment(context) {
-    const matches = (context?.unifiedMatches || []).filter(match => Number.isFinite(Number(match.homeScore)) && Number.isFinite(Number(match.awayScore)));
+    const explicitScore = value => {
+      if (value === null || value === undefined) return null;
+      if (typeof value === "string") {
+        const trimmed = value.trim();
+        if (!trimmed || ["null", "undefined", "nan"].includes(trimmed.toLowerCase())) return null;
+      }
+      const parsed = Number(value);
+      return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+    };
+    const matches = (context?.unifiedMatches || []).filter(match =>
+      explicitScore(match?.homeScore) !== null && explicitScore(match?.awayScore) !== null
+    );
     const recent = matches.slice(-160);
     const sample = recent.length ? recent : matches;
     if (!sample.length) return { meanPerSide:3, meanTotal:6, varianceTotal:7, drawRate:.14, sample:0 };

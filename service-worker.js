@@ -1,4 +1,4 @@
-const CACHE = "fifa-tournament-hub-v44-8-3-readable-bracket-admin-fix";
+const CACHE = "fifa-tournament-hub-v44-8-4-league-result-integrity";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -9,6 +9,7 @@ const APP_SHELL = [
   "./fifa9-experience-hub.js",
   "./season-hub.js",
   "./season-hub.css",
+  "./league-result-integrity.css",
   "./season-experience.js",
   "./season-experience.css",
   "./manager-room.js",
