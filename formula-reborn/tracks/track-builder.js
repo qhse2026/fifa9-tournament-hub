@@ -45,6 +45,10 @@ function createMaterial(color, options = {}) {
   });
 }
 
+function sceneryClearance(track, extra = 0) {
+  return track.width / 2 + track.runoff + 7.5 + extra;
+}
+
 function createTrackSamples(curve, track, sampleCount = 960) {
   const samples = [];
   const previousTangent = new THREE.Vector3();
@@ -96,7 +100,7 @@ function createRoadMeshes(track, samples) {
 
   const asphalt = new THREE.Mesh(
     stripGeometry(samples, -track.width / 2, track.width / 2, 0.03),
-    createMaterial(0x30343a, { roughness: 0.91 })
+    createMaterial(0x3f454e, { roughness: 0.88 })
   );
   asphalt.receiveShadow = true;
   asphalt.name = "asphalt";
@@ -125,6 +129,28 @@ function createRoadMeshes(track, samples) {
     createMaterial(track.environment === "harbour" ? 0x50555a : 0x4b4a43, { roughness: 1 })
   );
   group.add(leftRunoff, rightRunoff);
+
+  const edgeLineWidth = 0.18;
+  const leftEdgeLine = new THREE.Mesh(
+    stripGeometry(samples, -track.width / 2 + 0.08, -track.width / 2 + 0.08 + edgeLineWidth, 0.065),
+    createMaterial(0xf5f5ef, { roughness: 0.62, emissive: 0x111111, emissiveIntensity: 0.12 })
+  );
+  const rightEdgeLine = new THREE.Mesh(
+    stripGeometry(samples, track.width / 2 - 0.08 - edgeLineWidth, track.width / 2 - 0.08, 0.065),
+    createMaterial(0xf5f5ef, { roughness: 0.62, emissive: 0x111111, emissiveIntensity: 0.12 })
+  );
+  group.add(leftEdgeLine, rightEdgeLine);
+
+  const dashMaterial = createMaterial(0xf1efe5, { roughness: 0.66, emissive: 0x101010, emissiveIntensity: 0.08 });
+  for (let index = 0; index < samples.length; index += 18) {
+    const sample = samples[index];
+    const next = samples[(index + 5) % samples.length];
+    const length = Math.max(2.4, sample.point.distanceTo(next.point));
+    const dash = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.05, length), dashMaterial);
+    dash.position.copy(sample.point).addScaledVector(UP, 0.075);
+    dash.rotation.y = Math.atan2(sample.tangent.x, sample.tangent.z);
+    group.add(dash);
+  }
 
   // Start/finish line.
   const start = samples[0];
@@ -163,7 +189,7 @@ function createBarriers(track, samples) {
     const yaw = Math.atan2(sample.tangent.x, sample.tangent.z);
     quaternion.setFromEuler(new THREE.Euler(0, yaw, 0));
     for (const side of [-1, 1]) {
-      const offset = side * (track.width / 2 + track.runoff + 0.65);
+      const offset = side * sceneryClearance(track, 0.6);
       position.copy(sample.point)
         .addScaledVector(sample.normal, offset)
         .addScaledVector(UP, track.environment === "harbour" ? 0.82 : 0.62);
@@ -231,7 +257,7 @@ function createCoastalEnvironment(scene, trackModel) {
   for (let index = 0; index < 70; index += 1) {
     const sample = samples[(index * 13) % samples.length];
     const side = index % 2 ? -1 : 1;
-    const p = sample.point.clone().addScaledVector(sample.normal, side * (35 + (index % 5) * 8));
+    const p = sample.point.clone().addScaledVector(sample.normal, side * sceneryClearance(trackModel.track, 16 + (index % 5) * 6));
     p.y -= 1 + (index % 3) * 2;
     const scale = new THREE.Vector3(1.2 + index % 4 * 0.3, 0.8 + index % 3 * 0.25, 1.0 + index % 5 * 0.18);
     matrix.compose(p, new THREE.Quaternion(), scale);
@@ -261,7 +287,7 @@ function createHarbourEnvironment(scene, trackModel) {
     for (let index = 0; index < 24; index += 1) {
       const sample = samples[(index * 31 + batch * 17) % samples.length];
       const side = (index + batch) % 2 ? -1 : 1;
-      const p = sample.point.clone().addScaledVector(sample.normal, side * (20 + (index % 4) * 4));
+      const p = sample.point.clone().addScaledVector(sample.normal, side * sceneryClearance(trackModel.track, 10 + (index % 4) * 4));
       p.y = 1.35 + (index % 3) * 2.7;
       const yaw = Math.atan2(sample.tangent.x, sample.tangent.z);
       const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, yaw, 0));
@@ -283,7 +309,7 @@ function createHarbourEnvironment(scene, trackModel) {
     const arm = new THREE.Mesh(new THREE.BoxGeometry(18, 1.0, 1.2), createMaterial(0xe0a52b));
     arm.position.set(side * 6.5, 17, 0);
     crane.add(tower, arm);
-    crane.position.copy(sample.point).addScaledVector(sample.normal, side * 33);
+    crane.position.copy(sample.point).addScaledVector(sample.normal, side * sceneryClearance(trackModel.track, 16));
     scene.add(crane);
   }
 }
@@ -306,7 +332,7 @@ function createVolcanicEnvironment(scene, trackModel) {
   for (let index = 0; index < 120; index += 1) {
     const sample = samples[(index * 19) % samples.length];
     const side = index % 2 ? -1 : 1;
-    const p = sample.point.clone().addScaledVector(sample.normal, side * (24 + (index % 7) * 7));
+    const p = sample.point.clone().addScaledVector(sample.normal, side * sceneryClearance(trackModel.track, 14 + (index % 7) * 6));
     p.y += (index % 5) - 7;
     const scale = new THREE.Vector3(0.7 + (index % 5) * 0.22, 0.8 + (index % 4) * 0.35, 0.7 + (index % 6) * 0.18);
     matrix.compose(p, new THREE.Quaternion(), scale);
@@ -326,7 +352,7 @@ function createVolcanicEnvironment(scene, trackModel) {
     const sample = samples[(index * 73 + 20) % samples.length];
     const lava = new THREE.Mesh(new THREE.SphereGeometry(3 + (index % 4), 12, 8), lavaMaterial);
     lava.scale.y = 0.18;
-    lava.position.copy(sample.point).addScaledVector(sample.normal, (index % 2 ? -1 : 1) * (25 + index % 3 * 7));
+    lava.position.copy(sample.point).addScaledVector(sample.normal, (index % 2 ? -1 : 1) * sceneryClearance(trackModel.track, 18 + (index % 3) * 5));
     lava.position.y -= 2;
     scene.add(lava);
   }

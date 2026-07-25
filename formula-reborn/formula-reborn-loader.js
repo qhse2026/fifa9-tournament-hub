@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "45.0.3";
+  const VERSION = "45.0.4";
   const LOADER_SCRIPT_URL = document.currentScript?.src
     || new URL("formula-reborn/formula-reborn-loader.js", window.location.href).href;
   const LOADER_BASE_URL = new URL(".", LOADER_SCRIPT_URL);
@@ -20,7 +20,7 @@
   function loadingMarkup() {
     return `<section class="fr45-loader-card" data-no-translate>
       <span>FORMULA HORIZON REBORN</span>
-      <h2>Loading V45.0.3</h2>
+      <h2>Loading V45.0.4</h2>
       <p>Preparing the WebGL renderer, official vehicle physics and Phase 1 circuits…</p>
     </section>`;
   }
@@ -67,7 +67,7 @@
       <div class="experience-mode-icon">FR</div>
       <div>
         <span>FORMULA HORIZON REBORN</span>
-        <h3>V45.0.3 · Natural Track Limits</h3>
+        <h3>V45.0.4 · Track Visibility Hotfix</h3>
         <p>Real WebGL tracks, braking-dependent physics and global five-lap records.</p>
       </div>
       <footer><b>3 CIRCUITS</b><small>MASTERPIECE FOUNDATION</small></footer>

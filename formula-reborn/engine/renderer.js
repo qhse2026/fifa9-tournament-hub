@@ -145,7 +145,7 @@ export class FormulaRenderer {
     this.profile = qualityProfile(settings.quality || "auto");
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(track.sky);
-    this.scene.fog = new THREE.FogExp2(track.fog, track.environment === "harbour" ? 0.0022 : 0.00135);
+    this.scene.fog = new THREE.FogExp2(track.fog, track.environment === "harbour" ? 0.0015 : (track.environment === "volcanic" ? 0.00095 : 0.00085));
 
     this.camera = new THREE.PerspectiveCamera(58, 1, 0.1, this.profile.far);
     this.renderer = new THREE.WebGLRenderer({
@@ -154,7 +154,7 @@ export class FormulaRenderer {
     });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = track.environment === "volcanic" ? 1.1 : 1.0;
+    this.renderer.toneMappingExposure = track.environment === "volcanic" ? 1.18 : 1.06;
     this.renderer.shadowMap.enabled = this.profile.shadows;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.setPixelRatio(Math.min(this.profile.pixelRatio, window.devicePixelRatio || 1));

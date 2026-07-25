@@ -1,0 +1,26 @@
+{
+  "version": "V45.0.4",
+  "build": "Track Visibility Hotfix",
+  "created_at_utc": "2026-07-25T23:45:54.304101+00:00",
+  "changes": [
+    "Moved scenery further away from the racing surface and runoff.",
+    "Reduced fog density and increased exposure for better track readability.",
+    "Added road edge lines and center dashed guidance markers.",
+    "Kept barriers but moved them to a cleaner visibility corridor."
+  ],
+  "syntax_checks": {
+    "formula-reborn/tracks/track-builder.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    "formula-reborn/engine/renderer.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    "formula-reborn/formula-reborn-loader.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    }
+  },
+  "status": "PASS"
+}

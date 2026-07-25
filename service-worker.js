@@ -1,4 +1,4 @@
-const CACHE = "tournament-universe-v45-0-3-natural-track-limits";
+const CACHE = "tournament-universe-v45-0-4-track-visibility";
 const APP_SHELL = [
   "./",
   "./index.html",

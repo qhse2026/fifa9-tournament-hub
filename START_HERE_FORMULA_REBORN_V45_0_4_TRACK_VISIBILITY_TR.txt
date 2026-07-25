@@ -1,0 +1,26 @@
+FORMULA HORIZON REBORN V45.0.4 — TRACK VISIBILITY HOTFIX
+
+AMAÇ
+- Pist okunabilirliğini artırmak
+- Yol görünümünü netleştirmek
+- Kaya / konteyner / çevre objelerini pist görüş hattından uzaklaştırmak
+
+DEĞİŞİKLİKLER
+- Yol rengi hafif açıldı
+- Pist kenar çizgileri eklendi
+- Merkez referans çizgileri eklendi
+- Volkanik kaya objeleri pistten daha uzağa taşındı
+- Harbour konteyner ve crane objeleri pistten daha uzağa taşındı
+- Coastal cliff objeleri pistten daha uzağa taşındı
+- Sis yoğunluğu azaltıldı
+- Görsel exposure biraz yükseltildi
+
+YÜKLENECEK DOSYALAR
+index.html
+service-worker.js
+formula-reborn/formula-reborn-loader.js
+formula-reborn/engine/renderer.js
+formula-reborn/tracks/track-builder.js
+
+COMMIT
+Improve Formula track visibility and move scenery away from road V45.0.4
