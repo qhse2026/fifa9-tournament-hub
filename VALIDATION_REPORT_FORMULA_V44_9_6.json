@@ -1,0 +1,80 @@
+{
+  "version": "v44.9.6",
+  "build": "Formula Raceability Guard",
+  "created_at_utc": "2026-07-25T15:19:53.151901+00:00",
+  "status": "PASS",
+  "syntax_checks": {
+    "formula-racing-engine.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    "formula-racing.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    "formula-racing-tracks.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    }
+  },
+  "policy_test": {
+    "passed": true,
+    "results": {
+      "opening": {
+        "status": "VSC",
+        "downgraded": true,
+        "reason": "Opening phase protected"
+      },
+      "approved": {
+        "status": "SAFETY CAR",
+        "downgraded": false,
+        "reason": "Approved"
+      },
+      "capped": {
+        "status": "VSC",
+        "downgraded": true,
+        "reason": "Safety Car race limit reached"
+      },
+      "finalPhase": {
+        "status": "YELLOW",
+        "downgraded": true,
+        "reason": "Final-race protection"
+      },
+      "minor": {
+        "status": "VSC",
+        "downgraded": true,
+        "reason": "Incident does not require full Safety Car"
+      },
+      "raceFirst": {
+        "status": "YELLOW",
+        "downgraded": true,
+        "reason": "Race First mode"
+      }
+    },
+    "stderr": ""
+  },
+  "implemented_controls": {
+    "maximum_safety_cars": {
+      "race_first": 0,
+      "low": 0,
+      "realistic_3_to_7_laps": 1,
+      "high_3_to_7_laps": 1
+    },
+    "opening_phase_protection_seconds": {
+      "low": 24,
+      "realistic": 18,
+      "high": 14
+    },
+    "restart_green_flag_protection_seconds": {
+      "low": 24,
+      "realistic": 20,
+      "high": 16
+    },
+    "final_race_protection": true,
+    "minor_incidents_downgraded": true,
+    "start_collision_energy_reduction": true,
+    "random_failure_frequency_reduced": true,
+    "race_first_mode_added": true
+  },
+  "scope_note": "Automated syntax and policy tests passed. Final handling and feel should be confirmed in browser gameplay."
+}

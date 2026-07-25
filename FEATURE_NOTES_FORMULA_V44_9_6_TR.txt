@@ -1,0 +1,14 @@
+v44.9.6 RACEABILITY GUARD — TEKNİK DEĞİŞİKLİKLER
+
+- Merkezi raceControlDecision() karar katmanı eklendi.
+- Safety Car talepleri olay şiddeti, yarış zamanı, lider ilerlemesi, deployment limiti
+  ve restart korumasına göre onaylanıyor veya düşürülüyor.
+- Safety Car artık yalnızca emergency=true olan, pisti kapatma potansiyelli olaylarda çıkabiliyor.
+- Normal ağır temas doğrudan Safety Car üretmiyor.
+- Start fazında temas enerjisi %34'e düşürülüyor.
+- Temas mesafesi 15 px'den başlangıçta 11.8 px, normal yarışta 12.8 px seviyesine indirildi.
+- Rastgele teknik olay kontrolü 2.2 saniyeden 3.4 saniyeye çıkarıldı.
+- Rastgele olay temel olasılığı 0.0042'den 0.00155'e düşürüldü.
+- Retired AI araçlarına pist temizleme zamanlayıcısı eklendi.
+- HUD üzerinde SC ve VSC deployment bütçesi gösteriliyor.
+- Quick Race'e Race First modu eklendi.

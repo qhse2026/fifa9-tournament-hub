@@ -1,0 +1,46 @@
+FORMULA RACING v44.9.6 — RACEABILITY GUARD
+
+AMAÇ
+24 araçlık gridde küçük temaslar ve teknik olaylar nedeniyle Safety Car'ın arka arkaya
+devreye girmesini engellemek; yarışın büyük bölümünü yeşil bayrak altında tutmak.
+
+TEMEL DÜZELTMELER
+1. 3–7 turluk Balanced ve High yarışlarda maksimum 1 Safety Car.
+2. İlk 18 saniye ve pistin açılış bölümü Safety Car korumasında.
+3. Restart sonrasında 20 saniyelik kesintisiz yeşil bayrak penceresi.
+4. Yarışın final bölümünde yeni Safety Car yerine yerel sarı bayrak.
+5. Safety Car yalnızca gerçekten ağır ve pisti kapatan olaylarda onaylanır.
+6. Küçük temaslar: yerel sarı bayrak.
+7. Ağır fakat pisti kapatmayan olaylar: VSC.
+8. Başlangıç temaslarının çarpışma enerjisi ve hasarı azaltıldı.
+9. Rastgele mekanik olay sıklığı düşürüldü.
+10. Race First modu eklendi: SC ve VSC kapalı, yalnızca yerel sarı bayrak.
+
+ÖNERİLEN TEST
+Pist: Dragon Ring
+Grid: 24 araç
+Tur: 5
+Incident: Balanced · Maks. 1 SC
+Hava: Kuru
+Sürüş: Balanced
+
+Kabul kriterleri:
+- İlk turun başında Safety Car çıkmamalı.
+- Yarış boyunca en fazla 1 Safety Car çıkmalı.
+- Safety Car sonrasında en az 20 saniye yeşil bayrak yarışı olmalı.
+- İkinci Safety Car talebi VSC veya yerel sarı bayrağa düşürülmeli.
+- Final bölümünde Safety Car yerine yerel sarı bayrak kullanılmalı.
+
+KESİNTİSİZ YARIŞ
+Quick Race → Incident Seviyesi → Race First · SC/VSC Kapalı
+
+YÜKLENECEK DOSYALAR
+index.html
+service-worker.js
+formula-racing-tracks.js
+formula-racing-engine.js
+formula-racing.js
+formula-racing.css
+
+COMMIT
+Install Formula Raceability Guard v44.9.6

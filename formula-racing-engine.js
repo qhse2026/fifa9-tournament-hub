@@ -117,8 +117,10 @@
         incidents:0,
         lastChangeAt:0
       };
-      this.incidentCheckTimer = 1.5;
+      this.incidentCheckTimer = 2.8;
       this.incidentCooldown = 0;
+      this.greenFlagSeconds = 0;
+      this.raceability = this.createRaceabilityPolicy();
       this.running = false;
       this.paused = false;
       this.finished = false;
@@ -132,6 +134,7 @@
         collisions:0, offTrackSeconds:0, overtakes:0, clean:true,
         pitStops:0, drsSeconds:0, rainSeconds:0, tyreWarnings:0,
         trackLimitWarnings:0, penaltySeconds:0, safetyCars:0, virtualSafetyCars:0,
+        localYellows:0, raceControlDowngrades:0, greenFlagSeconds:0,
         damageTaken:0, punctures:0, retirements:0
       };
       this.lastPlayerRank = 24;
@@ -157,6 +160,103 @@
       if (roll < Number(track.rainChance || 20) * .35) return "wet";
       if (roll < Number(track.rainChance || 20)) return "mixed";
       return "dry";
+    }
+
+
+    createRaceabilityPolicy() {
+      const level = this.incidentLevel || "realistic";
+      const shortRace = this.lapsTarget <= 3;
+      const mediumRace = this.lapsTarget <= 7;
+      const presets = {
+        off:{
+          safetyCarMax:0, vscMax:0, randomFactor:0,
+          startProtection:999, restartProtection:999, finalProtection:.0
+        },
+        low:{
+          safetyCarMax:0, vscMax:1, randomFactor:.28,
+          startProtection:24, restartProtection:24, finalProtection:.72
+        },
+        realistic:{
+          safetyCarMax:1, vscMax:shortRace ? 1 : 2, randomFactor:.72,
+          startProtection:18, restartProtection:20, finalProtection:shortRace ? .66 : .82
+        },
+        high:{
+          safetyCarMax:mediumRace ? 1 : 2, vscMax:mediumRace ? 2 : 3, randomFactor:1.25,
+          startProtection:14, restartProtection:16, finalProtection:.88
+        }
+      };
+      const selected = presets[level] || presets.realistic;
+      return {
+        ...selected,
+        safetyCarDeployments:0,
+        vscDeployments:0,
+        denied:0,
+        downgraded:0,
+        restartGuard:0,
+        lastGreenAt:0
+      };
+    }
+
+    raceElapsedSeconds(now = performance.now()) {
+      if (!this.startedAt) return 0;
+      return Math.max(0, (now - this.startedAt) / 1000 - 3.4);
+    }
+
+    leaderProgressRatio() {
+      if (!this.track?.path?.length || !this.cars.length) return 0;
+      const leader = this.cars
+        .filter(car => !car.retired)
+        .reduce((best, car) => !best || car.totalProgress > best.totalProgress ? car : best, null);
+      if (!leader) return 0;
+      return clamp(leader.totalProgress / (this.track.path.length * this.lapsTarget), 0, 1);
+    }
+
+    raceControlDecision(requestedStatus, metadata = {}) {
+      let status = requestedStatus;
+      const elapsed = this.raceElapsedSeconds();
+      const progress = this.leaderProgressRatio();
+      const emergency = Boolean(metadata.emergency);
+      const policy = this.raceability;
+
+      if (this.incidentLevel === "off") {
+        return { status:"YELLOW", downgraded:requestedStatus !== "YELLOW", reason:"Race First mode" };
+      }
+
+      const startProtected = elapsed < policy.startProtection || progress < .10;
+      const restartProtected = policy.restartGuard > 0 || this.greenFlagSeconds < Math.min(12, policy.restartProtection);
+      const finalProtected = progress >= policy.finalProtection;
+
+      if (status === "SAFETY CAR") {
+        const capReached = policy.safetyCarDeployments >= policy.safetyCarMax;
+        if (capReached || startProtected || restartProtected || finalProtected || !emergency) {
+          status = policy.vscDeployments < policy.vscMax && !finalProtected ? "VSC" : "YELLOW";
+          return {
+            status,
+            downgraded:true,
+            reason:capReached ? "Safety Car race limit reached"
+              : startProtected ? "Opening phase protected"
+              : restartProtected ? "Green-flag racing window protected"
+              : finalProtected ? "Final-race protection"
+              : "Incident does not require full Safety Car"
+          };
+        }
+      }
+
+      if (status === "VSC") {
+        const capReached = policy.vscDeployments >= policy.vscMax;
+        if (capReached || startProtected || restartProtected || finalProtected) {
+          return {
+            status:"YELLOW",
+            downgraded:true,
+            reason:capReached ? "VSC race limit reached"
+              : startProtected ? "Opening phase protected"
+              : restartProtected ? "Green-flag racing window protected"
+              : "Final-race protection"
+          };
+        }
+      }
+
+      return { status, downgraded:false, reason:"Approved" };
     }
 
     resize() {
@@ -388,6 +488,7 @@
           puncture:false,
           retired:false,
           retirementReason:"",
+          retirementCleanupTimer:0,
           collisionCooldown:0,
           offTrackContinuous:0,
           trackLimitThreshold:3,
@@ -408,9 +509,14 @@
       this.startedAt = performance.now();
       this.lastFrame = this.startedAt;
       this.countdown = 3.4;
-      this.raceControl = { status:"GREEN", reason:"Track clear", timer:0, phase:"racing", incidents:0, lastChangeAt:this.startedAt };
-      this.incidentCheckTimer = 1.5;
+      this.raceControl = {
+        status:"GREEN", reason:"Track clear", timer:0, phase:"racing", incidents:0,
+        lastChangeAt:this.startedAt, safetyCarDeployments:0, vscDeployments:0
+      };
+      this.incidentCheckTimer = 2.8;
       this.incidentCooldown = 0;
+      this.greenFlagSeconds = 0;
+      this.raceability = this.createRaceabilityPolicy();
       this.emitEvent("RACE START", `${this.track.name} · ${this.weather.mode.toUpperCase()} koşullar`);
       this.emitEvent("TEAM RADIO", "Race mode BALANCED. Build temperature and protect the front wing.");
       this.loop(this.lastFrame);
@@ -574,31 +680,61 @@
       return 1;
     }
 
-    triggerRaceControl(status, reason, duration) {
+    triggerRaceControl(status, reason, duration, metadata = {}) {
       const priority = { GREEN:0, YELLOW:1, VSC:2, "SAFETY CAR":3 };
-      if ((priority[status] || 0) < (priority[this.raceControl.status] || 0) && this.raceControl.timer > 2) return false;
-      this.raceControl.status = status;
+      const decision = this.raceControlDecision(status, metadata);
+      const approvedStatus = decision.status;
+
+      if ((priority[approvedStatus] || 0) < (priority[this.raceControl.status] || 0) && this.raceControl.timer > 2) return false;
+      if (approvedStatus === this.raceControl.status && this.raceControl.timer > 1.5) return false;
+
+      if (decision.downgraded) {
+        this.raceability.downgraded += 1;
+        this.stats.raceControlDowngrades += 1;
+        this.emitEvent("RACEABILITY GUARD", `${status} request reduced to ${approvedStatus} · ${decision.reason}.`);
+      }
+
+      this.raceControl.status = approvedStatus;
       this.raceControl.reason = reason || "Incident";
-      this.raceControl.timer = Math.max(Number(duration || 0), status === "SAFETY CAR" ? 12 : status === "VSC" ? 8 : 4);
+      const minimumDuration = approvedStatus === "SAFETY CAR" ? 10 : approvedStatus === "VSC" ? 6 : 3.2;
+      const maximumDuration = approvedStatus === "SAFETY CAR" ? 13 : approvedStatus === "VSC" ? 8 : 4.5;
+      this.raceControl.timer = clamp(Math.max(Number(duration || 0), minimumDuration), minimumDuration, maximumDuration);
       this.raceControl.phase = "neutralised";
       this.raceControl.incidents += 1;
       this.raceControl.lastChangeAt = performance.now();
-      this.incidentCooldown = Math.max(this.incidentCooldown, this.raceControl.timer + 4);
-      if (status === "SAFETY CAR") this.stats.safetyCars += 1;
-      if (status === "VSC") this.stats.virtualSafetyCars += 1;
+
+      if (approvedStatus === "SAFETY CAR") {
+        this.raceability.safetyCarDeployments += 1;
+        this.raceControl.safetyCarDeployments = this.raceability.safetyCarDeployments;
+        this.stats.safetyCars += 1;
+      } else if (approvedStatus === "VSC") {
+        this.raceability.vscDeployments += 1;
+        this.raceControl.vscDeployments = this.raceability.vscDeployments;
+        this.stats.virtualSafetyCars += 1;
+      } else {
+        this.stats.localYellows += 1;
+      }
+
+      this.incidentCooldown = Math.max(this.incidentCooldown, this.raceControl.timer + 6);
+      this.greenFlagSeconds = 0;
       this.cars.forEach(car => { car.drs = false; car.boost = false; });
-      this.emitEvent(status, `${this.raceControl.reason} · Delta uygulanıyor.`);
+      this.emitEvent(approvedStatus, `${this.raceControl.reason} · ${approvedStatus === "YELLOW" ? "Local caution" : "Delta uygulanıyor"}.`);
       return true;
     }
 
     updateRaceControl(dt) {
       this.incidentCooldown = Math.max(0, this.incidentCooldown - dt);
-      if (this.raceControl.status !== "GREEN") {
+      this.raceability.restartGuard = Math.max(0, Number(this.raceability.restartGuard || 0) - dt);
+
+      if (this.raceControl.status === "GREEN") {
+        this.greenFlagSeconds += dt;
+        this.stats.greenFlagSeconds += dt;
+      } else {
         this.raceControl.timer = Math.max(0, this.raceControl.timer - dt);
         if (this.raceControl.timer <= 0) {
-          if (this.raceControl.phase === "neutralised") {
+          if (this.raceControl.phase === "neutralised" && this.raceControl.status !== "YELLOW") {
             this.raceControl.phase = "restart";
-            this.raceControl.timer = 3.2;
+            this.raceControl.timer = 2.2;
             this.raceControl.reason = "Restart preparation";
             this.emitEvent("RACE CONTROL", `${this.raceControl.status} ending. Prepare for restart.`);
           } else {
@@ -606,30 +742,45 @@
             this.raceControl.reason = "Track clear";
             this.raceControl.phase = "racing";
             this.raceControl.timer = 0;
-            this.emitEvent("GREEN FLAG", "Racing resumed. DRS remains subject to normal conditions.");
+            this.greenFlagSeconds = 0;
+            this.raceability.restartGuard = this.raceability.restartProtection;
+            this.incidentCooldown = Math.max(this.incidentCooldown, this.raceability.restartProtection);
+            this.emitEvent("GREEN FLAG", `Racing resumed · ${Math.round(this.raceability.restartProtection)}s Raceability Guard active.`);
           }
         }
       }
+
       this.incidentCheckTimer -= dt;
       if (this.incidentCheckTimer > 0 || this.countdown > 0 || this.finished) return;
-      this.incidentCheckTimer = 2.2;
-      if (this.raceControl.status !== "GREEN" || this.incidentCooldown > 0) return;
-      const factors = { low:.35, realistic:1, high:1.9 };
-      const factor = factors[this.incidentLevel] || 1;
+      this.incidentCheckTimer = 3.4;
+      if (this.raceControl.status !== "GREEN" || this.incidentCooldown > 0 || this.raceability.restartGuard > 0) return;
+      if (this.incidentLevel === "off") return;
+
       const activeAi = this.cars.filter(car => !car.isPlayer && !car.finished && !car.retired);
       if (!activeAi.length) return;
       const candidate = activeAi[Math.floor(this.raceRandom() * activeAi.length)];
       const reliability = 58 + (Number(candidate.id.split("-")[1] || 1) % 7) * 4;
-      const probability = .0042 * factor * (1 + (70 - reliability) * .012);
+      const probability = .00155 * this.raceability.randomFactor * (1 + (70 - reliability) * .009);
+
       if (this.raceRandom() < probability) {
         const severity = this.raceRandom();
-        if (severity > .72) {
+        if (severity > .88) {
           this.retireCar(candidate, "Mechanical failure");
-          this.triggerRaceControl("SAFETY CAR", `${candidate.name} stopped on circuit`, 13 + this.raceRandom() * 5);
+          const obstruction = this.raceRandom() > .58;
+          this.triggerRaceControl(
+            obstruction ? "SAFETY CAR" : "VSC",
+            `${candidate.name} stopped on circuit`,
+            obstruction ? 11 : 7,
+            { emergency:obstruction, source:"technical" }
+          );
+        } else if (severity > .52) {
+          candidate.damage.engine = Math.max(42, candidate.damage.engine - 18);
+          candidate.speed *= .62;
+          this.triggerRaceControl("VSC", `${candidate.name} reported a technical issue`, 6.5, { source:"technical" });
         } else {
-          candidate.damage.engine = Math.max(35, candidate.damage.engine - 24);
-          candidate.speed *= .52;
-          this.triggerRaceControl("VSC", `${candidate.name} reported a technical issue`, 7 + this.raceRandom() * 3);
+          candidate.damage.engine = Math.max(55, candidate.damage.engine - 10);
+          candidate.speed *= .74;
+          this.triggerRaceControl("YELLOW", `${candidate.name} running slowly`, 3.5, { source:"technical" });
         }
       }
     }
@@ -655,6 +806,7 @@
       if (!car || car.retired || car.finished) return;
       car.retired = true;
       car.retirementReason = reason;
+      car.retirementCleanupTimer = car.isPlayer ? 0 : 3.2;
       car.speed = 0;
       car.throttle = 0;
       car.brakeInput = 1;
@@ -772,7 +924,9 @@
           this.stats.clean = false;
           this.emitEvent("PUNCTURE", "Tyre failure detected. Pit request activated.");
         }
-        if (this.raceControl.status === "GREEN" && this.incidentCooldown <= 0) this.triggerRaceControl("YELLOW", `${car.name} slow with puncture`, 4.5);
+        if (this.raceControl.status === "GREEN" && this.incidentCooldown <= 0) {
+          this.triggerRaceControl("YELLOW", `${car.name} slow with puncture`, 3.6, { source:"puncture" });
+        }
       }
       if (car.isPlayer && car.tyreWear > 78 && !car.tyreWarningSent) {
         car.tyreWarningSent = true;
@@ -858,6 +1012,10 @@
         car.speed = 0;
         car.throttle = 0;
         car.brakeInput = 1;
+        if (!car.isPlayer) {
+          car.retirementCleanupTimer = Math.max(0, Number(car.retirementCleanupTimer || 0) - dt);
+          if (car.retirementCleanupTimer <= 0) car.parcFerme = true;
+        }
         return;
       }
       if (car.pitTimer > 0) {
@@ -938,6 +1096,8 @@
     }
 
     collisions() {
+      const elapsed = this.raceElapsedSeconds();
+      const openingPhase = elapsed < this.raceability.startProtection;
       for (let a = 0; a < this.cars.length; a += 1) {
         for (let b = a + 1; b < this.cars.length; b += 1) {
           const first = this.cars[a];
@@ -946,7 +1106,7 @@
           const dx = second.x - first.x;
           const dy = second.y - first.y;
           const distance = Math.hypot(dx, dy);
-          const minimum = 15;
+          const minimum = openingPhase ? 11.8 : 12.8;
           if (distance > 0 && distance < minimum) {
             const push = (minimum - distance) / 2;
             const nx = dx / distance;
@@ -955,28 +1115,43 @@
             first.y -= ny * push;
             second.x += nx * push;
             second.y += ny * push;
+
             const headingDifference = Math.abs(normalizeAngle(first.angle - second.angle)) / Math.PI;
-            const impact = Math.abs(first.speed - second.speed) + Math.min(Math.abs(first.speed), Math.abs(second.speed)) * (.06 + headingDifference * .34);
-            first.speed *= impact > 90 ? .60 : .82;
-            second.speed *= impact > 90 ? .60 : .82;
-            if (first.collisionCooldown <= 0 && second.collisionCooldown <= 0) {
-              first.collisionCooldown = 1.15;
-              second.collisionCooldown = 1.15;
-              const damage = clamp(impact * .075, 1.1, 18);
-              this.applyDamage(first, damage, impact > 105 ? "floor" : "frontWing", `Contact with ${second.name}`);
-              this.applyDamage(second, damage, impact > 105 ? "floor" : "frontWing", `Contact with ${first.name}`);
+            const rawImpact = Math.abs(first.speed - second.speed) + Math.min(Math.abs(first.speed), Math.abs(second.speed)) * (.045 + headingDifference * .27);
+            const impact = rawImpact * (openingPhase ? .34 : 1);
+            first.speed *= impact > 105 ? .68 : .88;
+            second.speed *= impact > 105 ? .68 : .88;
+
+            if (first.collisionCooldown <= 0 && second.collisionCooldown <= 0 && impact > 36) {
+              first.collisionCooldown = openingPhase ? .62 : 1.05;
+              second.collisionCooldown = openingPhase ? .62 : 1.05;
+              const damage = clamp(impact * .052, .6, openingPhase ? 4.5 : 14);
+              this.applyDamage(first, damage, impact > 118 ? "floor" : "frontWing", `Contact with ${second.name}`);
+              this.applyDamage(second, damage, impact > 118 ? "floor" : "frontWing", `Contact with ${first.name}`);
+
               if (first.isPlayer || second.isPlayer) {
                 this.stats.collisions += 1;
-                this.stats.clean = false;
+                if (impact > 72) this.stats.clean = false;
               }
-              if (impact > 112 && this.raceControl.status === "GREEN" && this.incidentCooldown <= 0) {
-                this.triggerRaceControl("SAFETY CAR", `Heavy contact: ${first.name} / ${second.name}`, 13 + this.raceRandom() * 4);
-              } else if (impact > 76 && this.raceControl.status === "GREEN" && this.incidentCooldown <= 0) {
-                this.triggerRaceControl("VSC", "Debris reported after contact", 7 + this.raceRandom() * 3);
+
+              let retiredVictim = null;
+              if (!openingPhase && impact > 158 && this.raceRandom() < .22) {
+                retiredVictim = this.raceRandom() < .5 ? first : second;
+                this.retireCar(retiredVictim, "Collision damage");
               }
-              if (impact > 168 && this.raceRandom() < .32) {
-                const victim = this.raceRandom() < .5 ? first : second;
-                this.retireCar(victim, "Collision damage");
+
+              if (retiredVictim && this.raceControl.status === "GREEN" && this.incidentCooldown <= 0) {
+                const obstruction = impact > 188 && this.raceRandom() > .52;
+                this.triggerRaceControl(
+                  obstruction ? "SAFETY CAR" : "VSC",
+                  `${retiredVictim.name} stopped after collision`,
+                  obstruction ? 11 : 6.5,
+                  { emergency:obstruction, source:"collision" }
+                );
+              } else if (!openingPhase && impact > 132 && this.raceControl.status === "GREEN" && this.incidentCooldown <= 0) {
+                this.triggerRaceControl("VSC", "Debris reported after heavy contact", 6.2, { source:"collision" });
+              } else if (impact > 92 && this.raceControl.status === "GREEN" && this.incidentCooldown <= 0) {
+                this.triggerRaceControl("YELLOW", "Contact reported · local caution", 3.2, { source:"collision" });
               }
             }
           }
@@ -1051,6 +1226,15 @@
         stats:{ ...this.stats },
         weather:{ ...this.weather },
         raceControl:{ ...this.raceControl },
+        raceability:{
+          safetyCarMax:this.raceability.safetyCarMax,
+          vscMax:this.raceability.vscMax,
+          safetyCarDeployments:this.raceability.safetyCarDeployments,
+          vscDeployments:this.raceability.vscDeployments,
+          restartGuard:this.raceability.restartGuard,
+          greenFlagSeconds:this.greenFlagSeconds,
+          downgraded:this.raceability.downgraded
+        },
         drivingMode:this.drivingMode,
         damage:{ ...player.damage },
         pitCompound:this.nextPitCompound,
@@ -1092,6 +1276,13 @@
         penaltySeconds:Number(player.penaltySeconds || 0),
         drivingMode:this.drivingMode,
         raceControl:{ ...this.raceControl },
+        raceability:{
+          safetyCarMax:this.raceability.safetyCarMax,
+          vscMax:this.raceability.vscMax,
+          safetyCarDeployments:this.raceability.safetyCarDeployments,
+          vscDeployments:this.raceability.vscDeployments,
+          downgraded:this.raceability.downgraded
+        },
         trackEvolution:{ ...this.trackEvolution },
         sector:{
           lastLap:[...(player.lastLapSectors || [null,null,null])],
