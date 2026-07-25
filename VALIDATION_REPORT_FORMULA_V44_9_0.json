@@ -1,0 +1,33 @@
+{
+  "build": "Tournament Universe v44.9.0 Formula Racing PC + Mobile",
+  "syntax": {
+    "app.js": "PASS",
+    "service-worker.js": "PASS",
+    "fifa9-experience-hub.js": "PASS",
+    "formula-racing-tracks.js": "PASS",
+    "formula-racing-engine.js": "PASS",
+    "formula-racing.js": "PASS"
+  },
+  "assertions": {
+    "route": true,
+    "nav": true,
+    "pc_controls": true,
+    "mobile_controls": true,
+    "twelve_cars": true,
+    "eleven_ai": true,
+    "four_tracks": true,
+    "xp": true,
+    "mastery": true,
+    "responsive": true
+  },
+  "filesToUpload": [
+    "index.html",
+    "app.js",
+    "service-worker.js",
+    "fifa9-experience-hub.js",
+    "formula-racing.css",
+    "formula-racing-tracks.js",
+    "formula-racing-engine.js",
+    "formula-racing.js"
+  ]
+}

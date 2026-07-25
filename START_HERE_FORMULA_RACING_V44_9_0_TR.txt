@@ -1,0 +1,40 @@
+FORMULA RACING v44.9.0 — PC + MOBILE PLAYABLE FOUNDATION
+
+BU SÜRÜMDE
+- Formula Racing siteye ayrı oyun modu olarak eklenir.
+- 12 araç: 1 insan + 11 AI.
+- PC: W/A/S/D veya yön tuşları, Space ERS, R reset, ESC pause.
+- Mobil: dokunmatik sol/sağ, gaz, fren ve ERS.
+- 4 oynanabilir pist.
+- 2, 3 veya 5 tur.
+- Rookie, Standard ve Elite AI.
+- Pist dışı yavaşlama, araç teması, gerçek zamanlı sıralama.
+- Driver XP, level, rating, galibiyet ve podyum.
+- Pist uzmanlığı ve en iyi tur kaydı localStorage içinde saklanır.
+- Tam ekran yarış modu ve yatay mobil ekran desteği.
+
+GITHUB KÖKÜNE YÜKLENECEK 8 DOSYA
+- index.html
+- app.js
+- service-worker.js
+- fifa9-experience-hub.js
+- formula-racing.css
+- formula-racing-tracks.js
+- formula-racing-engine.js
+- formula-racing.js
+
+Commit:
+Install Formula Racing PC and Mobile v44.9.0
+
+VERCEL VE CACHE
+1. Deployment Ready + Production olmalı.
+2. F12 > Application > Service Workers > Unregister
+3. Application > Storage > Clear site data
+4. Bütün site sekmelerini kapatın.
+5. https://fifa9-tournament-hub.vercel.app/?formula=v4490
+6. Ctrl + Shift + R
+
+KULLANIM
+Sol menü > Formula Racing > Formula Racing Hub
+Pist ve zorluk seç > Yarışı Başlat.
+Telefon kullanımında cihazı yatay çevir.

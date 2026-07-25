@@ -4,7 +4,8 @@
   const GROUPS = {
     tournament: new Set(["livematch","livestats","form","odds","intelligence","chat","setup","league","gold","silver","knockout","finalpoll","print"]),
     "league-system": new Set(["seasonhub","managerroom","managerhall","museum"]),
-    records: new Set(["archive","alltime","teams","backup"])
+    records: new Set(["archive","alltime","teams","backup"]),
+    "formula-racing": new Set(["formula1"])
   };
 
   const BREADCRUMBS = {
@@ -29,7 +30,8 @@
     archive:["FIFA 9","Arşiv & Yönetim","Turnuva Arşivi"],
     alltime:["FIFA 9","Arşiv & Yönetim","Tüm Zamanlar"],
     teams:["FIFA 9","Arşiv & Yönetim","Takım İstatistikleri"],
-    backup:["FIFA 9","Arşiv & Yönetim","Veri & Yedek"]
+    backup:["FIFA 9","Arşiv & Yönetim","Veri & Yedek"],
+    formula1:["Tournament Universe","Formula Racing","PC + Mobile"]
   };
 
   function setCluster(name, open, remember = true) {
@@ -74,7 +76,8 @@
       const target = button.dataset.nav;
       const activeMobile = target === view
         || (target === "league" && GROUPS.tournament.has(view))
-        || (target === "seasonhub" && GROUPS["league-system"].has(view));
+        || (target === "seasonhub" && GROUPS["league-system"].has(view))
+        || (target === "formula1" && view === "formula1");
       button.classList.toggle("active", activeMobile);
     });
   }

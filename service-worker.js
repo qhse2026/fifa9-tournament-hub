@@ -1,4 +1,4 @@
-const CACHE = "fifa-tournament-hub-v44-8-7-all-time-elite-records";
+const CACHE = "tournament-universe-v44-9-0-formula-racing-pc-mobile";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -6,6 +6,9 @@ const APP_SHELL = [
   "./fifa9-experience-hub.css",
   "./final-chapter-progression.css",
   "./app.js",
+  "./formula-racing-tracks.js",
+  "./formula-racing-engine.js",
+  "./formula-racing.js",
   "./fifa9-experience-hub.js",
   "./season-hub.js",
   "./season-hub.css",
@@ -21,6 +24,7 @@ const APP_SHELL = [
   "./manager-room.css",
   "./manager-season-closure.css",
   "./all-time-elite.css",
+  "./formula-racing.css",
   "./me4-simulate.css",
   "./manager-friendly.css",
   "./manager-v42-4.css",

@@ -71,6 +71,7 @@
     backup: "Veri & Yedek",
     managerroom: "The Manager's Room",
     managerhall: "Manager Hall",
+    formula1: "Formula Racing",
     playeraccess: "Oyuncu Girişi",
     finalpoll: "FIFA09 Final Chapter Kararı"
   };
@@ -2181,6 +2182,7 @@
       case "backup": renderBackup(); break;
       case "managerroom": window.FIFA_MANAGER_ROOM?.render?.(view); break;
       case "managerhall": window.FIFA_MANAGER_ROOM?.renderHall?.(view); break;
+      case "formula1": window.F1_RACING?.render?.(view); break;
       case "playeraccess": renderPlayerAccessPage(); break;
       case "finalpoll": renderFinalPollPage(); break;
       default: renderDashboard();
@@ -2317,6 +2319,8 @@
           </div>
         </article>
       </section>
+
+      ${window.F1_RACING?.dashboardCard?.() || ""}
 
       <section class="f9-tool-section">
         <div class="f9-section-head"><div><span>TURNuva OPERASYON MASASI</span><h3>Canlı, analiz ve topluluk araçları</h3></div><small>Her araç kendi amacıyla ayrı tutuldu.</small></div>
