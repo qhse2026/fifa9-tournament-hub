@@ -1,7 +1,7 @@
 import { FormulaRenderer } from "../engine/renderer.js";
 import { FixedGameLoop } from "../engine/game-loop.js";
 import { VehiclePhysics } from "../engine/vehicle-physics.js";
-import { InputController } from "../engine/input-controller.js";
+import { InputController } from "../engine/input-controller.js?v=45.0.2";
 import { LapTiming } from "../engine/lap-timing.js";
 import { GhostSystem } from "../engine/ghost-system.js";
 import { AudioSystem } from "../engine/audio-system.js";

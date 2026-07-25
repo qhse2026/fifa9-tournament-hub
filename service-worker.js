@@ -1,4 +1,4 @@
-const CACHE = "tournament-universe-v45-0-1-formula-loader-hotfix";
+const CACHE = "tournament-universe-v45-0-2-formula-steering-hotfix";
 const APP_SHELL = [
   "./",
   "./index.html",

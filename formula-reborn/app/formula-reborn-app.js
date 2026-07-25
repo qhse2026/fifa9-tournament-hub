@@ -1,5 +1,5 @@
 import { TRACKS, getTrack } from "../tracks/index.js";
-import { RaceSession, formatTime } from "./race-session.js";
+import { RaceSession, formatTime } from "./race-session.js?v=45.0.2";
 import {
   getDriverName,
   setDriverName,

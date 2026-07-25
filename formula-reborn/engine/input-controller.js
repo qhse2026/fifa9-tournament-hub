@@ -1,3 +1,8 @@
+// Three.js chase-camera/world steering polarity for this vehicle model.
+// -1 converts physical left/right controls into the visual direction expected
+// by the deployed chase camera. Keep keyboard and touch on the same convention.
+export const STEERING_POLARITY = -1;
+
 export class InputController {
   constructor(root = document) {
     this.root = root;
@@ -41,7 +46,7 @@ export class InputController {
     const right = this.keys.has("d") || this.keys.has("arrowright");
     this.state.throttle = throttle ? 1 : 0;
     this.state.brake = brake ? 1 : 0;
-    this.state.steering = (right ? 1 : 0) - (left ? 1 : 0);
+    this.state.steering = ((right ? 1 : 0) - (left ? 1 : 0)) * STEERING_POLARITY;
   }
 
   bindTouchControls(container) {
@@ -69,8 +74,14 @@ export class InputController {
   setControl(control, active) {
     if (control === "throttle") this.state.throttle = active ? 1 : 0;
     if (control === "brake") this.state.brake = active ? 1 : 0;
-    if (control === "left") this.state.steering = active ? -1 : (this.state.steering < 0 ? 0 : this.state.steering);
-    if (control === "right") this.state.steering = active ? 1 : (this.state.steering > 0 ? 0 : this.state.steering);
+    if (control === "left") {
+      const value = -1 * STEERING_POLARITY;
+      this.state.steering = active ? value : (this.state.steering === value ? 0 : this.state.steering);
+    }
+    if (control === "right") {
+      const value = 1 * STEERING_POLARITY;
+      this.state.steering = active ? value : (this.state.steering === value ? 0 : this.state.steering);
+    }
     if (control === "camera" && active) this.state.camera = true;
     if (control === "pause" && active) this.state.pause = true;
     if (control === "reset" && active) this.state.reset = true;

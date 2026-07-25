@@ -1,0 +1,35 @@
+FORMULA HORIZON REBORN V45.0.2 — STEERING DIRECTION HOTFIX
+
+SORUN
+Oyunda sol ve sağ direksiyon girdileri görsel yönün tersine uygulanıyordu.
+
+DÜZELTME
+- A / Sol Ok artık aracı görsel olarak sola döndürür.
+- D / Sağ Ok artık aracı görsel olarak sağa döndürür.
+- Mobil sol ve sağ düğmeleri aynı kurala geçirilmiştir.
+- Değişen modüllere V45.0.2 cache anahtarı eklenmiştir.
+
+GITHUB'A YÜKLENECEK DOSYALAR
+index.html
+service-worker.js
+formula-reborn/formula-reborn-loader.js
+formula-reborn/app/formula-reborn-app.js
+formula-reborn/app/race-session.js
+formula-reborn/engine/input-controller.js
+
+COMMIT
+Fix Formula Reborn steering direction V45.0.2
+
+DEPLOYMENT SONRASI
+1. Vercel deployment Ready ve Production olana kadar bekle.
+2. F12 > Application > Service Workers > Unregister.
+3. Application > Storage > Clear site data.
+4. Tüm site sekmelerini kapat.
+5. Siteyi tekrar aç ve Ctrl + Shift + R yap.
+6. Oruç Reis pistinde düşük hızda A ve D ile yönleri test et.
+
+KABUL TESTİ
+A veya Sol Ok: araç ekranın soluna yönelmeli.
+D veya Sağ Ok: araç ekranın sağına yönelmeli.
+Mobil ◀: sola yönelmeli.
+Mobil ▶: sağa yönelmeli.

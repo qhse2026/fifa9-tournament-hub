@@ -1,0 +1,54 @@
+{
+  "version": "V45.0.2",
+  "build": "Formula Reborn Steering Direction Hotfix",
+  "created_at_utc": "2026-07-25T23:33:02.574168+00:00",
+  "status": "PASS",
+  "root_cause": "The deployed chase-camera/world convention rendered the previous keyboard and touch steering polarity opposite to the expected visual direction.",
+  "syntax_checks": {
+    "formula-reborn/engine/input-controller.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    "formula-reborn/app/race-session.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    "formula-reborn/app/formula-reborn-app.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    "formula-reborn/formula-reborn-loader.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    }
+  },
+  "mapping_test": {
+    "passed": true,
+    "result": {
+      "STEERING_POLARITY": -1,
+      "keyboardLeft": 1,
+      "keyboardRight": -1,
+      "touchLeft": 1,
+      "touchRight": -1
+    },
+    "stderr": ""
+  },
+  "feature_checks": {
+    "polarity_constant": true,
+    "keyboard_uses_polarity": true,
+    "touch_left_right_use_same_polarity": true,
+    "race_session_dependency_cache_busted": true,
+    "app_dependency_cache_busted": true,
+    "loader_version_45_0_2": true,
+    "service_worker_cache_45_0_2": true
+  },
+  "unchanged": [
+    "Vehicle physics constants",
+    "Track data",
+    "Lap timing",
+    "Supabase schema",
+    "Personal ghost data",
+    "FIFA and Manager state"
+  ],
+  "browser_test_required": "Verify A/Left turns visually left and D/Right turns visually right after clearing service-worker and browser cache."
+}
