@@ -1,0 +1,81 @@
+FORMULA RACING v44.9.2 — RACE CONTROL & SURVIVAL ENGINE
+=========================================================
+
+Bu paket, v44.9.1 Grand Prix Experience üzerine kurulur ve mevcut Formula kariyer verilerini korur.
+
+YENİ ÖZELLİKLER
+----------------
+• Safety Car, Virtual Safety Car ve sarı bayrak yarış kontrolü
+• Ağır temas, pistte kalan araç ve teknik arıza kaynaklı neutralisation
+• Ön kanat, taban ve motor için ayrı araç hasarı
+• Hasarın hız, yol tutuşu ve direksiyon tepkisine gerçek etkisi
+• Pit-stop sırasında ön kanat değişimi ve kısmi taban onarımı
+• Yüksek lastik aşınmasında patlak lastik riski ve otomatik pit çağrısı
+• Mekanik arıza ve DNF sistemi
+• Pist limitleri uyarıları ve her üç ihlalde +5 saniye ceza
+• Conserve / Balanced / Attack sürüş modları
+• Sürüş modlarının tempo, ERS, lastik ve motor yüküne etkisi
+• PC için 1 / 2 / 3 tuşları; mobil için ek sürüş modu paneli
+• Yarış HUD'ında Race Control, araç sağlığı, ceza ve uyarı göstergeleri
+• Sonuç ekranında DNF, hasar, ceza ve Safety Car verileri
+• Kariyer ve pist kayıtlarında DNF, ceza ve Safety Car istatistikleri
+
+GITHUB'A YÜKLENECEK 6 DOSYA
+---------------------------
+index.html
+service-worker.js
+formula-racing-tracks.js
+formula-racing-engine.js
+formula-racing.js
+formula-racing.css
+
+Bu dosyaları repository ana dizinine yükleyin ve mevcut dosyaların üzerine yazılmasına izin verin.
+
+Önerilen commit mesajı:
+Install Formula Race Control and Survival Engine v44.9.2
+
+VERCEL / CACHE
+--------------
+1. Vercel deployment durumunun Ready ve Production olduğunu kontrol edin.
+2. Siteyi açın ve Ctrl + Shift + R yapın.
+3. Eski sürüm görünüyorsa:
+   F12 > Application > Service Workers > Unregister
+   F12 > Application > Storage > Clear site data
+4. Ardından şu cache-busting adresini açın:
+   https://fifa9-tournament-hub.vercel.app/?formulaRC=v4492
+
+Beklenen sürüm satırı:
+Tournament Universe · v44.9.2 · Formula Race Control & Survival
+
+PC KONTROLLERİ
+---------------
+W / Yukarı       Gaz
+S / Aşağı        Fren
+A D / Sol Sağ    Direksiyon
+Space            ERS
+Shift            DRS
+P                Pit-stop çağrısı
+R                Piste geri döndür
+Esc              Duraklat
+1                Conserve
+2                Balanced
+3                Attack
+
+MOBİL
+-----
+Telefon yatay kullanılmalıdır. Direksiyon, gaz, fren, ERS, DRS ve PIT düğmelerine ek olarak sürüş modu paneli bulunur.
+
+HIZLI TEST
+----------
+• Formula Racing > Serbest Yarış
+• Incident Seviyesi: Chaos
+• Sürüş Modu: Attack
+• 3 tur seçip yarışı başlatın
+• HUD'da GREEN FLAG, CAR HEALTH ve PENALTY alanlarını kontrol edin
+• 1 / 2 / 3 ile sürüş modunu değiştirin
+• P ile pit çağırın
+• Pist dışında uzun süre kalarak track-limit uyarısını doğrulayın
+
+KAPSAM NOTU
+-----------
+Bu sürüm 1 gerçek oyuncu + 11 AI yapısındadır. Gerçek zamanlı online çok oyunculu yarış bu pakete dahil değildir.

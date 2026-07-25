@@ -1,4 +1,4 @@
-/* FIFA 9 v44.9.0 — Formula Racing PC + Mobile */
+/* FIFA 9 v44.9.2 — Formula Racing Foundation + Race Control */
 :root{--f1-red:#ff3b30;--f1-gold:#f4c75e;--f1-cyan:#65d9ff;--f1-green:#55e29d;--f1-ink:#020b12;--f1-panel:#081b28}
 .nav-cluster-icon.formula{border:1px solid rgba(255,59,48,.34);background:rgba(255,59,48,.08);color:#ff736a}
 .formula-nav-primary{min-height:52px!important;border:1px solid rgba(255,59,48,.18)!important;background:linear-gradient(90deg,rgba(121,27,22,.18),transparent)!important}
@@ -25,7 +25,7 @@ body.f1-race-active{overflow:hidden;background:#02090e}body.f1-race-active .side
 @media(hover:none),(pointer:coarse){.f1-mobile-controls{display:flex}.f1-telemetry{bottom:118px}}
 @media(max-width:760px) and (orientation:portrait){.f1-rotate-hint{position:absolute;z-index:25;inset:0;display:grid;place-items:center;align-content:center;background:rgba(1,8,13,.9);color:#fff;text-align:center}.f1-rotate-hint span{font-size:45px}.f1-rotate-hint strong{margin-top:12px;font-size:20px}.f1-rotate-hint small{margin-top:5px;color:#8099a4}.f1-mobile-controls{opacity:.15}}
 
-/* FIFA 9 v44.9.1 — Formula Grand Prix Experience */
+/* Grand Prix Experience foundation carried into v44.9.2 */
 .f1-grand-prix-hub{gap:18px}
 .f1-gp-hero{min-height:350px}
 .f1-mode-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;padding:10px;border:1px solid rgba(255,255,255,.075);border-radius:18px;background:rgba(4,19,28,.72)}
@@ -47,3 +47,20 @@ body.f1-race-active{overflow:hidden;background:#02090e}body.f1-race-active .side
 .f1-pedal-controls .pit{background:rgba(244,199,94,.22);color:#f5d17d}.f1-pedal-controls .drs{background:rgba(167,139,250,.22);color:#cbbcff}.f1-result-kpis{grid-template-columns:repeat(6,1fr)}.f1-result-championship{margin:10px 0;padding:9px;border:1px solid rgba(101,217,255,.14);border-radius:10px;background:rgba(101,217,255,.05);color:#8addf8;font-size:8px;font-weight:900}
 @media(max-width:1250px){.f1-weekend-grid{grid-template-columns:1fr}.f1-weekend-step{min-height:0}.f1-quick-config{grid-template-columns:repeat(3,1fr)}.f1-championship-grid,.f1-development-grid{grid-template-columns:1fr}.f1-mastery-board>div{grid-template-columns:repeat(2,1fr)}.f1-telemetry-v2{grid-template-columns:repeat(3,1fr);width:min(560px,56vw)}.f1-pit-selector{bottom:175px}}
 @media(max-width:760px){.f1-mode-tabs{grid-template-columns:1fr}.f1-next-gp,.f1-championship-head,.f1-development-head{grid-template-columns:1fr}.f1-next-gp aside,.f1-championship-head aside{justify-self:stretch}.f1-practice-grid,.f1-strategy-grid{grid-template-columns:1fr}.f1-quick-config{grid-template-columns:1fr 1fr}.f1-calendar>div,.f1-mastery-board>div{grid-template-columns:1fr 1fr}.f1-upgrade-list>div{grid-template-columns:90px 1fr 30px 68px}.f1-event-feed{display:none}.f1-telemetry-v2{right:8px;bottom:170px;width:115px;grid-template-columns:1fr}.f1-telemetry-v2>div:nth-child(n+4){display:none}.f1-pit-selector{left:8px;right:auto;bottom:119px;width:230px}.f1-result-kpis{grid-template-columns:repeat(2,1fr)}.f1-pedal-controls{gap:5px}.f1-pedal-controls button{width:53px;height:53px}.f1-pedal-controls .throttle{height:78px}.f1-mobile-controls{left:8px;right:8px}.f1-steer-controls button{width:64px;height:64px}}
+
+/* FIFA 9 v44.9.2 — Formula Race Control & Survival Engine */
+.f1-race-control-status{position:absolute;z-index:13;top:66px;left:50%;display:grid;min-width:260px;padding:7px 14px;border:1px solid rgba(85,226,157,.35);border-radius:10px;background:rgba(2,14,12,.86);box-shadow:0 10px 35px rgba(0,0,0,.28);transform:translateX(-50%);text-align:center;pointer-events:none;backdrop-filter:blur(9px)}
+.f1-race-control-status strong{color:#67e9ab;font-size:9px;letter-spacing:.12em}.f1-race-control-status small{margin-top:2px;color:#7fa095;font-size:6px;font-weight:800}
+.f1-race-control-status.yellow,.f1-race-control-status.vsc,.f1-race-control-status.safety-car{border-color:rgba(250,204,21,.5);background:rgba(24,18,2,.9)}
+.f1-race-control-status.yellow strong,.f1-race-control-status.vsc strong,.f1-race-control-status.safety-car strong{color:#facc15}.f1-race-control-status.yellow small,.f1-race-control-status.vsc small,.f1-race-control-status.safety-car small{color:#c3ad64}
+.f1-telemetry-v3{bottom:88px;grid-template-columns:repeat(8,minmax(78px,1fr));width:min(1080px,76vw)}.f1-telemetry-v3>div{min-height:72px}.f1-telemetry-v3 i b{background:linear-gradient(90deg,#35c276,#f4c75e,#ef4444)}
+.f1-drive-mode-selector{position:absolute;z-index:11;left:14px;bottom:16px;display:grid;grid-template-columns:repeat(3,1fr);gap:5px;width:300px;padding:8px;border:1px solid rgba(255,255,255,.1);border-radius:13px;background:rgba(2,12,18,.8);backdrop-filter:blur(8px)}
+.f1-drive-mode-selector>span{grid-column:1/-1;color:#6d8994;font-size:6px;font-weight:900}.f1-drive-mode-selector button{min-height:31px;border:1px solid rgba(255,255,255,.09);border-radius:7px;background:rgba(255,255,255,.03);color:#8ea7b1;font-size:6px;font-weight:950;cursor:pointer}.f1-drive-mode-selector button.active{border-color:rgba(101,217,255,.35);background:rgba(101,217,255,.11);color:#75dfff;box-shadow:inset 0 -2px #65d9ff}.f1-drive-mode-selector button[data-mode=attack].active{border-color:rgba(255,88,78,.45);background:rgba(255,59,48,.13);color:#ff8179;box-shadow:inset 0 -2px #ff5148}.f1-drive-mode-selector button[data-mode=conserve].active{border-color:rgba(85,226,157,.4);background:rgba(85,226,157,.1);color:#6ae7aa;box-shadow:inset 0 -2px #55e29d}
+.f1-live-standings>div.retired{opacity:.46}.f1-live-standings>div.retired small{color:#ff756e!important}
+.f1-quick-config-v3{grid-template-columns:repeat(4,minmax(105px,1fr))}.f1-quick-config-v3>.btn{grid-column:auto}
+.f1-result-kpis{grid-template-columns:repeat(4,1fr)}
+.f1-result-panel>span:first-child{color:#ff726a}.f1-result-panel h2{max-width:850px}
+
+@media(max-width:1250px){.f1-telemetry-v3{bottom:144px;grid-template-columns:repeat(4,1fr);width:min(720px,70vw)}.f1-drive-mode-selector{width:270px}.f1-quick-config-v3{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:760px){.f1-race-control-status{top:52px;min-width:190px;padding:5px 9px}.f1-race-control-status strong{font-size:7px}.f1-race-control-status small{max-width:210px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.f1-telemetry-v3{right:8px;bottom:166px;width:116px;grid-template-columns:1fr}.f1-telemetry-v3>div{min-height:47px}.f1-telemetry-v3>div:nth-child(n+5){display:none}.f1-drive-mode-selector{left:8px;bottom:195px;width:230px;padding:6px}.f1-drive-mode-selector button{min-height:27px;font-size:5px}.f1-pit-selector{bottom:119px}.f1-quick-config-v3{grid-template-columns:1fr 1fr}.f1-result-kpis{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:520px) and (orientation:landscape){.f1-drive-mode-selector{width:205px}.f1-pit-selector{width:205px}.f1-telemetry-v3{width:104px}}

@@ -81,6 +81,19 @@
         label:"DRY",
         changed:false
       };
+      this.incidentLevel = options.incidentLevel || "realistic";
+      this.drivingMode = options.drivingMode || "balanced";
+      this.raceRandom = seededNumber(`${this.weatherSeed}|RACE-CONTROL`);
+      this.raceControl = {
+        status:"GREEN",
+        reason:"Track clear",
+        timer:0,
+        phase:"racing",
+        incidents:0,
+        lastChangeAt:0
+      };
+      this.incidentCheckTimer = 1.5;
+      this.incidentCooldown = 0;
       this.running = false;
       this.paused = false;
       this.finished = false;
@@ -92,7 +105,9 @@
       this.mobile = { left:false, right:false, throttle:false, brake:false, boost:false, drs:false, pit:false };
       this.stats = {
         collisions:0, offTrackSeconds:0, overtakes:0, clean:true,
-        pitStops:0, drsSeconds:0, rainSeconds:0, tyreWarnings:0
+        pitStops:0, drsSeconds:0, rainSeconds:0, tyreWarnings:0,
+        trackLimitWarnings:0, penaltySeconds:0, safetyCars:0, virtualSafetyCars:0,
+        damageTaken:0, punctures:0, retirements:0
       };
       this.lastPlayerRank = 12;
       this.countdown = 3.4;
@@ -148,11 +163,14 @@
 
     onKey(event, pressed) {
       const key = event.key.toLowerCase();
-      const controlled = ["arrowup","arrowdown","arrowleft","arrowright","w","a","s","d"," ","r","p","shift","escape"];
+      const controlled = ["arrowup","arrowdown","arrowleft","arrowright","w","a","s","d"," ","r","p","shift","escape","1","2","3"];
       if (controlled.includes(key) && this.running) event.preventDefault();
       if (key === "escape" && pressed && this.running) this.togglePause();
       if (key === "r" && pressed && this.running) this.resetPlayer();
       if (key === "p" && pressed && this.running) this.requestPit();
+      if (pressed && key === "1") this.setDrivingMode("conserve");
+      if (pressed && key === "2") this.setDrivingMode("balanced");
+      if (pressed && key === "3") this.setDrivingMode("attack");
       this.keys[key] = pressed;
     }
 
@@ -164,6 +182,20 @@
 
     setPitCompound(id) {
       if (COMPOUNDS[id]) this.nextPitCompound = id;
+    }
+
+    setDrivingMode(mode) {
+      if (!["conserve","balanced","attack"].includes(mode)) return false;
+      if (this.drivingMode === mode) return true;
+      this.drivingMode = mode;
+      const labels = { conserve:"CONSERVE", balanced:"BALANCED", attack:"ATTACK" };
+      const messages = {
+        conserve:"Lastik ve ERS korunuyor. Tempo kontrollü.",
+        balanced:"Standart yarış temposuna dönüldü.",
+        attack:"Maksimum tempo. Lastik ve motor yükü artacak."
+      };
+      this.emitEvent("DRIVE MODE", `${labels[mode]} · ${messages[mode]}`);
+      return true;
     }
 
     requestPit(compoundId = this.nextPitCompound) {
@@ -250,7 +282,16 @@
           nextCompound:isPlayer ? this.nextPitCompound : "hard",
           pitTimer:0,
           pitStops:0,
-          lastCompletedLap:0
+          lastCompletedLap:0,
+          damage:{ frontWing:100, floor:100, engine:100 },
+          puncture:false,
+          retired:false,
+          retirementReason:"",
+          collisionCooldown:0,
+          offTrackContinuous:0,
+          trackLimitThreshold:3,
+          penaltySeconds:0,
+          smokePhase:index * .7
         };
       });
       this.lastPlayerRank = this.gridPosition("player", 11) + 1;
@@ -264,7 +305,11 @@
       this.startedAt = performance.now();
       this.lastFrame = this.startedAt;
       this.countdown = 3.4;
+      this.raceControl = { status:"GREEN", reason:"Track clear", timer:0, phase:"racing", incidents:0, lastChangeAt:this.startedAt };
+      this.incidentCheckTimer = 1.5;
+      this.incidentCooldown = 0;
       this.emitEvent("RACE START", `${this.track.name} · ${this.weather.mode.toUpperCase()} koşullar`);
+      this.emitEvent("TEAM RADIO", "Race mode BALANCED. Build temperature and protect the front wing.");
       this.loop(this.lastFrame);
     }
 
@@ -326,10 +371,25 @@
       car.pitRequested = false;
       car.tyreCompound = car.nextCompound || this.nextPitCompound || "hard";
       car.tyreWear = 0;
+      car.puncture = false;
+      let repairTime = 0;
+      const repairs = [];
+      if (car.damage.frontWing < 92) {
+        repairTime += 1.35;
+        car.damage.frontWing = 100;
+        repairs.push("front wing");
+      }
+      if (car.damage.floor < 78) {
+        repairTime += .65;
+        car.damage.floor = Math.min(100, car.damage.floor + 18);
+        repairs.push("floor");
+      }
+      car.pitTimer += repairTime;
       car.pitStops += 1;
       if (car.isPlayer) {
         this.stats.pitStops += 1;
-        this.emitEvent("PIT STOP", `${compound(car.tyreCompound).label} takıldı · ${car.pitTimer.toFixed(1)} sn`);
+        const repairText = repairs.length ? ` · ${repairs.join(" + ")} repaired` : "";
+        this.emitEvent("PIT STOP", `${compound(car.tyreCompound).label} takıldı${repairText} · ${car.pitTimer.toFixed(1)} sn`);
       }
     }
 
@@ -368,6 +428,149 @@
       return clamp(player.totalProgress / (this.track.path.length * this.lapsTarget), 0, 1);
     }
 
+    raceControlFactor() {
+      if (this.raceControl.status === "SAFETY CAR") return .46;
+      if (this.raceControl.status === "VSC") return .62;
+      if (this.raceControl.status === "YELLOW") return .76;
+      return 1;
+    }
+
+    triggerRaceControl(status, reason, duration) {
+      const priority = { GREEN:0, YELLOW:1, VSC:2, "SAFETY CAR":3 };
+      if ((priority[status] || 0) < (priority[this.raceControl.status] || 0) && this.raceControl.timer > 2) return false;
+      this.raceControl.status = status;
+      this.raceControl.reason = reason || "Incident";
+      this.raceControl.timer = Math.max(Number(duration || 0), status === "SAFETY CAR" ? 12 : status === "VSC" ? 8 : 4);
+      this.raceControl.phase = "neutralised";
+      this.raceControl.incidents += 1;
+      this.raceControl.lastChangeAt = performance.now();
+      this.incidentCooldown = Math.max(this.incidentCooldown, this.raceControl.timer + 4);
+      if (status === "SAFETY CAR") this.stats.safetyCars += 1;
+      if (status === "VSC") this.stats.virtualSafetyCars += 1;
+      this.cars.forEach(car => { car.drs = false; car.boost = false; });
+      this.emitEvent(status, `${this.raceControl.reason} · Delta uygulanıyor.`);
+      return true;
+    }
+
+    updateRaceControl(dt) {
+      this.incidentCooldown = Math.max(0, this.incidentCooldown - dt);
+      if (this.raceControl.status !== "GREEN") {
+        this.raceControl.timer = Math.max(0, this.raceControl.timer - dt);
+        if (this.raceControl.timer <= 0) {
+          if (this.raceControl.phase === "neutralised") {
+            this.raceControl.phase = "restart";
+            this.raceControl.timer = 3.2;
+            this.raceControl.reason = "Restart preparation";
+            this.emitEvent("RACE CONTROL", `${this.raceControl.status} ending. Prepare for restart.`);
+          } else {
+            this.raceControl.status = "GREEN";
+            this.raceControl.reason = "Track clear";
+            this.raceControl.phase = "racing";
+            this.raceControl.timer = 0;
+            this.emitEvent("GREEN FLAG", "Racing resumed. DRS remains subject to normal conditions.");
+          }
+        }
+      }
+      this.incidentCheckTimer -= dt;
+      if (this.incidentCheckTimer > 0 || this.countdown > 0 || this.finished) return;
+      this.incidentCheckTimer = 2.2;
+      if (this.raceControl.status !== "GREEN" || this.incidentCooldown > 0) return;
+      const factors = { low:.35, realistic:1, high:1.9 };
+      const factor = factors[this.incidentLevel] || 1;
+      const activeAi = this.cars.filter(car => !car.isPlayer && !car.finished && !car.retired);
+      if (!activeAi.length) return;
+      const candidate = activeAi[Math.floor(this.raceRandom() * activeAi.length)];
+      const reliability = 58 + (Number(candidate.id.split("-")[1] || 1) % 7) * 4;
+      const probability = .0042 * factor * (1 + (70 - reliability) * .012);
+      if (this.raceRandom() < probability) {
+        const severity = this.raceRandom();
+        if (severity > .72) {
+          this.retireCar(candidate, "Mechanical failure");
+          this.triggerRaceControl("SAFETY CAR", `${candidate.name} stopped on circuit`, 13 + this.raceRandom() * 5);
+        } else {
+          candidate.damage.engine = Math.max(35, candidate.damage.engine - 24);
+          candidate.speed *= .52;
+          this.triggerRaceControl("VSC", `${candidate.name} reported a technical issue`, 7 + this.raceRandom() * 3);
+        }
+      }
+    }
+
+    applyDamage(car, amount, component = "frontWing", reason = "Contact") {
+      if (!car || car.retired || !car.damage) return;
+      const reliability = car.isPlayer ? Number(this.carDevelopment.reliability || 60) : 62;
+      const resistance = clamp(.82 + (reliability - 60) * .004, .78, .95);
+      const effective = Math.max(.4, Number(amount || 0) * resistance);
+      car.damage[component] = clamp(Number(car.damage[component] || 100) - effective, 0, 100);
+      if (car.isPlayer) {
+        this.stats.damageTaken += effective;
+        const health = Math.round(car.damage[component]);
+        this.emitEvent("CAR DAMAGE", `${reason} · ${component.toUpperCase()} ${health}%`);
+      }
+      if (component === "engine" && car.damage.engine <= 3) this.retireCar(car, "Power unit failure");
+      if (component === "frontWing" && car.damage.frontWing < 28 && car.isPlayer) {
+        this.emitEvent("TEAM RADIO", "Front wing critical. Box for repairs.");
+      }
+    }
+
+    retireCar(car, reason = "Retired") {
+      if (!car || car.retired || car.finished) return;
+      car.retired = true;
+      car.retirementReason = reason;
+      car.speed = 0;
+      car.throttle = 0;
+      car.brakeInput = 1;
+      car.boost = false;
+      car.drs = false;
+      car.finishTime = null;
+      if (car.isPlayer) {
+        this.stats.retirements += 1;
+        this.stats.clean = false;
+        this.emitEvent("DNF", reason);
+      } else {
+        this.emitEvent("YELLOW FLAG", `${car.name} retired · ${reason}`);
+      }
+    }
+
+    damageFactors(car) {
+      const frontWing = clamp(Number(car.damage?.frontWing ?? 100) / 100, 0, 1);
+      const floor = clamp(Number(car.damage?.floor ?? 100) / 100, 0, 1);
+      const engine = clamp(Number(car.damage?.engine ?? 100) / 100, 0, 1);
+      return {
+        grip:.70 + frontWing * .20 + floor * .10,
+        speed:.72 + engine * .28,
+        steer:.76 + frontWing * .24
+      };
+    }
+
+    updateTrackLimits(car, dt) {
+      if (!car.isPlayer) return;
+      if (car.offRoad && Math.abs(car.speed) > 65) {
+        car.offTrackContinuous += dt;
+      } else if (car.offTrackContinuous > 0) {
+        if (car.offTrackContinuous >= 1.15) {
+          this.stats.trackLimitWarnings += 1;
+          this.emitEvent("TRACK LIMITS", `Warning ${this.stats.trackLimitWarnings} · Lap time may be compromised.`);
+          if (this.stats.trackLimitWarnings >= car.trackLimitThreshold) {
+            this.stats.penaltySeconds += 5;
+            car.penaltySeconds += 5;
+            car.trackLimitThreshold += 3;
+            this.emitEvent("5 SECOND PENALTY", "Repeated track-limit violations.");
+          }
+        }
+        car.offTrackContinuous = 0;
+      }
+    }
+
+    updateReliability(car, dt) {
+      if (car.retired || car.finished) return;
+      const modeLoad = car.isPlayer && this.drivingMode === "attack" ? 1.32 : car.isPlayer && this.drivingMode === "conserve" ? .68 : 1;
+      const boostLoad = car.boost ? 1.42 : 1;
+      const reliability = car.isPlayer ? Number(this.carDevelopment.reliability || 60) : 64;
+      const wear = dt * .0036 * modeLoad * boostLoad * clamp(1.24 - (reliability - 50) * .008, .72, 1.22);
+      car.damage.engine = clamp(car.damage.engine - wear, 0, 100);
+      if (car.damage.engine <= 3) this.retireCar(car, "Power unit failure");
+    }
+
     updateWeather(dt) {
       const progress = this.progressRatio();
       let target = 0;
@@ -395,7 +598,8 @@
       const base = tyre.dryGrip * (1 - wetness) + tyre.wetGrip * wetness;
       const wearPenalty = car.tyreWear < 58 ? 1 : clamp(1 - (car.tyreWear - 58) * .008, .62, 1);
       const wetSkill = car.isPlayer ? 1 + (Number(this.driverAttributes.wetSkill || 60) - 60) * .0035 * wetness : 1;
-      return clamp(base * wearPenalty * wetSkill, .48, 1.12);
+      const puncturePenalty = car.puncture ? .38 : 1;
+      return clamp(base * wearPenalty * wetSkill * puncturePenalty, .28, 1.12);
     }
 
     updateTyre(car, dt) {
@@ -404,7 +608,20 @@
         ? 1 - (Number(this.driverAttributes.tyreManagement || 60) - 60) * .004 - (Number(this.carDevelopment.tyre || 60) - 60) * .003
         : .96 + ((Number(car.id.split("-")[1] || 1) % 5) * .012);
       const load = clamp(Math.abs(car.speed) / Math.max(1, car.baseMaxSpeed), .15, 1.2);
-      car.tyreWear = clamp(car.tyreWear + dt * .43 * Number(this.track.tireWear || 1) * tyre.wear * management * load, 0, 100);
+      const modeWear = car.isPlayer && this.drivingMode === "attack" ? 1.24 : car.isPlayer && this.drivingMode === "conserve" ? .74 : 1;
+      car.tyreWear = clamp(car.tyreWear + dt * .43 * Number(this.track.tireWear || 1) * tyre.wear * management * load * modeWear, 0, 100);
+      if (!car.puncture && car.tyreWear > 96 && this.raceRandom() < dt * .085) {
+        car.puncture = true;
+        car.speed *= .42;
+        car.pitRequested = true;
+        car.nextCompound = this.weather.wetness > .55 ? "wet" : this.weather.wetness > .2 ? "intermediate" : "hard";
+        if (car.isPlayer) {
+          this.stats.punctures += 1;
+          this.stats.clean = false;
+          this.emitEvent("PUNCTURE", "Tyre failure detected. Pit request activated.");
+        }
+        if (this.raceControl.status === "GREEN" && this.incidentCooldown <= 0) this.triggerRaceControl("YELLOW", `${car.name} slow with puncture`, 4.5);
+      }
       if (car.isPlayer && car.tyreWear > 78 && !car.tyreWarningSent) {
         car.tyreWarningSent = true;
         this.stats.tyreWarnings += 1;
@@ -423,7 +640,7 @@
       car.brakeInput = brake ? 1 : 0;
       car.steer = (right ? 1 : 0) - (left ? 1 : 0);
       car.boost = Boolean(boost && car.ers > .5 && car.speed > 50);
-      car.drsAvailable = Boolean(car.completedLaps >= 1 && this.weather.wetness < .22 && Math.abs(car.steer) < .22 && car.speed > 120);
+      car.drsAvailable = Boolean(this.raceControl.status === "GREEN" && car.completedLaps >= 1 && this.weather.wetness < .22 && Math.abs(car.steer) < .22 && car.speed > 120);
       car.drs = Boolean(drs && car.drsAvailable);
     }
 
@@ -433,7 +650,7 @@
       const dryTyre = ["soft","medium","hard"].includes(car.tyreCompound);
       const wrongWetTyre = wet > .42 && dryTyre;
       const wrongDryTyre = wet < .16 && ["intermediate","wet"].includes(car.tyreCompound);
-      if (car.tyreWear > 72 || wrongWetTyre || wrongDryTyre) {
+      if (car.tyreWear > 72 || car.puncture || car.damage.frontWing < 42 || wrongWetTyre || wrongDryTyre) {
         car.pitRequested = true;
         car.nextCompound = wet > .68 ? "wet" : wet > .25 ? "intermediate" : car.completedLaps < this.lapsTarget * .55 ? "medium" : "hard";
       }
@@ -451,13 +668,20 @@
       const targetSpeed = car.baseMaxSpeed * (1 - cornerPenalty) * car.aiSkill * grip * car.aiAero;
       car.throttle = car.speed < targetSpeed ? 1 : .15;
       car.brakeInput = car.speed > targetSpeed * 1.06 ? .75 : 0;
-      car.boost = car.ers > 35 && Math.abs(difference) < .16 && car.speed > car.baseMaxSpeed * .68 && Math.random() < .012;
-      car.drsAvailable = Boolean(car.completedLaps >= 1 && this.weather.wetness < .22 && Math.abs(difference) < .13 && car.speed > 125);
-      car.drs = Boolean(car.drsAvailable && Math.random() < .42);
+      car.boost = car.ers > 35 && Math.abs(difference) < .16 && car.speed > car.baseMaxSpeed * .68 && this.raceRandom() < .012;
+      car.drsAvailable = Boolean(this.raceControl.status === "GREEN" && car.completedLaps >= 1 && this.weather.wetness < .22 && Math.abs(difference) < .13 && car.speed > 125);
+      car.drs = Boolean(car.drsAvailable && this.raceRandom() < .42);
       this.aiPitDecision(car);
     }
 
     updateCar(car, dt, now) {
+      if (car.collisionCooldown > 0) car.collisionCooldown = Math.max(0, car.collisionCooldown - dt);
+      if (car.retired) {
+        car.speed = 0;
+        car.throttle = 0;
+        car.brakeInput = 1;
+        return;
+      }
       if (car.pitTimer > 0) {
         car.pitTimer = Math.max(0, car.pitTimer - dt);
         car.speed = 0;
@@ -477,10 +701,20 @@
       car.offRoad = !onRoad;
       const tyre = compound(car.tyreCompound);
       const grip = this.tyreGrip(car);
+      const damage = this.damageFactors(car);
+      const mode = car.isPlayer ? this.drivingMode : "balanced";
+      const modeSpeed = mode === "attack" ? 1.022 : mode === "conserve" ? .966 : 1;
+      const modeAccel = mode === "attack" ? 1.075 : mode === "conserve" ? .91 : 1;
+      const cautionFactor = this.raceControlFactor();
+      if (this.raceControl.status !== "GREEN") {
+        car.boost = false;
+        car.drs = false;
+      }
       const boostFactor = car.boost ? 1.20 : 1;
       const drsFactor = car.drs ? 1.075 : 1;
-      const maxSpeed = car.baseMaxSpeed * tyre.pace * boostFactor * drsFactor * (onRoad ? 1 : .43) * clamp(grip, .65, 1.06);
-      const acceleration = car.accel * car.throttle * (car.boost ? 1.22 : 1) * clamp(grip, .64, 1.08);
+      const punctureFactor = car.puncture ? .46 : 1;
+      const maxSpeed = car.baseMaxSpeed * tyre.pace * boostFactor * drsFactor * modeSpeed * damage.speed * cautionFactor * punctureFactor * (onRoad ? 1 : .43) * clamp(grip, .65, 1.06);
+      const acceleration = car.accel * car.throttle * (car.boost ? 1.22 : 1) * modeAccel * damage.speed * clamp(grip, .64, 1.08);
       const braking = car.brake * car.brakeInput * clamp(grip, .55, 1.05);
       car.speed += (acceleration - braking) * dt;
       if (!car.throttle && !car.brakeInput) car.speed *= Math.pow(.986, dt * 60);
@@ -488,23 +722,29 @@
       car.speed = clamp(car.speed, -55, maxSpeed);
 
       const speedRatio = clamp(Math.abs(car.speed) / Math.max(1, car.baseMaxSpeed), 0, 1);
-      const steerRate = (1.12 + speedRatio * 1.75) * clamp(grip, .55, 1.08);
+      const steerRate = (1.12 + speedRatio * 1.75) * clamp(grip, .55, 1.08) * damage.steer;
       car.angle += car.steer * steerRate * dt * (car.speed >= 0 ? 1 : -1);
       car.x += Math.cos(car.angle) * car.speed * dt;
       car.y += Math.sin(car.angle) * car.speed * dt;
 
       if (car.boost) car.ers = Math.max(0, car.ers - 25 * dt);
-      else car.ers = Math.min(100, car.ers + (car.isPlayer ? 5 : 6.5) * dt);
+      else {
+        const recovery = car.isPlayer && this.drivingMode === "conserve" ? 1.45 : car.isPlayer && this.drivingMode === "attack" ? .78 : 1;
+        car.ers = Math.min(100, car.ers + (car.isPlayer ? 5 : 6.5) * recovery * dt);
+      }
       if (car.isPlayer && car.drs) this.stats.drsSeconds += dt;
 
       this.updateTyre(car, dt);
+      this.updateReliability(car, dt);
       car.x = clamp(car.x, 5, this.width - 5);
       car.y = clamp(car.y, 5, this.height - 5);
       this.updateProgress(car, now);
       if (car.isPlayer && car.offRoad) {
         this.stats.offTrackSeconds += dt;
         if (this.stats.offTrackSeconds > 1.5) this.stats.clean = false;
+        if (Math.abs(car.speed) > 145 && this.raceRandom() < dt * .035) this.applyDamage(car, 1.7, "floor", "Off-track impact");
       }
+      this.updateTrackLimits(car, dt);
     }
 
     collisions() {
@@ -512,7 +752,7 @@
         for (let b = a + 1; b < this.cars.length; b += 1) {
           const first = this.cars[a];
           const second = this.cars[b];
-          if (first.pitTimer > 0 || second.pitTimer > 0) continue;
+          if (first.pitTimer > 0 || second.pitTimer > 0 || first.retired || second.retired) continue;
           const dx = second.x - first.x;
           const dy = second.y - first.y;
           const distance = Math.hypot(dx, dy);
@@ -525,11 +765,29 @@
             first.y -= ny * push;
             second.x += nx * push;
             second.y += ny * push;
-            first.speed *= .84;
-            second.speed *= .84;
-            if (first.isPlayer || second.isPlayer) {
-              this.stats.collisions += 1;
-              this.stats.clean = false;
+            const headingDifference = Math.abs(normalizeAngle(first.angle - second.angle)) / Math.PI;
+            const impact = Math.abs(first.speed - second.speed) + Math.min(Math.abs(first.speed), Math.abs(second.speed)) * (.06 + headingDifference * .34);
+            first.speed *= impact > 90 ? .60 : .82;
+            second.speed *= impact > 90 ? .60 : .82;
+            if (first.collisionCooldown <= 0 && second.collisionCooldown <= 0) {
+              first.collisionCooldown = 1.15;
+              second.collisionCooldown = 1.15;
+              const damage = clamp(impact * .075, 1.1, 18);
+              this.applyDamage(first, damage, impact > 105 ? "floor" : "frontWing", `Contact with ${second.name}`);
+              this.applyDamage(second, damage, impact > 105 ? "floor" : "frontWing", `Contact with ${first.name}`);
+              if (first.isPlayer || second.isPlayer) {
+                this.stats.collisions += 1;
+                this.stats.clean = false;
+              }
+              if (impact > 112 && this.raceControl.status === "GREEN" && this.incidentCooldown <= 0) {
+                this.triggerRaceControl("SAFETY CAR", `Heavy contact: ${first.name} / ${second.name}`, 13 + this.raceRandom() * 4);
+              } else if (impact > 76 && this.raceControl.status === "GREEN" && this.incidentCooldown <= 0) {
+                this.triggerRaceControl("VSC", "Debris reported after contact", 7 + this.raceRandom() * 3);
+              }
+              if (impact > 168 && this.raceRandom() < .32) {
+                const victim = this.raceRandom() < .5 ? first : second;
+                this.retireCar(victim, "Collision damage");
+              }
             }
           }
         }
@@ -538,13 +796,28 @@
 
     standings() {
       return [...this.cars].sort((a, b) => {
-        if (a.finished && b.finished) return a.finishTime - b.finishTime;
+        if (a.finished && b.finished) return (a.finishTime + Number(a.penaltySeconds || 0)) - (b.finishTime + Number(b.penaltySeconds || 0));
         if (a.finished) return -1;
         if (b.finished) return 1;
+        if (a.retired && b.retired) return b.totalProgress - a.totalProgress;
+        if (a.retired) return 1;
+        if (b.retired) return -1;
         if (a.pitTimer > 0 && b.pitTimer <= 0) return 1;
         if (b.pitTimer > 0 && a.pitTimer <= 0) return -1;
         return b.totalProgress - a.totalProgress;
       });
+    }
+
+    finalStandings() {
+      const ordered = this.standings();
+      const playerIndex = ordered.findIndex(car => car.isPlayer);
+      const player = ordered[playerIndex];
+      if (!player || player.retired || Number(player.penaltySeconds || 0) <= 0) return ordered;
+      const shift = Math.min(ordered.length - playerIndex - 1, Math.ceil(Number(player.penaltySeconds || 0) / 5));
+      if (shift <= 0) return ordered;
+      ordered.splice(playerIndex, 1);
+      ordered.splice(playerIndex + shift, 0, player);
+      return ordered;
     }
 
     loop = now => {
@@ -558,6 +831,7 @@
         if (this.countdown > 0) this.countdown -= dt;
         else if (!this.finished) {
           this.updateWeather(dt);
+          this.updateRaceControl(dt);
           this.cars.forEach(car => this.updateCar(car, dt, now));
           this.collisions();
           const standings = this.standings();
@@ -565,7 +839,7 @@
           if (rank < this.lastPlayerRank) this.stats.overtakes += this.lastPlayerRank - rank;
           this.lastPlayerRank = rank;
           const player = this.cars[0];
-          if (player.finished) this.finishRace(standings);
+          if (player.finished || player.retired) this.finishRace(this.finalStandings());
           this.options.onTick?.(this.snapshot(standings, now));
         }
       }
@@ -584,6 +858,9 @@
         lapsTarget:this.lapsTarget,
         stats:{ ...this.stats },
         weather:{ ...this.weather },
+        raceControl:{ ...this.raceControl },
+        drivingMode:this.drivingMode,
+        damage:{ ...player.damage },
         pitCompound:this.nextPitCompound,
         track:this.track
       };
@@ -592,21 +869,28 @@
     finishRace(standings) {
       if (this.finished) return;
       this.finished = true;
+      const finalOrder = Array.isArray(standings) ? standings : this.finalStandings();
       const player = this.cars[0];
-      const rank = standings.findIndex(car => car.isPlayer) + 1;
+      const rank = finalOrder.findIndex(car => car.isPlayer) + 1;
       const elapsed = player.finishTime || (performance.now() - this.startedAt) / 1000;
       this.options.onFinish?.({
         rank,
         elapsed,
         bestLap:player.bestLap,
-        standings,
+        standings:finalOrder,
         stats:{ ...this.stats },
         track:this.track,
         difficulty:this.difficulty,
         weather:{ ...this.weather },
         tyreCompound:player.tyreCompound,
         tyreWear:player.tyreWear,
-        pitStops:player.pitStops
+        pitStops:player.pitStops,
+        retired:player.retired,
+        retirementReason:player.retirementReason,
+        damage:{ ...player.damage },
+        penaltySeconds:Number(player.penaltySeconds || 0),
+        drivingMode:this.drivingMode,
+        raceControl:{ ...this.raceControl }
       });
     }
 
@@ -714,12 +998,29 @@
         ctx.fillStyle = "#67e8f9";
         ctx.fillRect(-11,-7,4,2);
       }
+      if (car.damage?.frontWing < 55) {
+        ctx.fillStyle = "#111827";
+        ctx.fillRect(8,-5,4,10);
+      }
+      if (car.retired || car.damage?.engine < 28) {
+        ctx.fillStyle = "rgba(180,190,200,.35)";
+        for (let puff = 0; puff < 4; puff += 1) {
+          ctx.beginPath();
+          ctx.arc(-13 - puff * 4, -5 + Math.sin(car.smokePhase + puff) * 3, 3 + puff, 0, TAU);
+          ctx.fill();
+        }
+      }
+      if (car.retired) {
+        ctx.globalAlpha = .55;
+        ctx.fillStyle = "#111";
+        ctx.fillRect(-10,-5,20,10);
+      }
       ctx.restore();
       if (car.isPlayer || rank <= 3) {
         ctx.font = car.isPlayer ? "800 11px system-ui" : "700 9px system-ui";
         ctx.textAlign = "center";
         ctx.fillStyle = "rgba(255,255,255,.92)";
-        ctx.fillText(car.isPlayer ? "YOU" : String(rank), car.x, car.y - 12);
+        ctx.fillText(car.retired ? "DNF" : car.isPlayer ? "YOU" : String(rank), car.x, car.y - 12);
       }
     }
 
@@ -734,6 +1035,21 @@
         this.drawCar(ctx, car, rank);
       });
       this.drawRain(ctx, now);
+      if (this.raceControl.status !== "GREEN" && this.countdown <= 0) {
+        const palette = this.raceControl.status === "SAFETY CAR" ? ["#f4c75e","#181102"] : this.raceControl.status === "VSC" ? ["#facc15","#171302"] : ["#fde047","#171302"];
+        ctx.save();
+        ctx.fillStyle = palette[1];
+        ctx.globalAlpha = .78;
+        ctx.fillRect(this.width/2-150,16,300,38);
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = palette[0];
+        ctx.strokeRect(this.width/2-150,16,300,38);
+        ctx.textAlign = "center";
+        ctx.fillStyle = palette[0];
+        ctx.font = "950 15px system-ui";
+        ctx.fillText(`${this.raceControl.status} · ${Math.ceil(this.raceControl.timer)}s`,this.width/2,40);
+        ctx.restore();
+      }
       if (this.countdown > 0 && this.running) {
         const value = Math.ceil(this.countdown);
         ctx.fillStyle = "rgba(2,10,16,.64)";

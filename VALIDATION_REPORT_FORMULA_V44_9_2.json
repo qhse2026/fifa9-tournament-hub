@@ -1,0 +1,31 @@
+{
+  "build": "Formula Racing v44.9.2 Race Control & Survival Engine",
+  "status": "READY",
+  "tests": {
+    "javascript_syntax": "PASS",
+    "engine_mock_runtime": "PASS",
+    "state_migration_v2_to_v3": "PASS",
+    "track_count": 8,
+    "car_count": 12,
+    "pc_controls": "PASS",
+    "mobile_controls": "PASS",
+    "drive_modes": ["conserve", "balanced", "attack"],
+    "race_control_states": ["GREEN", "YELLOW", "VSC", "SAFETY CAR"],
+    "damage_components": ["frontWing", "floor", "engine"],
+    "pit_repair": "PASS",
+    "track_limits_penalty": "PASS",
+    "puncture_logic": "PASS",
+    "dnf_result_handling": "PASS",
+    "service_worker_cache_version": "tournament-universe-v44-9-2-formula-race-control"
+  },
+  "compatibility": {
+    "data_storage_key_preserved": "fifa9_formula_racing_v4490",
+    "previous_formula_state_preserved": true,
+    "deployment_model": "upload-only root overlay"
+  },
+  "limitations": [
+    "One human driver and eleven AI drivers",
+    "No real-time online multiplayer in this release",
+    "Race-control neutralisation uses a simplified shared speed delta rather than a physical safety-car vehicle"
+  ]
+}
