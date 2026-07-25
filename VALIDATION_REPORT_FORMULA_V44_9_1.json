@@ -1,0 +1,59 @@
+{
+  "build": "Formula Racing v44.9.1 Grand Prix Experience",
+  "syntax": {
+    "formula-racing-tracks.js": "PASS",
+    "formula-racing-engine.js": "PASS",
+    "formula-racing.js": "PASS",
+    "service-worker.js": "PASS"
+  },
+  "integration": {
+    "tracks": 8,
+    "championshipRounds": 8,
+    "cars": 12,
+    "teams": 6,
+    "tyreCompounds": 5,
+    "pcControls": [
+      "steering",
+      "throttle",
+      "brake",
+      "ERS",
+      "DRS",
+      "pit",
+      "reset",
+      "pause"
+    ],
+    "mobileControls": [
+      "steering",
+      "throttle",
+      "brake",
+      "ERS",
+      "DRS",
+      "pit"
+    ],
+    "dynamicWeather": true,
+    "pitStops": true,
+    "qualifyingGrid": true,
+    "driverDevelopment": true,
+    "carDevelopment": true
+  },
+  "behaviorTest": {
+    "playerGridFromQualifying": 12,
+    "pitTyreChange": "intermediate",
+    "mixedWeatherWetness": 0.78,
+    "driverAttributes": 6,
+    "carDepartments": 5
+  },
+  "filesToUpload": [
+    "index.html",
+    "service-worker.js",
+    "formula-racing-tracks.js",
+    "formula-racing-engine.js",
+    "formula-racing.js",
+    "formula-racing.css"
+  ],
+  "limitations": [
+    "Single human driver versus 11 AI; real-time online multiplayer is not included.",
+    "Pit lane is represented by a timed race stop rather than a separate driveable lane.",
+    "Safety Car and vehicle damage are reserved for the next engine phase."
+  ]
+}

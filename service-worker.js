@@ -1,4 +1,4 @@
-const CACHE = "tournament-universe-v44-9-0-formula-racing-pc-mobile";
+const CACHE = "tournament-universe-v44-9-1-formula-grand-prix";
 const APP_SHELL = [
   "./",
   "./index.html",

@@ -1,0 +1,66 @@
+FORMULA RACING v44.9.1 — GRAND PRIX EXPERIENCE
+
+BU PAKET v44.9.0 PC + MOBILE SÜRÜMÜNÜN ÜZERİNE KURULUR.
+
+YENİ ÖZELLİKLER
+- 8 pistlik Formula Racing şampiyonası
+- 12 pilot ve 6 takım
+- Practice programme seçimi
+- Sıralama simülasyonu ve gerçek start gridi
+- Pilotlar ve Takımlar Şampiyonası
+- Soft / Medium / Hard / Intermediate / Wet lastikleri
+- Lastik aşınması ve yol tutuş etkisi
+- Dinamik kuru / değişken / yağmurlu hava
+- Pit-stop çağrısı ve pit lastiği seçimi
+- DRS: PC Shift, mobil DRS
+- ERS: PC Space, mobil ERS
+- Pit: PC P, mobil PIT
+- Driver XP, Skill Point ve Driver Rating
+- Pace, Qualifying, Racecraft, Tyre Management, Wet Skill, Consistency
+- Team R&D: Engine, Aero, Tyre, Pit Crew, Reliability
+- Pist uzmanlığı
+- Hızlı Yarış modu
+
+PC KONTROLLERİ
+W / Yukarı       Gaz
+S / Aşağı        Fren
+A D / Sol Sağ    Direksiyon
+Space            ERS
+Shift            DRS
+P                Pit-stop çağrısı
+R                Piste döndür
+Esc              Duraklat
+
+MOBİL
+Telefonu yatay kullanın.
+Sol: direksiyon
+Sağ: PIT, FREN, GAZ, ERS, DRS
+
+GITHUB KÖKÜNE YÜKLENECEK 6 DOSYA
+- index.html
+- service-worker.js
+- formula-racing-tracks.js
+- formula-racing-engine.js
+- formula-racing.js
+- formula-racing.css
+
+Commit:
+Install Formula Racing Grand Prix Experience v44.9.1
+
+VERCEL VE CACHE
+1. Deployment Ready + Production olmalıdır.
+2. F12 > Application > Service Workers > Unregister
+3. Application > Storage > Clear site data
+4. Bütün site sekmelerini kapatın.
+5. https://fifa9-tournament-hub.vercel.app/?formulaGP=v4491
+6. Ctrl + Shift + R
+
+BEKLENEN SÜRÜM
+Tournament Universe · v44.9.1 · Formula Grand Prix Experience
+
+İLK KULLANIM
+Formula Racing > Grand Prix Weekend
+Practice programını seç > Antrenmanı Tamamla
+Sıralamayı Başlat
+Başlangıç ve pit lastiğini seç
+Grand Prix'yi Başlat
