@@ -1,0 +1,340 @@
+{
+  "version": "V45.0.0",
+  "build": "Formula Horizon Reborn Phase 1",
+  "created_at_utc": "2026-07-25T19:35:39.543243+00:00",
+  "status": "PASS",
+  "implemented": {
+    "renderer": "Three.js WebGL with generated 3D track meshes",
+    "vehicles": 1,
+    "cameras": [
+      "chase",
+      "close",
+      "nose"
+    ],
+    "circuits": [
+      "oruc-reis-coastal",
+      "filyos-harbour",
+      "dragon-mountain"
+    ],
+    "official_laps": 5,
+    "sectors": 3,
+    "personal_ghost": true,
+    "cloud_world_record_ghost": false,
+    "global_metrics": [
+      "fastest clean lap",
+      "five-lap total"
+    ],
+    "pc_controls": true,
+    "mobile_pointer_controls": true
+  },
+  "syntax_checks": [
+    {
+      "file": "formula-reborn/app/formula-reborn-app.js",
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    {
+      "file": "formula-reborn/app/race-session.js",
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    {
+      "file": "formula-reborn/cloud/leaderboard-service.js",
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    {
+      "file": "formula-reborn/cloud/session-validator.js",
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    {
+      "file": "formula-reborn/engine/audio-system.js",
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    {
+      "file": "formula-reborn/engine/camera-controller.js",
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    {
+      "file": "formula-reborn/engine/game-loop.js",
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    {
+      "file": "formula-reborn/engine/ghost-system.js",
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    {
+      "file": "formula-reborn/engine/input-controller.js",
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    {
+      "file": "formula-reborn/engine/lap-timing.js",
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    {
+      "file": "formula-reborn/engine/renderer.js",
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    {
+      "file": "formula-reborn/engine/vehicle-physics.js",
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    {
+      "file": "formula-reborn/formula-reborn-loader.js",
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    {
+      "file": "formula-reborn/tests/lap-timing-validation.mjs",
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    {
+      "file": "formula-reborn/tests/physics-validation.mjs",
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    {
+      "file": "formula-reborn/tests/track-data-validation.mjs",
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    {
+      "file": "formula-reborn/tracks/dragon-mountain.js",
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    {
+      "file": "formula-reborn/tracks/filyos-harbour.js",
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    {
+      "file": "formula-reborn/tracks/index.js",
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    {
+      "file": "formula-reborn/tracks/oruc-reis-coastal.js",
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    {
+      "file": "formula-reborn/tracks/track-builder.js",
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    {
+      "file": "formula-reborn/tracks/track-schema.js",
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    {
+      "file": "app.js",
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    {
+      "file": "service-worker.js",
+      "passed": true,
+      "message": "Syntax OK"
+    }
+  ],
+  "track_data_test": {
+    "passed": true,
+    "output": {
+      "status": "PASS",
+      "tracks": [
+        {
+          "id": "oruc-reis-coastal",
+          "controlPoints": 28,
+          "signatureSections": [
+            "Helideck Straight",
+            "Seismic Sweep",
+            "Streamer Bend",
+            "Gun Deck Hairpin",
+            "Research Complex"
+          ]
+        },
+        {
+          "id": "filyos-harbour",
+          "controlPoints": 29,
+          "signatureSections": [
+            "Container Straight",
+            "Crane Chicane",
+            "Harbour Wall 90",
+            "Dockside Hairpin",
+            "Terminal Exit"
+          ]
+        },
+        {
+          "id": "dragon-mountain",
+          "controlPoints": 26,
+          "signatureSections": [
+            "Fire Serpent Esses",
+            "Dragon Spine Climb",
+            "Ashfall Hairpins",
+            "Summit Crest",
+            "Volcano Descent"
+          ]
+        }
+      ]
+    },
+    "stderr": ""
+  },
+  "physics_validation": {
+    "passed": true,
+    "output": {
+      "status": "PASS",
+      "fullThrottle": {
+        "offTrackFrames": 1944,
+        "maxOffset": 10.825608967077402,
+        "progress": 1021,
+        "events": 6,
+        "speedKph": 0.2886036396432345
+      },
+      "properBraking": {
+        "offTrackFrames": 0,
+        "maxOffset": 1.917143921279847,
+        "progress": 1972,
+        "events": 0,
+        "speedKph": 54.396776908021515
+      },
+      "checks": [
+        "full-throttle failure",
+        "proper-braking validity",
+        "stationary steering",
+        "grass grip loss",
+        "barrier damage"
+      ]
+    },
+    "stderr": ""
+  },
+  "lap_timing_validation": {
+    "passed": true,
+    "output": {
+      "status": "PASS",
+      "result": {
+        "completed": true,
+        "laps": [
+          {
+            "lap": 1,
+            "timeMs": 61000,
+            "valid": true,
+            "invalidReason": null,
+            "warnings": 0,
+            "sectors": [
+              20000,
+              19000,
+              22000
+            ]
+          },
+          {
+            "lap": 2,
+            "timeMs": 61000,
+            "valid": true,
+            "invalidReason": null,
+            "warnings": 0,
+            "sectors": [
+              20000,
+              19000,
+              22000
+            ]
+          },
+          {
+            "lap": 3,
+            "timeMs": 61000,
+            "valid": true,
+            "invalidReason": null,
+            "warnings": 0,
+            "sectors": [
+              20000,
+              19000,
+              22000
+            ]
+          },
+          {
+            "lap": 4,
+            "timeMs": 61000,
+            "valid": true,
+            "invalidReason": null,
+            "warnings": 0,
+            "sectors": [
+              20000,
+              19000,
+              22000
+            ]
+          },
+          {
+            "lap": 5,
+            "timeMs": 61000,
+            "valid": true,
+            "invalidReason": null,
+            "warnings": 0,
+            "sectors": [
+              20000,
+              19000,
+              22000
+            ]
+          }
+        ],
+        "bestLapMs": 61000,
+        "bestLapNumber": 1,
+        "fiveLapTotalMs": 305000,
+        "validLapCount": 5,
+        "sectorBests": [
+          20000,
+          19000,
+          22000
+        ],
+        "elapsedMs": 305000
+      }
+    },
+    "stderr": ""
+  },
+  "runtime_asset_integrity": {
+    "formula-reborn/formula-reborn-loader.js": true,
+    "formula-reborn/formula-reborn.css": true,
+    "formula-reborn/app/formula-reborn-app.js": true,
+    "formula-reborn/app/race-session.js": true,
+    "formula-reborn/engine/renderer.js": true,
+    "formula-reborn/engine/game-loop.js": true,
+    "formula-reborn/engine/vehicle-physics.js": true,
+    "formula-reborn/engine/input-controller.js": true,
+    "formula-reborn/engine/camera-controller.js": true,
+    "formula-reborn/engine/lap-timing.js": true,
+    "formula-reborn/engine/ghost-system.js": true,
+    "formula-reborn/engine/audio-system.js": true,
+    "formula-reborn/tracks/track-schema.js": true,
+    "formula-reborn/tracks/track-builder.js": true,
+    "formula-reborn/tracks/index.js": true,
+    "formula-reborn/tracks/oruc-reis-coastal.js": true,
+    "formula-reborn/tracks/filyos-harbour.js": true,
+    "formula-reborn/tracks/dragon-mountain.js": true,
+    "formula-reborn/cloud/leaderboard-service.js": true,
+    "formula-reborn/cloud/session-validator.js": true
+  },
+  "integration_checks": {
+    "new_loader_in_index": true,
+    "new_css_in_index": true,
+    "old_formula_scripts_not_loaded": true,
+    "visible_version": true,
+    "new_cache_version": true,
+    "navigation_cleanup": true
+  },
+  "browser_webgl_smoke_test": {
+    "completed": false,
+    "reason": "The isolated container could not fetch the pinned remote Three.js module. Deployment-browser GPU/WebGL validation remains mandatory.",
+    "pinned_dependency": "three@0.185.1"
+  },
+  "honest_scope_note": "Logic, syntax, track-data, braking/full-throttle and timing tests passed. This report does not claim deployed browser/GPU validation."
+}

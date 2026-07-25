@@ -1,0 +1,31 @@
+FORMULA HORIZON REBORN V45.0.0 — BİLİNEN SINIRLAR
+
+1. Phase 1 yalnızca üç pist içerir.
+Kalan 22 pist, fizik ve kamera kabul testleri sahada doğrulanmadan eklenmemiştir.
+
+2. Three.js yerel dosya olarak paketlenmemiştir.
+0.185.1 sabit sürümü jsDelivr ES-module adresinden yüklenir. Formula'nın ilk açılışı internet ister. Daha sonra service worker başarılı CORS yanıtını cache'e alabilir; ancak tam çevrimdışı ilk kurulum desteklenmez.
+
+3. Container ortamında tam browser/WebGL smoke testi yapılamamıştır.
+JavaScript syntax, track data, fizik ve lap timing otomatik testleri geçmiştir. Gerçek GPU, Chrome/Edge ve mobil render testi deployment sonrasında yapılmalıdır.
+
+4. Personal Best Ghost uygulanmıştır.
+World Record ve Selected Player cloud ghost tabloları/arayüzü hazırlanmıştır ancak cloud replay binary yükleme ve indirme Phase 1'de tamamlanmış özellik olarak sunulmaz.
+
+5. Anti-cheat ilk koruma katmanıdır.
+Session token, sabit physics/track version, makul süre/hız aralıkları, input checksum ve session hash bulunur. Profesyonel sunucu-otoriter anti-cheat değildir. Şüpheli sonuçlar under-review durumuna düşebilir.
+
+6. Araç modeli prosedüreldir.
+Lisanslı veya yüksek poligonlu Formula aracı kullanılmaz. Odak sürüş çekirdeği, pist geometrisi ve performanstır.
+
+7. Sesler hafif/prosedürel Web Audio tabanlıdır.
+Profesyonel kayıtlı çok katmanlı motor ses paketi Phase 1 kapsamı dışında kalmıştır.
+
+8. Gamepad henüz resmî kontrol seçeneği değildir.
+Klavye ve mobil Pointer Events uygulanmıştır.
+
+9. Hasar sade ve performans odaklıdır.
+Ön kanat/steering/suspension etkileri vardır; pit onarımı veya ayrıntılı parça simülasyonu yoktur.
+
+10. Global kayıtlar Supabase SQL kurulumu ister.
+SQL çalıştırılmaz veya cloud-config geçersizse oyun local kayıtla devam eder; global liste çalışmaz.

@@ -71,7 +71,7 @@
     backup: "Veri & Yedek",
     managerroom: "The Manager's Room",
     managerhall: "Manager Hall",
-    formula1: "Formula Racing",
+    formula1: "Formula Horizon Reborn",
     playeraccess: "Oyuncu Girişi",
     finalpoll: "FIFA09 Final Chapter Kararı"
   };
@@ -2146,6 +2146,9 @@
   }
 
   function navTo(target) {
+    if (activeView === "formula1" && target !== "formula1") {
+      window.F1_RACING?.stopRace?.();
+    }
     if (target !== "livematch" && livePresentationMode !== "standard") exitLivePresentation(false);
     activeView = target;
     pageTitle.textContent = titleMap[target] || "FIFA 9";

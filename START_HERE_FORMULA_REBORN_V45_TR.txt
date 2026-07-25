@@ -1,0 +1,253 @@
+FORMULA HORIZON REBORN V45.0.0 — PHASE 1
+İLK KURULUM VE TEST REHBERİ
+
+Bu paket, mevcut FIFA 9 Tournament Universe sitene gerçek WebGL/Three.js tabanlı yeni Formula oyununu ekler.
+Eski sahte-perspektif Formula motoru yüklenmez. FIFA, Manager's Room, Season Hub, Final Chapter ve diğer site verileri korunur.
+
+PAKETTEKİ PHASE 1 KAPSAMI
+- Tek oyuncu aracı
+- Gerçek WebGL 3D yol mesh'i
+- Arkadan Chase Camera, Close Chase ve Cockpit Lite/Nose Camera
+- Frenleme gerektiren arcade-simulation fizik
+- Sabit 5 turluk resmî oturum
+- 3 sektör
+- En hızlı temiz tur
+- 5 tur toplam süresi
+- Pist sınırları, çim/runoff, kerb ve bariyer sonuçları
+- Kişisel en iyi tur ghost'u
+- PC klavye ve mobil yatay dokunmatik kontrol
+- Yerel kayıt
+- Supabase global sıralama altyapısı
+- 3 Phase 1 pisti:
+  1. Oruç Reis Coastal Circuit
+  2. Filyos Harbour Run
+  3. Dragon Mountain Pass
+
+ÖNEMLİ SINIR
+Three.js 0.185.1 sabit sürümle jsDelivr üzerinden ES module olarak çağrılır.
+Bu nedenle Formula modu ilk kez açılırken internet bağlantısı gerekir. Modül ilk başarılı yüklemeden sonra service worker tarafından cache'e alınabilir.
+
+────────────────────────────────────────
+A. EN GÜVENLİ KURULUM — GITHUB DESKTOP
+────────────────────────────────────────
+
+Bu yöntem ilk kez kurulum yapacak kullanıcı için önerilir.
+
+1. YEDEK AL
+- Mevcut çalışan sitenin klasörünü bilgisayarında kopyala.
+- Kopyanın adını örneğin şu şekilde değiştir:
+  fifa9-tournament-hub-BACKUP-BEFORE-V45
+
+2. GITHUB DESKTOP'I AÇ
+- GitHub Desktop yüklü değilse resmî GitHub Desktop uygulamasını kur.
+- GitHub hesabınla giriş yap.
+
+3. REPOSITORY'Yİ KLONLA
+- File → Clone repository
+- Repository listesinden fifa9-tournament-hub repository'sini seç.
+- Local Path alanında bilgisayarındaki kayıt yerini seç.
+- Clone'a bas.
+
+4. V45 DOSYALARINI HAZIRLA
+İki paket vardır:
+- FULL_REPOSITORY: tüm sitenin V45 uygulanmış tam hâli
+- UPLOAD_ONLY: yalnızca değişen/yeni dosyalar
+
+İlk kurulum için FULL_REPOSITORY paketi daha kolaydır.
+- ZIP'i indir.
+- Sağ tık → Tümünü Ayıkla / Extract All.
+- Ayıklanan klasörün içindeki TÜM dosya ve klasörleri seç.
+
+5. YEREL GITHUB KLASÖRÜNE KOPYALA
+- GitHub Desktop'ta Repository → Show in Explorer seç.
+- V45 tam repository içeriğini bu klasörün içine kopyala.
+- Windows “dosyalar değiştirilsin mi?” diye sorarsa Replace/Değiştir seç.
+- .git klasörünü silme. V45 ZIP'inde .git yoktur; mevcut yerel clone içindeki .git kalmalıdır.
+
+6. DEĞİŞİKLİKLERİ KONTROL ET
+GitHub Desktop'a dön.
+Changes bölümünde özellikle şunları görmelisin:
+- index.html
+- app.js
+- fifa9-experience-hub.js
+- service-worker.js
+- formula-reborn/ klasörü
+- supabase/formula_v45_reborn.sql
+
+7. COMMIT YAP
+Summary alanına şunu yaz:
+Install Formula Horizon Reborn V45.0.0 Phase 1
+
+Description isteğe bağlı:
+Three.js WebGL engine, 3 masterpiece circuits, braking physics, personal ghost and global records foundation.
+
+Commit to main düğmesine bas.
+
+8. GITHUB'A GÖNDER
+Push origin düğmesine bas.
+Push tamamlanmadan GitHub Desktop'ı kapatma.
+
+────────────────────────────────────────
+B. UPLOAD-ONLY PAKETİYLE KURULUM
+────────────────────────────────────────
+
+Bu yöntem yalnızca mevcut repository'yi yerelde zaten klonladıysan uygundur.
+
+1. UPLOAD_ONLY ZIP'ini ayıkla.
+2. İçindeki dosya ve klasör yapısını bozmadan yerel repository'nin köküne kopyala.
+3. Replace/Değiştir seç.
+4. GitHub Desktop'tan commit ve push yap.
+
+ZIP DOSYASINI GITHUB'A TEK DOSYA OLARAK YÜKLEME.
+GitHub ZIP'i otomatik açmaz; site ZIP dosyasının içindeki kodu çalıştırmaz.
+
+────────────────────────────────────────
+C. VERCEL DEPLOYMENT
+────────────────────────────────────────
+
+1. GitHub push tamamlanınca Vercel'i aç.
+2. İlgili projeyi seç.
+3. Deployments sekmesine gir.
+4. Yeni commit için deployment başlamalı.
+5. Durum Ready ve Environment Production olana kadar bekle.
+6. Build sistemi olmayan statik yapı korunmuştur; özel build komutu gerekmez.
+
+────────────────────────────────────────
+D. SUPABASE GLOBAL SIRALAMA KURULUMU
+────────────────────────────────────────
+
+Global kayıtların çalışması için bir kez yapılır.
+
+1. Pakette şu dosyayı bul:
+   supabase/formula_v45_reborn.sql
+2. Supabase projenin Dashboard'una gir.
+3. Sol menü → SQL Editor.
+4. New query seç.
+5. SQL dosyasını Not Defteri veya VS Code ile aç.
+6. Tamamını seç: Ctrl+A.
+7. Kopyala: Ctrl+C.
+8. Supabase SQL Editor'a yapıştır: Ctrl+V.
+9. Run düğmesine bas.
+10. Hata oluşmazsa global Formula altyapısı hazırdır.
+
+SQL tekrar çalıştırılabilir şekilde hazırlanmıştır. FIFA turnuva tablolarını silmez veya değiştirmez.
+
+Oluşturulan temel yapılar:
+- formula_v45_sessions
+- formula_v45_records
+- formula_v45_sector_records
+- formula_v45_ghosts
+- formula_v45_track_stats
+- formula_v45_start_session
+- formula_v45_submit_session
+- formula_v45_get_leaderboard
+- formula_v45_get_personal_records
+- formula_v45_get_ghost_metadata
+
+SQL kurulmazsa oyun yine açılır ve kişisel sonuçlar cihazda saklanır; global liste bulut üzerinden çalışmaz.
+
+────────────────────────────────────────
+E. TARAYICI CACHE TEMİZLİĞİ
+────────────────────────────────────────
+
+Deployment Ready olduktan sonra:
+
+1. Siteyi Chrome'da aç.
+2. F12 bas.
+3. Application sekmesini aç.
+4. Sol tarafta Service Workers seç.
+5. Unregister düğmesine bas.
+6. Sol tarafta Storage seç.
+7. Clear site data düğmesine bas.
+8. Siteye ait bütün sekmeleri kapat.
+9. Siteyi tekrar aç.
+10. Ctrl+Shift+R yap.
+
+Beklenen görünür sürüm:
+Tournament Universe · V45.0.0 · Formula Horizon Reborn Phase 1
+
+────────────────────────────────────────
+F. İLK OYUN TESTİ
+────────────────────────────────────────
+
+İlk test ayarları:
+- Pist: Oruç Reis Coastal Circuit
+- Kamera: Chase
+- ABS: On
+- Traction Control: Medium
+- Steering Assist: Low
+- Brake Assist: Off
+- Camera Shake: Low
+- Quality: Auto
+- Ghost: No Ghost (ilk deneme)
+
+PC kontrolleri:
+- W / Yukarı: Gaz
+- S / Aşağı: Fren
+- A-D / Sol-Sağ: Direksiyon
+- C: Kamera değiştir
+- R: Kontrollü reset; mevcut turu geçersiz yapar
+- Esc: Duraklat
+
+İlk kabul testi:
+1. Bir denemede özellikle Gun Deck Hairpin'e tam gaz gir.
+2. Araç çizgiyi tutamamalı, dışarı açılmalı veya pist limitini aşmalı.
+3. Sonraki denemede düzlük sonunda güçlü fren yap.
+4. Frenle, dön, apex'i yakala, direksiyonu aç ve gaza çık.
+5. Doğru frenlenen turun daha temiz ve rekabetçi olması gerekir.
+
+Filyos testi:
+- Crane Chicane, Harbour Wall 90 ve Dockside Hairpin'de tekrar tekrar fren gerekmelidir.
+- Tam gaz geçerli ve rekabetçi tur mümkün olmamalıdır.
+
+Dragon testi:
+- Ashfall Hairpins ve Volcano Descent frenleme ister.
+- Yükselti ve iniş kamera ile gerçek 3D dünyada görülmelidir.
+
+────────────────────────────────────────
+G. KİŞİSEL GHOST TESTİ
+────────────────────────────────────────
+
+1. Önce geçerli bir 5 turluk oturum tamamla.
+2. Sonuç ekranında kişisel en iyi tur kaydedilir.
+3. Challenge Hub'a dön.
+4. Ghost ayarını Personal Best yap.
+5. İkinci oturumu başlat.
+6. Yarı saydam ghost araç kendi en iyi turunu tekrar oynamalıdır.
+7. Ghost çarpışma oluşturmaz.
+
+────────────────────────────────────────
+H. GLOBAL RECORDS TESTİ
+────────────────────────────────────────
+
+1. Supabase SQL'in çalıştırılmış olması gerekir.
+2. 5 turun tamamını bitir.
+3. Sonuç ekranında bulut gönderim sonucu görünmelidir.
+4. Global Records bölümünü aç.
+5. Fastest Clean Lap ve Five-Lap Total listelerini ayrı kontrol et.
+6. Daha yavaş yeni sonuç önceki daha iyi rekoru silmemelidir.
+
+────────────────────────────────────────
+I. BİR SORUN OLURSA İLK KONTROLLER
+────────────────────────────────────────
+
+Formula sayfası açılmıyor:
+- İnternet bağlantısını kontrol et.
+- F12 → Console ekranındaki ilk kırmızı hatayı kaydet.
+- Network sekmesinde three.module.min.js isteğini kontrol et.
+- Service worker cache temizliğini yeniden yap.
+
+Siyah ekran:
+- Chrome/Edge donanım hızlandırmasını kontrol et.
+- WebGL destekli tarayıcı kullan.
+- Quality ayarını Performance yap.
+
+Global listeler çalışmıyor:
+- Supabase SQL dosyasının eksiksiz çalıştırıldığını kontrol et.
+- cloud-config.js içindeki Supabase URL/key ayarlarının mevcut sitede çalıştığını doğrula.
+- F12 Console'daki RPC hata mesajını kaydet.
+
+FIFA veya Manager sayfaları bozulursa:
+- Formula dışındaki ana sistemler yeniden yazılmamıştır.
+- Önce eski cache'i temizle.
+- Sorun devam ederse yedek repository'ye dön ve GitHub commit farklarını kontrol et.

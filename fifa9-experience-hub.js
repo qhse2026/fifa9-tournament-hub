@@ -31,7 +31,7 @@
     alltime:["FIFA 9","Arşiv & Yönetim","Tüm Zamanlar"],
     teams:["FIFA 9","Arşiv & Yönetim","Takım İstatistikleri"],
     backup:["FIFA 9","Arşiv & Yönetim","Veri & Yedek"],
-    formula1:["Tournament Universe","Formula Racing","PC + Mobile"]
+    formula1:["Tournament Universe","Formula Horizon Reborn","PC + Mobile"]
   };
 
   function setCluster(name, open, remember = true) {

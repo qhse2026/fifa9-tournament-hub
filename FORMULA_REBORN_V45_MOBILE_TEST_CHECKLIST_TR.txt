@@ -1,0 +1,46 @@
+FORMULA HORIZON REBORN V45.0.0 — MOBILE TEST CHECKLIST
+
+Cihaz/tarayıcı:
+[ ] Güncel Android Chrome
+[ ] Telefon yatay konumda
+[ ] Ekran döndürme sonrası canvas yeniden boyutlanıyor
+
+Açılış:
+[ ] Formula Hub telefonda okunuyor
+[ ] Pist kartları taşmıyor
+[ ] Ayarlar dokunmatik seçilebiliyor
+[ ] WebGL yoksa anlaşılır hata gösteriliyor
+
+Kontroller:
+[ ] Gaz ve direksiyon aynı anda çalışıyor
+[ ] Fren ve direksiyon aynı anda çalışıyor
+[ ] Pointer basılı tutulduğu sürece input devam ediyor
+[ ] Parmağı kaldırınca input bırakılıyor
+[ ] Tarayıcı sayfası yarış sırasında kaymıyor
+[ ] Pause düğmesi erişilebilir
+[ ] Kamera düğmesi erişilebilir
+[ ] Kontroller apex/frenleme görüşünü kapatmıyor
+
+Sürüş:
+[ ] Filyos'ta fren zorunlu
+[ ] Oruç Reis hairpin tam gaz geçilemiyor
+[ ] Dragon hairpinleri fren istiyor
+[ ] Çim ve bariyer sonucu masaüstüyle tutarlı
+[ ] Track-limit geri bildirimi okunuyor
+
+HUD:
+[ ] Kritik yazılar en az okunabilir boyutta
+[ ] Tur, süre, sektör, hız ve validity görünür
+[ ] HUD ana sürüş alanını kapatmıyor
+[ ] Mini-map/kritik kartlar mobil sadeleştirmeye uyuyor
+
+Performans:
+[ ] Auto kalite uygun profil seçiyor
+[ ] Performance profilinde minimum 30 FPS hedefleniyor
+[ ] Cihaz aşırı ısınmadan 5 tur tamamlanabiliyor
+[ ] Formula'dan çıkınca ses ve GPU yükü duruyor
+
+Cloud:
+[ ] Mobil sonuç gönderiliyor
+[ ] Platform mobile ve control touch kaydoluyor
+[ ] Global filtrelerde mobil kayıt görülebiliyor

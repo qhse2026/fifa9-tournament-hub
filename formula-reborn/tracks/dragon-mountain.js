@@ -1,0 +1,63 @@
+import { point } from "./track-schema.js";
+
+export const DRAGON_MOUNTAIN = Object.freeze({
+  id: "dragon-mountain",
+  version: "45.0.0-dmp-1",
+  name: "Dragon Mountain Pass",
+  shortName: "Dragon Mountain",
+  location: "Volcanic Summit",
+  category: "Mountain Endurance",
+  difficulty: 5,
+  width: 11.2,
+  runoff: 2.5,
+  laps: 5,
+  sectors: [0.32, 0.65, 1],
+  environment: "volcanic",
+  accent: "#ff6b3e",
+  sky: "#77372f",
+  fog: "#7e625d",
+  ground: "#251b1a",
+  surfaceGrip: 1.08,
+  description: "A high-elevation volcanic circuit with blind crests, repeated hairpins and heavy braking on the descent.",
+  drivingTips: [
+    "Brake earlier on the Volcano Descent.",
+    "Use second gear speed through the Ashfall hairpins.",
+    "Keep the car settled over Summit Crest."
+  ],
+  signatureSections: [
+    { name: "Fire Serpent Esses", start: 0.05, end: 0.22, type: "esses", targetSpeedKph: 155 },
+    { name: "Dragon Spine Climb", start: 0.22, end: 0.42, type: "climb", targetSpeedKph: 185 },
+    { name: "Ashfall Hairpins", start: 0.42, end: 0.66, type: "hairpins", targetSpeedKph: 58 },
+    { name: "Summit Crest", start: 0.66, end: 0.77, type: "crest", targetSpeedKph: 145 },
+    { name: "Volcano Descent", start: 0.77, end: 0.98, type: "descent", targetSpeedKph: 118 }
+  ],
+  brakeMarkers: [0.17, 0.405, 0.515, 0.61, 0.765, 0.885],
+  controlPoints: [
+    point(-40.0, 0.0, -50.0),
+    point(-70.8, 9.0, -84.7),
+    point(-14.1, 18.0, -94.1),
+    point(-42.3, 27.0, -149.5),
+    point(18.9, 36.0, -124.1),
+    point(19.6, 45.0, -182.8),
+    point(59.4, 54.0, -137.4),
+    point(87.5, 63.0, -193.9),
+    point(104.0, 72.0, -139.8),
+    point(155.2, 81.0, -173.4),
+    point(137.4, 90.0, -109.7),
+    point(194.0, 99.0, -115.1),
+    point(167.1, 108.0, -73.9),
+    point(220.0, 117.0, -50.0),
+    point(159.3, 108.0, -28.0),
+    point(195.7, 99.0, 16.0),
+    point(143.4, 90.0, 15.0),
+    point(154.1, 81.0, 71.8),
+    point(101.9, 72.0, 34.2),
+    point(86.9, 63.0, 89.0),
+    point(58.5, 54.0, 44.3),
+    point(18.6, 45.0, 85.6),
+    point(13.2, 36.0, 32.3),
+    point(-42.3, 27.0, 49.5),
+    point(-16.8, 18.0, -4.5),
+    point(-64.0, 9.0, -17.0)
+  ]
+});

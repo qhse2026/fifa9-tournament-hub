@@ -1,0 +1,103 @@
+FORMULA HORIZON REBORN V45.0.0 — BROWSER TEST CHECKLIST
+
+Test tarayıcıları:
+[ ] Güncel Google Chrome
+[ ] Güncel Microsoft Edge
+
+Kurulum:
+[ ] Deployment Ready / Production
+[ ] Service worker unregister edildi
+[ ] Site data temizlendi
+[ ] Görünen sürüm V45.0.0
+[ ] Console açılışında uncaught error yok
+
+Ana site regresyonu:
+[ ] FIFA Ana Merkezi açılıyor
+[ ] Manager's Room açılıyor
+[ ] Season Hub açılıyor
+[ ] Final Chapter açılıyor
+[ ] Formula'ya girip çıktıktan sonra diğer modlar açılıyor
+[ ] Formula'dan çıkarken ses duruyor
+[ ] Formula'dan çıkarken WebGL canvas kaldırılıyor
+
+WebGL:
+[ ] Formula Hub açılıyor
+[ ] Three.js modülü yükleniyor
+[ ] Siyah ekran yok
+[ ] Resize sonrası görüntü doğru
+[ ] Quality Auto çalışıyor
+[ ] Quality Performance çalışıyor
+[ ] Formula'dan tekrar girildiğinde duplicate canvas yok
+
+Oruç Reis:
+[ ] Helideck Straight yüksek hız veriyor
+[ ] Seismic Sweep lift/kontrol istiyor
+[ ] Gun Deck Hairpin ağır fren istiyor
+[ ] Tam gaz hairpin denemesi dışarı taşıyor/geçersiz oluyor
+[ ] Doğru frenleme daha hızlı ve temiz tur veriyor
+
+Filyos:
+[ ] Pist Oruç Reis'ten daha dar hissediliyor
+[ ] Crane Chicane fren istiyor
+[ ] Harbour Wall 90 fren istiyor
+[ ] Dockside Hairpin fren istiyor
+[ ] Bariyer teması hız ve handling kaybettiriyor
+[ ] Tam gaz rekabetçi geçerli tur mümkün değil
+
+Dragon:
+[ ] Elevation gerçek 3D görünür
+[ ] Fire Serpent Esses farklı karakterde
+[ ] Ashfall Hairpins fren istiyor
+[ ] Volcano Descent fren mesafesini yönetmeyi gerektiriyor
+[ ] Kamera kör tepe/inişte stabil
+
+Fizik:
+[ ] Düşük hızda araç anlamsız dönmüyor
+[ ] Yüksek hızda direksiyon etkisi sınırlı
+[ ] Çim tutuş ve hız kaybettiriyor
+[ ] Kerb aracı hafif dengesizleştiriyor
+[ ] Bariyer hasar ve süre kaybı oluşturuyor
+[ ] R reset mevcut turu geçersiz yapıyor
+[ ] ABS On/Off farkı hissediliyor
+[ ] TC Full/Medium/Off farkı hissediliyor
+
+Kamera:
+[ ] Chase stabil
+[ ] Close Chase stabil
+[ ] Nose/Cockpit Lite açılıyor
+[ ] C tuşu kamera değiştiriyor
+[ ] Horizon şiddetli kaymıyor
+[ ] Fren pitch hareketi sınırlı
+[ ] Kamera mide bulandıracak yatay sıçrama yapmıyor
+
+Timing:
+[ ] Countdown 3 saniye
+[ ] 3 sektör sırasıyla kaydediliyor
+[ ] Start/finish doğru
+[ ] Tam 5 tur gerekiyor
+[ ] Geçersiz tur fastest-lap listesine girmiyor
+[ ] Five-lap total doğru
+[ ] performance.now tabanlı timing FPS değişiminden etkilenmiyor
+
+Ghost:
+[ ] İlk geçerli kişisel tur kaydediliyor
+[ ] İkinci oturumda Personal Best Ghost görünüyor
+[ ] Ghost saydam
+[ ] Ghost çarpışma oluşturmuyor
+[ ] Ghost kapatılabiliyor
+
+Cloud:
+[ ] SQL migration çalıştırıldı
+[ ] Session start RPC başarılı
+[ ] Session submit RPC başarılı
+[ ] Fastest Lap leaderboard açılıyor
+[ ] Five-Lap Total leaderboard açılıyor
+[ ] Daha yavaş sonuç iyi rekoru bozmuyor
+[ ] Platform/control/assist metadata görünüyor
+[ ] Cloud yokken local fallback çalışıyor
+
+Performans:
+[ ] Masaüstünde normal yarışta hedefe yakın FPS
+[ ] Uzun oturumda bellek sürekli büyümüyor
+[ ] Formula'dan çıkıp tekrar girince performans düşmüyor
+[ ] Console'da WebGL resource warning yok

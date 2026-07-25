@@ -1,4 +1,4 @@
-const CACHE = "tournament-universe-v44-10-1-smooth-camera-minimap";
+const CACHE = "tournament-universe-v45-0-0-formula-reborn";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -6,10 +6,26 @@ const APP_SHELL = [
   "./fifa9-experience-hub.css",
   "./final-chapter-progression.css",
   "./app.js",
-  "./formula-racing-tracks.js",
-  "./formula-racing-engine.js",
-  "./formula-leaderboard.js",
-  "./formula-racing.js",
+  "./formula-reborn/formula-reborn-loader.js",
+  "./formula-reborn/formula-reborn.css",
+  "./formula-reborn/app/formula-reborn-app.js",
+  "./formula-reborn/app/race-session.js",
+  "./formula-reborn/engine/renderer.js",
+  "./formula-reborn/engine/game-loop.js",
+  "./formula-reborn/engine/vehicle-physics.js",
+  "./formula-reborn/engine/input-controller.js",
+  "./formula-reborn/engine/camera-controller.js",
+  "./formula-reborn/engine/lap-timing.js",
+  "./formula-reborn/engine/ghost-system.js",
+  "./formula-reborn/engine/audio-system.js",
+  "./formula-reborn/tracks/track-schema.js",
+  "./formula-reborn/tracks/track-builder.js",
+  "./formula-reborn/tracks/index.js",
+  "./formula-reborn/tracks/oruc-reis-coastal.js",
+  "./formula-reborn/tracks/filyos-harbour.js",
+  "./formula-reborn/tracks/dragon-mountain.js",
+  "./formula-reborn/cloud/leaderboard-service.js",
+  "./formula-reborn/cloud/session-validator.js",
   "./fifa9-experience-hub.js",
   "./season-hub.js",
   "./season-hub.css",
@@ -25,7 +41,6 @@ const APP_SHELL = [
   "./manager-room.css",
   "./manager-season-closure.css",
   "./all-time-elite.css",
-  "./formula-racing.css",
   "./me4-simulate.css",
   "./manager-friendly.css",
   "./manager-v42-4.css",
@@ -77,7 +92,7 @@ self.addEventListener("fetch", event => {
   event.respondWith(
     fetch(request)
       .then(response => {
-        if (response && response.ok && response.type === "basic") {
+        if (response && response.ok && (response.type === "basic" || response.type === "cors")) {
           const copy = response.clone();
           caches.open(CACHE).then(cache => cache.put(request, copy));
         }
