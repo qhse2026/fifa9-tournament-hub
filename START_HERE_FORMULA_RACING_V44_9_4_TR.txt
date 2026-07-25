@@ -1,0 +1,61 @@
+FORMULA RACING v44.9.4
+ALL-TIME 24 GRID
+
+ANA DEĞİŞİKLİK
+- Yarış alanı 12 araçtan 24 araca yükseltildi.
+- 1 insan oyuncu + 23 bağımsız AI rakip bulunur.
+- 24 pilot, Tüm Zamanlar tarihî sıralaması ve mevcut turnuva evrenindeki güçlü ek pilotlar kullanılarak oluşturuldu.
+- Şampiyona 24 pilot ve 12 takımdan oluşur.
+
+YARIŞ MOTORU
+- AI rakipler oyuncuyu beklemez ve oyuncunun hızına göre tempo değiştirmez.
+- 23 AI pilotun ayrı sabit pace ve consistency profili vardır.
+- Başlangıç grid aralığı 24 araçlık alan için yeniden kalibre edildi.
+- Canvas güncellemesi 24 araç için korunurken Timing Tower DOM yenilemesi performans amacıyla yaklaşık 5 Hz ile sınırlandırıldı.
+
+CANLI TIMING
+- Masaüstünde 24 pilot iki sütunda aynı anda gösterilir: P1-P12 ve P13-P24.
+- GAP: liderle zaman farkı.
+- INT: hemen öndeki pilotla zaman farkı.
+- Mobilde timing paneli kaydırılabilir ve oyuncu satırına otomatik odaklanır.
+- PIT, FIN, DNF, lastik, tur bindirme ve anlık aralıklar desteklenir.
+
+ŞAMPİYONA
+- 24 pilot.
+- 12 takım, takım başına 2 pilot.
+- 8 Grand Prix.
+- İlk 10 standart yarış puanı alır; diğer pilotlar deneyim ve pist uzmanlığı kazanmaya devam eder.
+- Mevcut 12 araçlık Formula şampiyonası tablosu, 24 araçlık tabloyla karışmaması için sıfırlanır.
+- Driver XP, Skill Points, araç R&D, kariyer kayıtları ve Track Mastery korunur.
+
+KURULUM
+ZIP içinden yalnızca aşağıdaki 6 dosyayı GitHub repository ana dizinine yükleyin:
+1. index.html
+2. service-worker.js
+3. formula-racing-tracks.js
+4. formula-racing-engine.js
+5. formula-racing.js
+6. formula-racing.css
+
+Commit mesajı:
+Install Formula All-Time 24 Grid v44.9.4
+
+VERCEL / CACHE
+Deployment Ready ve Production olduktan sonra:
+F12 > Application > Service Workers > Unregister
+Application > Storage > Clear site data
+
+Ardından açın:
+https://fifa9-tournament-hub.vercel.app/?formula24=v4494
+
+Ctrl + Shift + R yapın.
+
+BEKLENEN SÜRÜM
+Tournament Universe · v44.9.4 · All-Time 24 Grid
+
+HIZLI TEST
+- Hızlı Yarış başlatın.
+- Timing Tower içinde toplam 24 pilot görünmelidir.
+- Masaüstünde iki sütun, mobil yatay görünümde kaydırılabilir panel açılmalıdır.
+- Pilotlar Şampiyonası 24, Takımlar Şampiyonası 12 satır göstermelidir.
+- Bilerek yavaşlayın: AI araçları beklememeli ve zaman farkı açılmalıdır.

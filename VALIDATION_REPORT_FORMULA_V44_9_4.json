@@ -1,0 +1,142 @@
+{
+  "version": "v44.9.4",
+  "generatedAt": "2026-07-25T14:56:01.166168+00:00",
+  "status": "PASS",
+  "tests": {
+    "javascriptSyntax": true,
+    "raceEngineCars": 24,
+    "uniqueDriverNames": 24,
+    "aiRivals": 23,
+    "driverChampionshipRows": 24,
+    "constructorTeams": 12,
+    "uniqueTeamDriverSlots": 24,
+    "pointsArraySlots": 24,
+    "carColors": 24,
+    "timingColumns": 2,
+    "timingRefreshThrottleMs": 180,
+    "rubberBandDependencyOnPlayer": false,
+    "existingDriverProgressPreserved": true,
+    "legacy12CarChampionshipReset": true,
+    "tracks": 8
+  },
+  "uploadFiles": [
+    "index.html",
+    "service-worker.js",
+    "formula-racing-tracks.js",
+    "formula-racing-engine.js",
+    "formula-racing.js",
+    "formula-racing.css"
+  ],
+  "roster": [
+    "Çağlar Can Tatar",
+    "Kerim Özmen",
+    "Ercan Köseoğlu",
+    "Sultan Atasaral",
+    "Oğuzhan Dindar",
+    "Ersin Darıcı",
+    "Fırat Berk",
+    "Aziz Sarıoğlu",
+    "Sergei Smirnov",
+    "Denar Batuhan",
+    "Emre Çınar",
+    "Asen Sabuncu",
+    "Soyhan Belen",
+    "Emre Babaoğlu",
+    "Emrullah Gök",
+    "Abdülkadir Yıldız",
+    "Samet Nemli",
+    "Denar Mehmet",
+    "Şafak Denar",
+    "Ömer Gülhaş",
+    "Affan Volkan Akbal",
+    "Mohd Khairull Muzammil Bin Ramly",
+    "Denar Ilia Zelentsov",
+    "Denar Aleksandr Shulev"
+  ],
+  "teams": [
+    {
+      "name": "Dragon Racing",
+      "drivers": [
+        "Çağlar Can Tatar",
+        "Denar Aleksandr Shulev"
+      ]
+    },
+    {
+      "name": "Iron Motorsport",
+      "drivers": [
+        "Kerim Özmen",
+        "Ömer Gülhaş"
+      ]
+    },
+    {
+      "name": "Oruç Performance",
+      "drivers": [
+        "Ercan Köseoğlu",
+        "Şafak Denar"
+      ]
+    },
+    {
+      "name": "Storm GP",
+      "drivers": [
+        "Sultan Atasaral",
+        "Samet Nemli"
+      ]
+    },
+    {
+      "name": "Black Sea Racing",
+      "drivers": [
+        "Oğuzhan Dindar",
+        "Abdülkadir Yıldız"
+      ]
+    },
+    {
+      "name": "Champion Works",
+      "drivers": [
+        "Ersin Darıcı",
+        "Emrullah Gök"
+      ]
+    },
+    {
+      "name": "Anatolian Velocity",
+      "drivers": [
+        "Fırat Berk",
+        "Emre Babaoğlu"
+      ]
+    },
+    {
+      "name": "Bosphorus Motorsport",
+      "drivers": [
+        "Aziz Sarıoğlu",
+        "Soyhan Belen"
+      ]
+    },
+    {
+      "name": "Mediterranean GP",
+      "drivers": [
+        "Sergei Smirnov",
+        "Asen Sabuncu"
+      ]
+    },
+    {
+      "name": "Filyos Racing",
+      "drivers": [
+        "Denar Batuhan",
+        "Emre Çınar"
+      ]
+    },
+    {
+      "name": "Legacy Dynamics",
+      "drivers": [
+        "Affan Volkan Akbal",
+        "Denar Ilia Zelentsov"
+      ]
+    },
+    {
+      "name": "Apex Legends Racing",
+      "drivers": [
+        "Mohd Khairull Muzammil Bin Ramly",
+        "Denar Mehmet"
+      ]
+    }
+  ]
+}

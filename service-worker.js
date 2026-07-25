@@ -1,4 +1,4 @@
-const CACHE = "tournament-universe-v44-9-3-circuit-live-timing";
+const CACHE = "tournament-universe-v44-9-4-all-time-24-grid";
 const APP_SHELL = [
   "./",
   "./index.html",

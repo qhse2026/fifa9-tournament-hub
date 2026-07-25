@@ -2,16 +2,23 @@
   "use strict";
 
   const STORAGE_KEY = "fifa9_formula_racing_v4490";
-  const VERSION = 4;
-  const POINTS = [25,18,15,12,10,8,6,4,2,1,0,0];
-  const DRIVER_IDS = ["player", ...Array.from({length:11}, (_, index) => `ai-${index + 1}`)];
+  const VERSION = 5;
+  const ROSTER_SIZE = 24;
+  const POINTS = [25,18,15,12,10,8,6,4,2,1, ...Array(14).fill(0)];
+  const DRIVER_IDS = ["player", ...Array.from({length:23}, (_, index) => `ai-${index + 1}`)];
   const TEAM_DEFINITIONS = [
-    { id:"dragon", name:"Dragon Racing", color:"#ef4444", drivers:["player","ai-1"] },
-    { id:"iron", name:"Iron Motorsport", color:"#94a3b8", drivers:["ai-2","ai-3"] },
-    { id:"oruc", name:"Oruç Performance", color:"#f4c75e", drivers:["ai-4","ai-5"] },
-    { id:"storm", name:"Storm GP", color:"#38bdf8", drivers:["ai-6","ai-7"] },
-    { id:"blacksea", name:"Black Sea Racing", color:"#14b8a6", drivers:["ai-8","ai-9"] },
-    { id:"champion", name:"Champion Works", color:"#a78bfa", drivers:["ai-10","ai-11"] }
+    { id:"dragon", name:"Dragon Racing", color:"#ef4444", drivers:["player","ai-23"] },
+    { id:"iron", name:"Iron Motorsport", color:"#94a3b8", drivers:["ai-1","ai-19"] },
+    { id:"oruc", name:"Oruç Performance", color:"#f4c75e", drivers:["ai-2","ai-18"] },
+    { id:"storm", name:"Storm GP", color:"#38bdf8", drivers:["ai-3","ai-16"] },
+    { id:"blacksea", name:"Black Sea Racing", color:"#14b8a6", drivers:["ai-4","ai-15"] },
+    { id:"champion", name:"Champion Works", color:"#a78bfa", drivers:["ai-5","ai-14"] },
+    { id:"anatolian", name:"Anatolian Velocity", color:"#f97316", drivers:["ai-6","ai-13"] },
+    { id:"bosphorus", name:"Bosphorus Motorsport", color:"#06b6d4", drivers:["ai-7","ai-12"] },
+    { id:"mediterranean", name:"Mediterranean GP", color:"#e879f9", drivers:["ai-8","ai-11"] },
+    { id:"filyos", name:"Filyos Racing", color:"#84cc16", drivers:["ai-9","ai-10"] },
+    { id:"legacy", name:"Legacy Dynamics", color:"#fb7185", drivers:["ai-20","ai-22"] },
+    { id:"apex", name:"Apex Legends Racing", color:"#818cf8", drivers:["ai-21","ai-17"] }
   ];
 
   const DEFAULT_STATE = {
@@ -29,7 +36,7 @@
     mastery:{},
     records:{},
     championship:{
-      season:1, roundIndex:0, calendar:[], driverPoints:{}, results:[],
+      season:1, rosterSize:ROSTER_SIZE, roundIndex:0, calendar:[], driverPoints:{}, results:[],
       weekend:null, completed:false, championId:null, lastResult:null
     }
   };
@@ -42,6 +49,8 @@
   let selectedTab = "weekend";
   let currentRaceContext = null;
   let eventFeed = [];
+  let lastTimingRenderAt = 0;
+  let lastTimingPlayerRank = 0;
 
   const esc = value => String(value ?? "").replace(/[&<>'"]/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[char]));
   const clone = value => JSON.parse(JSON.stringify(value));
@@ -96,7 +105,14 @@
   }
 
   function aiNames() {
-    return window.F1_RACE_ENGINE?.AI_NAMES || ["Kerim","Oğuzhan","Ercan","Aziz","Sultan","Ersin","Asen","Affan","Sergei","Emre","Denar"];
+    return window.F1_RACE_ENGINE?.AI_NAMES || [
+      "Kerim Özmen", "Ercan Köseoğlu", "Sultan Atasaral", "Oğuzhan Dindar",
+      "Ersin Darıcı", "Fırat Berk", "Aziz Sarıoğlu", "Sergei Smirnov",
+      "Denar Batuhan", "Emre Çınar", "Asen Sabuncu", "Soyhan Belen",
+      "Emre Babaoğlu", "Emrullah Gök", "Abdülkadir Yıldız", "Samet Nemli",
+      "Denar Mehmet", "Şafak Denar", "Ömer Gülhaş", "Affan Volkan Akbal",
+      "Mohd Khairull Muzammil Bin Ramly", "Denar Ilia Zelentsov", "Denar Aleksandr Shulev"
+    ];
   }
 
   function driverName(id) {
@@ -155,6 +171,17 @@
   function ensureChampionship() {
     const championship = state.championship;
     const tracks = window.F1_TRACKS.TRACKS.map(track => track.id);
+    // v44.9.4 migration: preserve career XP, R&D and mastery, but never mix a 12-car season table with the 24-car grid.
+    if (Number(championship.rosterSize || 0) !== ROSTER_SIZE) {
+      championship.rosterSize = ROSTER_SIZE;
+      championship.roundIndex = 0;
+      championship.driverPoints = {};
+      championship.results = [];
+      championship.weekend = null;
+      championship.completed = false;
+      championship.championId = null;
+      championship.lastResult = null;
+    }
     if (!Array.isArray(championship.calendar) || championship.calendar.length !== tracks.length) championship.calendar = [...tracks];
     if (!championship.driverPoints || typeof championship.driverPoints !== "object") championship.driverPoints = {};
     DRIVER_IDS.forEach(id => { if (!Number.isFinite(Number(championship.driverPoints[id]))) championship.driverPoints[id] = 0; });
@@ -443,13 +470,13 @@
   function dashboardCard() {
     ensureChampionship();
     const round = currentRound();
-    return `<section class="f1-dashboard-promo"><div class="f1-dashboard-copy"><span>PLAYABLE GRAND PRIX EXPERIENCE</span><h3>Formula Racing</h3><p>PC klavyesi veya mobil dokunmatik kontrollerle yarış; hasar, Safety Car, VSC, pist limitleri, cezalar, pit onarımı ve 8 yarışlık şampiyona.</p><div><button class="btn btn-gold" data-nav="formula1">Formula Racing'i Aç</button><b>${round?`NEXT · ${esc(round.track.name)}`:"SEASON COMPLETE"}</b></div></div><div class="f1-dashboard-car"><i></i><strong>${championshipRank()}</strong><span>CHAMPIONSHIP POSITION</span></div></section>`;
+    return `<section class="f1-dashboard-promo"><div class="f1-dashboard-copy"><span>PLAYABLE GRAND PRIX EXPERIENCE</span><h3>Formula Racing</h3><p>PC veya mobilde Tüm Zamanların 24 pilotuna karşı yarış; hasar, Safety Car, VSC, pist limitleri, cezalar, pit onarımı ve 8 yarışlık şampiyona.</p><div><button class="btn btn-gold" data-nav="formula1">Formula Racing'i Aç</button><b>${round?`NEXT · ${esc(round.track.name)}`:"SEASON COMPLETE"}</b></div></div><div class="f1-dashboard-car"><i></i><strong>${championshipRank()}</strong><span>CHAMPIONSHIP POSITION</span></div></section>`;
   }
 
   function heroMarkup() {
     ensureChampionship();
     const round = currentRound();
-    return `<section class="f1-hero f1-gp-hero"><div class="f1-hero-copy"><span>FORMULA RACING · CIRCUIT IDENTITY & LIVE TIMING</span><h2>Race.<br><em>No one waits.</em></h2><p>Bağımsız AI temposu, sekiz özgün pist kimliği, 12 pilot için kesintisiz canlı zaman farkları, Safety Car, hasar, pit-stop ve dinamik yarış kontrolü.</p><div class="f1-hero-actions">${round?`<button class="btn btn-gold" data-f1-action="tab" data-tab="weekend">Grand Prix Weekend</button>`:`<button class="btn btn-gold" data-f1-action="new-championship">Yeni Sezonu Başlat</button>`}<button class="btn btn-ghost" data-f1-action="quick-start">Hızlı Yarış</button><button class="btn btn-ghost" data-f1-action="open-controls">Kontroller</button></div></div><aside class="f1-driver-card"><span>DRIVER PROFILE</span><h3>${esc(playerName())}</h3><div class="f1-driver-level"><strong>${state.driver.level}</strong><small>LEVEL</small></div><div class="f1-xp"><i><b style="width:${levelProgress()}%"></b></i><span>${state.driver.xp} / ${xpForNext(state.driver.level)} XP</span></div><div class="f1-driver-kpis"><div><b>${state.driver.rating}</b><small>RATING</small></div><div><b>P${championshipRank()}</b><small>CHAMPIONSHIP</small></div><div><b>${state.driver.dnfs || 0}</b><small>DNF</small></div></div></aside></section>`;
+    return `<section class="f1-hero f1-gp-hero"><div class="f1-hero-copy"><span>FORMULA RACING · ALL-TIME 24 GRID</span><h2>Race.<br><em>No one waits.</em></h2><p>Bağımsız AI temposu, sekiz özgün pist kimliği, 24 pilot için kesintisiz canlı GAP/INT zaman farkları, Safety Car, hasar, pit-stop ve dinamik yarış kontrolü.</p><div class="f1-hero-actions">${round?`<button class="btn btn-gold" data-f1-action="tab" data-tab="weekend">Grand Prix Weekend</button>`:`<button class="btn btn-gold" data-f1-action="new-championship">Yeni Sezonu Başlat</button>`}<button class="btn btn-ghost" data-f1-action="quick-start">Hızlı Yarış</button><button class="btn btn-ghost" data-f1-action="open-controls">Kontroller</button></div></div><aside class="f1-driver-card"><span>DRIVER PROFILE</span><h3>${esc(playerName())}</h3><div class="f1-driver-level"><strong>${state.driver.level}</strong><small>LEVEL</small></div><div class="f1-xp"><i><b style="width:${levelProgress()}%"></b></i><span>${state.driver.xp} / ${xpForNext(state.driver.level)} XP</span></div><div class="f1-driver-kpis"><div><b>${state.driver.rating}</b><small>RATING</small></div><div><b>P${championshipRank()}</b><small>CHAMPIONSHIP</small></div><div><b>${state.driver.dnfs || 0}</b><small>DNF</small></div></div></aside></section>`;
   }
 
   function navigationMarkup() {
@@ -463,7 +490,7 @@
 
   function qualifyingMarkup(weekend) {
     const playerPosition = weekend.qualifyingComplete ? weekend.gridOrder.indexOf("player") + 1 : null;
-    return `<section class="f1-weekend-step ${weekend.qualifyingComplete?"complete":weekend.practiceComplete?"active":"locked"}"><header><div><span>SESSION 2</span><h3>Qualifying</h3><p>Driver Qualifying, araç performansı, pist uzmanlığı ve hava tahminiyle grid oluşturulur.</p></div><b>${weekend.qualifyingComplete?`P${playerPosition}`:weekend.practiceComplete?"READY":"LOCKED"}</b></header>${weekend.qualifyingComplete?`<div class="f1-qualifying-table">${weekend.qualifying.slice(0,12).map((row,index)=>`<div class="${row.id==="player"?"player":""}"><span>${index+1}</span><i style="background:${row.team.color}"></i><strong>${esc(row.name)}</strong><small>${esc(row.team.name)}</small><b>${formatTime(row.time)}</b></div>`).join("")}</div>`:`<div class="f1-session-placeholder"><strong>${weekend.practiceComplete?"Sıralama simülasyonu hazır":"Önce practice programını tamamla"}</strong><small>${weekend.weather.toUpperCase()} hava tahmini</small></div>`}${weekend.practiceComplete&&!weekend.qualifyingComplete?`<button class="btn btn-gold" data-f1-action="qualifying">Sıralamayı Başlat</button>`:""}</section>`;
+    return `<section class="f1-weekend-step ${weekend.qualifyingComplete?"complete":weekend.practiceComplete?"active":"locked"}"><header><div><span>SESSION 2</span><h3>Qualifying</h3><p>Driver Qualifying, araç performansı, pist uzmanlığı ve hava tahminiyle grid oluşturulur.</p></div><b>${weekend.qualifyingComplete?`P${playerPosition}`:weekend.practiceComplete?"READY":"LOCKED"}</b></header>${weekend.qualifyingComplete?`<div class="f1-qualifying-table">${weekend.qualifying.slice(0,24).map((row,index)=>`<div class="${row.id==="player"?"player":""}"><span>${index+1}</span><i style="background:${row.team.color}"></i><strong>${esc(row.name)}</strong><small>${esc(row.team.name)}</small><b>${formatTime(row.time)}</b></div>`).join("")}</div>`:`<div class="f1-session-placeholder"><strong>${weekend.practiceComplete?"Sıralama simülasyonu hazır":"Önce practice programını tamamla"}</strong><small>${weekend.weather.toUpperCase()} hava tahmini</small></div>`}${weekend.practiceComplete&&!weekend.qualifyingComplete?`<button class="btn btn-gold" data-f1-action="qualifying">Sıralamayı Başlat</button>`:""}</section>`;
   }
 
   function strategyMarkup(weekend) {
@@ -488,7 +515,7 @@
     const drivers = championshipStandings();
     const teams = constructorStandings();
     const tracks = state.championship.calendar.map((id,index)=>({track:window.F1_TRACKS.getTrack(id),index,result:state.championship.results.find(row=>row.round===index+1)}));
-    return `<section class="f1-championship-head"><div><span>SEASON ${state.championship.season}</span><h2>Formula Racing Championship</h2><p>8 Grand Prix · 12 pilot · 6 takım</p></div><aside><strong>${state.championship.completed?"FINAL":`${state.championship.roundIndex}/${state.championship.calendar.length}`}</strong><small>SEASON PROGRESS</small></aside></section><section class="f1-championship-grid"><article class="f1-panel"><header><div><span>DRIVERS</span><h3>Pilotlar Şampiyonası</h3></div></header><div class="f1-champ-table">${drivers.map((row,index)=>`<div class="${row.id==="player"?"player":""}"><span>${index+1}</span><i style="background:${row.team.color}"></i><strong>${esc(row.name)}</strong><small>${esc(row.team.name)} · ${row.wins} W</small><b>${row.points}</b></div>`).join("")}</div></article><article class="f1-panel"><header><div><span>CONSTRUCTORS</span><h3>Takımlar Şampiyonası</h3></div></header><div class="f1-team-table">${teams.map((team,index)=>`<div><span>${index+1}</span><i style="background:${team.color}"></i><strong>${esc(team.name)}</strong><small>${team.drivers.map(driverName).join(" · ")}</small><b>${team.points}</b></div>`).join("")}</div></article></section><section class="f1-panel f1-calendar"><header><div><span>CALENDAR</span><h3>Sezon Takvimi</h3></div></header><div>${tracks.map(row=>`<article class="${row.result?"complete":row.index===state.championship.roundIndex?"active":""}"><span>R${row.index+1}</span><strong>${esc(row.track.name)}</strong><small>${row.result?`${row.result.retired?"DNF":`P${row.result.playerRank}`} · ${row.result.weather.toUpperCase()}${row.result.penaltySeconds?` · +${row.result.penaltySeconds}s`:""}`:row.index===state.championship.roundIndex?"NEXT GRAND PRIX":"UPCOMING"}</small><b>${row.result?`${row.result.retired?0:(POINTS[row.result.playerRank-1]||0)} PTS`:row.track.country}</b></article>`).join("")}</div></section>`;
+    return `<section class="f1-championship-head"><div><span>SEASON ${state.championship.season}</span><h2>Formula Racing Championship</h2><p>8 Grand Prix · 24 pilot · 12 takım</p></div><aside><strong>${state.championship.completed?"FINAL":`${state.championship.roundIndex}/${state.championship.calendar.length}`}</strong><small>SEASON PROGRESS</small></aside></section><section class="f1-championship-grid"><article class="f1-panel"><header><div><span>DRIVERS</span><h3>Pilotlar Şampiyonası</h3></div></header><div class="f1-champ-table">${drivers.map((row,index)=>`<div class="${row.id==="player"?"player":""}"><span>${index+1}</span><i style="background:${row.team.color}"></i><strong>${esc(row.name)}</strong><small>${esc(row.team.name)} · ${row.wins} W</small><b>${row.points}</b></div>`).join("")}</div></article><article class="f1-panel"><header><div><span>CONSTRUCTORS</span><h3>Takımlar Şampiyonası</h3></div></header><div class="f1-team-table">${teams.map((team,index)=>`<div><span>${index+1}</span><i style="background:${team.color}"></i><strong>${esc(team.name)}</strong><small>${team.drivers.map(driverName).join(" · ")}</small><b>${team.points}</b></div>`).join("")}</div></article></section><section class="f1-panel f1-calendar"><header><div><span>CALENDAR</span><h3>Sezon Takvimi</h3></div></header><div>${tracks.map(row=>`<article class="${row.result?"complete":row.index===state.championship.roundIndex?"active":""}"><span>R${row.index+1}</span><strong>${esc(row.track.name)}</strong><small>${row.result?`${row.result.retired?"DNF":`P${row.result.playerRank}`} · ${row.result.weather.toUpperCase()}${row.result.penaltySeconds?` · +${row.result.penaltySeconds}s`:""}`:row.index===state.championship.roundIndex?"NEXT GRAND PRIX":"UPCOMING"}</small><b>${row.result?`${row.result.retired?0:(POINTS[row.result.playerRank-1]||0)} PTS`:row.track.country}</b></article>`).join("")}</div></section>`;
   }
 
   function developmentMarkup() {
@@ -521,7 +548,7 @@
   function raceMarkup(context) {
     const startTyre = compound(context.startingCompound);
     const pitTyre = compound(context.pitCompound);
-    return `<section class="f1-race-view"><canvas id="f1RaceCanvas" aria-label="Formula Racing oyun alanı"></canvas><div class="f1-race-topbar"><div class="f1-race-brand"><span>FR</span><div><strong>FORMULA RACING</strong><small id="f1TrackName">—</small></div></div><div class="f1-race-session"><div><b id="f1Lap">LAP 1 / ${context.laps}</b><strong id="f1Position">P12</strong><span id="f1Time">0:00.00</span></div><div class="f1-live-gaps"><small id="f1GapAhead">AHEAD —</small><small id="f1GapBehind">BEHIND —</small></div></div><div class="f1-race-actions"><button data-f1-action="pause">Ⅱ</button><button data-f1-action="fullscreen">⛶</button><button data-f1-action="exit">×</button></div></div><div class="f1-race-control-status green" id="f1RaceControlStatus"><strong id="f1Flag">GREEN FLAG</strong><small id="f1ControlReason">TRACK CLEAR</small></div><aside class="f1-live-standings" id="f1Standings"></aside><aside class="f1-event-feed" id="f1EventFeed"><header>RACE CONTROL</header></aside><div class="f1-telemetry f1-telemetry-v3"><div><span>SPEED</span><strong id="f1Speed">0</strong><small>KM/H</small></div><div><span>TYRE</span><strong id="f1Tyre" style="color:${startTyre.color}">${startTyre.label}</strong><small id="f1TyreWear">0% WEAR</small></div><div><span>CAR HEALTH</span><i><b id="f1CarHealthBar" style="width:100%"></b></i><strong id="f1Damage">100%</strong></div><div><span>RACE CONTROL</span><strong id="f1FlagMini">GREEN</strong><small id="f1Penalty">0s PENALTY</small></div><div><span>ERS</span><i><b id="f1ErsBar" style="width:100%"></b></i><strong id="f1Ers">100%</strong></div><div><span>WEATHER</span><strong id="f1Weather">${context.weather.toUpperCase()}</strong><small id="f1Wetness">0% WET</small></div><div><span>DRS</span><strong id="f1Drs">LOCKED</strong><small>SHIFT / DRS</small></div><div><span>BEST LAP</span><strong id="f1BestLap">—</strong><small id="f1PitStatus">PIT: ${pitTyre.label}</small></div></div><div class="f1-drive-mode-selector"><span>DRIVE MODE</span><button class="${context.drivingMode==="conserve"?"active":""}" data-f1-action="drive-mode" data-mode="conserve">1 · CONSERVE</button><button class="${context.drivingMode==="balanced"?"active":""}" data-f1-action="drive-mode" data-mode="balanced">2 · BALANCED</button><button class="${context.drivingMode==="attack"?"active":""}" data-f1-action="drive-mode" data-mode="attack">3 · ATTACK</button></div><div class="f1-pit-selector"><span>NEXT PIT TYRE</span>${Object.values(compounds()).map(item=>`<button class="${context.pitCompound===item.id?"active":""}" data-f1-action="pit-compound" data-compound="${item.id}" style="--compound:${item.color}">${item.label}</button>`).join("")}</div><div class="f1-mobile-controls" aria-label="Mobil yarış kontrolleri"><div class="f1-steer-controls"><button data-f1-control="left">◀</button><button data-f1-control="right">▶</button></div><div class="f1-pedal-controls"><button class="pit" data-f1-control="pit">PIT</button><button class="brake" data-f1-control="brake">FREN</button><button class="throttle" data-f1-control="throttle">GAZ</button><button class="boost" data-f1-control="boost">ERS</button><button class="drs" data-f1-control="drs">DRS</button></div></div><div class="f1-rotate-hint"><span>↻</span><strong>Telefonu yatay çevir</strong><small>Daha iyi sürüş alanı için</small></div><div class="f1-pause-panel hidden" id="f1PausePanel"><span>RACE PAUSED</span><h2>Yarış duraklatıldı</h2><button class="btn btn-gold" data-f1-action="resume">Devam Et</button><button class="btn btn-ghost" data-f1-action="exit">Ana Merkeze Dön</button></div><div class="f1-result-panel hidden" id="f1ResultPanel"></div></section>`;
+    return `<section class="f1-race-view"><canvas id="f1RaceCanvas" aria-label="Formula Racing oyun alanı"></canvas><div class="f1-race-topbar"><div class="f1-race-brand"><span>FR</span><div><strong>FORMULA RACING</strong><small id="f1TrackName">—</small></div></div><div class="f1-race-session"><div><b id="f1Lap">LAP 1 / ${context.laps}</b><strong id="f1Position">P24</strong><span id="f1Time">0:00.00</span></div><div class="f1-live-gaps"><small id="f1GapAhead">AHEAD —</small><small id="f1GapBehind">BEHIND —</small></div></div><div class="f1-race-actions"><button data-f1-action="pause">Ⅱ</button><button data-f1-action="fullscreen">⛶</button><button data-f1-action="exit">×</button></div></div><div class="f1-race-control-status green" id="f1RaceControlStatus"><strong id="f1Flag">GREEN FLAG</strong><small id="f1ControlReason">TRACK CLEAR</small></div><aside class="f1-live-standings" id="f1Standings"></aside><aside class="f1-event-feed" id="f1EventFeed"><header>RACE CONTROL</header></aside><div class="f1-telemetry f1-telemetry-v3"><div><span>SPEED</span><strong id="f1Speed">0</strong><small>KM/H</small></div><div><span>TYRE</span><strong id="f1Tyre" style="color:${startTyre.color}">${startTyre.label}</strong><small id="f1TyreWear">0% WEAR</small></div><div><span>CAR HEALTH</span><i><b id="f1CarHealthBar" style="width:100%"></b></i><strong id="f1Damage">100%</strong></div><div><span>RACE CONTROL</span><strong id="f1FlagMini">GREEN</strong><small id="f1Penalty">0s PENALTY</small></div><div><span>ERS</span><i><b id="f1ErsBar" style="width:100%"></b></i><strong id="f1Ers">100%</strong></div><div><span>WEATHER</span><strong id="f1Weather">${context.weather.toUpperCase()}</strong><small id="f1Wetness">0% WET</small></div><div><span>DRS</span><strong id="f1Drs">LOCKED</strong><small>SHIFT / DRS</small></div><div><span>BEST LAP</span><strong id="f1BestLap">—</strong><small id="f1PitStatus">PIT: ${pitTyre.label}</small></div></div><div class="f1-drive-mode-selector"><span>DRIVE MODE</span><button class="${context.drivingMode==="conserve"?"active":""}" data-f1-action="drive-mode" data-mode="conserve">1 · CONSERVE</button><button class="${context.drivingMode==="balanced"?"active":""}" data-f1-action="drive-mode" data-mode="balanced">2 · BALANCED</button><button class="${context.drivingMode==="attack"?"active":""}" data-f1-action="drive-mode" data-mode="attack">3 · ATTACK</button></div><div class="f1-pit-selector"><span>NEXT PIT TYRE</span>${Object.values(compounds()).map(item=>`<button class="${context.pitCompound===item.id?"active":""}" data-f1-action="pit-compound" data-compound="${item.id}" style="--compound:${item.color}">${item.label}</button>`).join("")}</div><div class="f1-mobile-controls" aria-label="Mobil yarış kontrolleri"><div class="f1-steer-controls"><button data-f1-control="left">◀</button><button data-f1-control="right">▶</button></div><div class="f1-pedal-controls"><button class="pit" data-f1-control="pit">PIT</button><button class="brake" data-f1-control="brake">FREN</button><button class="throttle" data-f1-control="throttle">GAZ</button><button class="boost" data-f1-control="boost">ERS</button><button class="drs" data-f1-control="drs">DRS</button></div></div><div class="f1-rotate-hint"><span>↻</span><strong>Telefonu yatay çevir</strong><small>Daha iyi sürüş alanı için</small></div><div class="f1-pause-panel hidden" id="f1PausePanel"><span>RACE PAUSED</span><h2>Yarış duraklatıldı</h2><button class="btn btn-gold" data-f1-action="resume">Devam Et</button><button class="btn btn-ghost" data-f1-action="exit">Ana Merkeze Dön</button></div><div class="f1-result-panel hidden" id="f1ResultPanel"></div></section>`;
   }
 
   function startRace(context) {
@@ -560,7 +587,7 @@
     });
     document.getElementById("f1TrackName").textContent = window.F1_TRACKS.getTrack(context.trackId).name;
     bindMobileControls();
-    addRaceEvent({title:"GRID READY",text:`${compound(context.startingCompound).label} · ${context.weather.toUpperCase()} · ${String(context.drivingMode||"balanced").toUpperCase()} · P${(context.gridOrder||[]).indexOf("player")+1||12}`});
+    addRaceEvent({title:"GRID READY",text:`${compound(context.startingCompound).label} · ${context.weather.toUpperCase()} · ${String(context.drivingMode||"balanced").toUpperCase()} · P${(context.gridOrder||[]).indexOf("player")+1||24}`});
     engine.start();
   }
 
@@ -655,7 +682,18 @@
     set("f1GapAhead", aheadTiming ? `AHEAD ${formatGap(timing[playerTimingIndex].interval)}` : "AHEAD LEADER");
     set("f1GapBehind", behindTiming ? `BEHIND ${formatGap(behindTiming.interval)}` : "BEHIND —");
     const standings=document.getElementById("f1Standings");
-    if(standings) standings.innerHTML=`<header><span>${flag}</span><b>RACE ORDER</b><em>GAP</em><em>INT</em></header>${timing.map((row,index)=>{const car=row.car;const status=car.retired?"DNF":car.pitTimer>0?"PIT":car.finished?"FIN":car.puncture?"P":compound(car.tyreCompound).label.slice(0,1);return `<div class="${car.isPlayer?"player":""} ${car.retired?"retired":""}"><span>${index+1}</span><i style="background:${car.color}"></i><strong>${esc(car.name)}</strong><small style="color:${compound(car.tyreCompound).color}">${status}</small><b>${index===0?"LEADER":formatGap(row.gapToLeader)}</b><em>${index===0?"—":formatGap(row.interval)}</em></div>`;}).join("")}`;
+    const now = performance.now();
+    if(standings && (now-lastTimingRenderAt>180 || snapshot.rank!==lastTimingPlayerRank || snapshot.finished)) {
+      const rowMarkup = (row,index) => {const car=row.car;const status=car.retired?"DNF":car.pitTimer>0?"PIT":car.finished?"FIN":car.puncture?"P":compound(car.tyreCompound).label.slice(0,1);return `<div class="f1-timing-row ${car.isPlayer?"player":""} ${car.retired?"retired":""}" data-rank="${index+1}"><span>${index+1}</span><i style="background:${car.color}"></i><strong title="${esc(car.name)}">${esc(car.name)}</strong><small style="color:${compound(car.tyreCompound).color}">${status}</small><b>${index===0?"LEADER":formatGap(row.gapToLeader)}</b><em>${index===0?"—":formatGap(row.interval)}</em></div>`;};
+      const columns = [timing.slice(0,12), timing.slice(12,24)];
+      standings.innerHTML = columns.map((group,columnIndex)=>`<section class="f1-timing-column"><header><span>${columnIndex===0?flag:`P13–P${ROSTER_SIZE}`}</span><b>RACE ORDER</b><em>GAP</em><em>INT</em></header>${group.map((row,offset)=>rowMarkup(row,columnIndex*12+offset)).join("")}</section>`).join("");
+      lastTimingRenderAt = now;
+      lastTimingPlayerRank = snapshot.rank;
+      if (window.innerWidth <= 760) {
+        const playerRow = standings.querySelector(".f1-timing-row.player");
+        if (playerRow) standings.scrollTop = Math.max(0, playerRow.offsetTop - 78);
+      }
+    }
   }
 
   function bindMobileControls() {
@@ -674,6 +712,8 @@
     engine?.destroy?.();
     engine = null;
     lastSnapshot = null;
+    lastTimingRenderAt = 0;
+    lastTimingPlayerRank = 0;
     document.body.classList.remove("f1-race-active");
   }
 
@@ -693,8 +733,10 @@
   }
 
   function newChampionship() {
+    const nextSeason = Math.max(1, Number(state.championship?.season || 0) + 1);
     state.championship = clone(DEFAULT_STATE.championship);
-    state.championship.season = Number(state.championship?.season || 0) + 1;
+    state.championship.season = nextSeason;
+    state.championship.rosterSize = ROSTER_SIZE;
     state.championship.season = Math.max(1, Number(state.championship.season));
     ensureChampionship();
     saveState();
@@ -746,12 +788,7 @@
     }
     if (action === "upgrade-driver") upgradeDriverAttribute(target.dataset.key);
     if (action === "upgrade-car") upgradeCar(target.dataset.key);
-    if (action === "new-championship") {
-      const previousSeason=Number(state.championship.season||1);
-      state.championship=clone(DEFAULT_STATE.championship);
-      state.championship.season=previousSeason+1;
-      ensureChampionship();saveState();selectedTab="weekend";render(host);
-    }
+    if (action === "new-championship") newChampionship();
   }
 
   function onChange(event) {
@@ -796,7 +833,9 @@
       qualifyingPerformance,
       attributeUpgradeCost,
       carUpgradeCost,
-      points:POINTS
+      points:POINTS,
+      rosterSize:ROSTER_SIZE,
+      teams:TEAM_DEFINITIONS
     })
   });
 })();

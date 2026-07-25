@@ -13,12 +13,32 @@
 
   const CAR_COLORS = [
     "#f7c85c", "#ef4444", "#38bdf8", "#22c55e", "#a78bfa", "#f97316",
-    "#e879f9", "#14b8a6", "#f43f5e", "#84cc16", "#60a5fa", "#facc15"
+    "#e879f9", "#14b8a6", "#f43f5e", "#84cc16", "#60a5fa", "#facc15",
+    "#fb7185", "#2dd4bf", "#c084fc", "#f59e0b", "#4ade80", "#818cf8",
+    "#f472b6", "#06b6d4", "#a3e635", "#f87171", "#67e8f9", "#d8b4fe"
   ];
 
+  // FIFA Tournament Hub all-time roster: the human driver plus 23 AI rivals.
   const AI_NAMES = [
-    "Kerim", "Oğuzhan", "Ercan", "Aziz", "Sultan", "Ersin",
-    "Asen", "Affan", "Sergei", "Emre", "Denar"
+    "Kerim Özmen", "Ercan Köseoğlu", "Sultan Atasaral", "Oğuzhan Dindar",
+    "Ersin Darıcı", "Fırat Berk", "Aziz Sarıoğlu", "Sergei Smirnov",
+    "Denar Batuhan", "Emre Çınar", "Asen Sabuncu", "Soyhan Belen",
+    "Emre Babaoğlu", "Emrullah Gök", "Abdülkadir Yıldız", "Samet Nemli",
+    "Denar Mehmet", "Şafak Denar", "Ömer Gülhaş", "Affan Volkan Akbal",
+    "Mohd Khairull Muzammil Bin Ramly", "Denar Ilia Zelentsov", "Denar Aleksandr Shulev"
+  ];
+
+  // Static ability profiles are derived from the tournament universe's historical/current strength data.
+  // They never read the human player's pace or race position, so no rubber-band behaviour is introduced.
+  const AI_PROFILE_OFFSETS = [
+     .055, .014, .034, .036, .004, .031, -.003, -.008,
+     .052, -.004, -.014, -.016, -.015, -.017, -.015, -.022,
+    -.006, -.040, -.042, .030, .006, -.005, -.019
+  ];
+  const AI_CONSISTENCY = [
+    1.026,1.012,1.018,1.020,1.002,1.016,1.006,.998,
+    1.024,1.004,.994,.992,.995,.991,.996,.988,
+    1.000,.982,.980,1.015,1.005,1.001,.989
   ];
 
   const COMPOUNDS = Object.freeze({
@@ -109,7 +129,7 @@
         trackLimitWarnings:0, penaltySeconds:0, safetyCars:0, virtualSafetyCars:0,
         damageTaken:0, punctures:0, retirements:0
       };
-      this.lastPlayerRank = 12;
+      this.lastPlayerRank = 24;
       this.countdown = 3.4;
       this.lastEventAt = 0;
       this.resizeObserver = typeof ResizeObserver === "function"
@@ -221,13 +241,14 @@
     }
 
     aiProfile(index, difficultyFactor) {
-      const skillSpread = [-.028,.012,.036,-.012,.052,.006,.028,-.020,.044,-.004,.020][index - 1] || 0;
-      const consistencySpread = [.985,1.006,1.018,.993,1.026,1.001,1.014,.989,1.021,.997,1.010][index - 1] || 1;
+      const slot = Math.max(0, index - 1);
+      const skillSpread = Number(AI_PROFILE_OFFSETS[slot] ?? 0);
+      const consistencySpread = Number(AI_CONSISTENCY[slot] ?? 1);
       return {
         pace: clamp(difficultyFactor + skillSpread, .84, 1.10),
         consistency: consistencySpread,
-        lane: ((index % 3) - 1) * .16,
-        attackBias: .34 + (index % 5) * .08
+        lane: ((index % 5) - 2) * .11,
+        attackBias: .30 + ((index * 7) % 7) * .075
       };
     }
 
@@ -283,7 +304,7 @@
 
     createCars() {
       const path = this.track.path;
-      const spacing = Math.max(8, Math.round(path.length / 95));
+      const spacing = Math.max(4, Math.round(path.length / 180));
       const difficultyFactor = { rookie:.91, standard:.985, elite:1.045 }[this.difficulty] || .985;
       const paceBonus = (Number(this.driverAttributes.pace || 60) - 60) * .55;
       const powerBonus = (Number(this.carDevelopment.power || 60) - 60) * .46;
@@ -306,7 +327,7 @@
         return {
           id,
           name:isPlayer ? this.playerName : AI_NAMES[index - 1],
-          color:CAR_COLORS[index],
+          color:CAR_COLORS[index % CAR_COLORS.length],
           isPlayer,
           gridPosition:grid + 1,
           x:point.x,
@@ -363,7 +384,7 @@
           parcFerme:false
         };
       });
-      this.lastPlayerRank = this.gridPosition("player", 11) + 1;
+      this.lastPlayerRank = this.gridPosition("player", 23) + 1;
     }
 
     start() {
@@ -1266,6 +1287,7 @@
     FormulaRaceEngine,
     CAR_COLORS,
     AI_NAMES,
+    AI_PROFILE_OFFSETS,
     COMPOUNDS,
     normalizeAngle,
     compound
