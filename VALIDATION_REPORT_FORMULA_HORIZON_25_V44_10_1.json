@@ -1,0 +1,299 @@
+{
+  "version": "v44.10.1",
+  "build": "Smooth Chase Camera & Live Mini Map",
+  "created_at_utc": "2026-07-25T18:39:06.904190+00:00",
+  "status": "PASS",
+  "syntax_checks": {
+    "formula-racing-tracks.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    "formula-racing-engine.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    "formula-leaderboard.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    "formula-racing.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    }
+  },
+  "feature_checks": {
+    "smoothed_camera_curve": true,
+    "partial_lateral_camera": true,
+    "relative_curve_projection": true,
+    "live_minimap_markup": true,
+    "live_minimap_progress": true,
+    "twenty_five_maps": true
+  },
+  "camera_continuity_test": {
+    "passed": true,
+    "tracks_tested": 25,
+    "maximum_road_center_jump_px": 11.948,
+    "maximum_car_jump_px": 5.809,
+    "results": [
+      {
+        "trackId": "oruc-coastal",
+        "maxCenterJump": 6.176,
+        "maxCarJump": 4.102
+      },
+      {
+        "trackId": "dragon-pass",
+        "maxCenterJump": 10.697,
+        "maxCarJump": 5.216
+      },
+      {
+        "trackId": "filyos-harbour",
+        "maxCenterJump": 6.725,
+        "maxCarJump": 4.308
+      },
+      {
+        "trackId": "bosphorus-night",
+        "maxCenterJump": 8.343,
+        "maxCarJump": 4.913
+      },
+      {
+        "trackId": "anatolian-speed",
+        "maxCenterJump": 2.881,
+        "maxCarJump": 2.771
+      },
+      {
+        "trackId": "black-sea-storm",
+        "maxCenterJump": 7.626,
+        "maxCarJump": 5.099
+      },
+      {
+        "trackId": "med-sunset",
+        "maxCenterJump": 4.872,
+        "maxCarJump": 3.109
+      },
+      {
+        "trackId": "champion-valley",
+        "maxCenterJump": 8.932,
+        "maxCarJump": 4.091
+      },
+      {
+        "trackId": "golden-horn",
+        "maxCenterJump": 9.08,
+        "maxCarJump": 5.382
+      },
+      {
+        "trackId": "cappadocia-ridge",
+        "maxCenterJump": 5.739,
+        "maxCarJump": 3.875
+      },
+      {
+        "trackId": "taurus-alpine",
+        "maxCenterJump": 10.685,
+        "maxCarJump": 5.715
+      },
+      {
+        "trackId": "aegean-cliffs",
+        "maxCenterJump": 6.736,
+        "maxCarJump": 4.048
+      },
+      {
+        "trackId": "izmir-marina",
+        "maxCenterJump": 4.963,
+        "maxCarJump": 3.1
+      },
+      {
+        "trackId": "capital-ring",
+        "maxCenterJump": 7.251,
+        "maxCarJump": 3.438
+      },
+      {
+        "trackId": "pamukkale-white",
+        "maxCenterJump": 5.721,
+        "maxCarJump": 4.052
+      },
+      {
+        "trackId": "nemrut-summit",
+        "maxCenterJump": 8.367,
+        "maxCarJump": 4.99
+      },
+      {
+        "trackId": "sakarya-forest",
+        "maxCenterJump": 5.807,
+        "maxCarJump": 3.903
+      },
+      {
+        "trackId": "thrace-wind",
+        "maxCenterJump": 2.721,
+        "maxCarJump": 2.268
+      },
+      {
+        "trackId": "mersin-heatway",
+        "maxCenterJump": 5.532,
+        "maxCarJump": 3.657
+      },
+      {
+        "trackId": "cyprus-island",
+        "maxCenterJump": 6.866,
+        "maxCarJump": 4.089
+      },
+      {
+        "trackId": "frostline",
+        "maxCenterJump": 7.447,
+        "maxCarJump": 4.481
+      },
+      {
+        "trackId": "desert-crown",
+        "maxCenterJump": 4.391,
+        "maxCarJump": 4.135
+      },
+      {
+        "trackId": "neon-metro",
+        "maxCenterJump": 8.225,
+        "maxCarJump": 4.749
+      },
+      {
+        "trackId": "volcano-edge",
+        "maxCenterJump": 11.948,
+        "maxCarJump": 5.809
+      },
+      {
+        "trackId": "final-chapter",
+        "maxCenterJump": 8.35,
+        "maxCarJump": 4.861
+      }
+    ],
+    "stderr": ""
+  },
+  "minimap_test": {
+    "passed": true,
+    "tracks_tested": 25,
+    "results": [
+      {
+        "id": "oruc-coastal",
+        "points": 203,
+        "closure": 0
+      },
+      {
+        "id": "dragon-pass",
+        "points": 165,
+        "closure": 0
+      },
+      {
+        "id": "filyos-harbour",
+        "points": 175,
+        "closure": 0
+      },
+      {
+        "id": "bosphorus-night",
+        "points": 187,
+        "closure": 0
+      },
+      {
+        "id": "anatolian-speed",
+        "points": 219,
+        "closure": 0
+      },
+      {
+        "id": "black-sea-storm",
+        "points": 171,
+        "closure": 0
+      },
+      {
+        "id": "med-sunset",
+        "points": 205,
+        "closure": 0
+      },
+      {
+        "id": "champion-valley",
+        "points": 185,
+        "closure": 0
+      },
+      {
+        "id": "golden-horn",
+        "points": 135,
+        "closure": 0
+      },
+      {
+        "id": "cappadocia-ridge",
+        "points": 189,
+        "closure": 0
+      },
+      {
+        "id": "taurus-alpine",
+        "points": 143,
+        "closure": 0
+      },
+      {
+        "id": "aegean-cliffs",
+        "points": 191,
+        "closure": 0
+      },
+      {
+        "id": "izmir-marina",
+        "points": 181,
+        "closure": 0
+      },
+      {
+        "id": "capital-ring",
+        "points": 217,
+        "closure": 0
+      },
+      {
+        "id": "pamukkale-white",
+        "points": 181,
+        "closure": 0
+      },
+      {
+        "id": "nemrut-summit",
+        "points": 171,
+        "closure": 0
+      },
+      {
+        "id": "sakarya-forest",
+        "points": 187,
+        "closure": 0
+      },
+      {
+        "id": "thrace-wind",
+        "points": 211,
+        "closure": 0
+      },
+      {
+        "id": "mersin-heatway",
+        "points": 201,
+        "closure": 0
+      },
+      {
+        "id": "cyprus-island",
+        "points": 191,
+        "closure": 0
+      },
+      {
+        "id": "frostline",
+        "points": 173,
+        "closure": 0
+      },
+      {
+        "id": "desert-crown",
+        "points": 221,
+        "closure": 0
+      },
+      {
+        "id": "neon-metro",
+        "points": 149,
+        "closure": 0
+      },
+      {
+        "id": "volcano-edge",
+        "points": 151,
+        "closure": 0
+      },
+      {
+        "id": "final-chapter",
+        "points": 215,
+        "closure": 0
+      }
+    ],
+    "stderr": ""
+  },
+  "scope_note": "Automated continuity and geometry checks passed. Final camera feel should be confirmed in the deployed browser."
+}

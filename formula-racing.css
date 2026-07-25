@@ -128,3 +128,83 @@ body.fh25-race-active .main-content,body.fh25-race-active #app,body.fh25-race-ac
   .fh25-result-summary{grid-template-columns:1fr}.fh25-result-laps{grid-template-columns:1fr 1fr}.fh25-result footer{display:grid}
 }
 @media(pointer:coarse){.fh25-mobile-controls{display:flex}}
+
+
+/* v44.10.1 — Smooth Chase Camera + Live Mini Map */
+.fh25-minimap{
+  position:absolute;
+  z-index:6;
+  top:90px;
+  right:16px;
+  width:270px;
+  padding:12px;
+  border:1px solid rgba(255,255,255,.13);
+  border-radius:14px;
+  background:rgba(3,14,21,.88);
+  backdrop-filter:blur(7px);
+  box-shadow:0 14px 38px rgba(0,0,0,.22);
+}
+.fh25-minimap header,.fh25-minimap footer{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+.fh25-minimap header{
+  padding-bottom:8px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+.fh25-minimap header span{
+  font-size:8px;
+  font-weight:950;
+  letter-spacing:.12em;
+  color:#78919b;
+}
+.fh25-minimap header b{
+  font-size:10px;
+  color:#efc45b;
+}
+.fh25-minimap canvas{
+  display:block;
+  width:100%;
+  height:170px;
+}
+.fh25-minimap footer{
+  padding-top:7px;
+  border-top:1px solid rgba(255,255,255,.07);
+  color:#9eb2ba;
+  font-size:9px;
+  font-weight:850;
+}
+.fh25-minimap footer i{
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:#efc45b;
+  box-shadow:0 0 12px rgba(239,196,91,.75);
+}
+
+@media(max-width:1050px){
+  .fh25-minimap{
+    width:220px;
+  }
+  .fh25-minimap canvas{
+    height:140px;
+  }
+}
+@media(max-width:680px){
+  .fh25-minimap{
+    top:68px;
+    right:8px;
+    width:152px;
+    padding:7px;
+  }
+  .fh25-minimap canvas{
+    height:98px;
+  }
+  .fh25-minimap header span{
+    font-size:6px;
+  }
+  .fh25-minimap footer{
+    font-size:7px;
+  }
+}

@@ -11,6 +11,8 @@
   let selectedTrackId = localStorage.getItem("fifa9_horizon25_selected_track_v1") || tracks[0].id;
   let lastResult = null;
   let submitting = false;
+  const miniMapCache = new Map();
+  let lastMiniMapDrawAt = 0;
 
   function loadState() {
     try {
@@ -160,6 +162,130 @@
     }
   }
 
+
+  function buildMiniMapPoints(track) {
+    if (miniMapCache.has(track.id)) return miniMapCache.get(track.id);
+
+    const segments = window.F1_TRACKS.buildSegments(track);
+    const raw = [{x:0,y:0}];
+    let heading = 0;
+    let x = 0;
+    let y = 0;
+
+    segments.forEach(segment => {
+      heading += Number(segment.curve || 0) * .021;
+      x += Math.sin(heading);
+      y -= Math.cos(heading);
+      raw.push({x,y});
+    });
+
+    // Close the generated route gradually so the map reads as a circuit.
+    const end = raw[raw.length - 1];
+    const corrected = raw.map((point,index) => {
+      const t = index / Math.max(1,raw.length - 1);
+      return {
+        x:point.x - end.x * t,
+        y:point.y - end.y * t
+      };
+    });
+
+    const xs = corrected.map(point=>point.x);
+    const ys = corrected.map(point=>point.y);
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+    const spanX = Math.max(.001,maxX-minX);
+    const spanY = Math.max(.001,maxY-minY);
+
+    const normalized = corrected.map(point=>({
+      x:(point.x-minX)/spanX,
+      y:(point.y-minY)/spanY
+    }));
+    miniMapCache.set(track.id,normalized);
+    return normalized;
+  }
+
+  function drawMiniMap(snapshot,force=false) {
+    const now = performance.now();
+    if (!force && now-lastMiniMapDrawAt<100) return;
+    lastMiniMapDrawAt = now;
+
+    const canvas = document.getElementById("fh25MiniMap");
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const width = Math.max(150,Math.round(rect.width || 240));
+    const height = Math.max(100,Math.round(rect.height || 155));
+    const dpr = Math.min(1.5,window.devicePixelRatio || 1);
+
+    if (canvas.width !== Math.round(width*dpr) || canvas.height !== Math.round(height*dpr)) {
+      canvas.width = Math.round(width*dpr);
+      canvas.height = Math.round(height*dpr);
+    }
+
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.clearRect(0,0,width,height);
+
+    const points = buildMiniMapPoints(snapshot.track);
+    const padding = 17;
+    const plot = point => ({
+      x:padding+point.x*(width-padding*2),
+      y:padding+point.y*(height-padding*2)
+    });
+
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    ctx.strokeStyle = "rgba(255,255,255,.16)";
+    ctx.lineWidth = 8;
+    ctx.beginPath();
+    points.forEach((point,index)=>{
+      const p=plot(point);
+      if(index===0) ctx.moveTo(p.x,p.y);
+      else ctx.lineTo(p.x,p.y);
+    });
+    ctx.closePath();
+    ctx.stroke();
+
+    ctx.strokeStyle = window.F1_TRACKS.THEMES[snapshot.track.theme].accent;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    points.forEach((point,index)=>{
+      const p=plot(point);
+      if(index===0) ctx.moveTo(p.x,p.y);
+      else ctx.lineTo(p.x,p.y);
+    });
+    ctx.closePath();
+    ctx.stroke();
+
+    const start=plot(points[0]);
+    ctx.strokeStyle="#f5f5f2";
+    ctx.lineWidth=2;
+    ctx.beginPath();
+    ctx.moveTo(start.x-5,start.y-5);
+    ctx.lineTo(start.x+5,start.y+5);
+    ctx.stroke();
+
+    const progress = Math.max(0,Math.min(.999999,Number(snapshot.progress || 0)));
+    const pointIndex = Math.min(points.length-1,Math.floor(progress*(points.length-1)));
+    const car=plot(points[pointIndex]);
+
+    ctx.fillStyle="rgba(0,0,0,.65)";
+    ctx.beginPath();
+    ctx.arc(car.x,car.y,8,0,Math.PI*2);
+    ctx.fill();
+
+    ctx.fillStyle="#f2c55b";
+    ctx.beginPath();
+    ctx.arc(car.x,car.y,5,0,Math.PI*2);
+    ctx.fill();
+
+    const progressNode=document.getElementById("fh25MapProgress");
+    if(progressNode) progressNode.textContent=`${Math.round(progress*100)}%`;
+    const locationNode=document.getElementById("fh25MapLocation");
+    if(locationNode) locationNode.textContent=`LAP ${snapshot.lap}/5 · YOU`;
+  }
+
   function raceMarkup(track) {
     return `<section class="fh25-race-view">
       <canvas id="fh25Canvas"></canvas>
@@ -178,6 +304,11 @@
         <header><span>5 LAP RESULT</span><b id="fh25CleanState">CLEAN LAP</b></header>
         <div id="fh25LapRows">${[1,2,3,4,5].map(lap=>`<article><span>LAP ${lap}</span><b id="fh25Lap${lap}">—</b></article>`).join("")}</div>
         <footer><span>PENALTY</span><b id="fh25Penalty">0.000</b></footer>
+      </aside>
+      <aside class="fh25-minimap">
+        <header><span>LIVE TRACK MAP</span><b id="fh25MapProgress">0%</b></header>
+        <canvas id="fh25MiniMap" width="260" height="170"></canvas>
+        <footer><i></i><span id="fh25MapLocation">LAP 1/5 · YOU</span></footer>
       </aside>
       <div class="fh25-track-limit hidden" id="fh25TrackLimit"><strong>TRACK LIMITS</strong><span>+1.500 SEC</span></div>
       <div class="fh25-mobile-controls">
@@ -204,6 +335,7 @@
     document.body.classList.add("fh25-race-active");
     host.innerHTML = raceMarkup(track);
 
+    lastMiniMapDrawAt = 0;
     const canvas = document.getElementById("fh25Canvas");
     engine = new window.F1_RACE_ENGINE.FormulaHorizonEngine(canvas,{
       trackId:track.id,
@@ -225,6 +357,7 @@
     set("fh25Total",formatTime(snapshot.elapsed));
     set("fh25Speed",String(snapshot.speed));
     set("fh25Penalty",(snapshot.totalPenaltyMs/1000).toFixed(3));
+    drawMiniMap(snapshot);
     const clean = document.getElementById("fh25CleanState");
     if (clean) {
       clean.textContent = snapshot.clean ? "CLEAN LAP" : "LAP INVALID";
@@ -373,6 +506,7 @@
     dashboardCard,
     stopRace,
     getState:()=>({...state}),
-    getSelectedTrack:()=>selectedTrackId
+    getSelectedTrack:()=>selectedTrackId,
+    buildMiniMapPoints
   });
 })();

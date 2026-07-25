@@ -1,4 +1,4 @@
-const CACHE = "tournament-universe-v44-10-0-formula-horizon25";
+const CACHE = "tournament-universe-v44-10-1-smooth-camera-minimap";
 const APP_SHELL = [
   "./",
   "./index.html",

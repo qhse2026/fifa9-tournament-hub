@@ -1,0 +1,33 @@
+FORMULA HORIZON 25 v44.10.1 — SMOOTH CAMERA & LIVE MINI MAP
+
+DÜZELTİLEN SORUN
+Viraj girişlerinde yol merkezi ekranda aniden yana kayıyor ve sürüş takibi zorlaşıyordu.
+
+YENİ KAMERA
+- Kamera gelecek virajları 8 ayrı noktadan okur.
+- Anlık viraj değeri yerine ağırlıklı ortalama kullanır.
+- Kamera yönü düşük geçişli yumuşatma ile değişir.
+- Yol, aracın yatay hareketinin yalnızca %42'sini takip eder.
+- Kalan hareket araç tarafından ekran içinde gerçekleştirilir.
+- Yakın yol, kameranın mevcut dönüş açısına göre dengelenir.
+- Uzak yol yaklaşan virajı göstermeye devam eder.
+- Ani yatay merkez kayması sınırlandırılmıştır.
+
+CANLI MINI HARİTA
+- Sağ üst köşede seçilen pistin küçük görünümü bulunur.
+- Altın nokta oyuncunun anlık konumunu gösterir.
+- Tur ve pist ilerleme yüzdesi canlı güncellenir.
+- 25 pistin tamamı için ayrı harita geometrisi üretilir.
+- Mobilde harita küçülür ancak görünür kalır.
+
+YÜKLENECEK DOSYALAR
+index.html
+service-worker.js
+formula-racing-tracks.js
+formula-racing-engine.js
+formula-leaderboard.js
+formula-racing.js
+formula-racing.css
+
+COMMIT
+Install Formula Smooth Camera and Live Mini Map v44.10.1

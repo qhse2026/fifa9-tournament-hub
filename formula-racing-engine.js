@@ -32,6 +32,9 @@
       this.maxSpeed = 332;
       this.playerX = 0;
       this.steerVisual = 0;
+      this.cameraPlayerX = 0;
+      this.cameraCurve = 0;
+      this.cameraCurveTarget = 0;
       this.currentLap = 1;
       this.lapTimes = [];
       this.currentLapClean = true;
@@ -138,6 +141,29 @@
       this.playerX -= segment.curve * speedRatio * speedRatio * dt * .56;
       this.steerVisual += (steer - this.steerVisual) * Math.min(1,dt * 8);
 
+      // Smooth chase camera:
+      // the road follows only part of the lateral movement, while the car moves
+      // inside the frame. This prevents the entire screen from snapping sideways.
+      const baseIndex = Math.floor(this.position / this.segmentLength);
+      const lookAhead = [
+        [0,1.00],[1,.96],[2,.88],[4,.76],
+        [7,.60],[11,.43],[16,.27],[24,.12]
+      ];
+      let curveSum = 0;
+      let weightSum = 0;
+      lookAhead.forEach(([offset,weight]) => {
+        const sample = this.segments[(baseIndex + offset) % this.segments.length];
+        curveSum += Number(sample.curve || 0) * weight;
+        weightSum += weight;
+      });
+      this.cameraCurveTarget = clamp(curveSum / Math.max(.001,weightSum),-1.35,1.35);
+      const curveBlend = 1 - Math.exp(-dt * (1.45 + speedRatio * .70));
+      this.cameraCurve += (this.cameraCurveTarget - this.cameraCurve) * curveBlend;
+
+      const lateralTarget = this.playerX * .42;
+      const lateralBlend = 1 - Math.exp(-dt * (3.1 + speedRatio * .6));
+      this.cameraPlayerX += (lateralTarget - this.cameraPlayerX) * lateralBlend;
+
       const offRoad = Math.abs(this.playerX) > 1.02;
       if (offRoad) {
         this.speed -= 78 * dt;
@@ -225,6 +251,8 @@
         position:this.position,
         progress:this.position / this.trackLength,
         playerX:this.playerX,
+        cameraPlayerX:this.cameraPlayerX,
+        cameraCurve:this.cameraCurve,
         currentLapTime,
         elapsed:elapsed + this.totalPenalty,
         lapTimes:this.lapTimes.slice(),
@@ -347,25 +375,34 @@
     projectRoad() {
       const points = [];
       const baseIndex = Math.floor(this.position / this.segmentLength);
-      const basePercent = (this.position % this.segmentLength) / this.segmentLength;
       const horizon = this.height * .26;
       const bottom = this.height * .94;
       let curveX = 0;
-      let curveVelocity = -this.segments[baseIndex % this.segments.length].curve * basePercent * .35;
+      let curveVelocity = -this.cameraCurve * .042;
       let hillY = 0;
 
       for (let n=0;n<=this.drawDistance;n+=1) {
         const segment = this.segments[(baseIndex+n) % this.segments.length];
         const depth = n / this.drawDistance;
         const perspective = 1 - depth;
+
+        // Near-road curvature is viewed relative to the smoothed camera heading.
+        // The alignment gradually fades with distance so upcoming bends remain visible.
+        const cameraAlignment = this.cameraCurve * Math.exp(-n / 28);
+        const relativeCurve = Number(segment.curve || 0) - cameraAlignment;
+        curveVelocity = curveVelocity * .992 + relativeCurve * .0061;
         curveX += curveVelocity;
-        curveVelocity += segment.curve * .012;
         hillY += segment.hill * .20;
 
         const roadHalf = 10 + Math.pow(perspective,1.62) * this.width * .47;
+        const curveOffset = clamp(
+          curveX * Math.pow(perspective,2.03) * this.width * .050,
+          -this.width * .31,
+          this.width * .31
+        );
         const center = this.width/2
-          + curveX * Math.pow(perspective,2.05) * this.width * .072
-          - this.playerX * roadHalf * .78;
+          + curveOffset
+          - this.cameraPlayerX * roadHalf;
         const y = horizon
           + Math.pow(perspective,2.05) * (bottom-horizon)
           - hillY * perspective * 1.75;
@@ -383,7 +420,11 @@
     }
 
     drawCar(ctx) {
-      const x = this.width/2 + this.steerVisual * 22;
+      const roadHalfAtCar = this.width * .47;
+      const remainingLateral = this.playerX - this.cameraPlayerX;
+      const x = this.width/2
+        + remainingLateral * roadHalfAtCar
+        + this.steerVisual * 8;
       const y = this.height * .83;
       const scale = clamp(this.width / 1500,.68,1.08);
 
