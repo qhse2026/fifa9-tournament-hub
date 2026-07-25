@@ -81,6 +81,8 @@
       this.difficulty = options.difficulty || "standard";
       this.playerName = options.playerName || "Player";
       this.mode = options.mode || "race";
+      this.timeAttack = Boolean(options.timeAttack || this.mode === "timeattack");
+      this.officialSpec = Boolean(options.officialSpec || this.timeAttack);
       this.gridOrder = Array.isArray(options.gridOrder) ? options.gridOrder : [];
       this.driverAttributes = {
         pace:60, racecraft:60, tyreManagement:60, wetSkill:60, consistency:60,
@@ -93,7 +95,7 @@
       this.mastery = Number(options.mastery || 0);
       this.startingCompound = options.startingCompound || "medium";
       this.nextPitCompound = options.pitCompound || "hard";
-      this.weatherMode = options.weather || "dynamic";
+      this.weatherMode = this.timeAttack ? "dry" : (options.weather || "dynamic");
       this.weatherSeed = options.weatherSeed || `${this.trackId}|${this.lapsTarget}|${Date.now()}`;
       this.weatherRandom = seededNumber(this.weatherSeed);
       this.weather = {
@@ -108,8 +110,8 @@
         grip:1.0,
         trend:"BUILDING"
       };
-      this.incidentLevel = options.incidentLevel || "realistic";
-      this.drivingMode = options.drivingMode || "balanced";
+      this.incidentLevel = this.timeAttack ? "off" : (options.incidentLevel || "realistic");
+      this.drivingMode = this.timeAttack ? "balanced" : (options.drivingMode || "balanced");
       this.raceRandom = seededNumber(`${this.weatherSeed}|RACE-CONTROL`);
       this.raceControl = {
         status:"GREEN",
@@ -367,6 +369,7 @@
     }
 
     requestPit(compoundId = this.nextPitCompound) {
+      if (this.timeAttack) { this.emitEvent("OFFICIAL SESSION", "Pit-stop is disabled in Official Time Attack."); return false; }
       const player = this.cars[0];
       if (!player || player.finished || player.pitTimer > 0) return false;
       this.setPitCompound(compoundId);
@@ -454,11 +457,11 @@
       const path = this.track.path;
       const spacing = Math.max(7, Math.round(path.length / 92));
       const difficultyFactor = { rookie:.91, standard:.985, elite:1.045 }[this.difficulty] || .985;
-      const paceBonus = (Number(this.driverAttributes.pace || 60) - 60) * .55;
-      const powerBonus = (Number(this.carDevelopment.power || 60) - 60) * .46;
-      const aeroBonus = (Number(this.carDevelopment.aero || 60) - 60) * .004;
-      const masteryBonus = Math.min(4, this.mastery * .035);
-      const ids = ["player", ...AI_NAMES.map((_, index) => `ai-${index + 1}`)];
+      const paceBonus = this.officialSpec ? 0 : (Number(this.driverAttributes.pace || 60) - 60) * .55;
+      const powerBonus = this.officialSpec ? 0 : (Number(this.carDevelopment.power || 60) - 60) * .46;
+      const aeroBonus = this.officialSpec ? 0 : (Number(this.carDevelopment.aero || 60) - 60) * .004;
+      const masteryBonus = this.officialSpec ? 0 : Math.min(4, this.mastery * .035);
+      const ids = this.timeAttack ? ["player"] : ["player", ...AI_NAMES.map((_, index) => `ai-${index + 1}`)];
 
       this.cars = ids.map((id, index) => {
         const grid = this.gridPosition(id, index);
@@ -476,7 +479,7 @@
         const aiVariation = ((index * 17) % 11) / 100;
         const aiProfile = isPlayer ? null : this.aiProfile(index, difficultyFactor);
         const initialCompound = isPlayer
-          ? this.startingCompound
+          ? (this.timeAttack ? "soft" : this.startingCompound)
           : (this.weather.mode === "wet" ? "wet" : this.weather.mode === "mixed" && index % 3 === 0 ? "intermediate" : ["soft","medium","hard"][index % 3]);
         return {
           id,
@@ -488,9 +491,9 @@
           y:startY,
           angle:tangent,
           speed:0,
-          baseMaxSpeed:isPlayer ? 293 + paceBonus + powerBonus + masteryBonus : (289 + ((index * 7) % 10)) * aiProfile.pace,
-          maxSpeed:isPlayer ? 293 + paceBonus + powerBonus + masteryBonus : (289 + ((index * 7) % 10)) * aiProfile.pace,
-          accel:isPlayer ? 178 + (Number(this.driverAttributes.racecraft || 60) - 60) * .7 : (171 + (index % 4) * 2.3) * aiProfile.pace,
+          baseMaxSpeed:isPlayer ? (this.timeAttack ? 300 : 293 + paceBonus + powerBonus + masteryBonus) : (289 + ((index * 7) % 10)) * aiProfile.pace,
+          maxSpeed:isPlayer ? (this.timeAttack ? 300 : 293 + paceBonus + powerBonus + masteryBonus) : (289 + ((index * 7) % 10)) * aiProfile.pace,
+          accel:isPlayer ? (this.timeAttack ? 182 : 178 + (Number(this.driverAttributes.racecraft || 60) - 60) * .7) : (171 + (index % 4) * 2.3) * aiProfile.pace,
           brake:235,
           steer:0,
           throttle:0,
@@ -519,6 +522,11 @@
           bestLap:null,
           lastLap:null,
           lapTimes:[],
+          validLapTimes:[],
+          invalidLaps:0,
+          currentLapValid:true,
+          lastLapValid:null,
+          invalidReason:"",
           currentSector:3,
           sectorStarted:false,
           sectorStartedAt:0,
@@ -548,7 +556,7 @@
           parcFerme:false
         };
       });
-      this.lastPlayerRank = this.gridPosition("player", 23) + 1;
+      this.lastPlayerRank = this.timeAttack ? 1 : this.gridPosition("player", 23) + 1;
     }
 
     start() {
@@ -567,8 +575,8 @@
       this.incidentCooldown = 0;
       this.greenFlagSeconds = 0;
       this.raceability = this.createRaceabilityPolicy();
-      this.emitEvent("RACE START", `${this.track.name} · ${this.weather.mode.toUpperCase()} koşullar`);
-      this.emitEvent("TEAM RADIO", "Race mode BALANCED. Build temperature and protect the front wing.");
+      this.emitEvent(this.timeAttack ? "TIME ATTACK" : "RACE START", `${this.track.name} · ${this.weather.mode.toUpperCase()} conditions`);
+      this.emitEvent("TEAM RADIO", this.timeAttack ? "Out lap first. Three official flying laps. Track limits invalidate the current lap." : "Race mode BALANCED. Build temperature and protect the front wing.");
       this.loop(this.lastFrame);
     }
 
@@ -589,6 +597,7 @@
 
     resetPlayer() {
       const car = this.cars[0];
+      if (this.timeAttack && car) { car.currentLapValid = false; car.invalidReason = "RESET USED"; this.emitEvent("LAP INVALID", "Reset used · current flying lap deleted."); }
       if (!car) return;
       const index = wrap(car.progressIndex, this.track.path.length);
       const point = this.track.path[index];
@@ -695,14 +704,37 @@
       if (completed > car.completedLaps) {
         const lapTime = (now - (car.lapStartedAt || this.startedAt)) / 1000;
         if (lapTime > 8) {
-          car.lastLap = lapTime;
-          car.lapTimes.push(lapTime);
-          car.bestLap = car.bestLap === null ? lapTime : Math.min(car.bestLap, lapTime);
+          if (this.timeAttack && car.isPlayer) {
+            const outLap = completed === 1;
+            const valid = !outLap && car.currentLapValid;
+            car.lastLap = lapTime;
+            car.lastLapValid = valid;
+            if (valid) {
+              car.lapTimes.push(lapTime);
+              car.validLapTimes.push(lapTime);
+              car.bestLap = car.bestLap === null ? lapTime : Math.min(car.bestLap, lapTime);
+              this.emitEvent("VALID LAP", `${lapTime.toFixed(3)} s · official lap recorded.`);
+            } else if (!outLap) {
+              car.invalidLaps += 1;
+              this.emitEvent("LAP DELETED", `${car.invalidReason || "TRACK LIMITS"} · ${lapTime.toFixed(3)} s not recorded.`);
+            } else {
+              this.emitEvent("FLYING LAP", "Out lap complete · official timing started.");
+            }
+            car.currentLapValid = true;
+            car.invalidReason = "";
+            car.ers = 100;
+            car.tyreWear = 0;
+            car.damage = { frontWing:100, floor:100, engine:100 };
+          } else {
+            car.lastLap = lapTime;
+            car.lapTimes.push(lapTime);
+            car.bestLap = car.bestLap === null ? lapTime : Math.min(car.bestLap, lapTime);
+          }
         }
         car.lapStartedAt = now;
         car.completedLaps = completed;
         car.lastCompletedLap = completed;
-        if (car.pitRequested && completed < this.lapsTarget) this.startPitStop(car);
+        if (!this.timeAttack && car.pitRequested && completed < this.lapsTarget) this.startPitStop(car);
       }
 
       const currentLapElapsed = Math.max(0, (now - (car.lapStartedAt || this.startedAt)) / 1000);
@@ -886,6 +918,10 @@
 
     updateTrackLimits(car, dt) {
       if (!car.isPlayer) return;
+      if (this.timeAttack && car.offRoad && Math.abs(car.speed) > 35) {
+        car.currentLapValid = false;
+        car.invalidReason = "TRACK LIMITS";
+      }
       if (car.offRoad && Math.abs(car.speed) > 65) {
         car.offTrackContinuous += dt;
       } else if (car.offTrackContinuous > 0) {
@@ -904,6 +940,7 @@
     }
 
     updateReliability(car, dt) {
+      if (this.timeAttack) return;
       if (car.retired || car.finished) return;
       const modeLoad = car.isPlayer && this.drivingMode === "attack" ? 1.32 : car.isPlayer && this.drivingMode === "conserve" ? .68 : 1;
       const boostLoad = car.boost ? 1.42 : 1;
@@ -1379,6 +1416,12 @@
         track:this.track,
         trackEvolution:{ ...this.trackEvolution },
         performance:{ ...this.performance },
+        timeAttack:this.timeAttack,
+        officialSession:this.officialSpec,
+        validLapTimes:[...(player.validLapTimes || [])],
+        invalidLaps:Number(player.invalidLaps || 0),
+        currentLapValid:player.currentLapValid !== false,
+        lastLapValid:player.lastLapValid,
         sector:{
           current:Number(player.currentSector || 1),
           currentLap:[...(player.currentLapSectors || [null,null,null])],
@@ -1423,6 +1466,10 @@
           downgraded:this.raceability.downgraded
         },
         trackEvolution:{ ...this.trackEvolution },
+        officialTimeAttack:this.timeAttack,
+        leaderboardEligible:Boolean(this.timeAttack && player.bestLap && (player.validLapTimes || []).length),
+        validLapTimes:[...(player.validLapTimes || [])],
+        invalidLaps:Number(player.invalidLaps || 0),
         sector:{
           lastLap:[...(player.lastLapSectors || [null,null,null])],
           best:[...(player.bestSectors || [null,null,null])]

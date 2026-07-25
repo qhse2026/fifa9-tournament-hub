@@ -1,0 +1,44 @@
+{
+  "version": "v44.9.9",
+  "build": "Global Track Records & Official Time Attack",
+  "created_at_utc": "2026-07-25T15:55:18.647895+00:00",
+  "status": "PASS",
+  "syntax_checks": {
+    "formula-racing-engine.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    "formula-leaderboard.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    "formula-racing.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    "formula-racing-tracks.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    }
+  },
+  "feature_checks": {
+    "leaderboard_tab": true,
+    "official_time_attack": true,
+    "player_only_engine": true,
+    "invalid_lap_logic": true,
+    "equal_spec": true,
+    "supabase_rpc": true,
+    "sql_rpc": true,
+    "script_loaded": true,
+    "empty_leaderboard_cache_guard": true
+  },
+  "cloud_model": {
+    "table": "formula_track_records",
+    "submit_rpc": "formula_submit_lap",
+    "read_rpc": "formula_get_track_leaderboard",
+    "direct_public_writes": false,
+    "anonymous_supported": true,
+    "authenticated_verified": true
+  },
+  "scope_note": "Static and syntax validation passed. Supabase RPC requires the included SQL to be run once."
+}

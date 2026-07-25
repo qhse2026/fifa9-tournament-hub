@@ -1,0 +1,37 @@
+FORMULA RACING v44.9.9 — GLOBAL TRACK RECORDS
+
+YENİ SİSTEM
+- Sekiz pist için ortak Global Track Records sıralaması.
+- Official Time Attack: out lap + 3 flying lap.
+- Tek oyunculu; AI ve trafik yok.
+- Herkes için aynı araç, Soft lastik, kuru pist ve tam ERS başlangıcı.
+- Her flying lap başında lastik, ERS ve araç durumu eşitlenir.
+- Pist dışı veya reset kullanılan tur geçersiz olur.
+- Oturum sonunda en hızlı geçerli tur otomatik olarak Supabase'e gönderilir.
+- Her pistte Top 50, kişisel derece, global sıra, PC/mobil ve kontrol tipi gösterilir.
+- Oyuncu hesabıyla giriş yapan kayıtlar VERIFIED işareti alır.
+- Misafir oyuncular cihaz kimliğiyle aynı sıralamaya katılabilir.
+- Bulut kullanılamazsa kişisel derece cihazda korunur.
+
+ZORUNLU SUPABASE KURULUMU — BİR KEZ
+1. Supabase projesini aç.
+2. SQL Editor > New query seç.
+3. SUPABASE_RUN_ONCE_FORMULA_TRACK_RECORDS_V44_9_9.sql dosyasının tamamını yapıştır.
+4. Run seç.
+5. formula_track_records tablosu ile formula_submit_lap ve formula_get_track_leaderboard RPC'leri oluşmalıdır.
+
+GITHUB'A YÜKLENECEK DOSYALAR
+index.html
+service-worker.js
+formula-racing-tracks.js
+formula-racing-engine.js
+formula-leaderboard.js
+formula-racing.js
+formula-racing.css
+
+COMMIT
+Install Formula Global Track Records v44.9.9
+
+İLK TEST
+Formula Racing > Track Records > Sürücü adını gir > Pist seç > Official Time Attack.
+Out lap tamamlandıktan sonra 3 flying lap vardır. Oturum bittiğinde geçerli en hızlı tur otomatik yüklenir.

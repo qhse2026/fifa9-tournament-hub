@@ -1,4 +1,4 @@
-const CACHE = "tournament-universe-v44-9-8-track-lock-readable-hud";
+const CACHE = "tournament-universe-v44-9-9-global-track-records";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -8,6 +8,7 @@ const APP_SHELL = [
   "./app.js",
   "./formula-racing-tracks.js",
   "./formula-racing-engine.js",
+  "./formula-leaderboard.js",
   "./formula-racing.js",
   "./fifa9-experience-hub.js",
   "./season-hub.js",

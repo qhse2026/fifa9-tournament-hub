@@ -1,0 +1,17 @@
+v44.9.9 FEATURE NOTES
+
+GLOBAL LEADERBOARD
+- Supabase RPC-backed Top 50 per circuit.
+- Authenticated profile-name verification.
+- Anonymous device-key entries without exposing raw identifiers.
+- One best record per player/device and circuit.
+- Faster laps update the record; slower attempts preserve the existing best.
+- Local fallback when cloud or SQL is unavailable.
+
+OFFICIAL TIME ATTACK
+- Player-only session; no AI or collision traffic.
+- Equal fixed vehicle specification, no mastery/R&D advantage.
+- Dry weather, Soft tyre, four total laps: one out lap plus three flying laps.
+- ERS, tyre wear and damage reset before every flying lap.
+- Track limits and reset invalidate the current lap only.
+- Automatic submission of the fastest valid lap.

@@ -2,7 +2,7 @@
   "use strict";
 
   const STORAGE_KEY = "fifa9_formula_racing_v4490";
-  const VERSION = 9;
+  const VERSION = 10;
   const ROSTER_SIZE = 24;
   const POINTS = [25,18,15,12,10,8,6,4,2,1, ...Array(14).fill(0)];
   const DRIVER_IDS = ["player", ...Array.from({length:23}, (_, index) => `ai-${index + 1}`)];
@@ -485,8 +485,28 @@
     }
   }
 
-  function showResult(data) {
+  async function showResult(data) {
     result = data;
+    if (currentRaceContext?.mode === "timeattack") {
+      const panel = document.getElementById("f1ResultPanel");
+      const valid = Boolean(data.leaderboardEligible && data.bestLap);
+      if (panel) {
+        panel.innerHTML = `<span>OFFICIAL TIME ATTACK COMPLETE</span><h2>${valid?formatTime(data.bestLap):"NO VALID LAP"}</h2><p>${valid?"Best valid flying lap is being submitted to Global Track Records.":"All flying laps were invalid. Stay inside track limits and try again."}</p><div class="f1-result-kpis"><div><b>${Number(data.validLapTimes?.length||0)}</b><small>VALID LAPS</small></div><div><b>${Number(data.invalidLaps||0)}</b><small>DELETED LAPS</small></div><div><b>${formatTime(data.bestLap)}</b><small>OFFICIAL BEST</small></div><div><b>SPEC</b><small>EQUAL CAR</small></div></div><div class="f1-result-championship" id="f1LeaderboardSync">${valid?"Uploading official lap…":"Leaderboard submission unavailable"}</div><div class="f1-result-actions"><button class="btn btn-gold" data-f1-action="restart">Tekrar Dene</button><button class="btn btn-ghost" data-f1-action="exit">Track Records'a Dön</button></div>`;
+        panel.classList.remove("hidden");
+      }
+      if (valid) {
+        const response = await window.F1_LEADERBOARD?.submitOfficialLap?.({
+          trackId:data.track.id,
+          bestLapMs:Math.round(data.bestLap*1000),
+          playerName:window.F1_LEADERBOARD?.getPlayerName?.() || playerName(),
+          clean:true,
+          official:true
+        });
+        const sync = document.getElementById("f1LeaderboardSync");
+        if (sync) sync.textContent = response?.status === "online" ? `${response.improved?"NEW RECORD SAVED":"BEST RECORD KEPT"}${response.rank?` · GLOBAL P${response.rank}`:""}` : "Cloud unavailable · lap stored on this device";
+      }
+      return;
+    }
     const rivalOutcome = evaluateRivalOutcome(data);
     const rewards = calculateRewards(data, rivalOutcome);
     state.driver.races += 1;
@@ -547,7 +567,7 @@
   }
 
   function navigationMarkup() {
-    return `<nav class="f1-mode-tabs"><button class="${selectedTab==="weekend"?"active":""}" data-f1-action="tab" data-tab="weekend"><span>01</span><strong>Grand Prix Weekend</strong><small>Practice · Qualifying · Race</small></button><button class="${selectedTab==="championship"?"active":""}" data-f1-action="tab" data-tab="championship"><span>02</span><strong>Championship</strong><small>Pilotlar · Takımlar · Takvim</small></button><button class="${selectedTab==="development"?"active":""}" data-f1-action="tab" data-tab="development"><span>03</span><strong>Driver Lab</strong><small>XP · Skills · Car R&D</small></button><button class="${selectedTab==="intelligence"?"active":""}" data-f1-action="tab" data-tab="intelligence"><span>04</span><strong>Race Intelligence</strong><small>Rival · sektör · strateji</small></button></nav>`;
+    return `<nav class="f1-mode-tabs"><button class="${selectedTab==="weekend"?"active":""}" data-f1-action="tab" data-tab="weekend"><span>01</span><strong>Grand Prix Weekend</strong><small>Practice · Qualifying · Race</small></button><button class="${selectedTab==="championship"?"active":""}" data-f1-action="tab" data-tab="championship"><span>02</span><strong>Championship</strong><small>Pilotlar · Takımlar · Takvim</small></button><button class="${selectedTab==="development"?"active":""}" data-f1-action="tab" data-tab="development"><span>03</span><strong>Driver Lab</strong><small>XP · Skills · Car R&D</small></button><button class="${selectedTab==="intelligence"?"active":""}" data-f1-action="tab" data-tab="intelligence"><span>04</span><strong>Race Intelligence</strong><small>Rival · sektör · strateji</small></button><button class="${selectedTab==="leaderboard"?"active":""}" data-f1-action="tab" data-tab="leaderboard"><span>05</span><strong>Track Records</strong><small>Global dereceler · Time Attack</small></button></nav>`;
   }
 
   function practiceMarkup(weekend) {
@@ -607,8 +627,9 @@
     document.body.classList.remove("f1-race-active");
     result = null;
     ensureChampionship();
-    const content = selectedTab==="weekend" ? weekendMarkup() : selectedTab==="championship" ? championshipMarkup() : selectedTab==="development" ? developmentMarkup() : intelligenceMarkup();
+    const content = selectedTab==="weekend" ? weekendMarkup() : selectedTab==="championship" ? championshipMarkup() : selectedTab==="development" ? developmentMarkup() : selectedTab==="intelligence" ? intelligenceMarkup() : (window.F1_LEADERBOARD?.renderPanel?.() || `<section class="f1-panel"><h3>Track Records yükleniyor…</h3></section>`);
     host.innerHTML = `<section class="f1-hub f1-grand-prix-hub">${heroMarkup()}${navigationMarkup()}${content}</section>`;
+    if (selectedTab === "leaderboard") setTimeout(() => window.F1_LEADERBOARD?.refresh?.(window.F1_LEADERBOARD?.getSelectedTrack?.(), false), 0);
   }
 
   function controlsModal() {
@@ -632,7 +653,7 @@
       <header class="f1-race-topbar">
         <div class="f1-race-brand"><span>FR</span><div><strong>FORMULA RACING</strong><small id="f1TrackName">—</small></div></div>
         <div class="f1-race-session">
-          <div><b id="f1Lap">LAP 1 / ${context.laps}</b><strong id="f1Position">P24</strong><span id="f1Time">0:00.00</span></div>
+          <div><b id="f1Lap">${context.mode==="timeattack"?`OUT LAP · 3 FLYING LAPS`:`LAP 1 / ${context.laps}`}</b><strong id="f1Position">${context.mode==="timeattack"?"TA":"P24"}</strong><span id="f1Time">0:00.00</span></div>
           <div class="f1-live-gaps"><small id="f1GapAhead">AHEAD —</small><small id="f1GapBehind">BEHIND —</small></div>
           <div class="f1-live-rival"><small>RIVAL</small><strong id="f1RivalName">—</strong><span id="f1RivalGap">—</span></div>
         </div>
@@ -642,7 +663,7 @@
 
       <div class="f1-race-shell">
         <aside class="f1-left-rail">
-          <header class="f1-rail-heading"><span>LIVE TIMING</span><b>24 DRIVERS</b></header>
+          <header class="f1-rail-heading"><span>${context.mode==="timeattack"?"OFFICIAL SESSION":"LIVE TIMING"}</span><b>${context.mode==="timeattack"?"EQUAL CAR":"24 DRIVERS"}</b></header>
           <aside class="f1-live-standings" id="f1Standings"></aside>
         </aside>
 
@@ -653,7 +674,7 @@
 
         <aside class="f1-right-rail">
           <aside class="f1-race-intelligence">
-            <div class="f1-minimap-card"><header><span>LIVE TRACK MAP</span><b>24 CARS</b></header><canvas id="f1MiniMap" width="280" height="170"></canvas></div>
+            <div class="f1-minimap-card"><header><span>LIVE TRACK MAP</span><b>${context.mode==="timeattack"?"1 CAR":"24 CARS"}</b></header><canvas id="f1MiniMap" width="280" height="170"></canvas></div>
             <div class="f1-sector-card"><header><span>SECTOR DELTA</span><strong id="f1LapDelta">NO BASELINE</strong></header><div><article id="f1Sector1"><small>S1</small><b>—</b></article><article id="f1Sector2"><small>S2</small><b>—</b></article><article id="f1Sector3"><small>S3</small><b>—</b></article></div></div>
             <div class="f1-engineer-card" id="f1EngineerCard"><header><span>RACE ENGINEER</span><b id="f1TrackGrip">GRIP 100%</b></header><strong id="f1EngineerTitle">PACE STABLE</strong><p id="f1EngineerMessage">Build tyre temperature and settle into the race.</p><small id="f1PitWindow">PIT WINDOW · CALCULATING</small></div>
           </aside>
@@ -674,7 +695,7 @@
         </div>
         <div class="f1-cockpit-controls">
           <div class="f1-drive-mode-selector"><span>DRIVE MODE</span><button class="${context.drivingMode==="conserve"?"active":""}" data-f1-action="drive-mode" data-mode="conserve">1 · CONSERVE</button><button class="${context.drivingMode==="balanced"?"active":""}" data-f1-action="drive-mode" data-mode="balanced">2 · BALANCED</button><button class="${context.drivingMode==="attack"?"active":""}" data-f1-action="drive-mode" data-mode="attack">3 · ATTACK</button></div>
-          <div class="f1-pit-selector"><span>NEXT PIT TYRE</span>${Object.values(compounds()).map(item=>`<button class="${context.pitCompound===item.id?"active":""}" data-f1-action="pit-compound" data-compound="${item.id}" style="--compound:${item.color}">${item.label}</button>`).join("")}</div>
+          ${context.mode==="timeattack"?`<div class="f1-official-session-badge"><span>OFFICIAL SPEC</span><strong>OUT LAP + 3 FLYING</strong><small>Track limits invalidate current lap</small></div>`:`<div class="f1-pit-selector"><span>NEXT PIT TYRE</span>${Object.values(compounds()).map(item=>`<button class="${context.pitCompound===item.id?"active":""}" data-f1-action="pit-compound" data-compound="${item.id}" style="--compound:${item.color}">${item.label}</button>`).join("")}</div>`}
         </div>
         <div class="f1-mobile-controls" aria-label="Mobil yarış kontrolleri"><div class="f1-steer-controls"><button data-f1-control="left">◀</button><button data-f1-control="right">▶</button></div><div class="f1-pedal-controls"><button class="pit" data-f1-control="pit">PIT</button><button class="brake" data-f1-control="brake">FREN</button><button class="throttle" data-f1-control="throttle">GAZ</button><button class="boost" data-f1-control="boost">ERS</button><button class="drs" data-f1-control="drs">DRS</button></div></div>
       </footer>
@@ -688,7 +709,7 @@
   function startRace(context) {
     stopRace();
     result = null;
-    currentRaceContext = { ...context, rivalId:context.rivalId || currentRivalId() };
+    currentRaceContext = { ...context, rivalId:context.mode === "timeattack" ? null : (context.rivalId || currentRivalId()) };
     eventFeed = [];
     lastEngineerMessage = "";
     previousWetness = 0;
@@ -703,6 +724,8 @@
       difficulty:state.settings.difficulty,
       playerName:playerName(),
       mode:context.mode,
+      timeAttack:context.mode === "timeattack",
+      officialSpec:context.mode === "timeattack",
       gridOrder:context.gridOrder || [],
       startingCompound:context.startingCompound,
       pitCompound:context.pitCompound,
@@ -711,13 +734,13 @@
       drivingMode:context.drivingMode || state.settings.drivingMode || "balanced",
       performanceMode:context.performanceMode || state.settings.performanceMode || "auto",
       weatherSeed:`S${state.championship.season}|R${context.roundIndex ?? "Q"}|${context.trackId}`,
-      mastery:trackMastery(context.trackId),
-      driverAttributes:{
+      mastery:context.mode === "timeattack" ? 0 : trackMastery(context.trackId),
+      driverAttributes:context.mode === "timeattack" ? {pace:70,qualifying:70,racecraft:70,tyreManagement:70,wetSkill:70,consistency:70} : {
         ...state.driver.attributes,
         racecraft:Number(state.driver.attributes.racecraft||60) + Number(context.setupBonus?.pace||0),
         tyreManagement:Number(state.driver.attributes.tyreManagement||60) + Number(context.setupBonus?.tyre||0)
       },
-      carDevelopment:state.car,
+      carDevelopment:context.mode === "timeattack" ? {power:70,aero:70,tyre:70,pitCrew:70,reliability:100} : state.car,
       onTick:updateHud,
       onPause:paused => document.getElementById("f1PausePanel")?.classList.toggle("hidden", !paused),
       onEvent:addRaceEvent,
@@ -726,9 +749,14 @@
     document.getElementById("f1TrackName").textContent = window.F1_TRACKS.getTrack(context.trackId).name;
     bindMobileControls();
     const rivalId = currentRaceContext.rivalId;
-    addRaceEvent({title:"GRID READY",text:`${compound(context.startingCompound).label} · ${context.weather.toUpperCase()} · ${String(context.drivingMode||"balanced").toUpperCase()} · P${(context.gridOrder||[]).indexOf("player")+1||24}`});
-    addRaceEvent({title:"RIVAL TARGET",text:`Bugünkü hedef: ${driverName(rivalId)} pilotunu pist üzerinde geç.`});
-    addRaceEvent({title:"RACEABILITY GUARD",text:context.incidentLevel==="off"?"Race First aktif · SC/VSC kapalı.":"Start/restart koruması aktif · kısa yarışta maksimum 1 Safety Car."});
+    if (context.mode === "timeattack") {
+      addRaceEvent({title:"OFFICIAL TIME ATTACK",text:"Out lap + 3 flying laps · equal car · dry track · Soft tyres."});
+      addRaceEvent({title:"VALIDATION",text:"Track limits or reset invalidate only the current flying lap."});
+    } else {
+      addRaceEvent({title:"GRID READY",text:`${compound(context.startingCompound).label} · ${context.weather.toUpperCase()} · ${String(context.drivingMode||"balanced").toUpperCase()} · P${(context.gridOrder||[]).indexOf("player")+1||24}`});
+      addRaceEvent({title:"RIVAL TARGET",text:`Bugünkü hedef: ${driverName(rivalId)} pilotunu pist üzerinde geç.`});
+      addRaceEvent({title:"RACEABILITY GUARD",text:context.incidentLevel==="off"?"Race First aktif · SC/VSC kapalı.":"Start/restart koruması aktif · kısa yarışta maksimum 1 Safety Car."});
+    }
     engine.start();
   }
 
@@ -747,6 +775,31 @@
       gridOrder:DRIVER_IDS,
       setupBonus:{},
       roundIndex:null
+    });
+  }
+
+  function startTimeAttack() {
+    const leaderboard = window.F1_LEADERBOARD;
+    const trackId = leaderboard?.getSelectedTrack?.() || state.settings.trackId;
+    const name = leaderboard?.getPlayerName?.() || playerName();
+    if (String(name || "").trim().length < 2) { toast("Önce sürücü adını gir.", "error"); return; }
+    state.settings.trackId = trackId;
+    saveState();
+    startRace({
+      mode:"timeattack",
+      trackId,
+      laps:4,
+      weather:"dry",
+      incidentLevel:"off",
+      drivingMode:"balanced",
+      performanceMode:state.settings.performanceMode || "auto",
+      hudScale:state.settings.hudScale || "large",
+      startingCompound:"soft",
+      pitCompound:"soft",
+      gridOrder:["player"],
+      setupBonus:{},
+      roundIndex:null,
+      official:true
     });
   }
 
@@ -894,8 +947,8 @@
       ? Math.round((Number(snapshot.damage.frontWing||0)+Number(snapshot.damage.floor||0)+Number(snapshot.damage.engine||0))/3)
       : 100;
     const flag = snapshot.raceControl?.status || "GREEN";
-    set("f1Lap", `LAP ${snapshot.lap} / ${snapshot.lapsTarget}`);
-    set("f1Position", player.retired ? "DNF" : `P${snapshot.rank}`);
+    set("f1Lap", snapshot.timeAttack ? (snapshot.lap<=1?"OUT LAP":`FLYING ${Math.min(3,snapshot.lap-1)} / 3`) : `LAP ${snapshot.lap} / ${snapshot.lapsTarget}`);
+    set("f1Position", snapshot.timeAttack ? (snapshot.currentLapValid ? "VALID" : "INVALID") : (player.retired ? "DNF" : `P${snapshot.rank}`));
     set("f1Time", formatTime(snapshot.elapsed));
     set("f1Speed", speed);
     set("f1Ers", `${Math.round(player.ers)}%`);
@@ -930,10 +983,10 @@
     const playerTimingIndex = timing.findIndex(row => row.car?.isPlayer);
     const aheadTiming = playerTimingIndex > 0 ? timing[playerTimingIndex - 1] : null;
     const behindTiming = playerTimingIndex >= 0 && playerTimingIndex < timing.length - 1 ? timing[playerTimingIndex + 1] : null;
-    set("f1GapAhead", aheadTiming ? `AHEAD ${formatGap(timing[playerTimingIndex].interval)}` : "AHEAD LEADER");
-    set("f1GapBehind", behindTiming ? `BEHIND ${formatGap(behindTiming.interval)}` : "BEHIND —");
-    const rivalTiming = timing.find(row=>row.car?.id===currentRaceContext?.rivalId);
-    set("f1RivalName", driverName(currentRaceContext?.rivalId));
+    set("f1GapAhead", snapshot.timeAttack ? `VALID LAPS ${Number(snapshot.validLapTimes?.length||0)}` : (aheadTiming ? `AHEAD ${formatGap(timing[playerTimingIndex].interval)}` : "AHEAD LEADER"));
+    set("f1GapBehind", snapshot.timeAttack ? `DELETED ${Number(snapshot.invalidLaps||0)}` : (behindTiming ? `BEHIND ${formatGap(behindTiming.interval)}` : "BEHIND —"));
+    const rivalTiming = snapshot.timeAttack ? null : timing.find(row=>row.car?.id===currentRaceContext?.rivalId);
+    set("f1RivalName", snapshot.timeAttack ? "OFFICIAL SPEC" : driverName(currentRaceContext?.rivalId));
     if(rivalTiming){
       const playerGap=timing[playerTimingIndex]?.gapToLeader;
       const rivalGap=rivalTiming.gapToLeader;
@@ -1024,7 +1077,7 @@
 
   function exitRace() {
     stopRace();
-    selectedTab = currentRaceContext?.mode === "championship" ? "weekend" : selectedTab;
+    selectedTab = currentRaceContext?.mode === "championship" ? "weekend" : currentRaceContext?.mode === "timeattack" ? "leaderboard" : selectedTab;
     currentRaceContext = null;
     render(host || document.getElementById("view"));
   }
@@ -1070,12 +1123,15 @@
     if (action === "qualifying") simulateQualifying();
     if (action === "start-championship-race") startChampionshipRace();
     if (action === "quick-start") startQuickRace();
+    if (action === "start-time-attack") startTimeAttack();
+    if (action === "leaderboard-track") { window.F1_LEADERBOARD?.setTrack?.(target.dataset.track); render(host); }
+    if (action === "leaderboard-refresh") window.F1_LEADERBOARD?.refresh?.(window.F1_LEADERBOARD?.getSelectedTrack?.(), true);
     if (action === "open-controls") controlsModal();
     if (action === "pause") engine?.togglePause();
     if (action === "resume") engine?.togglePause(false);
     if (action === "fullscreen") fullscreen();
     if (action === "exit") exitRace();
-    if (action === "restart") startQuickRace();
+    if (action === "restart") { if (currentRaceContext?.mode === "timeattack") startTimeAttack(); else startQuickRace(); }
     if (action === "pit-compound") {
       const id=target.dataset.compound;
       engine?.setPitCompound(id);
@@ -1109,6 +1165,7 @@
     if (event.target.id === "f1WeekendStartTyre") { const weekend=ensureWeekend(); if(weekend) weekend.startingCompound=event.target.value; }
     if (event.target.id === "f1WeekendPitTyre") { const weekend=ensureWeekend(); if(weekend) weekend.pitCompound=event.target.value; }
     if (event.target.id === "f1WeekendDriveMode") state.settings.drivingMode = event.target.value;
+    if (event.target.id === "f1LeaderboardName") window.F1_LEADERBOARD?.setPlayerName?.(event.target.value);
     saveState();
   }
 
@@ -1118,6 +1175,7 @@
     const nav = event.target.closest("[data-nav]");
     if (nav && nav.dataset.nav !== "formula1") stopRace();
   }, true);
+  window.addEventListener("f1-leaderboard-updated", () => { if (selectedTab === "leaderboard" && host && !document.body.classList.contains("f1-race-active")) render(host); });
   document.addEventListener("visibilitychange", () => {
     if (document.hidden && engine?.running) engine.togglePause(true);
   });
@@ -1130,6 +1188,7 @@
     dashboardCard,
     stopRace,
     getState:() => clone(state),
+    startTimeAttack,
     __diagnostics:Object.freeze({
       calculateRewards,
       xpForNext,
