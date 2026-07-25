@@ -1,0 +1,62 @@
+FORMULA RACING v44.9.7 — CLEAN HUD & PERFORMANCE ENGINE
+
+DÜZELTİLEN İKİ ANA SORUN
+1. Yarış verileri artık pistin üzerinde değil.
+2. 24 araçlık yarış motorunun işlem ve çizim yükü azaltıldı.
+
+YENİ EKRAN DÜZENİ
+- Sol panel: 24 pilotun canlı sıralaması, GAP ve INT.
+- Orta panel: yalnızca oynanabilir pist ve araçlar.
+- Sağ panel: mini harita, sektörler, yarış mühendisi ve Race Control olayları.
+- Alt panel: telemetri, sürüş modu ve pit lastiği.
+- Mobil yatay: yan paneller gizlenir; pist üst ve alt kontrol barları arasında tamamen açık kalır.
+
+PERFORMANS MODLARI
+Auto:
+Cihazın işlemci, bellek ve dokunmatik özelliklerine göre Balanced veya Performance seçer.
+
+Performance:
+24 araç için önerilen en akıcı mod. DPR 1, azaltılmış yağmur parçacıkları,
+seyreltilmiş çarpışma kontrolü ve daha düşük DOM güncelleme sıklığı.
+
+Balanced:
+Güçlü PC'ler için kalite/akıcılık dengesi.
+
+Quality:
+Güçlü masaüstü bilgisayarlar için yüksek çözünürlük.
+
+TEKNİK OPTİMİZASYONLAR
+- Pist ve çevre her karede yeniden çizilmiyor; statik katman önbelleğe alınıyor.
+- HUD her animasyon karesinde güncellenmiyor.
+- Timing Tower ve mini harita bağımsız aralıklarla güncelleniyor.
+- AI sıralaması kısa süreli önbellekte tutuluyor.
+- Çarpışma kontrolü yalnızca pist üzerinde birbirine yakın araçlarda yapılıyor.
+- Performance modunda çarpışma taraması iki karede bir çalışıyor.
+- Yağmur parçacıkları cihaz profiline göre azaltılıyor.
+- Backdrop blur gibi pahalı yarış içi efektler kaldırıldı.
+
+ÖNERİLEN TEST
+Pist: Filyos Street GP
+Grid: 24 araç
+Tur: 5
+Hava: Kuru
+Incident: Race First veya Balanced
+Performans: Auto
+
+KABUL KRİTERLERİ
+- Pist merkezinin üzerinde Timing Tower, mini harita veya telemetri bulunmamalı.
+- 24 pilotun GAP/INT verileri sol panelde görünmeli.
+- Yarış alanı PC'de merkezde tamamen açık olmalı.
+- Mobil yatay modda yan veri panelleri görünmemeli.
+- Auto/Performance modunda direksiyon girdileri gecikmeden uygulanmalı.
+
+YÜKLENECEK DOSYALAR
+index.html
+service-worker.js
+formula-racing-tracks.js
+formula-racing-engine.js
+formula-racing.js
+formula-racing.css
+
+COMMIT
+Install Formula Clean HUD and Performance Engine v44.9.7

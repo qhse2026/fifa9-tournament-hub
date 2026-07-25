@@ -1,4 +1,4 @@
-const CACHE = "tournament-universe-v44-9-6-raceability-guard";
+const CACHE = "tournament-universe-v44-9-7-clean-hud-performance";
 const APP_SHELL = [
   "./",
   "./index.html",

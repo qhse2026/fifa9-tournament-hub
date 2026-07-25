@@ -2,7 +2,7 @@
   "use strict";
 
   const STORAGE_KEY = "fifa9_formula_racing_v4490";
-  const VERSION = 7;
+  const VERSION = 8;
   const ROSTER_SIZE = 24;
   const POINTS = [25,18,15,12,10,8,6,4,2,1, ...Array(14).fill(0)];
   const DRIVER_IDS = ["player", ...Array.from({length:23}, (_, index) => `ai-${index + 1}`)];
@@ -31,7 +31,7 @@
     settings:{
       trackId:"oruc-reis", difficulty:"standard", laps:5, mode:"race",
       startingCompound:"medium", pitCompound:"hard", weather:"dynamic",
-      practiceProgram:"race-pace", incidentLevel:"realistic", drivingMode:"balanced"
+      practiceProgram:"race-pace", incidentLevel:"realistic", drivingMode:"balanced", performanceMode:"auto"
     },
     mastery:{},
     records:{},
@@ -566,7 +566,7 @@
   function quickRaceMarkup() {
     const tracks = window.F1_TRACKS.TRACKS;
     const selected = window.F1_TRACKS.getTrack(state.settings.trackId);
-    return `<section class="f1-panel f1-quick-race"><header><div><span>QUICK RACE</span><h3>Serbest Yarış</h3><p>Şampiyonadan bağımsız pist, hava, incident yoğunluğu ve sürüş modunu seçerek hemen sür.</p></div><b>PC + MOBILE</b></header><div class="f1-track-grid">${tracks.map(track=>`<button class="f1-track-card ${track.id===selected.id?"active":""} ${track.accent}" data-f1-action="track" data-track="${track.id}" data-theme="${track.theme}">${trackPreview(track)}<span>${track.country} · ${track.layoutCode}</span><strong>${track.name}</strong><small>${track.character}</small><b class="f1-track-identity">${String(track.theme||"circuit").toUpperCase()} · ${track.points.length} SECTOR NODES</b><i>${trackMastery(track.id)} / 100 MASTERY</i></button>`).join("")}</div><div class="f1-quick-config f1-quick-config-v3"><label><span>Zorluk</span><select id="f1Difficulty"><option value="rookie" ${state.settings.difficulty==="rookie"?"selected":""}>Rookie</option><option value="standard" ${state.settings.difficulty==="standard"?"selected":""}>Standard</option><option value="elite" ${state.settings.difficulty==="elite"?"selected":""}>Elite</option></select></label><label><span>Tur</span><select id="f1Laps"><option value="3" ${state.settings.laps===3?"selected":""}>3 Tur</option><option value="5" ${state.settings.laps===5?"selected":""}>5 Tur</option><option value="7" ${state.settings.laps===7?"selected":""}>7 Tur</option></select></label><label><span>Hava</span><select id="f1Weather"><option value="dynamic" ${state.settings.weather==="dynamic"?"selected":""}>Dinamik</option><option value="dry" ${state.settings.weather==="dry"?"selected":""}>Kuru</option><option value="mixed" ${state.settings.weather==="mixed"?"selected":""}>Değişken</option><option value="wet" ${state.settings.weather==="wet"?"selected":""}>Yağmurlu</option></select></label><label><span>Incident Seviyesi</span><select id="f1IncidentLevel"><option value="off" ${state.settings.incidentLevel==="off"?"selected":""}>Race First · SC/VSC Kapalı</option><option value="low" ${state.settings.incidentLevel==="low"?"selected":""}>Low · Yerel Sarı Bayrak</option><option value="realistic" ${state.settings.incidentLevel==="realistic"?"selected":""}>Balanced · Maks. 1 SC</option><option value="high" ${state.settings.incidentLevel==="high"?"selected":""}>High · Korumalı Kaos</option></select></label><label><span>Sürüş Modu</span><select id="f1DriveMode"><option value="conserve" ${state.settings.drivingMode==="conserve"?"selected":""}>Conserve</option><option value="balanced" ${state.settings.drivingMode==="balanced"?"selected":""}>Balanced</option><option value="attack" ${state.settings.drivingMode==="attack"?"selected":""}>Attack</option></select></label><label><span>Başlangıç</span><select id="f1StartTyre">${Object.values(compounds()).map(item=>`<option value="${item.id}" ${state.settings.startingCompound===item.id?"selected":""}>${item.label}</option>`).join("")}</select></label><label><span>Pit Lastiği</span><select id="f1PitTyre">${Object.values(compounds()).map(item=>`<option value="${item.id}" ${state.settings.pitCompound===item.id?"selected":""}>${item.label}</option>`).join("")}</select></label><button class="btn btn-gold" data-f1-action="quick-start">Hızlı Yarışı Başlat</button></div></section>`;
+    return `<section class="f1-panel f1-quick-race"><header><div><span>QUICK RACE</span><h3>Serbest Yarış</h3><p>Şampiyonadan bağımsız pist, hava, incident yoğunluğu ve sürüş modunu seçerek hemen sür.</p></div><b>PC + MOBILE</b></header><div class="f1-track-grid">${tracks.map(track=>`<button class="f1-track-card ${track.id===selected.id?"active":""} ${track.accent}" data-f1-action="track" data-track="${track.id}" data-theme="${track.theme}">${trackPreview(track)}<span>${track.country} · ${track.layoutCode}</span><strong>${track.name}</strong><small>${track.character}</small><b class="f1-track-identity">${String(track.theme||"circuit").toUpperCase()} · ${track.points.length} SECTOR NODES</b><i>${trackMastery(track.id)} / 100 MASTERY</i></button>`).join("")}</div><div class="f1-quick-config f1-quick-config-v3"><label><span>Zorluk</span><select id="f1Difficulty"><option value="rookie" ${state.settings.difficulty==="rookie"?"selected":""}>Rookie</option><option value="standard" ${state.settings.difficulty==="standard"?"selected":""}>Standard</option><option value="elite" ${state.settings.difficulty==="elite"?"selected":""}>Elite</option></select></label><label><span>Tur</span><select id="f1Laps"><option value="3" ${state.settings.laps===3?"selected":""}>3 Tur</option><option value="5" ${state.settings.laps===5?"selected":""}>5 Tur</option><option value="7" ${state.settings.laps===7?"selected":""}>7 Tur</option></select></label><label><span>Hava</span><select id="f1Weather"><option value="dynamic" ${state.settings.weather==="dynamic"?"selected":""}>Dinamik</option><option value="dry" ${state.settings.weather==="dry"?"selected":""}>Kuru</option><option value="mixed" ${state.settings.weather==="mixed"?"selected":""}>Değişken</option><option value="wet" ${state.settings.weather==="wet"?"selected":""}>Yağmurlu</option></select></label><label><span>Incident Seviyesi</span><select id="f1IncidentLevel"><option value="off" ${state.settings.incidentLevel==="off"?"selected":""}>Race First · SC/VSC Kapalı</option><option value="low" ${state.settings.incidentLevel==="low"?"selected":""}>Low · Yerel Sarı Bayrak</option><option value="realistic" ${state.settings.incidentLevel==="realistic"?"selected":""}>Balanced · Maks. 1 SC</option><option value="high" ${state.settings.incidentLevel==="high"?"selected":""}>High · Korumalı Kaos</option></select></label><label><span>Sürüş Modu</span><select id="f1DriveMode"><option value="conserve" ${state.settings.drivingMode==="conserve"?"selected":""}>Conserve</option><option value="balanced" ${state.settings.drivingMode==="balanced"?"selected":""}>Balanced</option><option value="attack" ${state.settings.drivingMode==="attack"?"selected":""}>Attack</option></select></label><label><span>Performans</span><select id="f1PerformanceMode"><option value="auto" ${state.settings.performanceMode==="auto"?"selected":""}>Auto · Önerilen</option><option value="performance" ${state.settings.performanceMode==="performance"?"selected":""}>Performance · En Akıcı</option><option value="balanced" ${state.settings.performanceMode==="balanced"?"selected":""}>Balanced</option><option value="quality" ${state.settings.performanceMode==="quality"?"selected":""}>Quality</option></select><small>24 araç için Auto veya Performance</small></label><label><span>Başlangıç</span><select id="f1StartTyre">${Object.values(compounds()).map(item=>`<option value="${item.id}" ${state.settings.startingCompound===item.id?"selected":""}>${item.label}</option>`).join("")}</select></label><label><span>Pit Lastiği</span><select id="f1PitTyre">${Object.values(compounds()).map(item=>`<option value="${item.id}" ${state.settings.pitCompound===item.id?"selected":""}>${item.label}</option>`).join("")}</select></label><button class="btn btn-gold" data-f1-action="quick-start">Hızlı Yarışı Başlat</button></div></section>`;
   }
 
   function weekendMarkup() {
@@ -624,7 +624,62 @@
   function raceMarkup(context) {
     const startTyre = compound(context.startingCompound);
     const pitTyre = compound(context.pitCompound);
-    return `<section class="f1-race-view"><canvas id="f1RaceCanvas" aria-label="Formula Racing oyun alanı"></canvas><div class="f1-race-topbar"><div class="f1-race-brand"><span>FR</span><div><strong>FORMULA RACING</strong><small id="f1TrackName">—</small></div></div><div class="f1-race-session"><div><b id="f1Lap">LAP 1 / ${context.laps}</b><strong id="f1Position">P24</strong><span id="f1Time">0:00.00</span></div><div class="f1-live-gaps"><small id="f1GapAhead">AHEAD —</small><small id="f1GapBehind">BEHIND —</small></div><div class="f1-live-rival"><small>RIVAL</small><strong id="f1RivalName">—</strong><span id="f1RivalGap">—</span></div></div><div class="f1-race-actions"><button data-f1-action="pause">Ⅱ</button><button data-f1-action="fullscreen">⛶</button><button data-f1-action="exit">×</button></div></div><div class="f1-race-control-status green" id="f1RaceControlStatus"><strong id="f1Flag">GREEN FLAG</strong><small id="f1ControlReason">TRACK CLEAR</small></div><aside class="f1-live-standings" id="f1Standings"></aside><aside class="f1-event-feed" id="f1EventFeed"><header>RACE CONTROL</header></aside><aside class="f1-race-intelligence"><div class="f1-minimap-card"><header><span>LIVE TRACK MAP</span><b>24 CARS</b></header><canvas id="f1MiniMap" width="280" height="170"></canvas></div><div class="f1-sector-card"><header><span>SECTOR DELTA</span><strong id="f1LapDelta">NO BASELINE</strong></header><div><article id="f1Sector1"><small>S1</small><b>—</b></article><article id="f1Sector2"><small>S2</small><b>—</b></article><article id="f1Sector3"><small>S3</small><b>—</b></article></div></div><div class="f1-engineer-card" id="f1EngineerCard"><header><span>RACE ENGINEER</span><b id="f1TrackGrip">GRIP 100%</b></header><strong id="f1EngineerTitle">PACE STABLE</strong><p id="f1EngineerMessage">Build tyre temperature and settle into the race.</p><small id="f1PitWindow">PIT WINDOW · CALCULATING</small></div></aside><div class="f1-telemetry f1-telemetry-v3"><div><span>SPEED</span><strong id="f1Speed">0</strong><small>KM/H</small></div><div><span>TYRE</span><strong id="f1Tyre" style="color:${startTyre.color}">${startTyre.label}</strong><small id="f1TyreWear">0% WEAR</small></div><div><span>CAR HEALTH</span><i><b id="f1CarHealthBar" style="width:100%"></b></i><strong id="f1Damage">100%</strong></div><div><span>RACE CONTROL</span><strong id="f1FlagMini">GREEN</strong><small id="f1Penalty">0s PENALTY</small><small id="f1ScBudget">SC 0/1 · VSC 0/2</small></div><div><span>ERS</span><i><b id="f1ErsBar" style="width:100%"></b></i><strong id="f1Ers">100%</strong></div><div><span>WEATHER</span><strong id="f1Weather">${context.weather.toUpperCase()}</strong><small id="f1Wetness">0% WET</small></div><div><span>DRS</span><strong id="f1Drs">LOCKED</strong><small>SHIFT / DRS</small></div><div><span>BEST LAP</span><strong id="f1BestLap">—</strong><small id="f1PitStatus">PIT: ${pitTyre.label}</small></div></div><div class="f1-drive-mode-selector"><span>DRIVE MODE</span><button class="${context.drivingMode==="conserve"?"active":""}" data-f1-action="drive-mode" data-mode="conserve">1 · CONSERVE</button><button class="${context.drivingMode==="balanced"?"active":""}" data-f1-action="drive-mode" data-mode="balanced">2 · BALANCED</button><button class="${context.drivingMode==="attack"?"active":""}" data-f1-action="drive-mode" data-mode="attack">3 · ATTACK</button></div><div class="f1-pit-selector"><span>NEXT PIT TYRE</span>${Object.values(compounds()).map(item=>`<button class="${context.pitCompound===item.id?"active":""}" data-f1-action="pit-compound" data-compound="${item.id}" style="--compound:${item.color}">${item.label}</button>`).join("")}</div><div class="f1-mobile-controls" aria-label="Mobil yarış kontrolleri"><div class="f1-steer-controls"><button data-f1-control="left">◀</button><button data-f1-control="right">▶</button></div><div class="f1-pedal-controls"><button class="pit" data-f1-control="pit">PIT</button><button class="brake" data-f1-control="brake">FREN</button><button class="throttle" data-f1-control="throttle">GAZ</button><button class="boost" data-f1-control="boost">ERS</button><button class="drs" data-f1-control="drs">DRS</button></div></div><div class="f1-rotate-hint"><span>↻</span><strong>Telefonu yatay çevir</strong><small>Daha iyi sürüş alanı için</small></div><div class="f1-pause-panel hidden" id="f1PausePanel"><span>RACE PAUSED</span><h2>Yarış duraklatıldı</h2><button class="btn btn-gold" data-f1-action="resume">Devam Et</button><button class="btn btn-ghost" data-f1-action="exit">Ana Merkeze Dön</button></div><div class="f1-result-panel hidden" id="f1ResultPanel"></div></section>`;
+    const performanceMode = context.performanceMode || state.settings.performanceMode || "auto";
+    return `<section class="f1-race-view f1-clean-race-ui" data-performance="${performanceMode}">
+      <header class="f1-race-topbar">
+        <div class="f1-race-brand"><span>FR</span><div><strong>FORMULA RACING</strong><small id="f1TrackName">—</small></div></div>
+        <div class="f1-race-session">
+          <div><b id="f1Lap">LAP 1 / ${context.laps}</b><strong id="f1Position">P24</strong><span id="f1Time">0:00.00</span></div>
+          <div class="f1-live-gaps"><small id="f1GapAhead">AHEAD —</small><small id="f1GapBehind">BEHIND —</small></div>
+          <div class="f1-live-rival"><small>RIVAL</small><strong id="f1RivalName">—</strong><span id="f1RivalGap">—</span></div>
+        </div>
+        <div class="f1-race-control-status green" id="f1RaceControlStatus"><strong id="f1Flag">GREEN FLAG</strong><small id="f1ControlReason">TRACK CLEAR</small></div>
+        <div class="f1-race-actions"><button data-f1-action="pause">Ⅱ</button><button data-f1-action="fullscreen">⛶</button><button data-f1-action="exit">×</button></div>
+      </header>
+
+      <div class="f1-race-shell">
+        <aside class="f1-left-rail">
+          <header class="f1-rail-heading"><span>LIVE TIMING</span><b>24 DRIVERS</b></header>
+          <aside class="f1-live-standings" id="f1Standings"></aside>
+        </aside>
+
+        <main class="f1-race-stage">
+          <canvas id="f1RaceCanvas" aria-label="Formula Racing oyun alanı"></canvas>
+          <div class="f1-stage-watermark"><span id="f1StagePerformance">${performanceMode.toUpperCase()}</span><b>CLEAN TRACK VIEW</b></div>
+        </main>
+
+        <aside class="f1-right-rail">
+          <aside class="f1-race-intelligence">
+            <div class="f1-minimap-card"><header><span>LIVE TRACK MAP</span><b>24 CARS</b></header><canvas id="f1MiniMap" width="280" height="170"></canvas></div>
+            <div class="f1-sector-card"><header><span>SECTOR DELTA</span><strong id="f1LapDelta">NO BASELINE</strong></header><div><article id="f1Sector1"><small>S1</small><b>—</b></article><article id="f1Sector2"><small>S2</small><b>—</b></article><article id="f1Sector3"><small>S3</small><b>—</b></article></div></div>
+            <div class="f1-engineer-card" id="f1EngineerCard"><header><span>RACE ENGINEER</span><b id="f1TrackGrip">GRIP 100%</b></header><strong id="f1EngineerTitle">PACE STABLE</strong><p id="f1EngineerMessage">Build tyre temperature and settle into the race.</p><small id="f1PitWindow">PIT WINDOW · CALCULATING</small></div>
+          </aside>
+          <aside class="f1-event-feed" id="f1EventFeed"><header>RACE CONTROL</header></aside>
+        </aside>
+      </div>
+
+      <footer class="f1-cockpit-bar">
+        <div class="f1-telemetry f1-telemetry-v3">
+          <div><span>SPEED</span><strong id="f1Speed">0</strong><small>KM/H</small></div>
+          <div><span>TYRE</span><strong id="f1Tyre" style="color:${startTyre.color}">${startTyre.label}</strong><small id="f1TyreWear">0% WEAR</small></div>
+          <div><span>CAR HEALTH</span><i><b id="f1CarHealthBar" style="width:100%"></b></i><strong id="f1Damage">100%</strong></div>
+          <div><span>RACE CONTROL</span><strong id="f1FlagMini">GREEN</strong><small id="f1Penalty">0s PENALTY</small><small id="f1ScBudget">SC 0/1 · VSC 0/2</small></div>
+          <div><span>ERS</span><i><b id="f1ErsBar" style="width:100%"></b></i><strong id="f1Ers">100%</strong></div>
+          <div><span>WEATHER</span><strong id="f1Weather">${context.weather.toUpperCase()}</strong><small id="f1Wetness">0% WET</small></div>
+          <div><span>DRS</span><strong id="f1Drs">LOCKED</strong><small>SHIFT / DRS</small></div>
+          <div><span>BEST LAP</span><strong id="f1BestLap">—</strong><small id="f1PitStatus">PIT: ${pitTyre.label}</small></div>
+        </div>
+        <div class="f1-cockpit-controls">
+          <div class="f1-drive-mode-selector"><span>DRIVE MODE</span><button class="${context.drivingMode==="conserve"?"active":""}" data-f1-action="drive-mode" data-mode="conserve">1 · CONSERVE</button><button class="${context.drivingMode==="balanced"?"active":""}" data-f1-action="drive-mode" data-mode="balanced">2 · BALANCED</button><button class="${context.drivingMode==="attack"?"active":""}" data-f1-action="drive-mode" data-mode="attack">3 · ATTACK</button></div>
+          <div class="f1-pit-selector"><span>NEXT PIT TYRE</span>${Object.values(compounds()).map(item=>`<button class="${context.pitCompound===item.id?"active":""}" data-f1-action="pit-compound" data-compound="${item.id}" style="--compound:${item.color}">${item.label}</button>`).join("")}</div>
+        </div>
+        <div class="f1-mobile-controls" aria-label="Mobil yarış kontrolleri"><div class="f1-steer-controls"><button data-f1-control="left">◀</button><button data-f1-control="right">▶</button></div><div class="f1-pedal-controls"><button class="pit" data-f1-control="pit">PIT</button><button class="brake" data-f1-control="brake">FREN</button><button class="throttle" data-f1-control="throttle">GAZ</button><button class="boost" data-f1-control="boost">ERS</button><button class="drs" data-f1-control="drs">DRS</button></div></div>
+      </footer>
+
+      <div class="f1-rotate-hint"><span>↻</span><strong>Telefonu yatay çevir</strong><small>Daha iyi sürüş alanı için</small></div>
+      <div class="f1-pause-panel hidden" id="f1PausePanel"><span>RACE PAUSED</span><h2>Yarış duraklatıldı</h2><button class="btn btn-gold" data-f1-action="resume">Devam Et</button><button class="btn btn-ghost" data-f1-action="exit">Ana Merkeze Dön</button></div>
+      <div class="f1-result-panel hidden" id="f1ResultPanel"></div>
+    </section>`;
   }
 
   function startRace(context) {
@@ -651,6 +706,7 @@
       weather:context.weather,
       incidentLevel:context.incidentLevel || "realistic",
       drivingMode:context.drivingMode || state.settings.drivingMode || "balanced",
+      performanceMode:context.performanceMode || state.settings.performanceMode || "auto",
       weatherSeed:`S${state.championship.season}|R${context.roundIndex ?? "Q"}|${context.trackId}`,
       mastery:trackMastery(context.trackId),
       driverAttributes:{
@@ -681,6 +737,7 @@
       weather:state.settings.weather || "dynamic",
       incidentLevel:state.settings.incidentLevel || "realistic",
       drivingMode:state.settings.drivingMode || "balanced",
+      performanceMode:state.settings.performanceMode || "auto",
       startingCompound:state.settings.startingCompound || "medium",
       pitCompound:state.settings.pitCompound || "hard",
       gridOrder:DRIVER_IDS,
@@ -703,6 +760,7 @@
       weather:weekend.weather,
       incidentLevel:"realistic",
       drivingMode:state.settings.drivingMode || "balanced",
+      performanceMode:state.settings.performanceMode || "auto",
       startingCompound:weekend.startingCompound,
       pitCompound:weekend.pitCompound,
       gridOrder:weekend.gridOrder,
@@ -713,7 +771,7 @@
 
   function addRaceEvent(event) {
     eventFeed.unshift({ ...event, time:new Date().toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit",second:"2-digit"}) });
-    eventFeed = eventFeed.slice(0,5);
+    eventFeed = eventFeed.slice(0,3);
     const node = document.getElementById("f1EventFeed");
     if (node) node.innerHTML = `<header>RACE CONTROL</header>${eventFeed.map(item=>`<div><span>${esc(item.title)}</span><p>${esc(item.text)}</p><small>${item.time}</small></div>`).join("")}`;
   }
@@ -784,9 +842,10 @@
 
   function updateRaceIntelligence(snapshot, timing, playerTimingIndex) {
     const now=performance.now();
-    drawMiniMap(snapshot);
-    if(now-lastIntelligenceRenderAt<220&&!snapshot.finished) return;
+    const interval=Number(snapshot.performance?.intelligenceInterval||300);
+    if(now-lastIntelligenceRenderAt<interval&&!snapshot.finished) return;
     lastIntelligenceRenderAt=now;
+    drawMiniMap(snapshot);
     const sector=snapshot.sector||{};
     const values=sector.currentLap||[null,null,null];
     [1,2,3].forEach(index=>{
@@ -879,15 +938,23 @@
     updateRaceIntelligence(snapshot,timing,playerTimingIndex);
     const standings=document.getElementById("f1Standings");
     const now = performance.now();
-    if(standings && (now-lastTimingRenderAt>180 || snapshot.rank!==lastTimingPlayerRank || snapshot.finished)) {
-      const rowMarkup = (row,index) => {const car=row.car;const status=car.retired?"DNF":car.pitTimer>0?"PIT":car.finished?"FIN":car.puncture?"P":compound(car.tyreCompound).label.slice(0,1);return `<div class="f1-timing-row ${car.isPlayer?"player":""} ${car.id===currentRaceContext?.rivalId?"rival":""} ${car.retired?"retired":""}" data-rank="${index+1}"><span>${index+1}</span><i style="background:${car.color}"></i><strong title="${esc(car.name)}">${esc(car.name)}</strong><small style="color:${compound(car.tyreCompound).color}">${status}</small><b>${index===0?"LEADER":formatGap(row.gapToLeader)}</b><em>${index===0?"—":formatGap(row.interval)}</em></div>`;};
-      const columns = [timing.slice(0,12), timing.slice(12,24)];
-      standings.innerHTML = columns.map((group,columnIndex)=>`<section class="f1-timing-column"><header><span>${columnIndex===0?flag:`P13–P${ROSTER_SIZE}`}</span><b>RACE ORDER</b><em>GAP</em><em>INT</em></header>${group.map((row,offset)=>rowMarkup(row,columnIndex*12+offset)).join("")}</section>`).join("");
+    const timingInterval = Number(snapshot.performance?.timingInterval || 280);
+    if(standings && (now-lastTimingRenderAt>timingInterval || snapshot.rank!==lastTimingPlayerRank || snapshot.finished)) {
+      const previousScroll = standings.scrollTop;
+      const previousRank = lastTimingPlayerRank;
+      const rowMarkup = (row,index) => {
+        const car=row.car;
+        const status=car.retired?"DNF":car.pitTimer>0?"PIT":car.finished?"FIN":car.puncture?"P":compound(car.tyreCompound).label.slice(0,1);
+        return `<div class="f1-timing-row ${car.isPlayer?"player":""} ${car.id===currentRaceContext?.rivalId?"rival":""} ${car.retired?"retired":""}" data-rank="${index+1}"><span>${index+1}</span><i style="background:${car.color}"></i><strong title="${esc(car.name)}">${esc(car.name)}</strong><small style="color:${compound(car.tyreCompound).color}">${status}</small><b>${index===0?"LEADER":formatGap(row.gapToLeader)}</b><em>${index===0?"—":formatGap(row.interval)}</em></div>`;
+      };
+      standings.innerHTML = `<section class="f1-timing-column f1-timing-column-clean"><header><span>${flag}</span><b>DRIVER</b><em>GAP</em><em>INT</em></header>${timing.map(rowMarkup).join("")}</section>`;
       lastTimingRenderAt = now;
       lastTimingPlayerRank = snapshot.rank;
-      if (window.innerWidth <= 760) {
-        const playerRow = standings.querySelector(".f1-timing-row.player");
-        if (playerRow) standings.scrollTop = Math.max(0, playerRow.offsetTop - 78);
+      const playerRow = standings.querySelector(".f1-timing-row.player");
+      if (playerRow && (previousRank !== snapshot.rank || previousRank === 0)) {
+        standings.scrollTop = Math.max(0, playerRow.offsetTop - standings.clientHeight * .42);
+      } else {
+        standings.scrollTop = previousScroll;
       }
     }
   }
@@ -995,6 +1062,7 @@
     if (event.target.id === "f1Weather") state.settings.weather = event.target.value;
     if (event.target.id === "f1IncidentLevel") state.settings.incidentLevel = event.target.value;
     if (event.target.id === "f1DriveMode") state.settings.drivingMode = event.target.value;
+    if (event.target.id === "f1PerformanceMode") state.settings.performanceMode = event.target.value;
     if (event.target.id === "f1StartTyre") state.settings.startingCompound = event.target.value;
     if (event.target.id === "f1PitTyre") state.settings.pitCompound = event.target.value;
     if (event.target.id === "f1WeekendStartTyre") { const weekend=ensureWeekend(); if(weekend) weekend.startingCompound=event.target.value; }

@@ -240,3 +240,164 @@ body.f1-race-active{overflow:hidden;background:#02090e}body.f1-race-active .side
   .f1-minimap-card{display:none}
   .f1-engineer-card>p{max-height:28px;overflow:hidden}
 }
+
+
+/* FIFA 9 v44.9.7 — Clean Racing HUD & Performance Engine
+   Race data is physically separated from the playable canvas. */
+.f1-clean-race-ui{
+  --f1-top-h:64px;
+  --f1-bottom-h:112px;
+  --f1-left-w:250px;
+  --f1-right-w:280px;
+  background:#02080d;
+}
+.f1-clean-race-ui .f1-race-topbar{
+  position:absolute!important;inset:0 0 auto 0!important;height:var(--f1-top-h);
+  display:grid!important;grid-template-columns:minmax(190px,.8fr) minmax(410px,1.3fr) minmax(210px,.65fr) auto!important;
+  align-items:center!important;gap:12px!important;padding:8px 14px!important;
+  border-bottom:1px solid rgba(255,255,255,.09);background:#041019!important;backdrop-filter:none!important;
+}
+.f1-clean-race-ui .f1-race-session{justify-self:center!important;padding:5px 10px!important;background:#071923!important;backdrop-filter:none!important}
+.f1-clean-race-ui .f1-race-control-status{
+  position:relative!important;inset:auto!important;transform:none!important;min-width:205px!important;
+  justify-self:end!important;padding:6px 10px!important;backdrop-filter:none!important;
+}
+.f1-clean-race-ui .f1-race-actions{justify-self:end!important}
+.f1-race-shell{
+  position:absolute;inset:var(--f1-top-h) 0 var(--f1-bottom-h);
+  display:grid;grid-template-columns:var(--f1-left-w) minmax(0,1fr) var(--f1-right-w);
+  gap:0;min-height:0;background:#02080d;
+}
+.f1-left-rail,.f1-right-rail{
+  min-width:0;min-height:0;padding:8px;background:#041019;
+  border-color:rgba(255,255,255,.08);overflow:hidden;
+}
+.f1-left-rail{border-right:1px solid rgba(255,255,255,.09)}
+.f1-right-rail{border-left:1px solid rgba(255,255,255,.09);overflow-y:auto;scrollbar-width:thin}
+.f1-rail-heading{height:28px;display:flex;align-items:center;justify-content:space-between;padding:0 6px}
+.f1-rail-heading span{font-size:7px;font-weight:950;letter-spacing:.15em;color:#ff655c}
+.f1-rail-heading b{font-size:6px;color:#78939e}
+.f1-race-stage{
+  position:relative;min-width:0;min-height:0;overflow:hidden;
+  border:1px solid rgba(101,217,255,.11);background:#06120d;
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.8);
+}
+.f1-race-stage canvas{position:absolute!important;inset:0!important;width:100%!important;height:100%!important}
+.f1-stage-watermark{
+  position:absolute;right:10px;bottom:8px;display:flex;gap:7px;align-items:center;
+  pointer-events:none;opacity:.48;
+}
+.f1-stage-watermark span,.f1-stage-watermark b{font-size:6px;letter-spacing:.12em}
+.f1-stage-watermark span{color:#65d9ff}.f1-stage-watermark b{color:#9aabb2}
+
+.f1-clean-race-ui .f1-live-standings{
+  position:relative!important;inset:auto!important;width:100%!important;height:calc(100% - 28px)!important;
+  max-height:none!important;display:block!important;overflow-y:auto!important;overflow-x:hidden!important;
+  transform:none!important;padding:4px!important;border:0!important;border-radius:8px!important;
+  background:#07151e!important;backdrop-filter:none!important;scrollbar-width:thin;
+}
+.f1-clean-race-ui .f1-timing-column{
+  min-width:0!important;padding:3px!important;border:0!important;background:transparent!important;
+}
+.f1-clean-race-ui .f1-timing-column header{
+  grid-template-columns:46px minmax(0,1fr) 45px 40px!important;min-height:25px!important;
+  background:#091c27!important;
+}
+.f1-clean-race-ui .f1-timing-row{
+  grid-template-columns:20px 6px minmax(72px,1fr) 25px 47px 41px!important;
+  gap:4px!important;min-height:25px!important;padding:0 4px!important;
+}
+.f1-clean-race-ui .f1-timing-row strong{font-size:7px!important}
+.f1-clean-race-ui .f1-timing-row b,.f1-clean-race-ui .f1-timing-row em{font-size:5.5px!important}
+
+.f1-clean-race-ui .f1-race-intelligence{
+  position:relative!important;inset:auto!important;width:100%!important;display:grid!important;gap:8px!important;
+  pointer-events:none!important;
+}
+.f1-clean-race-ui .f1-minimap-card,
+.f1-clean-race-ui .f1-sector-card,
+.f1-clean-race-ui .f1-engineer-card,
+.f1-clean-race-ui .f1-event-feed{
+  position:relative!important;inset:auto!important;width:100%!important;
+  background:#07151e!important;backdrop-filter:none!important;box-shadow:none!important;
+}
+.f1-clean-race-ui #f1MiniMap{height:136px}
+.f1-clean-race-ui .f1-event-feed{margin-top:8px;padding:8px!important}
+.f1-clean-race-ui .f1-event-feed>div:nth-of-type(n+4){display:none}
+
+.f1-cockpit-bar{
+  position:absolute;inset:auto 0 0;height:var(--f1-bottom-h);display:grid;
+  grid-template-columns:minmax(0,1fr) 390px;gap:9px;padding:8px 10px;
+  border-top:1px solid rgba(255,255,255,.09);background:#041019;z-index:12;
+}
+.f1-clean-race-ui .f1-telemetry{
+  position:relative!important;inset:auto!important;transform:none!important;width:100%!important;height:100%!important;
+  display:grid!important;grid-template-columns:repeat(8,minmax(65px,1fr))!important;gap:4px!important;
+  padding:0!important;background:transparent!important;backdrop-filter:none!important;
+}
+.f1-clean-race-ui .f1-telemetry>div{
+  min-height:0!important;height:100%;padding:6px!important;border-radius:8px!important;background:#071923!important;
+}
+.f1-clean-race-ui .f1-telemetry strong{font-size:13px}
+.f1-cockpit-controls{display:grid;grid-template-rows:1fr 1fr;gap:5px;min-width:0}
+.f1-clean-race-ui .f1-drive-mode-selector,
+.f1-clean-race-ui .f1-pit-selector{
+  position:relative!important;inset:auto!important;width:100%!important;height:auto!important;
+  padding:4px!important;gap:4px!important;border-radius:8px!important;background:#071923!important;backdrop-filter:none!important;
+}
+.f1-clean-race-ui .f1-drive-mode-selector{display:grid!important;grid-template-columns:repeat(3,1fr)!important}
+.f1-clean-race-ui .f1-pit-selector{display:grid!important;grid-template-columns:repeat(5,1fr)!important}
+.f1-clean-race-ui .f1-drive-mode-selector>span,
+.f1-clean-race-ui .f1-pit-selector>span{display:none!important}
+.f1-clean-race-ui .f1-drive-mode-selector button,
+.f1-clean-race-ui .f1-pit-selector button{min-height:30px!important}
+.f1-clean-race-ui .f1-mobile-controls{position:relative!important;inset:auto!important;display:none}
+
+@media(max-width:1280px){
+  .f1-clean-race-ui{--f1-left-w:218px;--f1-right-w:238px;--f1-bottom-h:108px}
+  .f1-clean-race-ui .f1-race-topbar{grid-template-columns:175px minmax(360px,1fr) 190px auto!important}
+  .f1-clean-race-ui .f1-live-rival{display:none}
+  .f1-clean-race-ui #f1MiniMap{height:112px}
+  .f1-cockpit-bar{grid-template-columns:minmax(0,1fr) 330px}
+  .f1-clean-race-ui .f1-telemetry{grid-template-columns:repeat(4,1fr)!important}
+  .f1-clean-race-ui .f1-telemetry>div:nth-child(n+5){display:none!important}
+}
+@media(max-width:1020px){
+  .f1-clean-race-ui{--f1-left-w:205px;--f1-right-w:0px}
+  .f1-right-rail{display:none}
+  .f1-clean-race-ui .f1-race-topbar{grid-template-columns:150px 1fr 180px auto!important}
+  .f1-race-brand div{display:none}
+}
+@media(max-width:760px),(max-height:560px){
+  .f1-clean-race-ui{--f1-top-h:52px;--f1-bottom-h:116px;--f1-left-w:0px;--f1-right-w:0px}
+  .f1-left-rail,.f1-right-rail{display:none!important}
+  .f1-clean-race-ui .f1-race-topbar{
+    grid-template-columns:auto minmax(230px,1fr) auto!important;padding:5px 7px!important;gap:6px!important;
+  }
+  .f1-clean-race-ui .f1-race-brand{display:none!important}
+  .f1-clean-race-ui .f1-race-session{grid-column:1/3!important;justify-self:start!important;min-width:0!important}
+  .f1-clean-race-ui .f1-race-control-status{display:none!important}
+  .f1-clean-race-ui .f1-race-actions{grid-column:3!important}
+  .f1-race-shell{grid-template-columns:1fr}
+  .f1-race-stage{border-width:0}
+  .f1-stage-watermark{display:none}
+  .f1-cockpit-bar{grid-template-columns:150px minmax(0,1fr);padding:5px 7px;gap:6px}
+  .f1-clean-race-ui .f1-telemetry{grid-template-columns:1fr 1fr!important;gap:3px!important}
+  .f1-clean-race-ui .f1-telemetry>div{padding:4px!important}
+  .f1-clean-race-ui .f1-telemetry>div:nth-child(n+5){display:none!important}
+  .f1-clean-race-ui .f1-telemetry>div:nth-child(3),
+  .f1-clean-race-ui .f1-telemetry>div:nth-child(4){display:none!important}
+  .f1-clean-race-ui .f1-telemetry strong{font-size:12px}
+  .f1-cockpit-controls{display:none!important}
+  .f1-clean-race-ui .f1-mobile-controls{
+    display:flex!important;justify-content:space-between!important;align-items:end!important;
+    width:100%;height:100%;padding:0!important;pointer-events:none!important;
+  }
+  .f1-clean-race-ui .f1-mobile-controls>div{pointer-events:auto!important}
+  .f1-clean-race-ui .f1-steer-controls button{width:52px!important;height:52px!important}
+  .f1-clean-race-ui .f1-pedal-controls button{width:45px!important;height:45px!important}
+  .f1-clean-race-ui .f1-pedal-controls .throttle{height:66px!important}
+}
+@media(hover:none),(pointer:coarse){
+  .f1-clean-race-ui .f1-mobile-controls{display:flex!important}
+}

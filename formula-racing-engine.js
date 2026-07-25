@@ -74,6 +74,8 @@
       this.canvas = canvas;
       this.ctx = canvas.getContext("2d", { alpha:false });
       this.options = options;
+      this.performanceMode = options.performanceMode || "auto";
+      this.performance = this.resolvePerformanceProfile(this.performanceMode);
       this.trackId = options.trackId || "oruc-reis";
       this.lapsTarget = Number(options.laps || 5);
       this.difficulty = options.difficulty || "standard";
@@ -127,6 +129,13 @@
       this.startedAt = 0;
       this.lastFrame = 0;
       this.raf = 0;
+      this.lastUiTick = 0;
+      this.lastDrawAt = 0;
+      this.lastStandingsAt = 0;
+      this.cachedStandings = null;
+      this.frameCounter = 0;
+      this.staticTrackLayer = null;
+      this.staticTrackKey = "";
       this.cars = [];
       this.keys = Object.create(null);
       this.mobile = { left:false, right:false, throttle:false, brake:false, boost:false, drs:false, pit:false };
@@ -151,6 +160,37 @@
       window.addEventListener("keydown", this.boundKeyDown, { passive:false });
       window.addEventListener("keyup", this.boundKeyUp, { passive:false });
       this.resize();
+    }
+
+    resolvePerformanceProfile(mode = "auto") {
+      const coarse = typeof matchMedia === "function" && matchMedia("(pointer:coarse)").matches;
+      const cores = Number(navigator.hardwareConcurrency || 4);
+      const memory = Number(navigator.deviceMemory || 4);
+      let resolved = mode;
+      if (resolved === "auto") resolved = coarse || cores <= 4 || memory <= 4 ? "performance" : "balanced";
+      const profiles = {
+        quality:{ mode:"quality", dpr:Math.min(2, window.devicePixelRatio || 1), targetFps:60, uiInterval:105, timingInterval:240, intelligenceInterval:250, rainFactor:1, collisionEvery:1 },
+        balanced:{ mode:"balanced", dpr:Math.min(1.35, window.devicePixelRatio || 1), targetFps:60, uiInterval:130, timingInterval:280, intelligenceInterval:310, rainFactor:.62, collisionEvery:1 },
+        performance:{ mode:"performance", dpr:1, targetFps:50, uiInterval:180, timingInterval:360, intelligenceInterval:420, rainFactor:.32, collisionEvery:2 }
+      };
+      return profiles[resolved] || profiles.balanced;
+    }
+
+    refreshStaticTrackLayer(force = false) {
+      if (!this.track || !this.width || !this.height) return;
+      const wetBucket = Math.round(Number(this.weather?.wetness || 0) * 5) / 5;
+      const key = `${this.trackId}|${this.width}|${this.height}|${this.performance.dpr}|${wetBucket}`;
+      if (!force && this.staticTrackLayer && this.staticTrackKey === key) return;
+      const layer = this.staticTrackLayer || document.createElement("canvas");
+      const dpr = this.performance.dpr;
+      layer.width = Math.round(this.width * dpr);
+      layer.height = Math.round(this.height * dpr);
+      const layerCtx = layer.getContext("2d", { alpha:false });
+      layerCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      layerCtx.clearRect(0, 0, this.width, this.height);
+      this.drawTrack(layerCtx);
+      this.staticTrackLayer = layer;
+      this.staticTrackKey = key;
     }
 
     resolveWeatherMode() {
@@ -264,16 +304,19 @@
       const rect = parent?.getBoundingClientRect?.() || { width:window.innerWidth, height:window.innerHeight };
       const width = Math.max(320, Math.round(rect.width));
       const height = Math.max(360, Math.round(rect.height));
-      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      const dpr = this.performance.dpr;
       this.canvas.width = Math.round(width * dpr);
       this.canvas.height = Math.round(height * dpr);
       this.canvas.style.width = `${width}px`;
       this.canvas.style.height = `${height}px`;
       this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      this.dpr = dpr;
       this.width = width;
       this.height = height;
       this.track = T().buildTrack(this.trackId, width, height);
       if (this.cars.length) this.reprojectCars();
+      this.staticTrackKey = "";
+      this.refreshStaticTrackLayer(true);
       this.draw();
     }
 
@@ -1103,6 +1146,9 @@
           const first = this.cars[a];
           const second = this.cars[b];
           if (first.pitTimer > 0 || second.pitTimer > 0 || first.retired || second.retired || first.parcFerme || second.parcFerme) continue;
+          const sampleDelta = Math.abs(Number(first.progressIndex || 0) - Number(second.progressIndex || 0));
+          const wrappedDelta = Math.min(sampleDelta, Math.max(0, this.track.path.length - sampleDelta));
+          if (wrappedDelta > Math.max(14, this.track.path.length / 28)) continue;
           const dx = second.x - first.x;
           const dy = second.y - first.y;
           const distance = Math.hypot(dx, dy);
@@ -1192,6 +1238,8 @@
       }
       const dt = clamp((now - this.lastFrame) / 1000, 0, .034);
       this.lastFrame = now;
+      this.frameCounter += 1;
+
       if (!this.paused) {
         if (this.countdown > 0) this.countdown -= dt;
         else if (!this.finished) {
@@ -1199,17 +1247,31 @@
           this.updateTrackEvolution(dt);
           this.updateRaceControl(dt);
           this.cars.forEach(car => this.updateCar(car, dt, now));
-          this.collisions();
-          const standings = this.standings();
+          if (this.frameCounter % this.performance.collisionEvery === 0) this.collisions();
+
+          if (!this.cachedStandings || now - this.lastStandingsAt >= 55) {
+            this.cachedStandings = this.standings();
+            this.lastStandingsAt = now;
+          }
+          const standings = this.cachedStandings;
           const rank = standings.findIndex(car => car.isPlayer) + 1;
           if (rank < this.lastPlayerRank) this.stats.overtakes += this.lastPlayerRank - rank;
           this.lastPlayerRank = rank;
           const player = this.cars[0];
           if (player.finished || player.retired) this.finishRace(this.finalStandings());
-          this.options.onTick?.(this.snapshot(standings, now));
+
+          if (now - this.lastUiTick >= this.performance.uiInterval || this.finished) {
+            this.lastUiTick = now;
+            this.options.onTick?.(this.snapshot(standings, now));
+          }
         }
       }
-      this.draw(now);
+
+      const frameDuration = 1000 / this.performance.targetFps;
+      if (now - this.lastDrawAt >= frameDuration || this.countdown > 0 || this.paused) {
+        this.lastDrawAt = now;
+        this.draw(now);
+      }
       this.raf = requestAnimationFrame(this.loop);
     };
 
@@ -1240,6 +1302,7 @@
         pitCompound:this.nextPitCompound,
         track:this.track,
         trackEvolution:{ ...this.trackEvolution },
+        performance:{ ...this.performance },
         sector:{
           current:Number(player.currentSector || 1),
           currentLap:[...(player.currentLapSectors || [null,null,null])],
@@ -1430,7 +1493,7 @@
 
     drawRain(ctx, now) {
       if (this.weather.rain <= .04) return;
-      const count = Math.round(35 + this.weather.rain * 95);
+      const count = Math.round((35 + this.weather.rain * 95) * this.performance.rainFactor);
       ctx.save();
       ctx.strokeStyle = `rgba(170,220,245,${.10 + this.weather.rain * .20})`;
       ctx.lineWidth = 1;
@@ -1506,8 +1569,10 @@
       const ctx = this.ctx;
       ctx.clearRect(0,0,this.width,this.height);
       if (!this.track) return;
-      this.drawTrack(ctx);
-      const standings = this.standings();
+      this.refreshStaticTrackLayer();
+      if (this.staticTrackLayer) ctx.drawImage(this.staticTrackLayer, 0, 0, this.width, this.height);
+      else this.drawTrack(ctx);
+      const standings = this.cachedStandings || this.standings();
       [...standings].reverse().forEach((car, reverseIndex) => {
         const rank = standings.length - reverseIndex;
         this.drawCar(ctx, car, rank);

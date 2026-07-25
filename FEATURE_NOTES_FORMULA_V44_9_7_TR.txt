@@ -1,0 +1,19 @@
+v44.9.7 FEATURE NOTES
+
+CLEAN RACING HUD
+- Canvas artık f1-race-stage adlı bağımsız merkez alanda çalışır.
+- Engine canvas boyutunu doğrudan merkez yarış alanından alır.
+- Tüm büyük veri kartları canvas dışındaki rail/bar alanlarına taşındı.
+- Desktop timing tower tek sütunlu ve kaydırılabilir 24 pilot görünümüdür.
+- Oyuncu sırası değiştiğinde timing paneli otomatik olarak oyuncuya odaklanır.
+- Mobile landscape yarış alanında timing, mini map ve engineer kartları gizlenir.
+
+PERFORMANCE ENGINE
+- Auto / Performance / Balanced / Quality profilleri.
+- Static circuit layer cache.
+- Device-pixel-ratio sınırlandırması.
+- Frame-rate-aware rendering.
+- Throttled HUD, timing and intelligence updates.
+- Cached standings.
+- Collision broadphase based on track sample proximity.
+- Adaptive rain particles.

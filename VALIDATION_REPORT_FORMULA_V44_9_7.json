@@ -1,0 +1,57 @@
+{
+  "version": "v44.9.7",
+  "build": "Clean Racing HUD & Performance Engine",
+  "created_at_utc": "2026-07-25T15:29:53.036231+00:00",
+  "status": "PASS",
+  "syntax_checks": {
+    "formula-racing-engine.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    "formula-racing.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    "formula-racing-tracks.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    }
+  },
+  "feature_checks": {
+    "clean_shell": true,
+    "data_outside_canvas": true,
+    "performance_selector": true,
+    "performance_profile": true,
+    "ui_throttle": true,
+    "render_throttle": true,
+    "static_track_cache": true,
+    "collision_broadphase": true,
+    "single_timing_column": true,
+    "mobile_clean_stage": true
+  },
+  "performance_profiles": {
+    "auto": "Detects coarse pointer, CPU cores and device memory",
+    "quality": {
+      "target_fps": 60,
+      "dpr_max": 2,
+      "ui_ms": 105
+    },
+    "balanced": {
+      "target_fps": 60,
+      "dpr_max": 1.35,
+      "ui_ms": 130
+    },
+    "performance": {
+      "target_fps": 50,
+      "dpr": 1,
+      "ui_ms": 180,
+      "collision_every_frames": 2
+    }
+  },
+  "layout": {
+    "desktop": "Timing rail left, playable canvas center, intelligence rail right, telemetry bottom",
+    "tablet": "Timing rail left, playable canvas center, right rail hidden",
+    "mobile_landscape": "Playable canvas between dedicated top and bottom bars; side rails hidden"
+  },
+  "scope_note": "Static/syntax validation passed. Final FPS and handling should be verified on the target PC and mobile browser."
+}
