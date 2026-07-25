@@ -452,7 +452,7 @@
 
     createCars() {
       const path = this.track.path;
-      const spacing = Math.max(4, Math.round(path.length / 180));
+      const spacing = Math.max(7, Math.round(path.length / 92));
       const difficultyFactor = { rookie:.91, standard:.985, elite:1.045 }[this.difficulty] || .985;
       const paceBonus = (Number(this.driverAttributes.pace || 60) - 60) * .55;
       const powerBonus = (Number(this.carDevelopment.power || 60) - 60) * .46;
@@ -462,10 +462,16 @@
 
       this.cars = ids.map((id, index) => {
         const grid = this.gridPosition(id, index);
-        const offset = grid * spacing;
-        const pathIndex = wrap(-offset, path.length);
+        const gridRow = Math.floor(grid / 2);
+        const gridLane = grid % 2 === 0 ? -.16 : .16;
+        const offset = gridRow * spacing + (grid % 2) * .04;
+        const pathIndex = wrap(Math.round(-offset), path.length);
         const point = path[pathIndex];
-        const next = path[wrap(pathIndex + 2, path.length)];
+        const next = path[wrap(pathIndex + 3, path.length)];
+        const tangent = Math.atan2(next.y - point.y, next.x - point.x);
+        const lanePixels = gridLane * this.track.roadWidth;
+        const startX = point.x + Math.cos(tangent + Math.PI / 2) * lanePixels;
+        const startY = point.y + Math.sin(tangent + Math.PI / 2) * lanePixels;
         const isPlayer = id === "player";
         const aiVariation = ((index * 17) % 11) / 100;
         const aiProfile = isPlayer ? null : this.aiProfile(index, difficultyFactor);
@@ -478,9 +484,9 @@
           color:CAR_COLORS[index % CAR_COLORS.length],
           isPlayer,
           gridPosition:grid + 1,
-          x:point.x,
-          y:point.y,
-          angle:Math.atan2(next.y - point.y, next.x - point.x),
+          x:startX,
+          y:startY,
+          angle:tangent,
           speed:0,
           baseMaxSpeed:isPlayer ? 293 + paceBonus + powerBonus + masteryBonus : (289 + ((index * 7) % 10)) * aiProfile.pace,
           maxSpeed:isPlayer ? 293 + paceBonus + powerBonus + masteryBonus : (289 + ((index * 7) % 10)) * aiProfile.pace,
@@ -491,7 +497,7 @@
           brakeInput:0,
           progressIndex:pathIndex,
           lastIndex:pathIndex,
-          totalProgress:-offset,
+          totalProgress:-offset - (grid % 2) * .025,
           completedLaps:0,
           finished:false,
           finishTime:null,
@@ -504,8 +510,9 @@
           aiSkill:isPlayer ? 1 : aiProfile.pace,
           aiAero:isPlayer ? 1 + aeroBonus : .99 + aiVariation * .28,
           aiConsistency:isPlayer ? 1 : aiProfile.consistency,
-          aiLaneOffset:isPlayer ? 0 : aiProfile.lane,
-          aiTargetLane:isPlayer ? 0 : aiProfile.lane,
+          gridLane,
+          aiLaneOffset:gridLane,
+          aiTargetLane:gridLane,
           aiAttackBias:isPlayer ? 0 : aiProfile.attackBias,
           aiDecisionTimer:isPlayer ? 0 : .2 + index * .04,
           lapStartedAt:0,
@@ -647,7 +654,8 @@
 
     updateProgress(car, now) {
       const count = this.track.path.length;
-      const index = this.nearestIndex(car);
+      const index = Number.isFinite(car.aiAnchorIndex) ? car.aiAnchorIndex : this.nearestIndex(car);
+      car.aiAnchorIndex = null;
       let delta = index - car.lastIndex;
       if (delta > count / 2) delta -= count;
       if (delta < -count / 2) delta += count;
@@ -1005,47 +1013,114 @@
       }
     }
 
+    trackFrame(index, span = 2) {
+      const path = this.track.path;
+      const centerIndex = wrap(Math.round(index), path.length);
+      const point = path[centerIndex];
+      const behind = path[wrap(centerIndex - span, path.length)];
+      const ahead = path[wrap(centerIndex + span, path.length)];
+      const tangent = Math.atan2(ahead.y - behind.y, ahead.x - behind.x);
+      return {
+        index:centerIndex,
+        point,
+        tangent,
+        normalX:Math.cos(tangent + Math.PI / 2),
+        normalY:Math.sin(tangent + Math.PI / 2)
+      };
+    }
+
+    stabilizeAiToTrack(car, dt) {
+      const index = this.nearestIndex(car);
+      const frame = this.trackFrame(index, 2);
+      const roadWidth = Number(this.track.roadWidth || 70);
+      const laneLimit = roadWidth * .18;
+      const requestedLane = clamp(Number(car.aiLaneOffset || 0) * roadWidth, -laneLimit, laneLimit);
+      const targetX = frame.point.x + frame.normalX * requestedLane;
+      const targetY = frame.point.y + frame.normalY * requestedLane;
+      const centerDistance = Math.hypot(frame.point.x - car.x, frame.point.y - car.y);
+
+      if (centerDistance > roadWidth * .72) {
+        car.x = targetX;
+        car.y = targetY;
+        car.angle = frame.tangent;
+        car.speed = Math.min(car.speed, car.baseMaxSpeed * .67);
+        car.aiTargetLane = 0;
+        car.aiLaneOffset *= .35;
+      } else {
+        const correctionRate = centerDistance > roadWidth * .42 ? 8.5 : centerDistance > roadWidth * .28 ? 4.8 : 1.75;
+        const correction = clamp(dt * correctionRate, 0, centerDistance > roadWidth * .42 ? .58 : .20);
+        car.x += (targetX - car.x) * correction;
+        car.y += (targetY - car.y) * correction;
+        const headingCorrection = clamp(dt * (centerDistance > roadWidth * .35 ? 6.8 : 2.2), 0, .42);
+        car.angle += normalizeAngle(frame.tangent - car.angle) * headingCorrection;
+      }
+
+      car.aiAnchorIndex = index;
+      car.nearestDistance = Math.hypot(frame.point.x - car.x, frame.point.y - car.y);
+    }
+
     aiInput(car, dt = .016) {
       const path = this.track.path;
+      const sampleLength = Math.max(1, Number(this.track.pathLength || path.length) / Math.max(1, path.length));
+      const elapsed = this.raceElapsedSeconds();
       car.aiDecisionTimer = Math.max(0, Number(car.aiDecisionTimer || 0) - dt);
-      const traffic = this.activeCarAhead(car, Math.max(34, path.length / 10));
-      if (car.aiDecisionTimer <= 0) {
-        if (traffic && traffic.delta < Math.max(18, path.length / 24)) {
-          const direction = ((Number(car.id.split("-")[1] || 1) + Math.floor(car.completedLaps)) % 2 === 0) ? 1 : -1;
-          car.aiTargetLane = direction * (.20 + Number(car.aiAttackBias || .4) * .11);
-        } else {
-          car.aiTargetLane = ((Number(car.id.split("-")[1] || 1) % 3) - 1) * .12;
-        }
-        car.aiDecisionTimer = .45 + this.raceRandom() * .8;
-      }
-      car.aiLaneOffset += (car.aiTargetLane - car.aiLaneOffset) * Math.min(1, dt * 2.1);
+      const traffic = this.activeCarAhead(car, Math.max(30, path.length / 11));
 
-      const lookAhead = Math.round(14 + Math.abs(car.speed) * .06);
+      if (elapsed < 4.5) {
+        const startBlend = clamp(1 - elapsed / 4.5, 0, 1);
+        car.aiTargetLane = Number(car.gridLane || 0) * startBlend;
+      } else if (car.aiDecisionTimer <= 0) {
+        if (car.nearestDistance > this.track.roadWidth * .34) {
+          car.aiTargetLane = 0;
+        } else if (traffic && traffic.delta < Math.max(15, path.length / 28)) {
+          const direction = ((Number(car.id.split("-")[1] || 1) + Math.floor(car.completedLaps)) % 2 === 0) ? 1 : -1;
+          car.aiTargetLane = direction * (.105 + Number(car.aiAttackBias || .4) * .055);
+        } else {
+          car.aiTargetLane = ((Number(car.id.split("-")[1] || 1) % 3) - 1) * .065;
+        }
+        car.aiDecisionTimer = .62 + this.raceRandom() * .95;
+      }
+
+      car.aiTargetLane = clamp(car.aiTargetLane, -.18, .18);
+      car.aiLaneOffset += (car.aiTargetLane - car.aiLaneOffset) * Math.min(1, dt * 1.65);
+
+      // Look-ahead is expressed in metres/pixels and converted to path samples.
+      // This prevents the AI from aiming through the inside of hairpins.
+      const lookAheadPixels = clamp(42 + Math.abs(car.speed) * .16, 42, 94);
+      const lookAhead = clamp(Math.round(lookAheadPixels / sampleLength), 3, 9);
       const targetIndex = wrap(car.progressIndex + lookAhead, path.length);
-      const target = path[targetIndex];
-      const next = path[wrap(targetIndex + 3, path.length)];
-      const tangent = Math.atan2(next.y - target.y, next.x - target.x);
-      const lanePixels = Number(car.aiLaneOffset || 0) * this.track.roadWidth;
-      const targetX = target.x + Math.cos(tangent + Math.PI / 2) * lanePixels;
-      const targetY = target.y + Math.sin(tangent + Math.PI / 2) * lanePixels;
+      const targetFrame = this.trackFrame(targetIndex, 2);
+      const futureFrame = this.trackFrame(targetIndex + lookAhead, 2);
+      const curvature = Math.abs(normalizeAngle(futureFrame.tangent - targetFrame.tangent));
+      const laneCurveFactor = clamp(1 - curvature * 2.15, .12, 1);
+      const lanePixels = clamp(
+        Number(car.aiLaneOffset || 0) * this.track.roadWidth * laneCurveFactor,
+        -this.track.roadWidth * .18,
+        this.track.roadWidth * .18
+      );
+
+      const targetX = targetFrame.point.x + targetFrame.normalX * lanePixels;
+      const targetY = targetFrame.point.y + targetFrame.normalY * lanePixels;
       const desired = Math.atan2(targetY - car.y, targetX - car.x);
       const difference = normalizeAngle(desired - car.angle);
-      car.steer = clamp(difference * 2.55, -1, 1);
+      car.steer = clamp(difference * 3.45, -1, 1);
 
-      const cornerPenalty = clamp(Math.abs(difference) / 1.42, 0, .67);
+      const cornerPenalty = clamp(curvature * 1.22 + Math.abs(difference) * .30, 0, .72);
       const grip = this.tyreGrip(car);
-      // Absolute AI pace: never references player position, player progress or player speed.
-      const paceNoise = 1 + Math.sin((car.totalProgress + Number(car.id.split("-")[1] || 1) * 31) * .021) * .006 * Number(car.aiConsistency || 1);
+      const paceNoise = 1 + Math.sin((car.totalProgress + Number(car.id.split("-")[1] || 1) * 31) * .021) * .005 * Number(car.aiConsistency || 1);
       let targetSpeed = car.baseMaxSpeed * (1 - cornerPenalty) * grip * car.aiAero * paceNoise;
-      if (traffic && traffic.delta < Math.max(14, path.length / 35)) {
-        targetSpeed *= 1.012 + Number(car.aiAttackBias || .4) * .025;
+
+      if (car.nearestDistance > this.track.roadWidth * .38) targetSpeed *= .72;
+      if (traffic && traffic.delta < Math.max(12, path.length / 38) && curvature < .16) {
+        targetSpeed *= 1.008 + Number(car.aiAttackBias || .4) * .018;
       }
-      car.throttle = car.speed < targetSpeed ? 1 : .22;
-      car.brakeInput = car.speed > targetSpeed * 1.045 ? .82 : 0;
-      const attacking = Boolean(traffic && traffic.delta < Math.max(22, path.length / 20));
-      car.boost = car.ers > 26 && Math.abs(difference) < .18 && car.speed > car.baseMaxSpeed * .61 && (attacking || this.raceRandom() < .018);
-      car.drsAvailable = Boolean(this.raceControl.status === "GREEN" && car.completedLaps >= 1 && this.weather.wetness < .22 && Math.abs(difference) < .15 && car.speed > 122);
-      car.drs = Boolean(car.drsAvailable && (attacking || this.raceRandom() < .48));
+
+      car.throttle = car.speed < targetSpeed ? 1 : .18;
+      car.brakeInput = car.speed > targetSpeed * 1.025 ? .92 : 0;
+      const attacking = Boolean(traffic && traffic.delta < Math.max(18, path.length / 22) && curvature < .14);
+      car.boost = car.ers > 28 && Math.abs(difference) < .13 && curvature < .11 && car.speed > car.baseMaxSpeed * .60 && (attacking || this.raceRandom() < .010);
+      car.drsAvailable = Boolean(this.raceControl.status === "GREEN" && car.completedLaps >= 1 && this.weather.wetness < .22 && Math.abs(difference) < .12 && curvature < .10 && car.speed > 122);
+      car.drs = Boolean(car.drsAvailable && (attacking || this.raceRandom() < .34));
       this.aiPitDecision(car);
     }
 
@@ -1117,6 +1192,7 @@
       car.angle += car.steer * steerRate * dt * (car.speed >= 0 ? 1 : -1);
       car.x += Math.cos(car.angle) * car.speed * dt;
       car.y += Math.sin(car.angle) * car.speed * dt;
+      if (!car.isPlayer) this.stabilizeAiToTrack(car, dt);
 
       if (car.boost) car.ers = Math.max(0, car.ers - 25 * dt);
       else {
@@ -1514,7 +1590,7 @@
       ctx.save();
       ctx.translate(car.x, car.y);
       ctx.rotate(car.angle);
-      const scale = car.isPlayer ? 1.12 : 1;
+      const scale = car.isPlayer ? 1.30 : 1.14;
       ctx.scale(scale, scale);
       ctx.shadowColor = car.isPlayer ? "rgba(247,200,92,.8)" : "rgba(0,0,0,.45)";
       ctx.shadowBlur = car.isPlayer ? 12 : 5;
@@ -1558,10 +1634,10 @@
       }
       ctx.restore();
       if (car.isPlayer || rank <= 3) {
-        ctx.font = car.isPlayer ? "800 11px system-ui" : "700 9px system-ui";
+        ctx.font = car.isPlayer ? "900 14px system-ui" : "800 11px system-ui";
         ctx.textAlign = "center";
         ctx.fillStyle = "rgba(255,255,255,.92)";
-        ctx.fillText(car.retired ? "DNF" : car.isPlayer ? "YOU" : String(rank), car.x, car.y - 12);
+        ctx.fillText(car.retired ? "DNF" : car.isPlayer ? "YOU" : String(rank), car.x, car.y - 15);
       }
     }
 

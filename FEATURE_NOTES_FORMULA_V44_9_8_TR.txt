@@ -1,0 +1,21 @@
+v44.9.8 FEATURE NOTES
+
+AI
+- Two-column starting grid.
+- Pixel-based short look-ahead converted to spline samples.
+- Curvature-aware braking and lane suppression.
+- Continuous soft track anchoring.
+- Extreme off-track recovery.
+- Overtaking lane width reduced.
+- DRS/ERS restricted to genuinely straight sections.
+
+HUD
+- New Large / Readable / Compact selector.
+- Larger timing, telemetry, engineer and Race Control typography.
+- Larger car sprites and track labels.
+- Timing Tower row DOM cache; no repeated 24-row innerHTML rebuild.
+
+VALIDATION
+- Node syntax check for all JavaScript modules.
+- 25-second AI simulation on all eight tracks.
+- Maximum centreline deviation and off-road sample rate checked.

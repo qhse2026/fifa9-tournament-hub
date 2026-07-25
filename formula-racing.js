@@ -2,7 +2,7 @@
   "use strict";
 
   const STORAGE_KEY = "fifa9_formula_racing_v4490";
-  const VERSION = 8;
+  const VERSION = 9;
   const ROSTER_SIZE = 24;
   const POINTS = [25,18,15,12,10,8,6,4,2,1, ...Array(14).fill(0)];
   const DRIVER_IDS = ["player", ...Array.from({length:23}, (_, index) => `ai-${index + 1}`)];
@@ -31,7 +31,7 @@
     settings:{
       trackId:"oruc-reis", difficulty:"standard", laps:5, mode:"race",
       startingCompound:"medium", pitCompound:"hard", weather:"dynamic",
-      practiceProgram:"race-pace", incidentLevel:"realistic", drivingMode:"balanced", performanceMode:"auto"
+      practiceProgram:"race-pace", incidentLevel:"realistic", drivingMode:"balanced", performanceMode:"auto", hudScale:"large"
     },
     mastery:{},
     records:{},
@@ -54,6 +54,8 @@
   let eventFeed = [];
   let lastTimingRenderAt = 0;
   let lastTimingPlayerRank = 0;
+  let timingRowCache = new Map();
+  let timingHeaderCache = null;
   let lastIntelligenceRenderAt = 0;
   let lastEngineerMessage = "";
   let previousWetness = 0;
@@ -566,7 +568,7 @@
   function quickRaceMarkup() {
     const tracks = window.F1_TRACKS.TRACKS;
     const selected = window.F1_TRACKS.getTrack(state.settings.trackId);
-    return `<section class="f1-panel f1-quick-race"><header><div><span>QUICK RACE</span><h3>Serbest Yarış</h3><p>Şampiyonadan bağımsız pist, hava, incident yoğunluğu ve sürüş modunu seçerek hemen sür.</p></div><b>PC + MOBILE</b></header><div class="f1-track-grid">${tracks.map(track=>`<button class="f1-track-card ${track.id===selected.id?"active":""} ${track.accent}" data-f1-action="track" data-track="${track.id}" data-theme="${track.theme}">${trackPreview(track)}<span>${track.country} · ${track.layoutCode}</span><strong>${track.name}</strong><small>${track.character}</small><b class="f1-track-identity">${String(track.theme||"circuit").toUpperCase()} · ${track.points.length} SECTOR NODES</b><i>${trackMastery(track.id)} / 100 MASTERY</i></button>`).join("")}</div><div class="f1-quick-config f1-quick-config-v3"><label><span>Zorluk</span><select id="f1Difficulty"><option value="rookie" ${state.settings.difficulty==="rookie"?"selected":""}>Rookie</option><option value="standard" ${state.settings.difficulty==="standard"?"selected":""}>Standard</option><option value="elite" ${state.settings.difficulty==="elite"?"selected":""}>Elite</option></select></label><label><span>Tur</span><select id="f1Laps"><option value="3" ${state.settings.laps===3?"selected":""}>3 Tur</option><option value="5" ${state.settings.laps===5?"selected":""}>5 Tur</option><option value="7" ${state.settings.laps===7?"selected":""}>7 Tur</option></select></label><label><span>Hava</span><select id="f1Weather"><option value="dynamic" ${state.settings.weather==="dynamic"?"selected":""}>Dinamik</option><option value="dry" ${state.settings.weather==="dry"?"selected":""}>Kuru</option><option value="mixed" ${state.settings.weather==="mixed"?"selected":""}>Değişken</option><option value="wet" ${state.settings.weather==="wet"?"selected":""}>Yağmurlu</option></select></label><label><span>Incident Seviyesi</span><select id="f1IncidentLevel"><option value="off" ${state.settings.incidentLevel==="off"?"selected":""}>Race First · SC/VSC Kapalı</option><option value="low" ${state.settings.incidentLevel==="low"?"selected":""}>Low · Yerel Sarı Bayrak</option><option value="realistic" ${state.settings.incidentLevel==="realistic"?"selected":""}>Balanced · Maks. 1 SC</option><option value="high" ${state.settings.incidentLevel==="high"?"selected":""}>High · Korumalı Kaos</option></select></label><label><span>Sürüş Modu</span><select id="f1DriveMode"><option value="conserve" ${state.settings.drivingMode==="conserve"?"selected":""}>Conserve</option><option value="balanced" ${state.settings.drivingMode==="balanced"?"selected":""}>Balanced</option><option value="attack" ${state.settings.drivingMode==="attack"?"selected":""}>Attack</option></select></label><label><span>Performans</span><select id="f1PerformanceMode"><option value="auto" ${state.settings.performanceMode==="auto"?"selected":""}>Auto · Önerilen</option><option value="performance" ${state.settings.performanceMode==="performance"?"selected":""}>Performance · En Akıcı</option><option value="balanced" ${state.settings.performanceMode==="balanced"?"selected":""}>Balanced</option><option value="quality" ${state.settings.performanceMode==="quality"?"selected":""}>Quality</option></select><small>24 araç için Auto veya Performance</small></label><label><span>Başlangıç</span><select id="f1StartTyre">${Object.values(compounds()).map(item=>`<option value="${item.id}" ${state.settings.startingCompound===item.id?"selected":""}>${item.label}</option>`).join("")}</select></label><label><span>Pit Lastiği</span><select id="f1PitTyre">${Object.values(compounds()).map(item=>`<option value="${item.id}" ${state.settings.pitCompound===item.id?"selected":""}>${item.label}</option>`).join("")}</select></label><button class="btn btn-gold" data-f1-action="quick-start">Hızlı Yarışı Başlat</button></div></section>`;
+    return `<section class="f1-panel f1-quick-race"><header><div><span>QUICK RACE</span><h3>Serbest Yarış</h3><p>Şampiyonadan bağımsız pist, hava, incident yoğunluğu ve sürüş modunu seçerek hemen sür.</p></div><b>PC + MOBILE</b></header><div class="f1-track-grid">${tracks.map(track=>`<button class="f1-track-card ${track.id===selected.id?"active":""} ${track.accent}" data-f1-action="track" data-track="${track.id}" data-theme="${track.theme}">${trackPreview(track)}<span>${track.country} · ${track.layoutCode}</span><strong>${track.name}</strong><small>${track.character}</small><b class="f1-track-identity">${String(track.theme||"circuit").toUpperCase()} · ${track.points.length} SECTOR NODES</b><i>${trackMastery(track.id)} / 100 MASTERY</i></button>`).join("")}</div><div class="f1-quick-config f1-quick-config-v3"><label><span>Zorluk</span><select id="f1Difficulty"><option value="rookie" ${state.settings.difficulty==="rookie"?"selected":""}>Rookie</option><option value="standard" ${state.settings.difficulty==="standard"?"selected":""}>Standard</option><option value="elite" ${state.settings.difficulty==="elite"?"selected":""}>Elite</option></select></label><label><span>Tur</span><select id="f1Laps"><option value="3" ${state.settings.laps===3?"selected":""}>3 Tur</option><option value="5" ${state.settings.laps===5?"selected":""}>5 Tur</option><option value="7" ${state.settings.laps===7?"selected":""}>7 Tur</option></select></label><label><span>Hava</span><select id="f1Weather"><option value="dynamic" ${state.settings.weather==="dynamic"?"selected":""}>Dinamik</option><option value="dry" ${state.settings.weather==="dry"?"selected":""}>Kuru</option><option value="mixed" ${state.settings.weather==="mixed"?"selected":""}>Değişken</option><option value="wet" ${state.settings.weather==="wet"?"selected":""}>Yağmurlu</option></select></label><label><span>Incident Seviyesi</span><select id="f1IncidentLevel"><option value="off" ${state.settings.incidentLevel==="off"?"selected":""}>Race First · SC/VSC Kapalı</option><option value="low" ${state.settings.incidentLevel==="low"?"selected":""}>Low · Yerel Sarı Bayrak</option><option value="realistic" ${state.settings.incidentLevel==="realistic"?"selected":""}>Balanced · Maks. 1 SC</option><option value="high" ${state.settings.incidentLevel==="high"?"selected":""}>High · Korumalı Kaos</option></select></label><label><span>Sürüş Modu</span><select id="f1DriveMode"><option value="conserve" ${state.settings.drivingMode==="conserve"?"selected":""}>Conserve</option><option value="balanced" ${state.settings.drivingMode==="balanced"?"selected":""}>Balanced</option><option value="attack" ${state.settings.drivingMode==="attack"?"selected":""}>Attack</option></select></label><label><span>Performans</span><select id="f1PerformanceMode"><option value="auto" ${state.settings.performanceMode==="auto"?"selected":""}>Auto · Önerilen</option><option value="performance" ${state.settings.performanceMode==="performance"?"selected":""}>Performance · En Akıcı</option><option value="balanced" ${state.settings.performanceMode==="balanced"?"selected":""}>Balanced</option><option value="quality" ${state.settings.performanceMode==="quality"?"selected":""}>Quality</option></select><small>24 araç için Auto veya Performance</small></label><label><span>HUD Boyutu</span><select id="f1HudScale"><option value="readable" ${state.settings.hudScale==="readable"?"selected":""}>Okunabilir</option><option value="large" ${state.settings.hudScale==="large"?"selected":""}>Büyük · Önerilen</option><option value="compact" ${state.settings.hudScale==="compact"?"selected":""}>Kompakt</option></select><small>Yarış verilerinin yazı boyutu</small></label><label><span>Başlangıç</span><select id="f1StartTyre">${Object.values(compounds()).map(item=>`<option value="${item.id}" ${state.settings.startingCompound===item.id?"selected":""}>${item.label}</option>`).join("")}</select></label><label><span>Pit Lastiği</span><select id="f1PitTyre">${Object.values(compounds()).map(item=>`<option value="${item.id}" ${state.settings.pitCompound===item.id?"selected":""}>${item.label}</option>`).join("")}</select></label><button class="btn btn-gold" data-f1-action="quick-start">Hızlı Yarışı Başlat</button></div></section>`;
   }
 
   function weekendMarkup() {
@@ -625,7 +627,8 @@
     const startTyre = compound(context.startingCompound);
     const pitTyre = compound(context.pitCompound);
     const performanceMode = context.performanceMode || state.settings.performanceMode || "auto";
-    return `<section class="f1-race-view f1-clean-race-ui" data-performance="${performanceMode}">
+    const hudScale = context.hudScale || state.settings.hudScale || "large";
+    return `<section class="f1-race-view f1-clean-race-ui" data-performance="${performanceMode}" data-hud-size="${hudScale}">
       <header class="f1-race-topbar">
         <div class="f1-race-brand"><span>FR</span><div><strong>FORMULA RACING</strong><small id="f1TrackName">—</small></div></div>
         <div class="f1-race-session">
@@ -738,6 +741,7 @@
       incidentLevel:state.settings.incidentLevel || "realistic",
       drivingMode:state.settings.drivingMode || "balanced",
       performanceMode:state.settings.performanceMode || "auto",
+      hudScale:state.settings.hudScale || "large",
       startingCompound:state.settings.startingCompound || "medium",
       pitCompound:state.settings.pitCompound || "hard",
       gridOrder:DRIVER_IDS,
@@ -761,6 +765,7 @@
       incidentLevel:"realistic",
       drivingMode:state.settings.drivingMode || "balanced",
       performanceMode:state.settings.performanceMode || "auto",
+      hudScale:state.settings.hudScale || "large",
       startingCompound:weekend.startingCompound,
       pitCompound:weekend.pitCompound,
       gridOrder:weekend.gridOrder,
@@ -938,19 +943,52 @@
     updateRaceIntelligence(snapshot,timing,playerTimingIndex);
     const standings=document.getElementById("f1Standings");
     const now = performance.now();
-    const timingInterval = Number(snapshot.performance?.timingInterval || 280);
+    const timingInterval = Number(snapshot.performance?.timingInterval || 300);
     if(standings && (now-lastTimingRenderAt>timingInterval || snapshot.rank!==lastTimingPlayerRank || snapshot.finished)) {
       const previousScroll = standings.scrollTop;
       const previousRank = lastTimingPlayerRank;
-      const rowMarkup = (row,index) => {
-        const car=row.car;
-        const status=car.retired?"DNF":car.pitTimer>0?"PIT":car.finished?"FIN":car.puncture?"P":compound(car.tyreCompound).label.slice(0,1);
-        return `<div class="f1-timing-row ${car.isPlayer?"player":""} ${car.id===currentRaceContext?.rivalId?"rival":""} ${car.retired?"retired":""}" data-rank="${index+1}"><span>${index+1}</span><i style="background:${car.color}"></i><strong title="${esc(car.name)}">${esc(car.name)}</strong><small style="color:${compound(car.tyreCompound).color}">${status}</small><b>${index===0?"LEADER":formatGap(row.gapToLeader)}</b><em>${index===0?"—":formatGap(row.interval)}</em></div>`;
-      };
-      standings.innerHTML = `<section class="f1-timing-column f1-timing-column-clean"><header><span>${flag}</span><b>DRIVER</b><em>GAP</em><em>INT</em></header>${timing.map(rowMarkup).join("")}</section>`;
+
+      if (timingRowCache.size !== timing.length || !standings.querySelector(".f1-timing-column-clean")) {
+        standings.innerHTML = `<section class="f1-timing-column f1-timing-column-clean"><header><span data-timing-flag>${flag}</span><b>DRIVER</b><em>GAP</em><em>INT</em></header><div data-timing-rows></div></section>`;
+        const rowsHost = standings.querySelector("[data-timing-rows]");
+        timingRowCache = new Map();
+        timing.forEach(row => {
+          const element = document.createElement("div");
+          element.className = "f1-timing-row";
+          element.dataset.carId = row.car.id;
+          element.innerHTML = '<span></span><i></i><strong></strong><small></small><b></b><em></em>';
+          rowsHost.appendChild(element);
+          timingRowCache.set(row.car.id, element);
+        });
+      }
+
+      const flagNode = standings.querySelector("[data-timing-flag]");
+      if (flagNode && timingHeaderCache !== flag) {
+        flagNode.textContent = flag;
+        timingHeaderCache = flag;
+      }
+
+      timing.forEach((row,index) => {
+        const car = row.car;
+        const element = timingRowCache.get(car.id);
+        if (!element) return;
+        const status = car.retired ? "DNF" : car.pitTimer>0 ? "PIT" : car.finished ? "FIN" : car.puncture ? "P" : compound(car.tyreCompound).label.slice(0,1);
+        element.className = `f1-timing-row ${car.isPlayer?"player":""} ${car.id===currentRaceContext?.rivalId?"rival":""} ${car.retired?"retired":""}`;
+        element.dataset.rank = String(index + 1);
+        const children = element.children;
+        children[0].textContent = String(index + 1);
+        children[1].style.background = car.color;
+        children[2].textContent = car.name;
+        children[2].title = car.name;
+        children[3].textContent = status;
+        children[3].style.color = compound(car.tyreCompound).color;
+        children[4].textContent = index===0 ? "LEADER" : formatGap(row.gapToLeader);
+        children[5].textContent = index===0 ? "—" : formatGap(row.interval);
+      });
+
       lastTimingRenderAt = now;
       lastTimingPlayerRank = snapshot.rank;
-      const playerRow = standings.querySelector(".f1-timing-row.player");
+      const playerRow = timingRowCache.get("player");
       if (playerRow && (previousRank !== snapshot.rank || previousRank === 0)) {
         standings.scrollTop = Math.max(0, playerRow.offsetTop - standings.clientHeight * .42);
       } else {
@@ -977,6 +1015,8 @@
     lastSnapshot = null;
     lastTimingRenderAt = 0;
     lastTimingPlayerRank = 0;
+    timingRowCache = new Map();
+    timingHeaderCache = null;
     lastIntelligenceRenderAt = 0;
     lastEngineerMessage = "";
     document.body.classList.remove("f1-race-active");
@@ -1063,6 +1103,7 @@
     if (event.target.id === "f1IncidentLevel") state.settings.incidentLevel = event.target.value;
     if (event.target.id === "f1DriveMode") state.settings.drivingMode = event.target.value;
     if (event.target.id === "f1PerformanceMode") state.settings.performanceMode = event.target.value;
+    if (event.target.id === "f1HudScale") state.settings.hudScale = event.target.value;
     if (event.target.id === "f1StartTyre") state.settings.startingCompound = event.target.value;
     if (event.target.id === "f1PitTyre") state.settings.pitCompound = event.target.value;
     if (event.target.id === "f1WeekendStartTyre") { const weekend=ensureWeekend(); if(weekend) weekend.startingCompound=event.target.value; }

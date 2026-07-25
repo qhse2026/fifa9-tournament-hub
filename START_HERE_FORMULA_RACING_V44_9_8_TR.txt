@@ -1,0 +1,58 @@
+FORMULA RACING v44.9.8 — TRACK-LOCK AI & READABLE HUD
+
+DÜZELTİLEN SORUNLAR
+1. AI araçlarının virajlarda pistin içinden kesmesi veya pist dışına dağılması.
+2. Timing Tower, telemetri ve sağ bilgi panelindeki yazıların okunamayacak kadar küçük olması.
+3. Timing Tower'ın her güncellemede tamamen yeniden oluşturulmasının yarattığı arayüz yükü.
+
+TRACK-LOCK AI
+- AI hedef noktası artık aşırı ileride değil.
+- Hıza göre 42–94 piksel hedef mesafesi kullanılıyor.
+- Hedef mesafe pist örnek aralığına göre otomatik hesaplanıyor.
+- Viraj keskinliği önceden ölçülüyor.
+- Keskin virajlarda geçiş çizgisi merkeze yaklaşıyor.
+- AI viraja girmeden önce hız düşürüyor.
+- Araç pist kenarına yaklaşırsa yumuşak merkezleme uygulanıyor.
+- Araç ciddi şekilde pist dışına çıkarsa güvenli biçimde yarış çizgisine döndürülüyor.
+- 24 araç artık iki sütunlu, 12 sıralı start gridinde başlıyor.
+
+READABLE HUD
+- Varsayılan HUD: Büyük.
+- Timing Tower sürücü adları yaklaşık 9.5 px.
+- GAP / INT yaklaşık 8 px.
+- Telemetri ana değerleri 18 px.
+- Yarış mühendisi ve Race Control metinleri büyütüldü.
+- Araç modelleri ve YOU / ilk üç sıra etiketleri büyütüldü.
+- Quick Race ekranında HUD Boyutu seçimi eklendi:
+  Okunabilir / Büyük / Kompakt.
+
+PERFORMANS
+- Timing Tower DOM yapısı yalnızca bir kez oluşturuluyor.
+- Sonraki güncellemelerde sadece değişen metinler ve sınıflar güncelleniyor.
+- Büyük innerHTML yeniden çizimleri kaldırıldı.
+
+ÖNERİLEN TEST
+Pist: Dragon Ring
+Grid: 24 araç
+Tur: 5
+Hava: Kuru
+Incident: Race First
+Performans: Auto veya Performance
+HUD Boyutu: Büyük
+
+KABUL KRİTERLERİ
+- AI araçları saç tokası ve keskin virajlarda pist içinden kesmemeli.
+- Araçlar startta tek noktada üst üste yığılmamalı.
+- 24 sürücünün isimleri, GAP ve INT değerleri normal ekran mesafesinden okunabilmeli.
+- Araçlar pist üzerinde belirgin şekilde görülebilmeli.
+
+YÜKLENECEK DOSYALAR
+index.html
+service-worker.js
+formula-racing-tracks.js
+formula-racing-engine.js
+formula-racing.js
+formula-racing.css
+
+COMMIT
+Install Formula Track-Lock AI and Readable HUD v44.9.8

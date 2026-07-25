@@ -1,0 +1,81 @@
+{
+  "version": "v44.9.8",
+  "build": "Track-Lock AI & Readable HUD",
+  "created_at_utc": "2026-07-25T15:43:10.971588+00:00",
+  "status": "PASS",
+  "syntax_checks": {
+    "formula-racing-engine.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    "formula-racing.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    "formula-racing-tracks.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    }
+  },
+  "feature_checks": {
+    "two_column_grid": true,
+    "short_ai_lookahead": true,
+    "curvature_speed_control": true,
+    "track_lock_correction": true,
+    "ai_extreme_recovery": true,
+    "larger_car_rendering": true,
+    "large_hud_default": true,
+    "timing_dom_cache": true,
+    "readable_timing_font": true,
+    "hud_size_selector": true
+  },
+  "ai_simulation": {
+    "passed": true,
+    "tracks_tested": 8,
+    "duration_per_track_seconds": 25,
+    "results": [
+      {
+        "trackId": "oruc-reis",
+        "maxCenterlineRatio": 0.294,
+        "offRoadRate": 0
+      },
+      {
+        "trackId": "dragon-ring",
+        "maxCenterlineRatio": 0.264,
+        "offRoadRate": 0
+      },
+      {
+        "trackId": "filyos-street",
+        "maxCenterlineRatio": 0.323,
+        "offRoadRate": 0
+      },
+      {
+        "trackId": "champion-arena",
+        "maxCenterlineRatio": 0.275,
+        "offRoadRate": 0
+      },
+      {
+        "trackId": "bosphorus-gp",
+        "maxCenterlineRatio": 0.308,
+        "offRoadRate": 0
+      },
+      {
+        "trackId": "anatolian-speed",
+        "maxCenterlineRatio": 0.313,
+        "offRoadRate": 0
+      },
+      {
+        "trackId": "black-sea-storm",
+        "maxCenterlineRatio": 0.315,
+        "offRoadRate": 0
+      },
+      {
+        "trackId": "mediterranean-night",
+        "maxCenterlineRatio": 0.286,
+        "offRoadRate": 0
+      }
+    ],
+    "stderr": ""
+  },
+  "scope_note": "Automated simulation validates track containment. Final racing feel and typography should be confirmed in the target browser."
+}

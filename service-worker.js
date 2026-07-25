@@ -1,4 +1,4 @@
-const CACHE = "tournament-universe-v44-9-7-clean-hud-performance";
+const CACHE = "tournament-universe-v44-9-8-track-lock-readable-hud";
 const APP_SHELL = [
   "./",
   "./index.html",

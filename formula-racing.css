@@ -401,3 +401,103 @@ body.f1-race-active{overflow:hidden;background:#02090e}body.f1-race-active .side
 @media(hover:none),(pointer:coarse){
   .f1-clean-race-ui .f1-mobile-controls{display:flex!important}
 }
+
+
+/* v44.9.8 — Readable HUD & Track-Lock presentation */
+.f1-clean-race-ui{
+  --f1-top-h:74px;
+  --f1-bottom-h:128px;
+  --f1-left-w:300px;
+  --f1-right-w:326px;
+}
+.f1-clean-race-ui[data-hud-size="readable"]{
+  --f1-left-w:282px;
+  --f1-right-w:306px;
+}
+.f1-clean-race-ui[data-hud-size="compact"]{
+  --f1-top-h:62px;
+  --f1-bottom-h:112px;
+  --f1-left-w:248px;
+  --f1-right-w:270px;
+}
+
+.f1-clean-race-ui .f1-race-brand strong{font-size:13px!important}
+.f1-clean-race-ui .f1-race-brand small{font-size:10px!important}
+.f1-clean-race-ui .f1-race-session b{font-size:11px!important}
+.f1-clean-race-ui .f1-race-session strong{font-size:25px!important}
+.f1-clean-race-ui .f1-race-session span{font-size:11px!important}
+.f1-clean-race-ui .f1-live-gaps small{font-size:8.5px!important;line-height:1.35}
+.f1-clean-race-ui .f1-live-rival small{font-size:8px!important}
+.f1-clean-race-ui .f1-live-rival strong{font-size:12px!important}
+.f1-clean-race-ui .f1-live-rival span{font-size:9px!important}
+.f1-clean-race-ui .f1-race-control-status strong{font-size:11px!important}
+.f1-clean-race-ui .f1-race-control-status small{font-size:8px!important}
+
+.f1-clean-race-ui .f1-rail-heading{height:32px!important}
+.f1-clean-race-ui .f1-rail-heading span{font-size:9px!important}
+.f1-clean-race-ui .f1-rail-heading b{font-size:8px!important}
+.f1-clean-race-ui .f1-live-standings{height:calc(100% - 32px)!important}
+.f1-clean-race-ui .f1-timing-column header{
+  grid-template-columns:52px minmax(0,1fr) 58px 52px!important;
+  min-height:30px!important;
+}
+.f1-clean-race-ui .f1-timing-column header span,
+.f1-clean-race-ui .f1-timing-column header b,
+.f1-clean-race-ui .f1-timing-column header em{font-size:8.5px!important}
+.f1-clean-race-ui .f1-timing-row{
+  grid-template-columns:23px 8px minmax(108px,1fr) 28px 57px 51px!important;
+  min-height:26px!important;
+  gap:5px!important;
+  padding:0 6px!important;
+}
+.f1-clean-race-ui .f1-timing-row>span{font-size:9px!important;font-weight:950}
+.f1-clean-race-ui .f1-timing-row strong{font-size:9.5px!important}
+.f1-clean-race-ui .f1-timing-row small{font-size:8px!important;font-weight:950}
+.f1-clean-race-ui .f1-timing-row b,
+.f1-clean-race-ui .f1-timing-row em{font-size:8px!important}
+
+.f1-clean-race-ui .f1-minimap-card header span,
+.f1-clean-race-ui .f1-sector-card header span,
+.f1-clean-race-ui .f1-engineer-card header span,
+.f1-clean-race-ui .f1-event-feed>header{font-size:9px!important}
+.f1-clean-race-ui .f1-minimap-card header b,
+.f1-clean-race-ui .f1-sector-card header strong,
+.f1-clean-race-ui .f1-engineer-card header b{font-size:9px!important}
+.f1-clean-race-ui .f1-sector-card article small{font-size:8px!important}
+.f1-clean-race-ui .f1-sector-card article b{font-size:13px!important}
+.f1-clean-race-ui .f1-engineer-card>strong{font-size:16px!important}
+.f1-clean-race-ui .f1-engineer-card p{font-size:11px!important;line-height:1.45!important}
+.f1-clean-race-ui .f1-engineer-card>small{font-size:8.5px!important}
+.f1-clean-race-ui .f1-event-feed div span{font-size:8.5px!important}
+.f1-clean-race-ui .f1-event-feed div p{font-size:9px!important;line-height:1.35!important}
+.f1-clean-race-ui .f1-event-feed div small{font-size:7.5px!important}
+
+.f1-clean-race-ui .f1-telemetry span{font-size:8px!important;letter-spacing:.08em}
+.f1-clean-race-ui .f1-telemetry strong{font-size:18px!important}
+.f1-clean-race-ui .f1-telemetry small{font-size:8px!important}
+.f1-clean-race-ui .f1-drive-mode-selector button,
+.f1-clean-race-ui .f1-pit-selector button{font-size:8.5px!important;font-weight:900!important}
+.f1-clean-race-ui .f1-stage-watermark span,
+.f1-clean-race-ui .f1-stage-watermark b{font-size:8px!important}
+
+.f1-clean-race-ui[data-hud-size="compact"] .f1-timing-row{min-height:24px!important}
+.f1-clean-race-ui[data-hud-size="compact"] .f1-timing-row strong{font-size:8px!important}
+.f1-clean-race-ui[data-hud-size="compact"] .f1-timing-row b,
+.f1-clean-race-ui[data-hud-size="compact"] .f1-timing-row em{font-size:7px!important}
+
+@media(max-width:1450px){
+  .f1-clean-race-ui{
+    --f1-left-w:270px;
+    --f1-right-w:285px;
+    --f1-bottom-h:120px;
+  }
+  .f1-clean-race-ui .f1-timing-row{
+    grid-template-columns:22px 7px minmax(91px,1fr) 25px 51px 46px!important;
+  }
+  .f1-clean-race-ui .f1-timing-row strong{font-size:8.5px!important}
+}
+@media(max-width:1180px){
+  .f1-clean-race-ui{--f1-left-w:250px;--f1-right-w:0px}
+  .f1-right-rail{display:none!important}
+  .f1-clean-race-ui .f1-timing-row strong{font-size:8px!important}
+}
