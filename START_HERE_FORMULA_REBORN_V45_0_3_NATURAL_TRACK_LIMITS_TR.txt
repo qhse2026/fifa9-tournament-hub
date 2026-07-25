@@ -1,0 +1,25 @@
+FORMULA HORIZON REBORN V45.0.3 — NATURAL TRACK LIMITS
+
+DEĞİŞİKLİK
+- Invalid Lap kaldırıldı.
+- Pist dışına çıkmak turu silmez.
+- Grass ve runoff düşük tutuş, düşük hızlanma ve yüksek yuvarlanma direnciyle zaman kaybettirir.
+- Bariyer teması hız ve araç sağlığı kaybettirir.
+- Reset turu silmez; araç düşük hızla piste döner ve doğal zaman kaybı oluşur.
+- Beş tamamlanmış turun tamamı sıralamaya dahildir.
+- FASTEST CLEAN LAP adı FASTEST LAP olarak değiştirildi.
+- VALID LAPS adı COMPLETED LAPS olarak değiştirildi.
+
+SUPABASE
+SQL'i tekrar çalıştırmak gerekmez.
+
+YÜKLENECEK DOSYALAR
+index.html
+service-worker.js
+formula-reborn/formula-reborn-loader.js
+formula-reborn/app/formula-reborn-app.js
+formula-reborn/app/race-session.js
+formula-reborn/engine/lap-timing.js
+
+COMMIT
+Remove Formula lap invalidation and use natural time loss V45.0.3

@@ -1,5 +1,5 @@
 import { TRACKS, getTrack } from "../tracks/index.js";
-import { RaceSession, formatTime } from "./race-session.js?v=45.0.2";
+import { RaceSession, formatTime } from "./race-session.js?v=45.0.3";
 import {
   getDriverName,
   setDriverName,
@@ -30,7 +30,7 @@ const DEFAULT_STATE = Object.freeze({
   statistics: {
     attempts: 0,
     completedSessions: 0,
-    cleanLaps: 0
+    completedLaps: 0
   }
 });
 
@@ -45,7 +45,11 @@ function loadState() {
       ...clone(DEFAULT_STATE),
       ...saved,
       settings: { ...clone(DEFAULT_STATE.settings), ...(saved.settings || {}) },
-      statistics: { ...clone(DEFAULT_STATE.statistics), ...(saved.statistics || {}) }
+      statistics: {
+        ...clone(DEFAULT_STATE.statistics),
+        ...(saved.statistics || {}),
+        completedLaps: Number(saved.statistics?.completedLaps ?? saved.statistics?.cleanLaps ?? 0)
+      }
     };
   } catch {
     return clone(DEFAULT_STATE);
@@ -311,7 +315,7 @@ function statsView() {
     <div class="fr45-stat-kpis">
       <article><small>ATTEMPTS</small><strong>${state.statistics.attempts}</strong></article>
       <article><small>COMPLETED SESSIONS</small><strong>${state.statistics.completedSessions}</strong></article>
-      <article><small>CLEAN LAPS</small><strong>${state.statistics.cleanLaps}</strong></article>
+      <article><small>LAPS COMPLETED</small><strong>${state.statistics.completedLaps}</strong></article>
       <article><small>MASTERPIECE CIRCUITS</small><strong>3</strong></article>
     </div>
     <section class="fr45-driver-table">
@@ -333,7 +337,7 @@ function render() {
   host.innerHTML = `<section class="fr45-app" data-no-translate>
     <header class="fr45-main-hero">
       <div>
-        <span>V45.0.0 · PHASE 1</span>
+        <span>V45.0.3 · NATURAL TRACK LIMITS</span>
         <h1>FORMULA HORIZON <b>REBORN</b></h1>
         <p>Real WebGL track geometry, braking-dependent physics and global five-lap competition.</p>
       </div>
@@ -429,7 +433,7 @@ async function startRace() {
       },
       onComplete: ({ payload }) => {
         state.statistics.completedSessions += 1;
-        state.statistics.cleanLaps += Number(payload.validLapCount || 0);
+        state.statistics.completedLaps += Number(payload.laps?.length || 0);
         saveState();
       }
     });

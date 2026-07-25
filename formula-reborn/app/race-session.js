@@ -2,7 +2,7 @@ import { FormulaRenderer } from "../engine/renderer.js";
 import { FixedGameLoop } from "../engine/game-loop.js";
 import { VehiclePhysics } from "../engine/vehicle-physics.js";
 import { InputController } from "../engine/input-controller.js?v=45.0.2";
-import { LapTiming } from "../engine/lap-timing.js";
+import { LapTiming } from "../engine/lap-timing.js?v=45.0.3";
 import { GhostSystem } from "../engine/ghost-system.js";
 import { AudioSystem } from "../engine/audio-system.js";
 import {
@@ -118,7 +118,7 @@ export class RaceSession {
       </header>
 
       <aside class="fr45-sector-panel">
-        <header><span>LIVE SECTORS</span><b data-fr45-valid>CLEAN LAP</b></header>
+        <header><span>LIVE SECTORS</span><b data-fr45-valid>LAP ACTIVE</b></header>
         <article><small>S1</small><b data-fr45-sector="0">—</b></article>
         <article><small>S2</small><b data-fr45-sector="1">—</b></article>
         <article><small>S3</small><b data-fr45-sector="2">—</b></article>
@@ -133,7 +133,7 @@ export class RaceSession {
       </aside>
 
       <div class="fr45-countdown" data-fr45-countdown><strong>3</strong><span>5 LAP OFFICIAL SESSION</span></div>
-      <div class="fr45-alert hidden" data-fr45-alert><strong>TRACK LIMITS</strong><span>LAP INVALIDATED</span></div>
+      <div class="fr45-alert hidden" data-fr45-alert><strong>OFF TRACK</strong><span>GRIP & SPEED LOST</span></div>
 
       <div class="fr45-mobile-controls">
         <div class="fr45-steer-controls">
@@ -204,8 +204,7 @@ export class RaceSession {
     if (input.reset) {
       if (this.physics.speed < 4 || Math.abs(this.physics.lateralOffset) > this.track.width / 2 + this.track.runoff * 0.7) {
         this.physics.applyReset();
-        this.timing.invalidate("RESET USED");
-        this.audio.cue("invalid");
+        this.showAlert("CAR RESET", "SPEED LOST");
       }
     }
 
@@ -215,8 +214,7 @@ export class RaceSession {
 
     if (telemetry.trackLimitEvents > this.lastTrackLimitEvents) {
       this.lastTrackLimitEvents = telemetry.trackLimitEvents;
-      this.showAlert("TRACK LIMITS", "LAP INVALIDATED");
-      this.audio.cue("invalid");
+      this.showAlert("OFF TRACK", "GRIP & SPEED LOST");
     }
 
     const timingEvent = this.timing.update(telemetry, now);
@@ -228,7 +226,7 @@ export class RaceSession {
       const ghostSave = this.ghost.finishLap({
         trackId: this.track.id,
         lapTimeMs: lap.timeMs,
-        valid: lap.valid
+        valid: true
       });
       if (ghostSave.saved) this.audio.cue("best");
 
@@ -307,8 +305,10 @@ export class RaceSession {
 
     const validity = this.root.querySelector("[data-fr45-valid]");
     if (validity) {
-      validity.textContent = timing.currentLapValid ? "CLEAN LAP" : (timing.invalidReason || "LAP INVALID");
-      validity.classList.toggle("invalid", !timing.currentLapValid);
+      validity.textContent = telemetry.surface === "asphalt" || telemetry.surface === "kerb"
+        ? "LAP ACTIVE"
+        : "TIME LOSS";
+      validity.classList.remove("invalid");
     }
 
     const throttleBar = this.root.querySelector("[data-fr45-throttle]");
@@ -358,19 +358,19 @@ export class RaceSession {
     const panel = this.root.querySelector("[data-fr45-result]");
     if (!panel) return;
     panel.classList.remove("hidden");
-    const lapRows = payload.laps.map(lap => `<article class="${lap.valid ? "" : "invalid"}">
+    const lapRows = payload.laps.map(lap => `<article>
       <span>LAP ${lap.lap}</span>
       <b>${formatTime(lap.timeMs)}</b>
-      <small>${lap.valid ? "VALID" : lap.invalidReason || "INVALID"}</small>
+      <small>COMPLETED</small>
     </article>`).join("");
 
     panel.innerHTML = `<section class="fr45-result-card">
       <span>OFFICIAL FIVE-LAP SESSION COMPLETE</span>
       <h2>${this.track.name}</h2>
       <div class="fr45-result-summary">
-        <article><small>FASTEST CLEAN LAP</small><strong>${formatTime(payload.bestLapMs)}</strong></article>
+        <article><small>FASTEST LAP</small><strong>${formatTime(payload.bestLapMs)}</strong></article>
         <article><small>FIVE-LAP TOTAL</small><strong>${formatTime(payload.fiveLapTotalMs)}</strong></article>
-        <article><small>VALID LAPS</small><strong>${payload.validLapCount} / 5</strong></article>
+        <article><small>COMPLETED LAPS</small><strong>${payload.laps.length} / 5</strong></article>
         <article><small>REVIEW STATUS</small><strong>${String(submission.reviewStatus || validation.status).toUpperCase()}</strong></article>
       </div>
       <div class="fr45-result-laps">${lapRows}</div>

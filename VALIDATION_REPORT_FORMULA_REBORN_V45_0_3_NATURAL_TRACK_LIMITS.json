@@ -1,0 +1,43 @@
+{
+  "version": "V45.0.3",
+  "build": "Natural Track Limits Hotfix",
+  "created_at_utc": "2026-07-25T23:40:54.427650+00:00",
+  "status": "PASS",
+  "rule": "No lap invalidation. Off-track, grass, runoff, collision and reset consequences are physical time losses only.",
+  "syntax_checks": {
+    "formula-reborn/formula-reborn-loader.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    "formula-reborn/app/formula-reborn-app.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    "formula-reborn/app/race-session.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    "formula-reborn/engine/lap-timing.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    }
+  },
+  "feature_checks": {
+    "no_track_limit_invalidation": true,
+    "no_reset_invalidation": true,
+    "all_laps_ranked": true,
+    "fastest_lap_label": true,
+    "physical_penalty_message": true,
+    "legacy_stats_migration": true
+  },
+  "rule_test": {
+    "passed": true,
+    "result": {
+      "status": "PASS",
+      "laps": 5,
+      "validLapCount": 5
+    },
+    "stderr": ""
+  },
+  "supabase_note": "No SQL rerun is required. The existing p_valid_lap_count field is retained for compatibility and is sent as 5 after a completed session."
+}

@@ -13,7 +13,6 @@ export class LapTiming {
     this.sessionStartedAt = 0;
     this.lapStartedAt = 0;
     this.currentLap = 1;
-    this.currentLapValid = true;
     this.currentLapWarnings = 0;
     this.lastTrackLimitEvents = 0;
     this.lastResetCount = 0;
@@ -32,7 +31,6 @@ export class LapTiming {
     this.sessionStartedAt = now;
     this.lapStartedAt = now;
     this.currentLap = 1;
-    this.currentLapValid = true;
     this.currentLapWarnings = 0;
     this.lastTrackLimitEvents = Number(telemetry.trackLimitEvents || 0);
     this.lastResetCount = Number(telemetry.resetCount || 0);
@@ -42,10 +40,10 @@ export class LapTiming {
     this.sectorCursor = 0;
   }
 
-  invalidate(reason = "TRACK LIMITS") {
-    if (!this.currentLapValid) return;
-    this.currentLapValid = false;
-    this.lastInvalidReason = reason;
+  invalidate() {
+    // V45.0.3: kept as a compatibility no-op.
+    // Off-track driving is punished only by physical grip and speed loss.
+    return false;
   }
 
   update(telemetry, now = performance.now()) {
@@ -55,11 +53,9 @@ export class LapTiming {
 
     if (Number(telemetry.trackLimitEvents || 0) > this.lastTrackLimitEvents) {
       this.currentLapWarnings += 1;
-      this.invalidate("TRACK LIMITS");
       this.lastTrackLimitEvents = Number(telemetry.trackLimitEvents || 0);
     }
     if (Number(telemetry.resetCount || 0) > this.lastResetCount) {
-      this.invalidate("RESET USED");
       this.lastResetCount = Number(telemetry.resetCount || 0);
     }
 
@@ -94,8 +90,8 @@ export class LapTiming {
       const lap = {
         lap: this.currentLap,
         timeMs: Math.round(totalLapTime),
-        valid: this.currentLapValid,
-        invalidReason: this.currentLapValid ? null : this.lastInvalidReason || "INVALID",
+        valid: true,
+        invalidReason: null,
         warnings: this.currentLapWarnings,
         sectors: this.currentSectors.map(value => Math.round(Number(value || 0)))
       };
@@ -108,11 +104,9 @@ export class LapTiming {
       } else {
         this.currentLap += 1;
         this.lapStartedAt = now;
-        this.currentLapValid = true;
-        this.currentLapWarnings = 0;
+            this.currentLapWarnings = 0;
         this.currentSectors = [null, null, null];
         this.sectorCursor = 0;
-        this.lastInvalidReason = null;
       }
     }
 
@@ -122,9 +116,9 @@ export class LapTiming {
   }
 
   result(now = performance.now()) {
-    const validLaps = this.completedLaps.filter(lap => lap.valid);
-    const bestLap = validLaps.length
-      ? validLaps.reduce((best, lap) => lap.timeMs < best.timeMs ? lap : best)
+    const timedLaps = this.completedLaps;
+    const bestLap = timedLaps.length
+      ? timedLaps.reduce((best, lap) => lap.timeMs < best.timeMs ? lap : best)
       : null;
     return {
       completed: this.completedLaps.length === this.lapsTarget,
@@ -132,24 +126,23 @@ export class LapTiming {
       bestLapMs: bestLap?.timeMs || null,
       bestLapNumber: bestLap?.lap || null,
       fiveLapTotalMs: this.completedLaps.reduce((sum, lap) => sum + lap.timeMs, 0),
-      validLapCount: validLaps.length,
+      validLapCount: this.completedLaps.length,
       sectorBests: this.bestSectors.map(value => value === null ? null : Math.round(value)),
       elapsedMs: Math.round(now - this.sessionStartedAt)
     };
   }
 
   snapshot(now = performance.now()) {
-    const validLaps = this.completedLaps.filter(lap => lap.valid);
     return {
       currentLap: this.currentLap,
       lapsTarget: this.lapsTarget,
       currentLapTimeMs: this.started ? Math.max(0, now - this.lapStartedAt) : 0,
-      currentLapValid: this.currentLapValid,
-      invalidReason: this.lastInvalidReason || null,
+      currentLapValid: true,
+      invalidReason: null,
       currentSectors: this.currentSectors.slice(),
       bestSectors: this.bestSectors.slice(),
       completedLaps: this.completedLaps.slice(),
-      bestLapMs: validLaps.length ? Math.min(...validLaps.map(lap => lap.timeMs)) : null,
+      bestLapMs: this.completedLaps.length ? Math.min(...this.completedLaps.map(lap => lap.timeMs)) : null,
       sessionTimeMs: this.started ? Math.max(0, now - this.sessionStartedAt) : 0,
       finished: this.finished
     };
