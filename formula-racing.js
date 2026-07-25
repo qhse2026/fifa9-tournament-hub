@@ -2,7 +2,7 @@
   "use strict";
 
   const STORAGE_KEY = "fifa9_formula_racing_v4490";
-  const VERSION = 5;
+  const VERSION = 6;
   const ROSTER_SIZE = 24;
   const POINTS = [25,18,15,12,10,8,6,4,2,1, ...Array(14).fill(0)];
   const DRIVER_IDS = ["player", ...Array.from({length:23}, (_, index) => `ai-${index + 1}`)];
@@ -35,6 +35,9 @@
     },
     mastery:{},
     records:{},
+    rivalry:{
+      currentId:"ai-1", wins:0, losses:0, draws:0, lastOutcome:null, history:[], records:{}
+    },
     championship:{
       season:1, rosterSize:ROSTER_SIZE, roundIndex:0, calendar:[], driverPoints:{}, results:[],
       weekend:null, completed:false, championId:null, lastResult:null
@@ -51,6 +54,9 @@
   let eventFeed = [];
   let lastTimingRenderAt = 0;
   let lastTimingPlayerRank = 0;
+  let lastIntelligenceRenderAt = 0;
+  let lastEngineerMessage = "";
+  let previousWetness = 0;
 
   const esc = value => String(value ?? "").replace(/[&<>'"]/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[char]));
   const clone = value => JSON.parse(JSON.stringify(value));
@@ -81,6 +87,11 @@
       settings:{ ...base.settings, ...(candidate?.settings || {}) },
       mastery:{ ...base.mastery, ...(candidate?.mastery || {}) },
       records:{ ...base.records, ...(candidate?.records || {}) },
+      rivalry:{
+        ...base.rivalry,
+        ...(candidate?.rivalry || {}),
+        records:{ ...base.rivalry.records, ...(candidate?.rivalry?.records || {}) }
+      },
       championship:{ ...base.championship, ...(candidate?.championship || {}) }
     };
   }
@@ -123,6 +134,57 @@
 
   function teamForDriver(id) {
     return TEAM_DEFINITIONS.find(team => team.drivers.includes(id)) || TEAM_DEFINITIONS[0];
+  }
+
+  function currentRivalId() {
+    ensureChampionship();
+    const standings = championshipStandings();
+    const playerIndex = standings.findIndex(row => row.id === "player");
+    let rival = null;
+    if (playerIndex > 0) rival = standings[playerIndex - 1];
+    else if (playerIndex === 0) rival = standings[1];
+    if (!rival) rival = standings.find(row => row.id !== "player") || { id:"ai-1" };
+    state.rivalry.currentId = rival.id;
+    return rival.id;
+  }
+
+  function rivalryRecord(id = currentRivalId()) {
+    const records = state.rivalry.records || (state.rivalry.records = {});
+    if (!records[id]) records[id] = { wins:0, losses:0, draws:0, meetings:0, lastOutcome:null };
+    return records[id];
+  }
+
+  function evaluateRivalOutcome(data, rivalId = currentRaceContext?.rivalId) {
+    if (!rivalId || !Array.isArray(data?.standings)) return null;
+    const playerIndex = data.standings.findIndex(car => car.id === "player");
+    const rivalIndex = data.standings.findIndex(car => car.id === rivalId);
+    if (playerIndex < 0 || rivalIndex < 0) return null;
+    if (playerIndex < rivalIndex) return "WIN";
+    if (playerIndex > rivalIndex) return "LOSS";
+    return "DRAW";
+  }
+
+  function recordRivalOutcome(data, outcome) {
+    const rivalId = currentRaceContext?.rivalId;
+    if (!rivalId || !outcome) return;
+    const record = rivalryRecord(rivalId);
+    record.meetings += 1;
+    record.lastOutcome = outcome;
+    if (outcome === "WIN") { record.wins += 1; state.rivalry.wins += 1; }
+    if (outcome === "LOSS") { record.losses += 1; state.rivalry.losses += 1; }
+    if (outcome === "DRAW") { record.draws += 1; state.rivalry.draws += 1; }
+    state.rivalry.lastOutcome = outcome;
+    state.rivalry.currentId = rivalId;
+    state.rivalry.history = [
+      {
+        rivalId,
+        outcome,
+        trackId:currentRaceContext?.trackId || state.settings.trackId,
+        season:Number(state.championship.season || 1),
+        createdAt:new Date().toISOString()
+      },
+      ...(state.rivalry.history || [])
+    ].slice(0,40);
   }
 
   function seededNumber(seed) {
@@ -366,7 +428,7 @@
     render(host);
   }
 
-  function calculateRewards(data) {
+  function calculateRewards(data, rivalOutcome = evaluateRivalOutcome(data)) {
     let xp = data.retired ? 35 : 90;
     if (!data.retired) {
       if (data.rank === 1) xp += 230;
@@ -380,6 +442,7 @@
     if (data.drivingMode === "attack" && !data.retired) xp += 20;
     if (state.settings.difficulty === "elite") xp += 55;
     if (state.settings.difficulty === "standard") xp += 20;
+    if (rivalOutcome === "WIN") xp += 50;
     xp = Math.max(20, xp - Number(data.penaltySeconds || 0) * 3);
     const mastery = data.retired ? 3 : Math.max(4, 17 - data.rank + (data.stats.clean ? 5 : 0) + (data.weather?.mode !== "dry" ? 2 : 0));
     const rd = data.retired ? 35 : 65 + Math.max(0, 13 - data.rank) * 8 + (data.stats.clean ? 25 : 0);
@@ -422,7 +485,8 @@
 
   function showResult(data) {
     result = data;
-    const rewards = calculateRewards(data);
+    const rivalOutcome = evaluateRivalOutcome(data);
+    const rewards = calculateRewards(data, rivalOutcome);
     state.driver.races += 1;
     if (data.retired) state.driver.dnfs += 1;
     if (!data.retired && data.rank === 1) state.driver.wins += 1;
@@ -442,6 +506,7 @@
     record.penaltySeconds = Number(record.penaltySeconds || 0) + Number(data.penaltySeconds || 0);
     record.safetyCars = Number(record.safetyCars || 0) + Number(data.stats.safetyCars || 0);
     state.records[trackId] = record;
+    recordRivalOutcome(data, rivalOutcome);
     recordChampionshipResult(data);
     saveState();
 
@@ -463,24 +528,24 @@
         : data.rank <= 3
           ? "Podium secured. Elite performance."
           : "Race completed. Experience earned.";
-    panel.innerHTML = `<span>${data.retired?"RACE RETIREMENT":"GRAND PRIX COMPLETE"}</span><h2>${esc(resultTitle)}</h2><p>${esc(resultText)}</p><div class="f1-result-kpis"><div><b>+${rewards.xp}</b><small>DRIVER XP</small></div><div><b>+${rewards.rd}</b><small>TEAM R&D</small></div><div><b>+${rewards.mastery}</b><small>TRACK MASTERY</small></div><div><b>${formatTime(data.bestLap)}</b><small>BEST LAP</small></div><div><b>${Number(data.penaltySeconds||0)}s</b><small>PENALTY</small></div><div><b>${damageAverage}%</b><small>CAR HEALTH</small></div><div><b>${Number(data.stats?.safetyCars||0)}</b><small>SAFETY CAR</small></div><div><b>${String(data.drivingMode||"balanced").toUpperCase()}</b><small>FINAL MODE</small></div></div><div class="f1-result-championship">${esc(championshipText)}</div>${levels?`<div class="f1-level-up">LEVEL UP · DRIVER LEVEL ${state.driver.level}</div>`:""}<div class="f1-result-actions">${currentRaceContext?.mode === "quick"?`<button class="btn btn-gold" data-f1-action="restart">Tekrar Yarış</button>`:""}<button class="btn btn-gold" data-f1-action="exit">Formula Merkezine Dön</button></div>`;
+    panel.innerHTML = `<span>${data.retired?"RACE RETIREMENT":"GRAND PRIX COMPLETE"}</span><h2>${esc(resultTitle)}</h2><p>${esc(resultText)}</p><div class="f1-result-kpis"><div><b>+${rewards.xp}</b><small>DRIVER XP</small></div><div><b>+${rewards.rd}</b><small>TEAM R&D</small></div><div><b>+${rewards.mastery}</b><small>TRACK MASTERY</small></div><div><b>${formatTime(data.bestLap)}</b><small>BEST LAP</small></div><div><b>${Number(data.penaltySeconds||0)}s</b><small>PENALTY</small></div><div><b>${damageAverage}%</b><small>CAR HEALTH</small></div><div><b>${Number(data.stats?.safetyCars||0)}</b><small>SAFETY CAR</small></div><div><b>${String(data.drivingMode||"balanced").toUpperCase()}</b><small>FINAL MODE</small></div></div><div class="f1-result-rival ${String(rivalOutcome||"").toLowerCase()}"><span>RIVAL DUEL</span><strong>${esc(driverName(currentRaceContext?.rivalId))}</strong><b>${rivalOutcome || "—"}${rivalOutcome==="WIN"?" · +50 XP":""}</b></div><div class="f1-result-championship">${esc(championshipText)}</div>${levels?`<div class="f1-level-up">LEVEL UP · DRIVER LEVEL ${state.driver.level}</div>`:""}<div class="f1-result-actions">${currentRaceContext?.mode === "quick"?`<button class="btn btn-gold" data-f1-action="restart">Tekrar Yarış</button>`:""}<button class="btn btn-gold" data-f1-action="exit">Formula Merkezine Dön</button></div>`;
     panel.classList.remove("hidden");
   }
 
   function dashboardCard() {
     ensureChampionship();
     const round = currentRound();
-    return `<section class="f1-dashboard-promo"><div class="f1-dashboard-copy"><span>PLAYABLE GRAND PRIX EXPERIENCE</span><h3>Formula Racing</h3><p>PC veya mobilde Tüm Zamanların 24 pilotuna karşı yarış; hasar, Safety Car, VSC, pist limitleri, cezalar, pit onarımı ve 8 yarışlık şampiyona.</p><div><button class="btn btn-gold" data-nav="formula1">Formula Racing'i Aç</button><b>${round?`NEXT · ${esc(round.track.name)}`:"SEASON COMPLETE"}</b></div></div><div class="f1-dashboard-car"><i></i><strong>${championshipRank()}</strong><span>CHAMPIONSHIP POSITION</span></div></section>`;
+    return `<section class="f1-dashboard-promo"><div class="f1-dashboard-copy"><span>PLAYABLE GRAND PRIX EXPERIENCE</span><h3>Formula Racing</h3><p>PC veya mobilde Tüm Zamanların 24 pilotuna karşı yarış; hasar, Safety Car, canlı mini harita, sektör delta, pit duvarı zekâsı, rekabet sistemi ve 8 yarışlık şampiyona.</p><div><button class="btn btn-gold" data-nav="formula1">Formula Racing'i Aç</button><b>${round?`NEXT · ${esc(round.track.name)}`:"SEASON COMPLETE"}</b></div></div><div class="f1-dashboard-car"><i></i><strong>${championshipRank()}</strong><span>CHAMPIONSHIP POSITION</span></div></section>`;
   }
 
   function heroMarkup() {
     ensureChampionship();
     const round = currentRound();
-    return `<section class="f1-hero f1-gp-hero"><div class="f1-hero-copy"><span>FORMULA RACING · ALL-TIME 24 GRID</span><h2>Race.<br><em>No one waits.</em></h2><p>Bağımsız AI temposu, sekiz özgün pist kimliği, 24 pilot için kesintisiz canlı GAP/INT zaman farkları, Safety Car, hasar, pit-stop ve dinamik yarış kontrolü.</p><div class="f1-hero-actions">${round?`<button class="btn btn-gold" data-f1-action="tab" data-tab="weekend">Grand Prix Weekend</button>`:`<button class="btn btn-gold" data-f1-action="new-championship">Yeni Sezonu Başlat</button>`}<button class="btn btn-ghost" data-f1-action="quick-start">Hızlı Yarış</button><button class="btn btn-ghost" data-f1-action="open-controls">Kontroller</button></div></div><aside class="f1-driver-card"><span>DRIVER PROFILE</span><h3>${esc(playerName())}</h3><div class="f1-driver-level"><strong>${state.driver.level}</strong><small>LEVEL</small></div><div class="f1-xp"><i><b style="width:${levelProgress()}%"></b></i><span>${state.driver.xp} / ${xpForNext(state.driver.level)} XP</span></div><div class="f1-driver-kpis"><div><b>${state.driver.rating}</b><small>RATING</small></div><div><b>P${championshipRank()}</b><small>CHAMPIONSHIP</small></div><div><b>${state.driver.dnfs || 0}</b><small>DNF</small></div></div></aside></section>`;
+    return `<section class="f1-hero f1-gp-hero"><div class="f1-hero-copy"><span>FORMULA RACING · ALL-TIME 24 GRID</span><h2>Race.<br><em>No one waits.</em></h2><p>Bağımsız AI temposu, sekiz özgün pist kimliği, 24 pilot için canlı GAP/INT, mini harita, S1/S2/S3 delta, strateji mühendisi, pist evrimi, Safety Car ve dinamik rekabet sistemi.</p><div class="f1-hero-actions">${round?`<button class="btn btn-gold" data-f1-action="tab" data-tab="weekend">Grand Prix Weekend</button>`:`<button class="btn btn-gold" data-f1-action="new-championship">Yeni Sezonu Başlat</button>`}<button class="btn btn-ghost" data-f1-action="quick-start">Hızlı Yarış</button><button class="btn btn-ghost" data-f1-action="open-controls">Kontroller</button></div></div><aside class="f1-driver-card"><span>DRIVER PROFILE</span><h3>${esc(playerName())}</h3><div class="f1-driver-level"><strong>${state.driver.level}</strong><small>LEVEL</small></div><div class="f1-xp"><i><b style="width:${levelProgress()}%"></b></i><span>${state.driver.xp} / ${xpForNext(state.driver.level)} XP</span></div><div class="f1-driver-kpis"><div><b>${state.driver.rating}</b><small>RATING</small></div><div><b>P${championshipRank()}</b><small>CHAMPIONSHIP</small></div><div><b>${state.driver.dnfs || 0}</b><small>DNF</small></div></div></aside></section>`;
   }
 
   function navigationMarkup() {
-    return `<nav class="f1-mode-tabs"><button class="${selectedTab==="weekend"?"active":""}" data-f1-action="tab" data-tab="weekend"><span>01</span><strong>Grand Prix Weekend</strong><small>Practice · Qualifying · Race</small></button><button class="${selectedTab==="championship"?"active":""}" data-f1-action="tab" data-tab="championship"><span>02</span><strong>Championship</strong><small>Pilotlar · Takımlar · Takvim</small></button><button class="${selectedTab==="development"?"active":""}" data-f1-action="tab" data-tab="development"><span>03</span><strong>Driver Lab</strong><small>XP · Skills · Car R&D</small></button></nav>`;
+    return `<nav class="f1-mode-tabs"><button class="${selectedTab==="weekend"?"active":""}" data-f1-action="tab" data-tab="weekend"><span>01</span><strong>Grand Prix Weekend</strong><small>Practice · Qualifying · Race</small></button><button class="${selectedTab==="championship"?"active":""}" data-f1-action="tab" data-tab="championship"><span>02</span><strong>Championship</strong><small>Pilotlar · Takımlar · Takvim</small></button><button class="${selectedTab==="development"?"active":""}" data-f1-action="tab" data-tab="development"><span>03</span><strong>Driver Lab</strong><small>XP · Skills · Car R&D</small></button><button class="${selectedTab==="intelligence"?"active":""}" data-f1-action="tab" data-tab="intelligence"><span>04</span><strong>Race Intelligence</strong><small>Rival · sektör · strateji</small></button></nav>`;
   }
 
   function practiceMarkup(weekend) {
@@ -524,13 +589,24 @@
     return `<section class="f1-development-head"><div><span>DRIVER DEVELOPMENT</span><h2>Experience becomes performance.</h2><p>Skill point ve R&D yatırımlarını dengeli kullan. Yüksek seviyeler daha pahalıdır.</p></div><div><strong>${state.driver.skillPoints}</strong><small>SKILL POINTS</small></div><div><strong>${state.car.rdPoints}</strong><small>TEAM R&D</small></div></section><section class="f1-development-grid"><article class="f1-panel"><header><div><span>DRIVER ATTRIBUTES</span><h3>Pilot Gelişimi</h3></div><b>RATING ${state.driver.rating}</b></header><div class="f1-upgrade-list">${Object.entries(attributeLabels).map(([key,label])=>{const value=Number(state.driver.attributes[key]||60),cost=attributeUpgradeCost(value);return `<div><span>${label}</span><i><b style="width:${value}%"></b></i><strong>${value}</strong><button data-f1-action="upgrade-driver" data-key="${key}" ${value>=95||state.driver.skillPoints<cost?"disabled":""}>+1 · ${cost} SP</button></div>`;}).join("")}</div></article><article class="f1-panel"><header><div><span>CAR DEVELOPMENT</span><h3>Dragon Racing R&D</h3></div><b>${state.car.rdPoints} R&D</b></header><div class="f1-upgrade-list car">${Object.entries(carLabels).map(([key,label])=>{const value=Number(state.car[key]||60),cost=carUpgradeCost(value);return `<div><span>${label}</span><i><b style="width:${value}%"></b></i><strong>${value}</strong><button data-f1-action="upgrade-car" data-key="${key}" ${value>=95||state.car.rdPoints<cost?"disabled":""}>+1 · ${cost}</button></div>`;}).join("")}</div></article></section><section class="f1-panel f1-mastery-board"><header><div><span>TRACK MASTERY</span><h3>Pist Uzmanlığı</h3></div></header><div>${window.F1_TRACKS.TRACKS.map(track=>`<article><span>${track.country}</span><strong>${track.name}</strong><i><b style="width:${trackMastery(track.id)}%"></b></i><small>${trackMastery(track.id)} / 100 · ${track.mastery}</small></article>`).join("")}</div></section>`;
   }
 
+
+  function intelligenceMarkup() {
+    const rivalId = currentRivalId();
+    const rival = driverName(rivalId);
+    const record = rivalryRecord(rivalId);
+    const recent = (state.rivalry.history || []).slice(0,8);
+    const nextTrack = currentRound()?.track || window.F1_TRACKS.getTrack(state.settings.trackId);
+    return `<section class="f1-intelligence-head"><div><span>RACE INTELLIGENCE 2.0</span><h2>Every lap tells a story.</h2><p>Canlı mini harita, sektör dereceleri, kişisel en iyi tura karşı delta, pist evrimi ve dinamik pit duvarı tavsiyeleri yarış ekranında çalışır.</p></div><aside><small>CURRENT RIVAL</small><strong>${esc(rival)}</strong><span>${record.wins}–${record.losses} · ${record.meetings} MEETINGS</span></aside></section><section class="f1-intelligence-grid"><article class="f1-panel f1-rival-card"><header><div><span>RIVALRY</span><h3>${esc(playerName())} vs ${esc(rival)}</h3></div><b>${record.lastOutcome || "NEW"}</b></header><div class="f1-rival-score"><div><strong>${record.wins}</strong><small>WINS</small></div><span>VS</span><div><strong>${record.losses}</strong><small>LOSSES</small></div></div><p>Şampiyona puan tablosunda sana en yakın rakip otomatik seçilir. Rakibi geçtiğinde +50 Driver XP kazanırsın.</p></article><article class="f1-panel"><header><div><span>LIVE SYSTEMS</span><h3>Race Intelligence Stack</h3></div><b>ACTIVE</b></header><div class="f1-system-list"><div><span>01</span><strong>24-Car Mini Map</strong><small>Pistteki tüm araçları ve rakibini anlık gösterir.</small></div><div><span>02</span><strong>Sector & Lap Delta</strong><small>S1/S2/S3 ve kişisel en iyi tura karşı canlı fark.</small></div><div><span>03</span><strong>Strategy Engineer</strong><small>Lastik, hava, hasar, ERS ve pit penceresine göre çağrı üretir.</small></div><div><span>04</span><strong>Track Evolution</strong><small>Kuru pist kauçuklanır; yağmur tutuşu ve kauçuğu azaltır.</small></div></div></article><article class="f1-panel f1-next-intel"><header><div><span>NEXT ANALYSIS</span><h3>${esc(nextTrack.name)}</h3></div><b>${String(nextTrack.layoutCode || "").toUpperCase()}</b></header>${trackPreview(nextTrack)}<div><span>Tyre Wear</span><strong>${Number(nextTrack.tireWear || 1).toFixed(2)}×</strong></div><div><span>Rain Probability</span><strong>%${nextTrack.rainChance}</strong></div><div><span>Overtaking</span><strong>%${nextTrack.overtake}</strong></div><div><span>Pit Loss</span><strong>${Number(nextTrack.pitLoss || 0).toFixed(1)}s</strong></div></article></section><section class="f1-panel f1-rival-history"><header><div><span>RECENT DUELS</span><h3>Rivalry History</h3></div></header><div>${recent.length?recent.map(item=>`<article class="${String(item.outcome||"").toLowerCase()}"><span>${item.outcome}</span><strong>${esc(driverName(item.rivalId))}</strong><small>${esc(window.F1_TRACKS.getTrack(item.trackId).name)} · Season ${item.season}</small></article>`).join(""):`<div class="f1-session-placeholder"><strong>Henüz kayıtlı düello yok</strong><small>İlk yarıştan sonra rakip geçmişi burada oluşacak.</small></div>`}</div></section>`;
+  }
+
   function render(container) {
     host = container;
     stopRace();
     document.body.classList.remove("f1-race-active");
     result = null;
     ensureChampionship();
-    host.innerHTML = `<section class="f1-hub f1-grand-prix-hub">${heroMarkup()}${navigationMarkup()}${selectedTab==="weekend"?weekendMarkup():selectedTab==="championship"?championshipMarkup():developmentMarkup()}</section>`;
+    const content = selectedTab==="weekend" ? weekendMarkup() : selectedTab==="championship" ? championshipMarkup() : selectedTab==="development" ? developmentMarkup() : intelligenceMarkup();
+    host.innerHTML = `<section class="f1-hub f1-grand-prix-hub">${heroMarkup()}${navigationMarkup()}${content}</section>`;
   }
 
   function controlsModal() {
@@ -548,14 +624,17 @@
   function raceMarkup(context) {
     const startTyre = compound(context.startingCompound);
     const pitTyre = compound(context.pitCompound);
-    return `<section class="f1-race-view"><canvas id="f1RaceCanvas" aria-label="Formula Racing oyun alanı"></canvas><div class="f1-race-topbar"><div class="f1-race-brand"><span>FR</span><div><strong>FORMULA RACING</strong><small id="f1TrackName">—</small></div></div><div class="f1-race-session"><div><b id="f1Lap">LAP 1 / ${context.laps}</b><strong id="f1Position">P24</strong><span id="f1Time">0:00.00</span></div><div class="f1-live-gaps"><small id="f1GapAhead">AHEAD —</small><small id="f1GapBehind">BEHIND —</small></div></div><div class="f1-race-actions"><button data-f1-action="pause">Ⅱ</button><button data-f1-action="fullscreen">⛶</button><button data-f1-action="exit">×</button></div></div><div class="f1-race-control-status green" id="f1RaceControlStatus"><strong id="f1Flag">GREEN FLAG</strong><small id="f1ControlReason">TRACK CLEAR</small></div><aside class="f1-live-standings" id="f1Standings"></aside><aside class="f1-event-feed" id="f1EventFeed"><header>RACE CONTROL</header></aside><div class="f1-telemetry f1-telemetry-v3"><div><span>SPEED</span><strong id="f1Speed">0</strong><small>KM/H</small></div><div><span>TYRE</span><strong id="f1Tyre" style="color:${startTyre.color}">${startTyre.label}</strong><small id="f1TyreWear">0% WEAR</small></div><div><span>CAR HEALTH</span><i><b id="f1CarHealthBar" style="width:100%"></b></i><strong id="f1Damage">100%</strong></div><div><span>RACE CONTROL</span><strong id="f1FlagMini">GREEN</strong><small id="f1Penalty">0s PENALTY</small></div><div><span>ERS</span><i><b id="f1ErsBar" style="width:100%"></b></i><strong id="f1Ers">100%</strong></div><div><span>WEATHER</span><strong id="f1Weather">${context.weather.toUpperCase()}</strong><small id="f1Wetness">0% WET</small></div><div><span>DRS</span><strong id="f1Drs">LOCKED</strong><small>SHIFT / DRS</small></div><div><span>BEST LAP</span><strong id="f1BestLap">—</strong><small id="f1PitStatus">PIT: ${pitTyre.label}</small></div></div><div class="f1-drive-mode-selector"><span>DRIVE MODE</span><button class="${context.drivingMode==="conserve"?"active":""}" data-f1-action="drive-mode" data-mode="conserve">1 · CONSERVE</button><button class="${context.drivingMode==="balanced"?"active":""}" data-f1-action="drive-mode" data-mode="balanced">2 · BALANCED</button><button class="${context.drivingMode==="attack"?"active":""}" data-f1-action="drive-mode" data-mode="attack">3 · ATTACK</button></div><div class="f1-pit-selector"><span>NEXT PIT TYRE</span>${Object.values(compounds()).map(item=>`<button class="${context.pitCompound===item.id?"active":""}" data-f1-action="pit-compound" data-compound="${item.id}" style="--compound:${item.color}">${item.label}</button>`).join("")}</div><div class="f1-mobile-controls" aria-label="Mobil yarış kontrolleri"><div class="f1-steer-controls"><button data-f1-control="left">◀</button><button data-f1-control="right">▶</button></div><div class="f1-pedal-controls"><button class="pit" data-f1-control="pit">PIT</button><button class="brake" data-f1-control="brake">FREN</button><button class="throttle" data-f1-control="throttle">GAZ</button><button class="boost" data-f1-control="boost">ERS</button><button class="drs" data-f1-control="drs">DRS</button></div></div><div class="f1-rotate-hint"><span>↻</span><strong>Telefonu yatay çevir</strong><small>Daha iyi sürüş alanı için</small></div><div class="f1-pause-panel hidden" id="f1PausePanel"><span>RACE PAUSED</span><h2>Yarış duraklatıldı</h2><button class="btn btn-gold" data-f1-action="resume">Devam Et</button><button class="btn btn-ghost" data-f1-action="exit">Ana Merkeze Dön</button></div><div class="f1-result-panel hidden" id="f1ResultPanel"></div></section>`;
+    return `<section class="f1-race-view"><canvas id="f1RaceCanvas" aria-label="Formula Racing oyun alanı"></canvas><div class="f1-race-topbar"><div class="f1-race-brand"><span>FR</span><div><strong>FORMULA RACING</strong><small id="f1TrackName">—</small></div></div><div class="f1-race-session"><div><b id="f1Lap">LAP 1 / ${context.laps}</b><strong id="f1Position">P24</strong><span id="f1Time">0:00.00</span></div><div class="f1-live-gaps"><small id="f1GapAhead">AHEAD —</small><small id="f1GapBehind">BEHIND —</small></div><div class="f1-live-rival"><small>RIVAL</small><strong id="f1RivalName">—</strong><span id="f1RivalGap">—</span></div></div><div class="f1-race-actions"><button data-f1-action="pause">Ⅱ</button><button data-f1-action="fullscreen">⛶</button><button data-f1-action="exit">×</button></div></div><div class="f1-race-control-status green" id="f1RaceControlStatus"><strong id="f1Flag">GREEN FLAG</strong><small id="f1ControlReason">TRACK CLEAR</small></div><aside class="f1-live-standings" id="f1Standings"></aside><aside class="f1-event-feed" id="f1EventFeed"><header>RACE CONTROL</header></aside><aside class="f1-race-intelligence"><div class="f1-minimap-card"><header><span>LIVE TRACK MAP</span><b>24 CARS</b></header><canvas id="f1MiniMap" width="280" height="170"></canvas></div><div class="f1-sector-card"><header><span>SECTOR DELTA</span><strong id="f1LapDelta">NO BASELINE</strong></header><div><article id="f1Sector1"><small>S1</small><b>—</b></article><article id="f1Sector2"><small>S2</small><b>—</b></article><article id="f1Sector3"><small>S3</small><b>—</b></article></div></div><div class="f1-engineer-card" id="f1EngineerCard"><header><span>RACE ENGINEER</span><b id="f1TrackGrip">GRIP 100%</b></header><strong id="f1EngineerTitle">PACE STABLE</strong><p id="f1EngineerMessage">Build tyre temperature and settle into the race.</p><small id="f1PitWindow">PIT WINDOW · CALCULATING</small></div></aside><div class="f1-telemetry f1-telemetry-v3"><div><span>SPEED</span><strong id="f1Speed">0</strong><small>KM/H</small></div><div><span>TYRE</span><strong id="f1Tyre" style="color:${startTyre.color}">${startTyre.label}</strong><small id="f1TyreWear">0% WEAR</small></div><div><span>CAR HEALTH</span><i><b id="f1CarHealthBar" style="width:100%"></b></i><strong id="f1Damage">100%</strong></div><div><span>RACE CONTROL</span><strong id="f1FlagMini">GREEN</strong><small id="f1Penalty">0s PENALTY</small></div><div><span>ERS</span><i><b id="f1ErsBar" style="width:100%"></b></i><strong id="f1Ers">100%</strong></div><div><span>WEATHER</span><strong id="f1Weather">${context.weather.toUpperCase()}</strong><small id="f1Wetness">0% WET</small></div><div><span>DRS</span><strong id="f1Drs">LOCKED</strong><small>SHIFT / DRS</small></div><div><span>BEST LAP</span><strong id="f1BestLap">—</strong><small id="f1PitStatus">PIT: ${pitTyre.label}</small></div></div><div class="f1-drive-mode-selector"><span>DRIVE MODE</span><button class="${context.drivingMode==="conserve"?"active":""}" data-f1-action="drive-mode" data-mode="conserve">1 · CONSERVE</button><button class="${context.drivingMode==="balanced"?"active":""}" data-f1-action="drive-mode" data-mode="balanced">2 · BALANCED</button><button class="${context.drivingMode==="attack"?"active":""}" data-f1-action="drive-mode" data-mode="attack">3 · ATTACK</button></div><div class="f1-pit-selector"><span>NEXT PIT TYRE</span>${Object.values(compounds()).map(item=>`<button class="${context.pitCompound===item.id?"active":""}" data-f1-action="pit-compound" data-compound="${item.id}" style="--compound:${item.color}">${item.label}</button>`).join("")}</div><div class="f1-mobile-controls" aria-label="Mobil yarış kontrolleri"><div class="f1-steer-controls"><button data-f1-control="left">◀</button><button data-f1-control="right">▶</button></div><div class="f1-pedal-controls"><button class="pit" data-f1-control="pit">PIT</button><button class="brake" data-f1-control="brake">FREN</button><button class="throttle" data-f1-control="throttle">GAZ</button><button class="boost" data-f1-control="boost">ERS</button><button class="drs" data-f1-control="drs">DRS</button></div></div><div class="f1-rotate-hint"><span>↻</span><strong>Telefonu yatay çevir</strong><small>Daha iyi sürüş alanı için</small></div><div class="f1-pause-panel hidden" id="f1PausePanel"><span>RACE PAUSED</span><h2>Yarış duraklatıldı</h2><button class="btn btn-gold" data-f1-action="resume">Devam Et</button><button class="btn btn-ghost" data-f1-action="exit">Ana Merkeze Dön</button></div><div class="f1-result-panel hidden" id="f1ResultPanel"></div></section>`;
   }
 
   function startRace(context) {
     stopRace();
     result = null;
-    currentRaceContext = context;
+    currentRaceContext = { ...context, rivalId:context.rivalId || currentRivalId() };
     eventFeed = [];
+    lastEngineerMessage = "";
+    previousWetness = 0;
+    lastIntelligenceRenderAt = 0;
     document.body.classList.add("f1-race-active");
     host.innerHTML = raceMarkup(context);
     const canvas = document.getElementById("f1RaceCanvas");
@@ -587,7 +666,9 @@
     });
     document.getElementById("f1TrackName").textContent = window.F1_TRACKS.getTrack(context.trackId).name;
     bindMobileControls();
+    const rivalId = currentRaceContext.rivalId;
     addRaceEvent({title:"GRID READY",text:`${compound(context.startingCompound).label} · ${context.weather.toUpperCase()} · ${String(context.drivingMode||"balanced").toUpperCase()} · P${(context.gridOrder||[]).indexOf("player")+1||24}`});
+    addRaceEvent({title:"RIVAL TARGET",text:`Bugünkü hedef: ${driverName(rivalId)} pilotunu pist üzerinde geç.`});
     engine.start();
   }
 
@@ -636,6 +717,109 @@
     if (node) node.innerHTML = `<header>RACE CONTROL</header>${eventFeed.map(item=>`<div><span>${esc(item.title)}</span><p>${esc(item.text)}</p><small>${item.time}</small></div>`).join("")}`;
   }
 
+
+  function formatSectorTime(value) {
+    return value !== null && value !== undefined && Number.isFinite(Number(value)) ? Number(value).toFixed(3) : "—";
+  }
+
+  function drawMiniMap(snapshot) {
+    const canvas = document.getElementById("f1MiniMap");
+    if (!canvas || !snapshot?.track?.path?.length) return;
+    const rect = canvas.getBoundingClientRect();
+    const width = Math.max(220, Math.round(rect.width || 280));
+    const height = Math.max(130, Math.round(rect.height || 170));
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    if (canvas.width !== Math.round(width*dpr) || canvas.height !== Math.round(height*dpr)) {
+      canvas.width = Math.round(width*dpr);
+      canvas.height = Math.round(height*dpr);
+    }
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.clearRect(0,0,width,height);
+    const path = snapshot.track.path;
+    const xs = path.map(point=>point.x), ys = path.map(point=>point.y);
+    const minX=Math.min(...xs), maxX=Math.max(...xs), minY=Math.min(...ys), maxY=Math.max(...ys);
+    const pad=13, sx=(width-pad*2)/Math.max(1,maxX-minX), sy=(height-pad*2)/Math.max(1,maxY-minY), scale=Math.min(sx,sy);
+    const ox=(width-(maxX-minX)*scale)/2-minX*scale;
+    const oy=(height-(maxY-minY)*scale)/2-minY*scale;
+    ctx.lineJoin="round"; ctx.lineCap="round";
+    ctx.beginPath();
+    path.forEach((point,index)=>{const x=point.x*scale+ox,y=point.y*scale+oy; if(index===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);});
+    ctx.closePath(); ctx.strokeStyle="rgba(255,255,255,.17)"; ctx.lineWidth=8; ctx.stroke();
+    ctx.strokeStyle="rgba(244,199,94,.58)"; ctx.lineWidth=2; ctx.stroke();
+    const rivalId=currentRaceContext?.rivalId;
+    snapshot.standings.forEach(car=>{
+      if(car.parcFerme) return;
+      const point=path[Math.max(0,Math.min(path.length-1,Math.round(car.progressIndex||0)))];
+      const x=point.x*scale+ox,y=point.y*scale+oy;
+      ctx.beginPath();
+      ctx.arc(x,y,car.isPlayer?5:car.id===rivalId?4.2:2.6,0,Math.PI*2);
+      ctx.fillStyle=car.retired?"rgba(148,163,184,.35)":car.isPlayer?"#f4c75e":car.id===rivalId?"#ff5b5b":car.color;
+      ctx.fill();
+      if(car.isPlayer||car.id===rivalId){ctx.strokeStyle="#fff";ctx.lineWidth=1.2;ctx.stroke();}
+    });
+  }
+
+  function engineerAdvice(snapshot, timing, playerTimingIndex) {
+    const player=snapshot.player;
+    const health=Math.round((Number(player.damage?.frontWing||100)+Number(player.damage?.floor||100)+Number(player.damage?.engine||100))/3);
+    const lapsRemaining=Math.max(0,Number(snapshot.lapsTarget||0)-Number(snapshot.lap||1));
+    const wet=Number(snapshot.weather?.wetness||0);
+    const dryTyre=["soft","medium","hard"].includes(player.tyreCompound);
+    const wetTyre=["intermediate","wet"].includes(player.tyreCompound);
+    const ahead=playerTimingIndex>0?timing[playerTimingIndex-1]:null;
+    if(player.retired) return {title:"SESSION OVER",message:player.retirementReason||"Car retired.",tone:"danger"};
+    if(snapshot.raceControl?.status!=="GREEN") return {title:`${snapshot.raceControl.status} DELTA`,message:"ERS ve DRS kapalı. Delta pozitif kalacak şekilde kontrollü sür.",tone:"caution"};
+    if(player.puncture) return {title:"BOX NOW",message:`Patlak lastik. ${compound(snapshot.pitCompound).label} hazır; pit girişini kaçırma.`,tone:"danger"};
+    if(wet>.45&&dryTyre) return {title:"BOX NOW · WET TRACK",message:`Kuru zemin lastiği uygun değil. ${wet>.70?"WET":"INTER"} lastiğine geç.`,tone:"danger"};
+    if(wet<.12&&wetTyre) return {title:"BOX NOW · DRYING",message:"Pist kurudu. Slick lastiğe geçerek tur başına büyük zaman kazan.",tone:"danger"};
+    if(health<62) return {title:"BOX FOR REPAIRS",message:`Araç sağlığı %${health}. Ön kanat ve taban kontrolü gerekli.`,tone:"danger"};
+    if(player.tyreWear>80) return {title:"BOX THIS LAP",message:`${compound(player.tyreCompound).label} aşınması %${Math.round(player.tyreWear)}. Performans düşüşü kritik.`,tone:"danger"};
+    if(player.tyreWear>63&&lapsRemaining>1) return {title:"PIT WINDOW OPEN",message:`${lapsRemaining} tur kaldı. Undercut için pit penceresi açık.`,tone:"caution"};
+    if(Number(player.ers||0)<20) return {title:"HARVEST ERS",message:"Enerji düşük. Conserve modunda bir sektör enerji topla.",tone:"caution"};
+    if(ahead&&Number.isFinite(Number(timing[playerTimingIndex]?.interval))&&Number(timing[playerTimingIndex].interval)<1.15) return {title:"ATTACK WINDOW",message:"Öndeki araç bir saniye içinde. Düzlükte DRS ve ERS kombinasyonu hazırla.",tone:"attack"};
+    return {title:"PACE STABLE",message:"Strateji hedefte. Lastikleri koru ve sektör delta çizgisini takip et.",tone:"good"};
+  }
+
+  function updateRaceIntelligence(snapshot, timing, playerTimingIndex) {
+    const now=performance.now();
+    drawMiniMap(snapshot);
+    if(now-lastIntelligenceRenderAt<220&&!snapshot.finished) return;
+    lastIntelligenceRenderAt=now;
+    const sector=snapshot.sector||{};
+    const values=sector.currentLap||[null,null,null];
+    [1,2,3].forEach(index=>{
+      const node=document.getElementById(`f1Sector${index}`);
+      if(!node)return;
+      const value=values[index-1]??sector.lastLap?.[index-1]??null;
+      node.querySelector("b").textContent=formatSectorTime(value);
+      node.classList.toggle("active",Number(sector.current||1)===index);
+      const best=sector.best?.[index-1];
+      node.classList.toggle("best",value!==null&&value!==undefined&&best!==null&&best!==undefined&&Number.isFinite(Number(value))&&Number.isFinite(Number(best))&&Math.abs(Number(value)-Number(best))<.004);
+    });
+    const delta=sector.liveDelta!==null&&sector.liveDelta!==undefined?Number(sector.liveDelta):NaN;
+    const deltaNode=document.getElementById("f1LapDelta");
+    if(deltaNode){
+      deltaNode.textContent=Number.isFinite(delta)?`${delta<=0?"−":"+"}${Math.abs(delta).toFixed(3)}`:"NO BASELINE";
+      deltaNode.className=Number.isFinite(delta)?(delta<=0?"gain":"loss"):"";
+    }
+    const evolution=snapshot.trackEvolution||{grip:1,trend:"STABLE"};
+    const gripNode=document.getElementById("f1TrackGrip");
+    if(gripNode)gripNode.textContent=`GRIP ${Math.round(Number(evolution.grip||1)*100)}% · ${evolution.trend}`;
+    const advice=engineerAdvice(snapshot,timing,playerTimingIndex);
+    const engineer=document.getElementById("f1EngineerCard");
+    if(engineer)engineer.className=`f1-engineer-card ${advice.tone}`;
+    const title=document.getElementById("f1EngineerTitle"); if(title)title.textContent=advice.title;
+    const message=document.getElementById("f1EngineerMessage"); if(message)message.textContent=advice.message;
+    const pitWindow=document.getElementById("f1PitWindow");
+    if(pitWindow)pitWindow.textContent=`PIT WINDOW · ${Math.round(snapshot.player.tyreWear)}% WEAR · ${Math.max(0,snapshot.lapsTarget-snapshot.lap)} LAPS LEFT`;
+    if(advice.title!==lastEngineerMessage&&(advice.tone==="danger"||advice.title==="ATTACK WINDOW")){
+      lastEngineerMessage=advice.title;
+      addRaceEvent({title:"ENGINEER",text:advice.message});
+    }
+    previousWetness=Number(snapshot.weather?.wetness||0);
+  }
+
   function updateHud(snapshot) {
     lastSnapshot = snapshot;
     const player = snapshot.player;
@@ -681,10 +865,19 @@
     const behindTiming = playerTimingIndex >= 0 && playerTimingIndex < timing.length - 1 ? timing[playerTimingIndex + 1] : null;
     set("f1GapAhead", aheadTiming ? `AHEAD ${formatGap(timing[playerTimingIndex].interval)}` : "AHEAD LEADER");
     set("f1GapBehind", behindTiming ? `BEHIND ${formatGap(behindTiming.interval)}` : "BEHIND —");
+    const rivalTiming = timing.find(row=>row.car?.id===currentRaceContext?.rivalId);
+    set("f1RivalName", driverName(currentRaceContext?.rivalId));
+    if(rivalTiming){
+      const playerGap=timing[playerTimingIndex]?.gapToLeader;
+      const rivalGap=rivalTiming.gapToLeader;
+      const numericGap=Number.isFinite(Number(playerGap))&&Number.isFinite(Number(rivalGap))?Math.abs(Number(playerGap)-Number(rivalGap)):null;
+      set("f1RivalGap", `P${rivalTiming.position}${Number.isFinite(numericGap)?` · ${numericGap.toFixed(2)}s`:""}`);
+    }
+    updateRaceIntelligence(snapshot,timing,playerTimingIndex);
     const standings=document.getElementById("f1Standings");
     const now = performance.now();
     if(standings && (now-lastTimingRenderAt>180 || snapshot.rank!==lastTimingPlayerRank || snapshot.finished)) {
-      const rowMarkup = (row,index) => {const car=row.car;const status=car.retired?"DNF":car.pitTimer>0?"PIT":car.finished?"FIN":car.puncture?"P":compound(car.tyreCompound).label.slice(0,1);return `<div class="f1-timing-row ${car.isPlayer?"player":""} ${car.retired?"retired":""}" data-rank="${index+1}"><span>${index+1}</span><i style="background:${car.color}"></i><strong title="${esc(car.name)}">${esc(car.name)}</strong><small style="color:${compound(car.tyreCompound).color}">${status}</small><b>${index===0?"LEADER":formatGap(row.gapToLeader)}</b><em>${index===0?"—":formatGap(row.interval)}</em></div>`;};
+      const rowMarkup = (row,index) => {const car=row.car;const status=car.retired?"DNF":car.pitTimer>0?"PIT":car.finished?"FIN":car.puncture?"P":compound(car.tyreCompound).label.slice(0,1);return `<div class="f1-timing-row ${car.isPlayer?"player":""} ${car.id===currentRaceContext?.rivalId?"rival":""} ${car.retired?"retired":""}" data-rank="${index+1}"><span>${index+1}</span><i style="background:${car.color}"></i><strong title="${esc(car.name)}">${esc(car.name)}</strong><small style="color:${compound(car.tyreCompound).color}">${status}</small><b>${index===0?"LEADER":formatGap(row.gapToLeader)}</b><em>${index===0?"—":formatGap(row.interval)}</em></div>`;};
       const columns = [timing.slice(0,12), timing.slice(12,24)];
       standings.innerHTML = columns.map((group,columnIndex)=>`<section class="f1-timing-column"><header><span>${columnIndex===0?flag:`P13–P${ROSTER_SIZE}`}</span><b>RACE ORDER</b><em>GAP</em><em>INT</em></header>${group.map((row,offset)=>rowMarkup(row,columnIndex*12+offset)).join("")}</section>`).join("");
       lastTimingRenderAt = now;
@@ -714,6 +907,8 @@
     lastSnapshot = null;
     lastTimingRenderAt = 0;
     lastTimingPlayerRank = 0;
+    lastIntelligenceRenderAt = 0;
+    lastEngineerMessage = "";
     document.body.classList.remove("f1-race-active");
   }
 
@@ -835,7 +1030,10 @@
       carUpgradeCost,
       points:POINTS,
       rosterSize:ROSTER_SIZE,
-      teams:TEAM_DEFINITIONS
+      teams:TEAM_DEFINITIONS,
+      currentRivalId,
+      rivalryRecord,
+      evaluateRivalOutcome
     })
   });
 })();

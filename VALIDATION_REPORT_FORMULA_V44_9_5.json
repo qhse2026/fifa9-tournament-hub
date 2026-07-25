@@ -1,0 +1,39 @@
+{
+  "version": "v44.9.5",
+  "build": "Race Intelligence & Rivalry",
+  "status": "PASS",
+  "tests": {
+    "javascriptSyntax": {
+      "formula-racing-engine.js": "PASS",
+      "formula-racing.js": "PASS",
+      "formula-racing-tracks.js": "PASS"
+    },
+    "raceEngineCars": 24,
+    "aiRivals": 23,
+    "tracks": 8,
+    "uniqueTrackIds": 8,
+    "features": {
+      "liveMiniMap": true,
+      "sectorTiming": true,
+      "liveLapDelta": true,
+      "strategyEngineer": true,
+      "trackEvolution": true,
+      "rivalryPersistence": true,
+      "rivalXpBonus": true,
+      "mobileResponsive": true
+    },
+    "serviceWorkerCache": true,
+    "indexVersion": true
+  },
+  "engineSmokeTest": {
+    "cars": 24,
+    "track": "Bosphorus Grand Prix",
+    "sectorSnapshot": true,
+    "trackEvolutionSnapshot": true
+  },
+  "notes": [
+    "The smoke test instantiates the racing engine with a mocked Canvas context.",
+    "This package does not alter FIFA tournament, season, cloud or manager files.",
+    "Existing v44.9.4 career XP, R&D, mastery and 24-car championship state are migrated and preserved."
+  ]
+}

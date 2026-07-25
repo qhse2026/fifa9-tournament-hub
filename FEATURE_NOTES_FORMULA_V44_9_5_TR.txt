@@ -1,0 +1,38 @@
+FORMULA RACING v44.9.5 — FEATURE NOTES
+======================================
+
+1. LIVE 24-CAR MINI MAP
+Pist çizgisi küçük haritada yeniden ölçeklenir. Oyuncu altın, aktif rakip kırmızı,
+diğer pilotlar araç renkleriyle gösterilir. DNF araçları soluklaştırılır.
+
+2. SECTOR & LAP DELTA
+Her pist otomatik olarak üç eşit yarış sektörüne ayrılır. S1, S2 ve S3 süreleri
+kaydedilir. İlk geçerli turdan sonra mevcut turun kişisel en iyi tura göre canlı
+farkı yeşil veya kırmızı gösterilir.
+
+3. STRATEGY ENGINEER
+Yarış mühendisi aşağıdaki verileri birlikte değerlendirir:
+- Lastik bileşimi ve aşınması
+- Pist ıslaklığı
+- Araç sağlığı
+- Kalan tur
+- ERS seviyesi
+- Öndeki araca interval
+- Race Control durumu
+
+Üretebildiği çağrılar:
+PACE STABLE, ATTACK WINDOW, HARVEST ERS, PIT WINDOW OPEN,
+BOX THIS LAP, BOX NOW, BOX FOR REPAIRS ve Safety Car/VSC delta çağrıları.
+
+4. TRACK EVOLUTION
+Kuru koşullarda pist kauçuklanır ve tutuş sınırlı ölçüde yükselir.
+Yağmur başladığında kauçuk yıkanır ve tutuş düşer. Sistem sürüş fiziğine bağlıdır;
+yalnızca görsel bir gösterge değildir.
+
+5. RIVALRY SYSTEM
+Aktif rakip, şampiyona puan tablosunda oyuncuya en yakın pilot olarak seçilir.
+Sonuçlar kalıcı head-to-head kaydına işlenir. Rakip yenilirse +50 Driver XP verilir.
+
+6. SAVE MIGRATION
+Storage version 6 kullanılır. Önceki Formula Racing kayıtları merge yöntemiyle
+korunur; yalnızca yeni rivalry alanları varsayılan değerlerle eklenir.

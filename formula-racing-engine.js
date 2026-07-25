@@ -101,6 +101,11 @@
         label:"DRY",
         changed:false
       };
+      this.trackEvolution = {
+        rubber:.10,
+        grip:1.0,
+        trend:"BUILDING"
+      };
       this.incidentLevel = options.incidentLevel || "realistic";
       this.drivingMode = options.drivingMode || "balanced";
       this.raceRandom = seededNumber(`${this.weatherSeed}|RACE-CONTROL`);
@@ -364,6 +369,14 @@
           bestLap:null,
           lastLap:null,
           lapTimes:[],
+          currentSector:3,
+          sectorStarted:false,
+          sectorStartedAt:0,
+          currentLapSectors:[null,null,null],
+          lastLapSectors:[null,null,null],
+          bestSectors:[null,null,null],
+          lastSector:null,
+          liveLapDelta:null,
           tyreCompound:initialCompound,
           tyreWear:0,
           pitRequested:false,
@@ -492,6 +505,35 @@
       if (Math.abs(delta) < count / 7 && car.nearestDistance < this.track.roadWidth * 1.8) car.totalProgress += delta;
       car.progressIndex = index;
       car.lastIndex = index;
+
+      const lapPosition = wrap(car.totalProgress, count) / count;
+      const sector = Math.min(3, Math.floor(lapPosition * 3) + 1);
+      if (!car.sectorStarted) {
+        if (sector === 1 && this.countdown <= 0) {
+          car.sectorStarted = true;
+          car.currentSector = 1;
+          car.sectorStartedAt = now;
+        } else {
+          car.currentSector = sector;
+        }
+      } else if (sector !== car.currentSector && this.countdown <= 0) {
+        const completedSector = car.currentSector;
+        const sectorTime = Math.max(0, (now - (car.sectorStartedAt || now)) / 1000);
+        if (sectorTime > .45 && sectorTime < 180) {
+          car.currentLapSectors[completedSector - 1] = sectorTime;
+          car.lastSector = { sector:completedSector, time:sectorTime };
+          const best = car.bestSectors[completedSector - 1];
+          car.bestSectors[completedSector - 1] = best === null ? sectorTime : Math.min(best, sectorTime);
+          if (car.isPlayer) this.emitEvent(`SECTOR ${completedSector}`, `${sectorTime.toFixed(3)} sn`);
+        }
+        if (completedSector === 3 && sector === 1) {
+          car.lastLapSectors = [...car.currentLapSectors];
+          car.currentLapSectors = [null,null,null];
+        }
+        car.currentSector = sector;
+        car.sectorStartedAt = now;
+      }
+
       const completed = Math.max(0, Math.floor(car.totalProgress / count));
       if (completed > car.completedLaps) {
         const lapTime = (now - (car.lapStartedAt || this.startedAt)) / 1000;
@@ -505,6 +547,12 @@
         car.lastCompletedLap = completed;
         if (car.pitRequested && completed < this.lapsTarget) this.startPitStop(car);
       }
+
+      const currentLapElapsed = Math.max(0, (now - (car.lapStartedAt || this.startedAt)) / 1000);
+      car.liveLapDelta = car.bestLap && lapPosition > .025
+        ? currentLapElapsed - car.bestLap * lapPosition
+        : null;
+
       if (!car.finished && car.completedLaps >= this.lapsTarget) {
         car.finished = true;
         car.finishTime = (now - this.startedAt) / 1000;
@@ -683,6 +731,18 @@
       if (this.weather.rain > .2) this.stats.rainSeconds += dt;
     }
 
+    updateTrackEvolution(dt) {
+      const wetness = Number(this.weather.wetness || 0);
+      if (wetness < .10) {
+        this.trackEvolution.rubber = clamp(this.trackEvolution.rubber + dt * .00145, 0, 1);
+        this.trackEvolution.trend = "BUILDING";
+      } else {
+        this.trackEvolution.rubber = clamp(this.trackEvolution.rubber - dt * (.0025 + wetness * .0045), 0, 1);
+        this.trackEvolution.trend = wetness > .42 ? "WASHING OUT" : "STABLE";
+      }
+      this.trackEvolution.grip = clamp(.992 + this.trackEvolution.rubber * .022 - wetness * .012, .965, 1.018);
+    }
+
     tyreGrip(car) {
       const tyre = compound(car.tyreCompound);
       const wetness = this.weather.wetness;
@@ -690,7 +750,8 @@
       const wearPenalty = car.tyreWear < 58 ? 1 : clamp(1 - (car.tyreWear - 58) * .008, .62, 1);
       const wetSkill = car.isPlayer ? 1 + (Number(this.driverAttributes.wetSkill || 60) - 60) * .0035 * wetness : 1;
       const puncturePenalty = car.puncture ? .38 : 1;
-      return clamp(base * wearPenalty * wetSkill * puncturePenalty, .28, 1.12);
+      const evolutionGrip = Number(this.trackEvolution?.grip || 1);
+      return clamp(base * wearPenalty * wetSkill * puncturePenalty * evolutionGrip, .28, 1.12);
     }
 
     updateTyre(car, dt) {
@@ -960,6 +1021,7 @@
         if (this.countdown > 0) this.countdown -= dt;
         else if (!this.finished) {
           this.updateWeather(dt);
+          this.updateTrackEvolution(dt);
           this.updateRaceControl(dt);
           this.cars.forEach(car => this.updateCar(car, dt, now));
           this.collisions();
@@ -992,7 +1054,16 @@
         drivingMode:this.drivingMode,
         damage:{ ...player.damage },
         pitCompound:this.nextPitCompound,
-        track:this.track
+        track:this.track,
+        trackEvolution:{ ...this.trackEvolution },
+        sector:{
+          current:Number(player.currentSector || 1),
+          currentLap:[...(player.currentLapSectors || [null,null,null])],
+          lastLap:[...(player.lastLapSectors || [null,null,null])],
+          best:[...(player.bestSectors || [null,null,null])],
+          last:player.lastSector ? { ...player.lastSector } : null,
+          liveDelta:Number.isFinite(Number(player.liveLapDelta)) ? Number(player.liveLapDelta) : null
+        }
       };
     }
 
@@ -1020,7 +1091,12 @@
         damage:{ ...player.damage },
         penaltySeconds:Number(player.penaltySeconds || 0),
         drivingMode:this.drivingMode,
-        raceControl:{ ...this.raceControl }
+        raceControl:{ ...this.raceControl },
+        trackEvolution:{ ...this.trackEvolution },
+        sector:{
+          lastLap:[...(player.lastLapSectors || [null,null,null])],
+          best:[...(player.bestSectors || [null,null,null])]
+        }
       });
     }
 

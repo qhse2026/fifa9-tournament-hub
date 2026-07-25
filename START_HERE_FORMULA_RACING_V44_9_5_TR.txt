@@ -1,0 +1,63 @@
+FORMULA RACING v44.9.5
+RACE INTELLIGENCE & RIVALRY
+========================================
+
+BU SÜRÜM NE EKLİYOR?
+- 24 araçlık canlı mini harita
+- S1 / S2 / S3 sektör süreleri
+- Kişisel en iyi tura karşı canlı delta
+- Dinamik yarış mühendisi ve pit duvarı tavsiyeleri
+- Pist evrimi: kuru pistte kauçuklanma, yağmurda tutuş kaybı
+- Otomatik şampiyona rakibi seçimi
+- Rakip geçmişi ve head-to-head kayıtları
+- Rakibi yenme halinde +50 Driver XP
+- Timing Tower üzerinde rakip vurgusu
+- PC ve mobil için uyarlanmış Race Intelligence paneli
+
+KORUNAN VERİLER
+- Driver XP ve seviye
+- Skill Point
+- Araç R&D ve geliştirmeler
+- Pist uzmanlığı ve kişisel rekorlar
+- 24 araçlık aktif şampiyona
+- Önceki yarış sonuçları
+
+GITHUB'A YÜKLENECEK DOSYALAR
+1. index.html
+2. service-worker.js
+3. formula-racing-tracks.js
+4. formula-racing-engine.js
+5. formula-racing.js
+6. formula-racing.css
+
+COMMIT MESAJI
+Install Formula Race Intelligence and Rivalry v44.9.5
+
+DEPLOYMENT SONRASI
+1. Vercel deployment durumunun Ready / Production olmasını bekle.
+2. Eski sürüm görünürse:
+   F12 > Application > Service Workers > Unregister
+   Application > Storage > Clear site data
+3. Siteyi şu cache-busting parametresiyle aç:
+   https://fifa9-tournament-hub.vercel.app/?formulaIntel=v4495
+4. Ctrl + Shift + R uygula.
+
+BEKLENEN SÜRÜM
+Tournament Universe · v44.9.5 · Race Intelligence & Rivalry
+
+HIZLI TEST
+- Formula Racing > Hızlı Yarış
+- Bosphorus Grand Prix
+- Standard
+- 5 Tur
+- Dinamik hava
+- Realistic incident
+- Balanced
+
+Kontrol edilecekler:
+- Mini haritada 24 araç görünmeli.
+- S1/S2/S3 süreleri sektör geçişlerinde dolmalı.
+- İlk tamamlanan turdan sonra canlı lap delta çalışmalı.
+- Timing Tower'da rakip kırmızı işaretle vurgulanmalı.
+- Lastik aşınması, hasar veya hava değişiminde yarış mühendisi çağrısı değişmeli.
+- Kuru pistte Track Grip / BUILDING; yağmurda WASHING OUT görünmeli.
