@@ -1,4 +1,4 @@
-/* FIFA 9 v44.9.2 — Formula Racing Foundation + Race Control */
+/* FIFA 9 v44.9.3 — Formula Racing Foundation + Race Control */
 :root{--f1-red:#ff3b30;--f1-gold:#f4c75e;--f1-cyan:#65d9ff;--f1-green:#55e29d;--f1-ink:#020b12;--f1-panel:#081b28}
 .nav-cluster-icon.formula{border:1px solid rgba(255,59,48,.34);background:rgba(255,59,48,.08);color:#ff736a}
 .formula-nav-primary{min-height:52px!important;border:1px solid rgba(255,59,48,.18)!important;background:linear-gradient(90deg,rgba(121,27,22,.18),transparent)!important}
@@ -64,3 +64,32 @@ body.f1-race-active{overflow:hidden;background:#02090e}body.f1-race-active .side
 @media(max-width:1250px){.f1-telemetry-v3{bottom:144px;grid-template-columns:repeat(4,1fr);width:min(720px,70vw)}.f1-drive-mode-selector{width:270px}.f1-quick-config-v3{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:760px){.f1-race-control-status{top:52px;min-width:190px;padding:5px 9px}.f1-race-control-status strong{font-size:7px}.f1-race-control-status small{max-width:210px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.f1-telemetry-v3{right:8px;bottom:166px;width:116px;grid-template-columns:1fr}.f1-telemetry-v3>div{min-height:47px}.f1-telemetry-v3>div:nth-child(n+5){display:none}.f1-drive-mode-selector{left:8px;bottom:195px;width:230px;padding:6px}.f1-drive-mode-selector button{min-height:27px;font-size:5px}.f1-pit-selector{bottom:119px}.f1-quick-config-v3{grid-template-columns:1fr 1fr}.f1-result-kpis{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:520px) and (orientation:landscape){.f1-drive-mode-selector{width:205px}.f1-pit-selector{width:205px}.f1-telemetry-v3{width:104px}}
+
+/* FIFA 9 v44.9.3 — No Rubber-Band AI · Circuit Identity · Live Timing */
+.f1-race-session{display:grid;grid-template-columns:auto auto;gap:11px;min-width:290px}
+.f1-race-session>div:first-child{display:flex;align-items:center;gap:9px}
+.f1-live-gaps{display:grid;gap:2px;padding-left:10px;border-left:1px solid rgba(255,255,255,.09)}
+.f1-live-gaps small{color:#83a1ad;font-size:6px;font-weight:900;white-space:nowrap}
+.f1-live-gaps small:first-child{color:#7ee7ff}.f1-live-gaps small:last-child{color:#f0ce78}
+.f1-live-standings{width:338px;padding:8px 9px;background:rgba(2,12,18,.82)}
+.f1-live-standings header{display:grid;grid-template-columns:52px 1fr 55px 48px;align-items:center;gap:5px;margin-bottom:5px;padding:0 4px}
+.f1-live-standings header span{grid-column:1}.f1-live-standings header b{grid-column:2}.f1-live-standings header em{color:#597581;font-size:5px;font-style:normal;font-weight:950;text-align:right}
+.f1-live-standings>div{grid-template-columns:18px 6px minmax(68px,1fr) 27px 57px 48px;gap:5px;min-height:23px;padding:0 4px}
+.f1-live-standings>div b,.f1-live-standings>div em{color:#b8cbd2;font-size:6px;font-style:normal;font-weight:900;text-align:right;white-space:nowrap}
+.f1-live-standings>div em{color:#78939e}.f1-live-standings>div.player b,.f1-live-standings>div.player em{color:#f7d985}
+.f1-live-standings>div.player{box-shadow:inset 3px 0 #f4c75e}
+.f1-track-card:before{content:attr(data-layout);display:none}
+
+@media(max-width:980px){.f1-live-standings{width:300px}.f1-live-standings>div{grid-template-columns:17px 5px minmax(58px,1fr) 24px 52px 44px}.f1-event-feed{width:210px}}
+@media(max-width:760px){
+  .f1-race-session{min-width:230px;padding:5px 8px;gap:7px}.f1-race-session strong{font-size:16px}.f1-live-gaps{padding-left:7px}
+  .f1-live-standings{top:61px;left:6px;width:246px;padding:5px;max-height:none;overflow:visible;transform:scale(.82);transform-origin:top left}
+  .f1-live-standings>div:nth-of-type(n+6){display:grid}
+  .f1-live-standings header{grid-template-columns:44px 1fr 48px 42px}
+  .f1-live-standings>div{grid-template-columns:15px 5px minmax(50px,1fr) 21px 49px 41px;min-height:20px;gap:4px}
+  .f1-live-standings>div strong{font-size:7px}.f1-live-standings>div b,.f1-live-standings>div em{font-size:5px}
+}
+@media(max-width:520px) and (orientation:landscape){.f1-live-standings{transform:scale(.72);width:250px}.f1-race-session{min-width:205px}.f1-live-gaps small{font-size:5px}}
+.f1-track-card{position:relative;overflow:hidden}.f1-track-card:after{content:attr(data-theme);position:absolute;right:-5px;bottom:-8px;color:rgba(255,255,255,.025);font-size:30px;font-weight:950;text-transform:uppercase;pointer-events:none}.f1-track-identity{margin-top:8px;color:#6edcff;font-size:5px;letter-spacing:.1em}.f1-track-card[data-theme=volcanic] .f1-track-identity{color:#ff756d}.f1-track-card[data-theme=desert] .f1-track-identity{color:#ffc37c}.f1-track-card[data-theme=neon] .f1-track-identity{color:#d8a7ff}
+.f1-track-card{grid-template-columns:1fr 92px;column-gap:10px}.f1-track-card>span,.f1-track-card>strong,.f1-track-card>small,.f1-track-card>.f1-track-identity,.f1-track-card>i{grid-column:1}.f1-track-preview{grid-column:2;grid-row:1/6;align-self:center;width:92px;height:64px;filter:drop-shadow(0 0 8px rgba(101,217,255,.14))}.f1-track-preview polyline{fill:none;stroke:#6edcff;stroke-width:3.2;stroke-linecap:round;stroke-linejoin:round}.f1-track-preview circle{fill:#f4c75e;stroke:#fff;stroke-width:.7}.f1-track-card[data-theme=volcanic] .f1-track-preview polyline{stroke:#ff5a50}.f1-track-card[data-theme=desert] .f1-track-preview polyline{stroke:#ffad5b}.f1-track-card[data-theme=neon] .f1-track-preview polyline{stroke:#c084fc}.f1-track-card[data-theme=arena] .f1-track-preview polyline{stroke:#55e29d}
+@media(max-width:540px){.f1-track-card{grid-template-columns:1fr 72px}.f1-track-preview{width:72px}}

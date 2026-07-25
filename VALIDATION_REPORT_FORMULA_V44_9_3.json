@@ -1,0 +1,193 @@
+{
+  "version": "v44.9.3",
+  "checks": {
+    "track_count": true,
+    "unique_track_themes": true,
+    "unique_track_layouts": true,
+    "track_metadata_complete": true,
+    "twelve_car_grid": true,
+    "ai_no_player_progress_rubber_band": true,
+    "ai_independent_pace_profiles": true,
+    "ai_finisher_exit": true,
+    "live_timing_all_drivers": true,
+    "live_timing_gap_and_interval": true,
+    "ui_all_12_rows": true,
+    "mobile_12_rows_visible": true,
+    "track_preview_enabled": true,
+    "version_markers": true
+  },
+  "details": {
+    "track_count": 8,
+    "unique_track_themes": [
+      "ocean",
+      "volcanic",
+      "street",
+      "arena",
+      "strait",
+      "desert",
+      "storm",
+      "neon"
+    ],
+    "unique_track_layouts": [
+      "ORC",
+      "DRG",
+      "FLY",
+      "CHA",
+      "BOS",
+      "ASP",
+      "BSS",
+      "MED"
+    ],
+    "track_metadata_complete": [
+      {
+        "id": "oruc-reis",
+        "theme": "ocean",
+        "layout": "ORC"
+      },
+      {
+        "id": "dragon-ring",
+        "theme": "volcanic",
+        "layout": "DRG"
+      },
+      {
+        "id": "filyos-street",
+        "theme": "street",
+        "layout": "FLY"
+      },
+      {
+        "id": "champion-arena",
+        "theme": "arena",
+        "layout": "CHA"
+      },
+      {
+        "id": "bosphorus-gp",
+        "theme": "strait",
+        "layout": "BOS"
+      },
+      {
+        "id": "anatolian-speed",
+        "theme": "desert",
+        "layout": "ASP"
+      },
+      {
+        "id": "black-sea-storm",
+        "theme": "storm",
+        "layout": "BSS"
+      },
+      {
+        "id": "mediterranean-night",
+        "theme": "neon",
+        "layout": "MED"
+      }
+    ],
+    "twelve_car_grid": [
+      "player",
+      "ai-1",
+      "ai-2",
+      "ai-3",
+      "ai-4",
+      "ai-5",
+      "ai-6",
+      "ai-7",
+      "ai-8",
+      "ai-9",
+      "ai-10",
+      "ai-11"
+    ],
+    "ai_no_player_progress_rubber_band": "AI pace does not reference player progress/speed/rank",
+    "ai_independent_pace_profiles": [
+      283.27,
+      292.12,
+      296.09,
+      288.98,
+      304.88,
+      288.38,
+      301.87,
+      284.68,
+      300.47,
+      283.51,
+      297.48
+    ],
+    "ai_finisher_exit": "AI finishers leave racing surface after cooldown",
+    "live_timing_all_drivers": [
+      {
+        "p": 1,
+        "id": "player",
+        "gap": 0,
+        "interval": 0
+      },
+      {
+        "p": 2,
+        "id": "ai-1",
+        "gap": 4.098461538461539,
+        "interval": 4.098461538461539
+      },
+      {
+        "p": 3,
+        "id": "ai-2",
+        "gap": 8.196923076923078,
+        "interval": 4.098461538461539
+      },
+      {
+        "p": 4,
+        "id": "ai-3",
+        "gap": 12.295384615384615,
+        "interval": 4.098461538461539
+      },
+      {
+        "p": 5,
+        "id": "ai-4",
+        "gap": 16.393846153846155,
+        "interval": 4.098461538461539
+      },
+      {
+        "p": 6,
+        "id": "ai-5",
+        "gap": 20.492307692307694,
+        "interval": 4.098461538461539
+      },
+      {
+        "p": 7,
+        "id": "ai-6",
+        "gap": 24.59076923076923,
+        "interval": 4.098461538461539
+      },
+      {
+        "p": 8,
+        "id": "ai-7",
+        "gap": 28.689230769230768,
+        "interval": 4.098461538461539
+      },
+      {
+        "p": 9,
+        "id": "ai-8",
+        "gap": 32.78769230769231,
+        "interval": 4.098461538461539
+      },
+      {
+        "p": 10,
+        "id": "ai-9",
+        "gap": 36.886153846153846,
+        "interval": 4.098461538461539
+      },
+      {
+        "p": 11,
+        "id": "ai-10",
+        "gap": 40.98461538461539,
+        "interval": 4.098461538461539
+      },
+      {
+        "p": 12,
+        "id": "ai-11",
+        "gap": 45.08307692307692,
+        "interval": 4.098461538461539
+      }
+    ],
+    "live_timing_gap_and_interval": "All non-leaders have GAP and INT values",
+    "ui_all_12_rows": "Timing board renders complete timing array",
+    "mobile_12_rows_visible": "Mobile override restores rows 6-12",
+    "track_preview_enabled": "Distinct circuit previews included",
+    "version_markers": "Index, cache and CSS version markers updated"
+  },
+  "pass": true
+}

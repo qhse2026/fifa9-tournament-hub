@@ -220,10 +220,71 @@
       return position >= 0 ? position : fallback;
     }
 
+    aiProfile(index, difficultyFactor) {
+      const skillSpread = [-.028,.012,.036,-.012,.052,.006,.028,-.020,.044,-.004,.020][index - 1] || 0;
+      const consistencySpread = [.985,1.006,1.018,.993,1.026,1.001,1.014,.989,1.021,.997,1.010][index - 1] || 1;
+      return {
+        pace: clamp(difficultyFactor + skillSpread, .84, 1.10),
+        consistency: consistencySpread,
+        lane: ((index % 3) - 1) * .16,
+        attackBias: .34 + (index % 5) * .08
+      };
+    }
+
+    activeCarAhead(car, distanceWindow = 46) {
+      let nearest = null;
+      let bestDelta = Infinity;
+      for (const rival of this.cars) {
+        if (rival === car || rival.retired || rival.finished || rival.pitTimer > 0 || rival.parcFerme) continue;
+        const delta = rival.totalProgress - car.totalProgress;
+        if (delta > 0 && delta < distanceWindow && delta < bestDelta) {
+          bestDelta = delta;
+          nearest = rival;
+        }
+      }
+      return nearest ? { car:nearest, delta:bestDelta } : null;
+    }
+
+    timingGap(progressDelta) {
+      if (!Number.isFinite(progressDelta) || progressDelta <= 0) return 0;
+      const lapSamples = Math.max(1, this.track.path.length);
+      const lapSeconds = Number(this.track.baseLapSeconds || 72);
+      return progressDelta / lapSamples * lapSeconds;
+    }
+
+    timingRows(standings = this.standings()) {
+      const leader = standings.find(car => !car.retired) || standings[0];
+      return standings.map((car, index) => {
+        const ahead = index > 0 ? standings[index - 1] : null;
+        let gapToLeader = null;
+        let interval = null;
+        let status = "RACING";
+        if (car.retired) status = "DNF";
+        else if (car.pitTimer > 0) status = "PIT";
+        else if (car.finished) status = "FIN";
+        if (index === 0) {
+          gapToLeader = 0;
+          interval = 0;
+        } else if (leader?.finished && car.finished && Number.isFinite(leader.finishTime) && Number.isFinite(car.finishTime)) {
+          gapToLeader = Math.max(0, car.finishTime - leader.finishTime);
+          interval = ahead?.finished && Number.isFinite(ahead.finishTime) ? Math.max(0, car.finishTime - ahead.finishTime) : gapToLeader;
+        } else {
+          const leaderDelta = Math.max(0, Number(leader?.totalProgress || 0) - Number(car.totalProgress || 0));
+          const aheadDelta = Math.max(0, Number(ahead?.totalProgress || 0) - Number(car.totalProgress || 0));
+          const lapSamples = Math.max(1, this.track.path.length);
+          if (leaderDelta >= lapSamples) gapToLeader = { laps:Math.floor(leaderDelta / lapSamples) };
+          else gapToLeader = this.timingGap(leaderDelta);
+          if (aheadDelta >= lapSamples) interval = { laps:Math.floor(aheadDelta / lapSamples) };
+          else interval = this.timingGap(aheadDelta);
+        }
+        return { car, position:index + 1, gapToLeader, interval, status };
+      });
+    }
+
     createCars() {
       const path = this.track.path;
       const spacing = Math.max(8, Math.round(path.length / 95));
-      const difficultyFactor = { rookie:.88, standard:.97, elite:1.055 }[this.difficulty] || .97;
+      const difficultyFactor = { rookie:.91, standard:.985, elite:1.045 }[this.difficulty] || .985;
       const paceBonus = (Number(this.driverAttributes.pace || 60) - 60) * .55;
       const powerBonus = (Number(this.carDevelopment.power || 60) - 60) * .46;
       const aeroBonus = (Number(this.carDevelopment.aero || 60) - 60) * .004;
@@ -238,6 +299,7 @@
         const next = path[wrap(pathIndex + 2, path.length)];
         const isPlayer = id === "player";
         const aiVariation = ((index * 17) % 11) / 100;
+        const aiProfile = isPlayer ? null : this.aiProfile(index, difficultyFactor);
         const initialCompound = isPlayer
           ? this.startingCompound
           : (this.weather.mode === "wet" ? "wet" : this.weather.mode === "mixed" && index % 3 === 0 ? "intermediate" : ["soft","medium","hard"][index % 3]);
@@ -251,9 +313,9 @@
           y:point.y,
           angle:Math.atan2(next.y - point.y, next.x - point.x),
           speed:0,
-          baseMaxSpeed:isPlayer ? 293 + paceBonus + powerBonus + masteryBonus : (278 + (index % 4) * 6) * difficultyFactor,
-          maxSpeed:isPlayer ? 293 + paceBonus + powerBonus + masteryBonus : (278 + (index % 4) * 6) * difficultyFactor,
-          accel:isPlayer ? 178 + (Number(this.driverAttributes.racecraft || 60) - 60) * .7 : 164 * difficultyFactor,
+          baseMaxSpeed:isPlayer ? 293 + paceBonus + powerBonus + masteryBonus : (289 + ((index * 7) % 10)) * aiProfile.pace,
+          maxSpeed:isPlayer ? 293 + paceBonus + powerBonus + masteryBonus : (289 + ((index * 7) % 10)) * aiProfile.pace,
+          accel:isPlayer ? 178 + (Number(this.driverAttributes.racecraft || 60) - 60) * .7 : (171 + (index % 4) * 2.3) * aiProfile.pace,
           brake:235,
           steer:0,
           throttle:0,
@@ -270,8 +332,13 @@
           drsAvailable:false,
           offRoad:false,
           nearestDistance:0,
-          aiSkill:isPlayer ? 1 : difficultyFactor * (.94 + aiVariation),
-          aiAero:isPlayer ? 1 + aeroBonus : .98 + aiVariation * .4,
+          aiSkill:isPlayer ? 1 : aiProfile.pace,
+          aiAero:isPlayer ? 1 + aeroBonus : .99 + aiVariation * .28,
+          aiConsistency:isPlayer ? 1 : aiProfile.consistency,
+          aiLaneOffset:isPlayer ? 0 : aiProfile.lane,
+          aiTargetLane:isPlayer ? 0 : aiProfile.lane,
+          aiAttackBias:isPlayer ? 0 : aiProfile.attackBias,
+          aiDecisionTimer:isPlayer ? 0 : .2 + index * .04,
           lapStartedAt:0,
           bestLap:null,
           lastLap:null,
@@ -291,7 +358,9 @@
           offTrackContinuous:0,
           trackLimitThreshold:3,
           penaltySeconds:0,
-          smokePhase:index * .7
+          smokePhase:index * .7,
+          finishExitTimer:0,
+          parcFerme:false
         };
       });
       this.lastPlayerRank = this.gridPosition("player", 11) + 1;
@@ -418,7 +487,8 @@
       if (!car.finished && car.completedLaps >= this.lapsTarget) {
         car.finished = true;
         car.finishTime = (now - this.startedAt) / 1000;
-        car.speed *= .7;
+        car.finishExitTimer = car.isPlayer ? 0 : 2.4;
+        car.speed *= car.isPlayer ? .7 : .84;
       }
     }
 
@@ -656,21 +726,47 @@
       }
     }
 
-    aiInput(car) {
+    aiInput(car, dt = .016) {
       const path = this.track.path;
-      const lookAhead = Math.round(12 + Math.abs(car.speed) * .055);
-      const target = path[wrap(car.progressIndex + lookAhead, path.length)];
-      const desired = Math.atan2(target.y - car.y, target.x - car.x);
+      car.aiDecisionTimer = Math.max(0, Number(car.aiDecisionTimer || 0) - dt);
+      const traffic = this.activeCarAhead(car, Math.max(34, path.length / 10));
+      if (car.aiDecisionTimer <= 0) {
+        if (traffic && traffic.delta < Math.max(18, path.length / 24)) {
+          const direction = ((Number(car.id.split("-")[1] || 1) + Math.floor(car.completedLaps)) % 2 === 0) ? 1 : -1;
+          car.aiTargetLane = direction * (.20 + Number(car.aiAttackBias || .4) * .11);
+        } else {
+          car.aiTargetLane = ((Number(car.id.split("-")[1] || 1) % 3) - 1) * .12;
+        }
+        car.aiDecisionTimer = .45 + this.raceRandom() * .8;
+      }
+      car.aiLaneOffset += (car.aiTargetLane - car.aiLaneOffset) * Math.min(1, dt * 2.1);
+
+      const lookAhead = Math.round(14 + Math.abs(car.speed) * .06);
+      const targetIndex = wrap(car.progressIndex + lookAhead, path.length);
+      const target = path[targetIndex];
+      const next = path[wrap(targetIndex + 3, path.length)];
+      const tangent = Math.atan2(next.y - target.y, next.x - target.x);
+      const lanePixels = Number(car.aiLaneOffset || 0) * this.track.roadWidth;
+      const targetX = target.x + Math.cos(tangent + Math.PI / 2) * lanePixels;
+      const targetY = target.y + Math.sin(tangent + Math.PI / 2) * lanePixels;
+      const desired = Math.atan2(targetY - car.y, targetX - car.x);
       const difference = normalizeAngle(desired - car.angle);
-      car.steer = clamp(difference * 2.4, -1, 1);
-      const cornerPenalty = clamp(Math.abs(difference) / 1.5, 0, .65);
+      car.steer = clamp(difference * 2.55, -1, 1);
+
+      const cornerPenalty = clamp(Math.abs(difference) / 1.42, 0, .67);
       const grip = this.tyreGrip(car);
-      const targetSpeed = car.baseMaxSpeed * (1 - cornerPenalty) * car.aiSkill * grip * car.aiAero;
-      car.throttle = car.speed < targetSpeed ? 1 : .15;
-      car.brakeInput = car.speed > targetSpeed * 1.06 ? .75 : 0;
-      car.boost = car.ers > 35 && Math.abs(difference) < .16 && car.speed > car.baseMaxSpeed * .68 && this.raceRandom() < .012;
-      car.drsAvailable = Boolean(this.raceControl.status === "GREEN" && car.completedLaps >= 1 && this.weather.wetness < .22 && Math.abs(difference) < .13 && car.speed > 125);
-      car.drs = Boolean(car.drsAvailable && this.raceRandom() < .42);
+      // Absolute AI pace: never references player position, player progress or player speed.
+      const paceNoise = 1 + Math.sin((car.totalProgress + Number(car.id.split("-")[1] || 1) * 31) * .021) * .006 * Number(car.aiConsistency || 1);
+      let targetSpeed = car.baseMaxSpeed * (1 - cornerPenalty) * grip * car.aiAero * paceNoise;
+      if (traffic && traffic.delta < Math.max(14, path.length / 35)) {
+        targetSpeed *= 1.012 + Number(car.aiAttackBias || .4) * .025;
+      }
+      car.throttle = car.speed < targetSpeed ? 1 : .22;
+      car.brakeInput = car.speed > targetSpeed * 1.045 ? .82 : 0;
+      const attacking = Boolean(traffic && traffic.delta < Math.max(22, path.length / 20));
+      car.boost = car.ers > 26 && Math.abs(difference) < .18 && car.speed > car.baseMaxSpeed * .61 && (attacking || this.raceRandom() < .018);
+      car.drsAvailable = Boolean(this.raceControl.status === "GREEN" && car.completedLaps >= 1 && this.weather.wetness < .22 && Math.abs(difference) < .15 && car.speed > 122);
+      car.drs = Boolean(car.drsAvailable && (attacking || this.raceRandom() < .48));
       this.aiPitDecision(car);
     }
 
@@ -691,11 +787,23 @@
       }
 
       if (car.finished) {
-        car.throttle = .18;
-        car.brakeInput = 0;
-        if (!car.isPlayer) this.aiInput(car);
+        if (!car.isPlayer) {
+          car.finishExitTimer = Math.max(0, Number(car.finishExitTimer || 0) - dt);
+          if (car.finishExitTimer <= 0) {
+            car.parcFerme = true;
+            car.speed = 0;
+            car.throttle = 0;
+            car.brakeInput = 1;
+            return;
+          }
+          this.aiInput(car, dt);
+          car.throttle = Math.min(car.throttle, .42);
+        } else {
+          car.throttle = .18;
+          car.brakeInput = 0;
+        }
       } else if (car.isPlayer) this.playerInput(car);
-      else this.aiInput(car);
+      else this.aiInput(car, dt);
 
       const onRoad = car.nearestDistance <= this.track.roadWidth * .54;
       car.offRoad = !onRoad;
@@ -752,7 +860,7 @@
         for (let b = a + 1; b < this.cars.length; b += 1) {
           const first = this.cars[a];
           const second = this.cars[b];
-          if (first.pitTimer > 0 || second.pitTimer > 0 || first.retired || second.retired) continue;
+          if (first.pitTimer > 0 || second.pitTimer > 0 || first.retired || second.retired || first.parcFerme || second.parcFerme) continue;
           const dx = second.x - first.x;
           const dy = second.y - first.y;
           const distance = Math.hypot(dx, dy);
@@ -853,6 +961,7 @@
         elapsed:Math.max(0, (now - this.startedAt) / 1000 - 3.4),
         player,
         standings,
+        timing:this.timingRows(standings),
         rank:standings.findIndex(car => car.isPlayer) + 1,
         lap:Math.min(this.lapsTarget, player.completedLaps + 1),
         lapsTarget:this.lapsTarget,
@@ -894,6 +1003,73 @@
       });
     }
 
+    drawEnvironment(ctx, wet) {
+      const theme = this.track.theme || "grass";
+      const w = this.width;
+      const h = this.height;
+      const colors = {
+        ocean:["#06344a","#08708a"], volcanic:["#160c0a","#4a1711"], street:["#101820","#1b2a33"],
+        arena:["#083326","#13543a"], strait:["#063047","#0b6680"], desert:["#8b5b2d","#c89a58"],
+        storm:["#071f2b","#163c49"], neon:["#120d2d","#3a1750"], grass:["#0b3a24","#153f2b"]
+      };
+      const [base, glow] = colors[theme] || colors.grass;
+      ctx.fillStyle = base;
+      ctx.fillRect(0, 0, w, h);
+      const gradient = ctx.createRadialGradient(w*.52,h*.45,18,w*.52,h*.45,Math.max(w,h)*.78);
+      gradient.addColorStop(0, glow);
+      gradient.addColorStop(1, base);
+      ctx.globalAlpha = wet > .2 ? .68 : .88;
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0,0,w,h);
+      ctx.globalAlpha = 1;
+
+      ctx.save();
+      if (theme === "ocean" || theme === "strait" || theme === "storm") {
+        ctx.strokeStyle = theme === "storm" ? "rgba(150,220,235,.13)" : "rgba(130,225,245,.16)";
+        ctx.lineWidth = 1;
+        for (let y = 22; y < h; y += 28) {
+          ctx.beginPath();
+          for (let x = -30; x <= w + 30; x += 30) {
+            const wave = Math.sin((x + y) * .035) * 4;
+            if (x === -30) ctx.moveTo(x, y + wave); else ctx.lineTo(x, y + wave);
+          }
+          ctx.stroke();
+        }
+      }
+      if (theme === "ocean") {
+        ctx.fillStyle = "rgba(10,45,34,.76)";
+        ctx.beginPath();ctx.ellipse(w*.53,h*.51,w*.36,h*.31,-.12,0,TAU);ctx.fill();
+        ctx.fillStyle = "rgba(240,245,230,.15)";
+        ctx.fillRect(w*.09,h*.72,w*.13,5);
+        ctx.fillRect(w*.78,h*.18,w*.12,5);
+      } else if (theme === "volcanic") {
+        ctx.strokeStyle = "rgba(255,75,35,.22)";ctx.lineWidth=3;
+        for(let i=0;i<12;i+=1){const x=(i*137)%w,y=(i*83)%h;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+30,y+18);ctx.lineTo(x+12,y+42);ctx.stroke();}
+        ctx.fillStyle="rgba(255,74,38,.12)";ctx.beginPath();ctx.arc(w*.52,h*.49,Math.min(w,h)*.17,0,TAU);ctx.fill();
+      } else if (theme === "street") {
+        ctx.fillStyle = "rgba(4,11,16,.62)";
+        const blockW=Math.max(52,w/11),blockH=Math.max(42,h/9);
+        for(let row=0;row<9;row+=1)for(let col=0;col<11;col+=1){if((row+col)%3===0)continue;ctx.fillRect(col*blockW+6,row*blockH+6,blockW-12,blockH-12);}
+        ctx.fillStyle="rgba(101,217,255,.13)";for(let i=0;i<38;i+=1)ctx.fillRect((i*83)%w,(i*47)%h,3,3);
+      } else if (theme === "arena") {
+        ctx.strokeStyle="rgba(210,235,225,.12)";ctx.lineWidth=18;ctx.beginPath();ctx.ellipse(w*.5,h*.5,w*.45,h*.41,0,0,TAU);ctx.stroke();
+        ctx.strokeStyle="rgba(85,226,157,.13)";ctx.lineWidth=5;ctx.beginPath();ctx.ellipse(w*.5,h*.5,w*.39,h*.35,0,0,TAU);ctx.stroke();
+      } else if (theme === "strait") {
+        ctx.fillStyle="rgba(18,65,47,.82)";ctx.fillRect(0,0,w*.29,h);ctx.fillRect(w*.71,0,w*.29,h);
+        ctx.strokeStyle="rgba(235,240,230,.28)";ctx.lineWidth=6;ctx.beginPath();ctx.moveTo(w*.25,h*.48);ctx.lineTo(w*.75,h*.52);ctx.stroke();
+      } else if (theme === "desert") {
+        ctx.strokeStyle="rgba(255,224,166,.16)";ctx.lineWidth=2;
+        for(let i=0;i<12;i+=1){const y=i*h/12;ctx.beginPath();ctx.moveTo(0,y);ctx.bezierCurveTo(w*.25,y-30,w*.65,y+30,w,y-5);ctx.stroke();}
+      } else if (theme === "storm") {
+        ctx.fillStyle="rgba(205,230,235,.055)";for(let i=0;i<15;i+=1){ctx.beginPath();ctx.arc((i*97)%w,(i*61)%h,24+(i%4)*9,0,TAU);ctx.fill();}
+      } else if (theme === "neon") {
+        const lights=["#22d3ee","#c084fc","#fb7185"];
+        for(let i=0;i<30;i+=1){ctx.fillStyle=lights[i%lights.length];ctx.globalAlpha=.18;ctx.fillRect((i*107)%w,(i*59)%h,3,12);}
+        ctx.globalAlpha=1;ctx.strokeStyle="rgba(192,132,252,.16)";ctx.lineWidth=2;ctx.strokeRect(w*.08,h*.08,w*.84,h*.84);
+      }
+      ctx.restore();
+    }
+
     drawTrack(ctx) {
       const path = this.track.path;
       const drawPath = () => {
@@ -904,22 +1080,27 @@
       };
 
       const wet = this.weather.wetness;
-      ctx.fillStyle = wet > .2 ? "#092c25" : "#0b3a24";
-      ctx.fillRect(0, 0, this.width, this.height);
-      const grass = ctx.createRadialGradient(this.width*.55,this.height*.45,20,this.width*.55,this.height*.45,Math.max(this.width,this.height));
-      grass.addColorStop(0, wet > .2 ? "rgba(28,78,65,.42)" : "rgba(35,105,66,.36)");
-      grass.addColorStop(1,"rgba(2,28,18,.72)");
-      ctx.fillStyle = grass;
-      ctx.fillRect(0,0,this.width,this.height);
+      this.drawEnvironment(ctx, wet);
 
-      drawPath();
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
-      ctx.strokeStyle = "rgba(0,0,0,.42)";
-      ctx.lineWidth = this.track.roadWidth + 16;
+      drawPath();
+      ctx.strokeStyle = "rgba(0,0,0,.55)";
+      ctx.lineWidth = this.track.roadWidth + 18;
       ctx.stroke();
       drawPath();
-      ctx.strokeStyle = wet > .2 ? "#25333a" : "#27323a";
+      ctx.strokeStyle = this.track.kerbA || "#ef4444";
+      ctx.lineWidth = this.track.roadWidth + 9;
+      ctx.setLineDash([12,12]);
+      ctx.stroke();
+      ctx.lineDashOffset = 12;
+      drawPath();
+      ctx.strokeStyle = this.track.kerbB || "#ffffff";
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.lineDashOffset = 0;
+      drawPath();
+      ctx.strokeStyle = wet > .2 ? "#263640" : "#2b3339";
       ctx.lineWidth = this.track.roadWidth;
       ctx.stroke();
       if (wet > .12) {
@@ -948,6 +1129,15 @@
         ctx.fillRect(x,-5,block,10);
       }
       ctx.restore();
+      ctx.save();
+      ctx.fillStyle = "rgba(2,10,16,.72)";
+      ctx.fillRect(14, this.height - 45, 168, 30);
+      ctx.strokeStyle = this.track.kerbA || "#f4c75e";
+      ctx.strokeRect(14, this.height - 45, 168, 30);
+      ctx.fillStyle = this.track.kerbA || "#f4c75e";
+      ctx.font = "950 10px system-ui";
+      ctx.fillText(`${this.track.layoutCode || "GP"} · ${(this.track.theme || "CIRCUIT").toUpperCase()}`, 24, this.height - 26);
+      ctx.restore();
     }
 
     drawRain(ctx, now) {
@@ -969,7 +1159,7 @@
     }
 
     drawCar(ctx, car, rank) {
-      if (car.pitTimer > 0) return;
+      if (car.pitTimer > 0 || car.parcFerme) return;
       ctx.save();
       ctx.translate(car.x, car.y);
       ctx.rotate(car.angle);

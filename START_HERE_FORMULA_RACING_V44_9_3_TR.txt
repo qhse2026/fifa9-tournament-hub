@@ -1,0 +1,68 @@
+FORMULA RACING v44.9.3
+CIRCUIT IDENTITY & LIVE TIMING
+
+BU SÜRÜMDE DÜZELTİLEN 3 ANA KONU
+
+1) AI ARTIK OYUNCUYU BEKLEMİYOR
+- Rubber-band / catch-up mantığı kullanılmıyor.
+- AI yarış temposu oyuncunun konumuna, hızına veya tur farkına bağlı değil.
+- 11 AI pilotun bağımsız hız ve istikrar profili bulunuyor.
+- Trafikte tek çizgide yığılmak yerine geçiş koridoru seçiyorlar.
+- Yarışı bitiren AI araçları yavaşlayıp oyuncunun önüne düşmüyor; kısa soğuma süresinden sonra yarış yüzeyinden ayrılıyor.
+
+2) 8 PİST ARTIK GERÇEKTEN FARKLI
+- Pist geometrileri baştan ayrıştırıldı.
+- Her pistin ayrı çevre teması, kerb rengi, karakteri ve görsel kimliği bulunuyor.
+- Temalar: Ocean, Volcanic, Street, Arena, Strait, Desert, Storm ve Neon.
+- Pist seçim kartlarına gerçek layout ön izlemesi eklendi.
+
+3) CANLI SÜRÜCÜ FARKLARI
+- Yarış boyunca 12 pilotun tamamı timing tower üzerinde görünür.
+- GAP: Liderle zaman farkı.
+- INT: Bir önceki araçla zaman farkı.
+- Oyuncu için AHEAD ve BEHIND farkları üst HUD üzerinde sürekli güncellenir.
+- Tur bindirme durumunda +1 LAP formatı kullanılır.
+
+KURULUM
+
+ZIP dosyasını çıkartın ve aşağıdaki 6 dosyayı GitHub repository ana dizinine yükleyin:
+
+index.html
+service-worker.js
+formula-racing-tracks.js
+formula-racing-engine.js
+formula-racing.js
+formula-racing.css
+
+Mevcut dosyaların üzerine yazılmasına izin verin.
+
+Önerilen commit mesajı:
+Install Formula Circuit Identity and Live Timing v44.9.3
+
+VERCEL / CACHE
+
+Deployment Ready ve Production olduktan sonra:
+
+1. F12 > Application > Service Workers > Unregister
+2. Application > Storage > Clear site data
+3. Bütün site sekmelerini kapatın.
+4. Siteyi şu parametre ile açın:
+   ?formulaTiming=v4493
+5. Ctrl + Shift + R yapın.
+
+BEKLENEN SÜRÜM
+Tournament Universe · v44.9.3 · Circuit Identity & Live Timing
+
+ÖNERİLEN İLK TEST
+
+Pist: Dragon Ring
+Zorluk: Standard
+Tur: 5
+Hava: Kuru
+Incident: Low
+
+Kontrol edilecekler:
+- Gazı bırakıp geride kalınca lider AI araçları hız kesmemeli.
+- Yarışı önde bitiren AI araçları pistte oyuncuyu beklememeli.
+- Dragon Ring ile Filyos Street GP geometrisi ve çevresi açıkça farklı görünmeli.
+- Timing tower üzerinde 12 pilot, GAP ve INT değerleri sürekli değişmeli.
