@@ -1,0 +1,64 @@
+{
+  "version": "v44.10.0",
+  "build": "Formula Horizon 25 Global Challenge",
+  "created_at_utc": "2026-07-25T18:29:12.556754+00:00",
+  "status": "PASS",
+  "syntax_checks": {
+    "formula-racing-tracks.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    "formula-racing-engine.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    "formula-leaderboard.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    "formula-racing.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    }
+  },
+  "track_validation": {
+    "count": 25,
+    "uniqueIds": 25,
+    "minSegments": 134,
+    "maxSegments": 220,
+    "laps": [
+      5
+    ]
+  },
+  "feature_checks": {
+    "single_car_engine": true,
+    "perspective_projection": true,
+    "five_laps": true,
+    "fastest_lap_and_total": true,
+    "twenty_five_tracks": true,
+    "mobile_controls": true,
+    "global_rpc": true
+  },
+  "architecture": {
+    "vehicles": "1 player vehicle only",
+    "camera": "rear chase / pseudo-3D forward perspective",
+    "tracks": 25,
+    "session": "fixed 5 laps",
+    "global_rankings": [
+      "fastest clean lap",
+      "five-lap total"
+    ]
+  },
+  "scope_note": "Static and logic validation passed. Final handling and browser rendering should be confirmed after deployment.",
+  "five_lap_simulation": {
+    "passed": true,
+    "result": {
+      "finished": true,
+      "laps": 5,
+      "best": 24082,
+      "total": 195042,
+      "tracks": 25
+    },
+    "stderr": ""
+  }
+}

@@ -1,0 +1,47 @@
+FORMULA HORIZON 25 v44.10.0
+
+YENİ OYUN MODELİ
+- 24 araçlık yarış sistemi kaldırıldı.
+- Pistte yalnızca oyuncunun aracı bulunur.
+- Kamera üstten değil; aracın arkasından perspektif görünür.
+- Yol ve virajlar ekranın karşısından oyuncuya doğru gelir.
+- Toplam 25 farklı pist vardır.
+- Her resmi oturum tam 5 turdur.
+- İki ayrı global sıralama tutulur:
+  1. Pist en hızlı temiz turu
+  2. Toplam 5 tur süresi
+
+RESMİ OTURUM KURALLARI
+- Tek araç
+- Eşit araç performansı
+- Sabit kuru pist
+- 5 tur
+- Pist dışına çıkılan tur FASTEST LAP için geçersiz olur
+- Her pist dışı olay toplam sonuca +1.500 saniye ceza ekler
+- 5 tur tamamlanmadan sonuç gönderilmez
+
+PC KONTROLLERİ
+W / Yukarı     Gaz
+S / Aşağı      Fren
+A D / Sol Sağ  Direksiyon
+ESC            Duraklat
+
+MOBİL
+Telefon yatay kullanılır.
+Sol/sağ, fren ve gaz dokunmatik düğmeleri bulunur.
+
+GLOBAL SIRALAMA
+Paket içindeki aşağıdaki SQL dosyasını Supabase SQL Editor'da bir kez çalıştır:
+SUPABASE_RUN_ONCE_FORMULA_HORIZON_25_V44_10_0.sql
+
+YÜKLENECEK DOSYALAR
+index.html
+service-worker.js
+formula-racing-tracks.js
+formula-racing-engine.js
+formula-leaderboard.js
+formula-racing.js
+formula-racing.css
+
+COMMIT
+Install Formula Horizon 25 Global Challenge v44.10.0
