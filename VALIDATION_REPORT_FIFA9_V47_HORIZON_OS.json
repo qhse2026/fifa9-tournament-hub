@@ -1,0 +1,37 @@
+{
+  "version": "V47.0.0",
+  "build": "Horizon OS",
+  "created_at_utc": "2026-07-26T19:35:15.105785+00:00",
+  "status": "PASS",
+  "checks": {
+    "app.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    "horizon-os-v47.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    "service-worker.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    "index_has_horizon_css": {
+      "passed": true
+    },
+    "index_has_horizon_js": {
+      "passed": true
+    },
+    "v46_not_loaded": {
+      "passed": true
+    },
+    "new_dashboard": {
+      "passed": true
+    },
+    "command_palette": {
+      "passed": true
+    }
+  },
+  "browser_visual_test": "PASS — static Horizon OS home composition rendered with local Chromium at 1600×1000; full live repository smoke test remains required after Vercel deployment.",
+  "preview_file": "V47_HORIZON_OS_DESIGN_PREVIEW_DESKTOP.png"
+}

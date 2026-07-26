@@ -1,10 +1,10 @@
-const CACHE = "tournament-universe-v46-0-0-visual-rebirth";
+const CACHE = "tournament-universe-v47-0-0-horizon-os";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./visual-rebirth-v46.css",
-  "./visual-rebirth-v46.js",
   "./styles.css",
+  "./horizon-os-v47.css",
+  "./horizon-os-v47.js",
   "./fifa9-experience-hub.css",
   "./final-chapter-progression.css",
   "./app.js",

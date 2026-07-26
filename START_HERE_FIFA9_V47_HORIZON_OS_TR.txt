@@ -1,0 +1,20 @@
+FIFA9 TOURNAMENT UNIVERSE V47.0.0 — HORIZON OS
+
+BU SÜRÜM NEDİR?
+V47, V46'nın görsel katmanını kullanmaz. Eski sidebar kalıcı panel olmaktan çıkarılmış ve yalnızca ihtiyaç halinde açılan komuta çekmecesine dönüştürülmüştür. Ana ekran tamamen yeniden yazılmıştır.
+
+YÜKLENECEK DOSYALAR
+index.html
+app.js
+service-worker.js
+horizon-os-v47.css
+horizon-os-v47.js
+
+COMMIT
+Install FIFA9 Horizon OS V47.0.0
+
+CACHE
+Deployment sonrası Service Worker Unregister, Clear site data ve Ctrl+Shift+R uygulanmalıdır.
+
+NOT
+visual-rebirth-v46.css ve visual-rebirth-v46.js artık index.html tarafından yüklenmez. Dosyalar repository içinde arşiv amacıyla kalabilir.

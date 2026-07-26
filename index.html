@@ -24,7 +24,7 @@
   <link rel="stylesheet" href="manager-season-closure.css?v=44.8.6-closure1" />
   <link rel="stylesheet" href="all-time-elite.css?v=44.8.7-elite1" />
   <link rel="stylesheet" href="formula-reborn/formula-reborn.css?v=45.0.5-clear-corridor" />
-  <link rel="stylesheet" href="visual-rebirth-v46.css?v=46.0.0" />
+  <link rel="stylesheet" href="horizon-os-v47.css?v=47.0.0" />
 </head>
 <body>
   <div class="ambient ambient-one"></div>
@@ -133,27 +133,45 @@
 
       <div class="sidebar-footer">
         <div class="save-indicator" id="sidebarCloudStatus"><span class="status-dot"></span> Canlı bağlantı hazırlanıyor</div>
-        <div class="sidebar-version">Tournament Universe · V46.0.0 · Visual Rebirth</div>
+        <div class="sidebar-version">Tournament Universe · V47.0.0 · Horizon OS</div>
       </div>
     </aside>
+    <button class="os-sidebar-backdrop" id="sidebarBackdrop" type="button" aria-label="Komuta menüsünü kapat"></button>
 
     <main class="main-content">
-      <header class="topbar">
-        <button class="mobile-menu" id="mobileMenu" aria-label="Menüyü aç">☰</button>
-        <div>
-          <div class="hub-breadcrumb" id="hubBreadcrumb"><span>FIFA 9</span><i>›</i><b>Ana Merkez</b></div>
+      <header class="topbar os-topbar">
+        <div class="os-brand-zone">
+          <button class="mobile-menu os-menu-trigger" id="mobileMenu" aria-label="Komuta menüsünü aç"><span></span><span></span></button>
+          <button class="os-brand" data-nav="dashboard" type="button" aria-label="FIFA 9 Tournament Universe ana sayfa">
+            <span class="os-brand-mark"><img src="assets/f9-mark.svg" alt="" /></span>
+            <span class="os-brand-copy"><strong>FIFA 9</strong><small>TOURNAMENT UNIVERSE</small></span>
+          </button>
+        </div>
+
+        <nav class="os-primary-nav" aria-label="Ana ürün navigasyonu">
+          <button data-nav="dashboard"><span>Universe</span></button>
+          <button data-nav="knockout"><span>Final Chapter</span></button>
+          <button data-nav="livematch"><i></i><span>Live</span></button>
+          <button data-nav="seasonhub"><span>Career</span></button>
+          <button data-nav="formula1"><span>Formula</span></button>
+          <button data-nav="alltime"><span>Legacy</span></button>
+        </nav>
+
+        <div class="os-context-zone">
+          <div class="hub-breadcrumb" id="hubBreadcrumb"><span>FIFA 9</span><i>/</i><b>Ana Merkez</b></div>
           <h1 id="pageTitle">FIFA 9 Ana Merkezi</h1>
         </div>
-        <div class="topbar-mode-tools"><button class="hub-launcher-button" id="hubLauncherButton" type="button"><span>⌘</span><b>Mod Değiştir</b></button></div>
-        <div class="topbar-actions">
+
+        <div class="topbar-actions os-utility-zone">
+          <button class="os-command-key" id="hubLauncherButton" type="button" aria-label="Komuta paletini aç"><span>⌘</span><b>K</b></button>
           <div class="language-switch" id="languageSwitch" role="group" aria-label="Dil seçimi">
             <button type="button" class="language-option" data-language-option="tr" aria-label="Türkçe">TR</button>
             <button type="button" class="language-option" data-language-option="en" aria-label="English">EN</button>
           </div>
           <div class="edition-chip"><span>EDITION</span><strong>09</strong></div>
           <div class="cloud-chip" id="cloudChip"><span class="cloud-dot"></span><span id="cloudStatusText">Bağlanıyor</span></div>
-          <button class="btn btn-ghost" id="quickBackupBtn">Yedek Al</button>
-          <button class="btn btn-gold" id="adminAuthBtn" data-action="open-admin-login">Yönetici Girişi</button>
+          <button class="os-icon-button" id="quickBackupBtn" aria-label="Yedek al">⇩</button>
+          <button class="os-admin-button" id="adminAuthBtn" data-action="open-admin-login"><span>Admin</span><b>↗</b></button>
         </div>
       </header>
 
@@ -218,6 +236,6 @@
 <script src="manager-match-engine.js?v=44.8.6-season-closure1"></script>
 <script src="me4-worker-bridge.js?v=4.0.0-worker-bridge-w2.1-final.1"></script>
   <script src="fifa9-experience-hub.js?v=45.0.0-formula-reborn"></script>
-  <script src="visual-rebirth-v46.js?v=46.0.0"></script>
+  <script src="horizon-os-v47.js?v=47.0.0"></script>
 </body>
 </html>
