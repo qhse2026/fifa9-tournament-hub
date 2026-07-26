@@ -1,7 +1,9 @@
-const CACHE = "tournament-universe-v45-0-4-track-visibility";
+const CACHE = "tournament-universe-v46-0-0-visual-rebirth";
 const APP_SHELL = [
   "./",
   "./index.html",
+  "./visual-rebirth-v46.css",
+  "./visual-rebirth-v46.js",
   "./styles.css",
   "./fifa9-experience-hub.css",
   "./final-chapter-progression.css",

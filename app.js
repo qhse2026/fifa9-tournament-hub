@@ -2250,8 +2250,8 @@
       <section class="f9-command-hero">
         <div class="f9-command-copy">
           <div class="f9-command-kicker"><span>FIFA 9</span><i></i><b>EXPERIENCE HUB</b></div>
-          <h2>Tek merkez.<br><em>İki büyük oyun modu.</em></h2>
-          <p>FIFA 09 turnuvası, Final Chapter yolculuğu ve kalıcı FIFA Lig Sistemi artık birbirinden ayrılmış, düzenli ve hızlı erişilebilir bir yapıda.</p>
+          <h2>One universe.<br><em>Every rivalry alive.</em></h2>
+          <p>Turnuva, kariyer, canlı maç zekâsı ve Formula Horizon; tek bir yaşayan rekabet evreninde, daha net, daha hızlı ve daha sinematik.</p>
           <div class="f9-command-actions">
             <button class="btn btn-gold" data-nav="league">Turnuva Modunu Aç</button>
             <button class="btn btn-blue" data-nav="seasonhub">FIFA Lig Sistemine Git</button>
@@ -2270,6 +2270,13 @@
             <i><b style="width:${progressPercent()}%"></b></i>
           </div>
         </div>
+      </section>
+
+      <section class="v46-signal-strip" aria-label="Tournament universe signals">
+        <article><small>Current edition</small><strong>FIFA 09</strong><span>${stageLabel}</span></article>
+        <article><small>Tournament progress</small><strong>%${progressPercent()}</strong><span>${leagueDone + goldDone + silverDone} official results</span></article>
+        <article><small>Living career</small><strong>${season ? `FIFA ${seasonSystem().activeEdition || 10}` : "Ready"}</strong><span>${season?.players?.length || 0} registered players</span></article>
+        <article><small>Formula division</small><strong>3 Circuits</strong><span>Five-lap global challenge</span></article>
       </section>
 
       ${renderDashboardLiveMatch()}

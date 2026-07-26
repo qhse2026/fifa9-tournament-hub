@@ -1,0 +1,23 @@
+FIFA9 TOURNAMENT UNIVERSE V46.0.0 — VISUAL REBIRTH
+
+KURULUM
+1. Upload-only ZIP'i açın.
+2. İçindeki dosyaları GitHub repository ana klasörüne kopyalayın.
+3. Windows sorarsa Replace seçin.
+4. GitHub Desktop commit mesajı:
+   Install FIFA9 Visual Rebirth V46.0.0
+5. Commit to main ve Push origin yapın.
+6. Vercel deployment Ready / Production olana kadar bekleyin.
+7. F12 > Application > Service Workers > Unregister.
+8. Application > Storage > Clear site data.
+9. Siteyi kapatıp yeniden açın ve Ctrl + Shift + R yapın.
+
+YÜKLENECEK DOSYALAR
+index.html
+app.js
+service-worker.js
+visual-rebirth-v46.css
+visual-rebirth-v46.js
+
+NOT
+Bu sürüm mevcut oyun verilerini, Manager kariyerlerini, Supabase tablolarını veya Formula kayıtlarını silmez.

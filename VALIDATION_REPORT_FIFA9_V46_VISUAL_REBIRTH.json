@@ -1,0 +1,28 @@
+{
+  "version": "V46.0.0",
+  "status": "PASS",
+  "created_at_utc": "2026-07-26T19:12:07.745974+00:00",
+  "syntax": {
+    "app.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    "visual-rebirth-v46.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    "service-worker.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    }
+  },
+  "integration_checks": {
+    "css_linked": true,
+    "js_linked": true,
+    "version_visible": true,
+    "signal_strip": true,
+    "sw_cache": true,
+    "sw_assets": true
+  },
+  "browser_note": "Static validation passed. Visual browser review is required after Vercel deployment on desktop and mobile."
+}
