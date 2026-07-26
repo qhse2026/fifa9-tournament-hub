@@ -1,0 +1,25 @@
+FIFA9 V47.1.0 — NAVIGATION OS PRO
+
+BU SÜRÜM NEYİ DÜZELTİR?
+- Sidebar yazıları büyütüldü ve okunabilir hale getirildi.
+- Aynı anda yalnızca bir kategori açık kalır.
+- Yeni kategori açıldığında eski kategori kontrollü animasyonla kapanır.
+- Menü kapatılıp yeniden açıldığında aktif sayfanın kategorisi otomatik açılır.
+- Eski bozuk accordion durumu localStorage'da tutulmaz.
+- Masaüstünde geniş komuta çekmecesi, mobilde tam ekran navigasyon kullanılır.
+- Menü içinde arama vardır.
+- Escape, backdrop ve kapatma düğmesi doğru çalışır.
+- Drawer açıkken sayfa kaydırması kilitlenir.
+- Klavye odağı drawer içinde tutulur.
+
+YÜKLENECEK DOSYALAR
+index.html
+app.js
+service-worker.js
+fifa9-experience-hub.js
+horizon-os-v47.js
+navigation-os-v47-1.css
+navigation-os-v47-1.js
+
+COMMIT MESAJI
+Install FIFA9 Navigation OS Pro V47.1.0

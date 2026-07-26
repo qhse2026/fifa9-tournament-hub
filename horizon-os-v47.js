@@ -140,8 +140,8 @@
   }
 
   function boot(){
-    document.documentElement.dataset.horizonOs="47.0.0";
-    setupSidebar();enhanceCommandPalette();setupKeyboard();setupPointerGlow();enhanceView();
+    document.documentElement.dataset.horizonOs="47.1.0";
+    enhanceCommandPalette();setupKeyboard();setupPointerGlow();enhanceView();
     const view=$("#view");if(view)new MutationObserver(()=>requestAnimationFrame(enhanceView)).observe(view,{childList:true,subtree:true});
     document.addEventListener("click",event=>{if(event.target.closest("[data-nav]")){routeTransition();setTimeout(syncRoute,30);}},true);
     window.addEventListener("scroll",()=>$(".os-topbar")?.classList.toggle("is-scrolled",scrollY>20),{passive:true});

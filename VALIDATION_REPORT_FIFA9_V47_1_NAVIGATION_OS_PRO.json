@@ -1,0 +1,42 @@
+{
+  "version": "V47.1.0",
+  "build": "Navigation OS Pro",
+  "created_at_utc": "2026-07-26T22:54:17.514238+00:00",
+  "status": "PASS",
+  "syntax_checks": {
+    "app.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    "service-worker.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    "fifa9-experience-hub.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    "horizon-os-v47.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    "navigation-os-v47-1.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    }
+  },
+  "feature_checks": {
+    "new_css_loaded": true,
+    "new_js_loaded": true,
+    "drawer_search": true,
+    "drawer_close": true,
+    "single_open_accordion": true,
+    "no_cluster_localstorage": true,
+    "mobile_fullscreen": true,
+    "body_scroll_lock": true,
+    "focus_trap": true,
+    "app_uses_navigation_api": true,
+    "cache_version": true
+  },
+  "browser_note": "Static validation passed. Final visual and touch behaviour should be confirmed on the deployed site."
+}

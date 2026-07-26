@@ -2153,7 +2153,7 @@
     activeView = target;
     pageTitle.textContent = titleMap[target] || "FIFA 9";
     $$(".nav-item").forEach(item => item.classList.toggle("active", item.dataset.nav === target));
-    $("#sidebar").classList.remove("open");
+    window.FIFA9_NAVIGATION?.close?.({ restoreFocus: false }) || $("#sidebar").classList.remove("open");
     render();
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -10188,7 +10188,7 @@ ${shareData.url}`)}`;
 
   $("#modalClose").addEventListener("click", closeModal);
   modalBackdrop.addEventListener("click", event => { if (event.target === modalBackdrop) closeModal(); });
-  $("#mobileMenu").addEventListener("click", () => $("#sidebar").classList.toggle("open"));
+  $("#mobileMenu").addEventListener("click", () => window.FIFA9_NAVIGATION?.toggle?.());
   $("#quickBackupBtn").addEventListener("click", exportJSON);
   document.addEventListener("keydown", event => { if (event.key === "Escape") closeModal(); });
 

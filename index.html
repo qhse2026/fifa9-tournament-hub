@@ -25,19 +25,30 @@
   <link rel="stylesheet" href="all-time-elite.css?v=44.8.7-elite1" />
   <link rel="stylesheet" href="formula-reborn/formula-reborn.css?v=45.0.5-clear-corridor" />
   <link rel="stylesheet" href="horizon-os-v47.css?v=47.0.0" />
+  <link rel="stylesheet" href="navigation-os-v47-1.css?v=47.1.0" />
 </head>
 <body>
   <div class="ambient ambient-one"></div>
   <div class="ambient ambient-two"></div>
 
   <div id="app" class="app-shell">
-    <aside class="sidebar" id="sidebar">
+    <aside class="sidebar" id="sidebar" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="sidebarTitle">
       <div class="brand" data-nav="dashboard" role="button" tabindex="0">
         <img src="assets/f9-mark.svg" alt="F9" class="brand-mark" />
         <div>
-          <div class="brand-title">FIFA 9</div>
+          <div class="brand-title" id="sidebarTitle">FIFA 9</div>
           <div class="brand-subtitle">EXPERIENCE HUB</div><div class="brand-edition-line">EDITION 09 · FINAL CHAPTER</div>
         </div>
+        <button class="os-drawer-close" id="sidebarClose" type="button" aria-label="Komuta menüsünü kapat"><span></span><span></span></button>
+      </div>
+
+      <div class="os-drawer-search-wrap">
+        <label class="os-drawer-search" for="sidebarSearch">
+          <span aria-hidden="true">⌕</span>
+          <input id="sidebarSearch" type="search" autocomplete="off" placeholder="Mod, araç veya kayıt ara…" />
+          <kbd>ESC</kbd>
+        </label>
+        <div class="os-drawer-search-meta"><span>COMMAND NAVIGATION</span><b id="sidebarSearchCount">24 seçenek</b></div>
       </div>
 
       <nav class="main-nav hub-nav" aria-label="FIFA 9 ana navigasyonu">
@@ -133,7 +144,7 @@
 
       <div class="sidebar-footer">
         <div class="save-indicator" id="sidebarCloudStatus"><span class="status-dot"></span> Canlı bağlantı hazırlanıyor</div>
-        <div class="sidebar-version">Tournament Universe · V47.0.0 · Horizon OS</div>
+        <div class="sidebar-version">Tournament Universe · V47.1.0 · Navigation OS Pro</div>
       </div>
     </aside>
     <button class="os-sidebar-backdrop" id="sidebarBackdrop" type="button" aria-label="Komuta menüsünü kapat"></button>
@@ -236,6 +247,7 @@
 <script src="manager-match-engine.js?v=44.8.6-season-closure1"></script>
 <script src="me4-worker-bridge.js?v=4.0.0-worker-bridge-w2.1-final.1"></script>
   <script src="fifa9-experience-hub.js?v=45.0.0-formula-reborn"></script>
-  <script src="horizon-os-v47.js?v=47.0.0"></script>
+  <script src="horizon-os-v47.js?v=47.1.0-navigation-pro"></script>
+  <script src="navigation-os-v47-1.js?v=47.1.0"></script>
 </body>
 </html>
