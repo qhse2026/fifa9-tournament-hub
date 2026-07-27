@@ -1,0 +1,71 @@
+{
+  "package": "FIFA9 V47.3.0 Tournament Report Card + Performance Atlas",
+  "status": "PASS",
+  "checks": [
+    {
+      "name": "JavaScript syntax: app.js",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "JavaScript syntax: fifa9-experience-hub.js",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "JavaScript syntax: horizon-os-v47.js",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "JavaScript syntax: navigation-os-v47-1.js",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "JavaScript syntax: service-worker.js",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "CSS brace balance",
+      "status": "PASS",
+      "detail": "open=221 close=221"
+    },
+    {
+      "name": "Tournament Report Card renderer present",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "Player Atlas preserved",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "Confidence badge layout present",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "Provisional FIFA 09 handling present",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "Third-place CSS preserved",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "V47.3.0 cache busting",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "Synthetic browser render",
+      "status": "PASS",
+      "detail": "{\"reportHero\": \"Turnuvaların Karnesi\", \"reportCards\": 4, \"comparisonRows\": 4, \"liveGrades\": 1, \"provisionalCards\": 1, \"atlasHero\": \"Şampiyonsuz Taht\", \"playerRows\": 13, \"confidenceBadges\": [\"GELİŞEN ÖRNEKLEM\", \"GELİŞEN ÖRNEKLEM\", \"GELİŞEN ÖRNEKLEM\", \"GELİŞEN ÖRNEKLEM\", \"GELİŞEN ÖRNEKLEM\"], \"confidenceOverlap\": false, \"errors\": [], \"pass\": true}"
+    }
+  ]
+}

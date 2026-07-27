@@ -1,0 +1,33 @@
+FIFA9 V47.3.0 — TOURNAMENT REPORT CARD
+=======================================
+
+NEW — TOURNAMENT REPORT CARD
+- Atlas route now opens with a true edition-level “Turnuva Karnesi”.
+- FIFA 1–9 tournaments are compared as tournaments, not only through player rankings.
+- Added normalized tournament report grades from A+ to C−.
+- Added edition comparison table using per-match and percentage metrics.
+- Added champion, runner-up and third-place detection from final-stage results.
+- Added Tournament DNA cards for every edition.
+- Added Competition, Drama, Tempo, Balance and Tightness indices.
+- Added awards for Best Overall Report, Most Balanced, Most Dramatic,
+  Highest Tempo, Tightest Margins and Most Dominant Champion.
+
+LIVE FIFA 09 HANDLING
+- Incomplete current tournament is marked CANLI / LIVE and provisional.
+- Provisional FIFA 09 results update dynamically as matches are entered.
+- An incomplete edition is excluded from completed-edition awards.
+
+PLAYER ATLAS PRESERVED
+- V47.2.0 No-Champion Player Atlas remains available as the second tab.
+- Champion exclusion, BMX, PPG, Clutch, Consistency, Era Index,
+  player profile and heatmap systems remain intact.
+
+READABILITY FIX
+- Player name and confidence labels now use separate stacked rows.
+- “Yüksek güven”, “Orta güven” and “Gelişen örneklem” are displayed as badges.
+- Long player names wrap safely without colliding with confidence text.
+- Desktop and mobile player-column widths were corrected.
+
+COMPATIBILITY
+- Preserves Final Chapter results and third-place match logic from V47.1.1.
+- No state reset, schema migration or manual data conversion is required.

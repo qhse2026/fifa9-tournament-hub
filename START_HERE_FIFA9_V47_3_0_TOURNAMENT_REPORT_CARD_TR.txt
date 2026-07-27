@@ -1,0 +1,25 @@
+FIFA9 V47.3.0 — TURNUVA KARNESİ + PERFORMANCE ATLAS
+=====================================================
+
+KURULUM
+1. ZIP dosyasını açın.
+2. İçindeki tüm dosyaları GitHub repository ana dizinine yükleyin.
+3. Mevcut dosyaların üzerine yazılmasını onaylayın.
+4. Commit önerisi:
+   Add Tournament Report Card and Atlas readability V47.3.0
+5. Deploy tamamlandıktan sonra siteyi Ctrl + Shift + R ile yenileyin.
+
+YENİ SAYFA AKIŞI
+Arşiv & Yönetim > Turnuva Karnesi
+
+Sayfa iki ayrı görünüm içerir:
+1. Turnuva Karnesi — varsayılan görünüm
+   FIFA 1–9 turnuvalarını edisyon bazında karşılaştırır.
+2. Şampiyonsuz Oyuncu Atlası
+   V47.2.0 ile gelen mevcut oyuncu benchmark sistemini korur.
+
+ÖNEMLİ
+- FIFA 09 henüz tamamlanmadıysa karne “CANLI / GEÇİCİ” görünür.
+- Tamamlanmamış turnuva, geçmiş turnuvaların ödül ve karne sıralamasını bozmaz.
+- Final Chapter, yarı final, üçüncülük maçı ve mevcut skorlar korunur.
+- Herhangi bir veri sıfırlaması veya migration gerektirmez.

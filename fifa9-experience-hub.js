@@ -4,7 +4,7 @@
   const GROUPS = {
     tournament: new Set(["livematch","livestats","form","odds","intelligence","chat","setup","league","gold","silver","knockout","finalpoll","print"]),
     "league-system": new Set(["seasonhub","managerroom","managerhall","museum"]),
-    records: new Set(["archive","alltime","teams","backup"]),
+    records: new Set(["archive","benchmark","alltime","teams","backup"]),
     "formula-racing": new Set(["formula1"])
   };
 
@@ -18,7 +18,7 @@
     finalpoll:["FIFA 9","Turnuva Modu","Final Chapter Kararı"], print:["FIFA 9","Turnuva Modu","Çıktı Merkezi"],
     seasonhub:["FIFA 9","FIFA Lig Sistemi","Lig Merkezi"], managerroom:["FIFA 9","FIFA Lig Sistemi","Manager's Room"],
     managerhall:["FIFA 9","FIFA Lig Sistemi","Manager Hall"], museum:["FIFA 9","FIFA Lig Sistemi","Kupa Müzesi"],
-    archive:["FIFA 9","Arşiv & Yönetim","Turnuva Arşivi"], alltime:["FIFA 9","Arşiv & Yönetim","Tüm Zamanlar"],
+    archive:["FIFA 9","Arşiv & Yönetim","Turnuva Arşivi"], benchmark:["FIFA 9","Arşiv & Yönetim","Turnuva Karnesi"], alltime:["FIFA 9","Arşiv & Yönetim","Tüm Zamanlar"],
     teams:["FIFA 9","Arşiv & Yönetim","Takım İstatistikleri"], backup:["FIFA 9","Arşiv & Yönetim","Veri & Yedek"],
     formula1:["Tournament Universe","Formula Horizon Reborn","PC + Mobile"]
   };

@@ -1,4 +1,4 @@
-const CACHE = "tournament-universe-v47-2-0-performance-atlas";
+const CACHE = "tournament-universe-v47-3-0-tournament-report-card";
 const APP_SHELL = [
   "./",
   "./index.html",
