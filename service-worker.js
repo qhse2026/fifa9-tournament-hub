@@ -1,4 +1,4 @@
-const CACHE = "tournament-universe-v47-5-0-champions-podium";
+const CACHE = "tournament-universe-v47-6-0-grand-final-opening";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -9,6 +9,8 @@ const APP_SHELL = [
   "./navigation-os-v47-1.js",
   "./final-chapter-third-place.css",
   "./champions-podium.css",
+  "./grand-final-announcement.css",
+  "./grand-final-announcement.js",
   "./fifa9-experience-hub.css",
   "./fifa9-experience-hub.js",
   "./final-chapter-progression.css",

@@ -17,6 +17,7 @@
   <link rel="stylesheet" href="navigation-os-v47-1.css?v=47.4.0-sidebar-fix" />
   <link rel="stylesheet" href="final-chapter-third-place.css?v=47.5.0" />
   <link rel="stylesheet" href="champions-podium.css?v=47.5.0" />
+  <link rel="stylesheet" href="grand-final-announcement.css?v=47.6.0" />
 </head>
 <body>
   <div class="ambient ambient-one"></div>
@@ -110,7 +111,7 @@
 
       <div class="sidebar-footer">
         <div class="save-indicator" id="sidebarCloudStatus"><span class="status-dot"></span> Canlı bağlantı hazırlanıyor</div>
-        <div class="sidebar-version">Tournament Universe · V47.5.0 · Champions Podium</div>
+        <div class="sidebar-version">Tournament Universe · V47.6.0 · Grand Final Opening</div>
       </div>
     </aside>
     <button class="os-sidebar-backdrop" id="sidebarBackdrop" type="button" aria-label="Komuta menüsünü kapat"></button>
@@ -168,6 +169,50 @@
     </div>
   </div>
 
+  <div class="grand-final-announcement hidden" id="grandFinalAnnouncement" aria-hidden="true">
+    <div class="grand-final-backdrop" id="grandFinalBackdrop"></div>
+    <section class="grand-final-panel" role="dialog" aria-modal="true" aria-labelledby="grandFinalTitle" aria-describedby="grandFinalDesc">
+      <button class="grand-final-close" id="grandFinalClose" type="button" aria-label="Duyuruyu kapat" disabled>×</button>
+      <div class="grand-final-noise" aria-hidden="true"></div>
+      <div class="grand-final-scanlines" aria-hidden="true"></div>
+      <header class="grand-final-header">
+        <div class="grand-final-kicker-wrap">
+          <span class="grand-final-kicker">FIFA 09 · FINAL CHAPTER</span>
+          <span class="grand-final-live">MAIN EVENT</span>
+        </div>
+        <p id="grandFinalDesc">Showtime duyurusu — büyük final gecesi ana etkinliği.</p>
+      </header>
+      <div class="grand-final-stage">
+        <div class="grand-final-stage-lights" aria-hidden="true"><span></span><span></span><span></span></div>
+        <div class="grand-final-copy">
+          <small class="grand-final-overline">GRAND FINAL NIGHT</small>
+          <h2 id="grandFinalTitle">Kerim Özmen <em>vs</em> Çağlar Can Tatar</h2>
+          <div class="grand-final-meta">
+            <span>28 / 07 / 2026</span>
+            <i></i>
+            <span>01.00</span>
+            <i></i>
+            <span>FIFA 09 FINAL CHAPTER</span>
+          </div>
+          <div class="grand-final-belt">
+            <div><small>Fixture</small><strong>Büyük Final</strong></div>
+            <div><small>Edition</small><strong>09</strong></div>
+            <div><small>Status</small><strong>LIVE SOON</strong></div>
+          </div>
+        </div>
+        <div class="grand-final-versus" aria-hidden="true">
+          <div class="fighter-card left"><span>KERIM</span><b>ÖZMEN</b></div>
+          <div class="versus-core"><strong>VS</strong><small>MAIN EVENT</small></div>
+          <div class="fighter-card right"><span>ÇAĞLAR CAN</span><b>TATAR</b></div>
+        </div>
+      </div>
+      <footer class="grand-final-footer">
+        <div class="grand-final-countdown" id="grandFinalCountdown">Çıkış işareti 5 saniye içinde aktif olacak</div>
+        <button class="grand-final-enter" id="grandFinalEnter" type="button">Turnuva evrenine gir <b>↗</b></button>
+      </footer>
+    </section>
+  </div>
+
   <div class="toast-stack" id="toastStack" aria-live="assertive"></div>
 
   <div class="hub-launcher-backdrop hidden" id="hubLauncherBackdrop">
@@ -199,9 +244,10 @@
   <script src="cloud.js?v=44.5.0"></script>
   <script src="chat.js?v=44.5.0"></script>
   <script src="community.js?v=44.5.0"></script>
-  <script src="app.js?v=47.5.0-champions-podium"></script>
-  <script src="fifa9-experience-hub.js?v=47.5.0-tournament-only"></script>
-  <script src="horizon-os-v47.js?v=47.5.0-performance-lite"></script>
-  <script src="navigation-os-v47-1.js?v=47.5.0-sidebar-fix"></script>
+  <script src="app.js?v=47.6.0-grand-final-opening"></script>
+  <script src="fifa9-experience-hub.js?v=47.6.0-tournament-only"></script>
+  <script src="horizon-os-v47.js?v=47.6.0-performance-lite"></script>
+  <script src="navigation-os-v47-1.js?v=47.6.0-sidebar-fix"></script>
+  <script src="grand-final-announcement.js?v=47.6.0"></script>
 </body>
 </html>

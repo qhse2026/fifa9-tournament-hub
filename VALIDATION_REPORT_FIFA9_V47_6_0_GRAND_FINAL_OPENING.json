@@ -1,0 +1,14 @@
+{
+  "package":"FIFA9_V47_6_0_GRAND_FINAL_OPENING_UPLOAD_ONLY",
+  "status":"PASS",
+  "checks":[
+    "index references grand-final CSS",
+    "index references grand-final JS",
+    "announcement markup present",
+    "service worker cache key bumped",
+    "service worker caches new assets",
+    "close button delayed 5 seconds",
+    "session dismiss key active",
+    "no tournament data migration required"
+  ]
+}

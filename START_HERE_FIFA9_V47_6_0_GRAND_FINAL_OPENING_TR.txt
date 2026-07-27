@@ -1,0 +1,11 @@
+FIFA9 V47.6.0 — GRAND FINAL OPENING
+
+Kurulum:
+1) ZIP içindeki tüm dosya ve klasörleri repository ana dizinine yükleyin.
+2) Mevcut dosyaların üzerine yazın.
+3) Deploy sonrası siteyi Ctrl + Shift + R ile sert yenileyin.
+
+Yeni Özellik:
+- Site açıldığında büyük final duyurusu ilk ekran olarak görünür.
+- Çarpı butonu 5 saniye sonra aktif olur.
+- Kullanıcı duyuruyu kapattıktan sonra siteyi gezebilir.

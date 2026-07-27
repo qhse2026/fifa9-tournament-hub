@@ -1,0 +1,14 @@
+FIFA9 V47.6.0 — GRAND FINAL OPENING
+
+Added a cinematic splash announcement that appears when the site opens.
+Main event: Kerim Özmen vs Çağlar Can Tatar
+Date: 28/07/2026
+Time: 01.00
+
+Included:
+- Luxury show-business style opening screen
+- 5-second delayed close button
+- Enter-site CTA
+- Session-based dismiss behaviour
+- Lightweight CSS/JS only; no effect on tournament data
+- Service worker cache updated
