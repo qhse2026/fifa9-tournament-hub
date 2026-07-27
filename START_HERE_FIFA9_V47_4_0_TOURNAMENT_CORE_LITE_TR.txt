@@ -1,0 +1,19 @@
+FIFA9 V47.4.0 — TOURNAMENT CORE LITE
+
+KURULUM
+1. ZIP içindeki dosyaların tamamını GitHub repository ana dizinine yükleyin.
+2. Aynı isimli dosyaların üzerine yazılmasını onaylayın.
+3. Deploy tamamlandıktan sonra siteyi Ctrl + Shift + R ile yenileyin.
+4. Eski service worker önbelleği V47.4.0 tarafından otomatik temizlenir.
+
+BU SÜRÜMDE
+- FIFA Career / Manager oyunu navigasyondan ve çalışma zamanından kaldırıldı.
+- Formula Horizon oyunu navigasyondan ve çalışma zamanından kaldırıldı.
+- Bu oyunlara ait ağır CSS, WebGL, worker ve manager scriptleri artık yüklenmez.
+- Ana sayfa yalnızca Final Chapter, Canlı Merkez, Turnuva Karnesi ve Zekâ Merkezi üzerine kuruldu.
+- Sidebar aç/kapat sistemi doğrudan kendi modülüne bağlandı; app.js çalışmasa bile menü açılabilir.
+- Sürekli çalışan arka plan canvas ve mouse-tilt efektleri kapatıldı.
+- Mevcut turnuva, yarı final, üçüncülük maçı, final ve arşiv verileri korunur.
+
+NOT
+Eski Career ve Formula dosyaları repository içinde kalsa bile artık çağrılmaz ve siteyi yavaşlatmaz. Repository temizliği istenirse FILES_OPTIONAL_DELETE_V47_4_0.txt listesindeki dosyalar ayrıca silinebilir.

@@ -1,0 +1,26 @@
+FIFA9 V47.4.0 — Tournament Core Lite
+
+REMOVED
+- FIFA Career / Manager game UI and runtime loading
+- Formula Horizon Reborn UI and WebGL runtime loading
+- Related top navigation, sidebar clusters, command palette and mobile dock shortcuts
+
+FIXED
+- Sidebar open/close reliability
+- Independent mobile menu binding
+- Backdrop, focus, ESC, close button and route-close behavior
+- Stale body lock and stale service-worker cache
+
+PERFORMANCE
+- Removed manager engine, worker and Formula WebGL requests
+- Removed continuous dashboard canvas animation
+- Removed pointer glow and 3D tilt handlers
+- Reduced dashboard MutationObserver scope
+
+PRESERVED
+- Final Chapter and semifinals
+- Third-place match and Grand Final
+- Live Match, Live Statistics, Form, Odds and Intelligence
+- Tournament Report Cards / Performance Atlas
+- Archive, All-Time, Team Statistics and backups
+- Existing local and Supabase tournament data

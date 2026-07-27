@@ -64,18 +64,15 @@
     knockout: "FIFA09 Final Chapter",
     print: "Çıktı Merkezi",
     archive: "Turnuva Arşivi",
-    museum: "Sezonlar & Kupa Müzesi",
-    seasonhub: "FIFA Lig Sistemi",
     benchmark: "Turnuva Karnesi & Performans Atlası",
     alltime: "Tüm Zamanlar",
     teams: "Takım İstatistikleri",
     backup: "Veri & Yedek",
-    managerroom: "The Manager's Room",
-    managerhall: "Manager Hall",
-    formula1: "Formula Horizon Reborn",
     playeraccess: "Oyuncu Girişi",
     finalpoll: "FIFA09 Final Chapter Kararı"
   };
+
+  const REMOVED_GAME_ROUTES = new Set(["seasonhub", "managerroom", "managerhall", "museum", "formula1"]);
 
   let activeView = "dashboard";
   let adminLoginInProgress = false;
@@ -2222,8 +2219,9 @@
   }
 
   function navTo(target) {
-    if (activeView === "formula1" && target !== "formula1") {
-      window.F1_RACING?.stopRace?.();
+    if (REMOVED_GAME_ROUTES.has(target)) {
+      target = "dashboard";
+      toast("Career ve Formula modları performans sürümünde kaldırıldı.", "info");
     }
     if (target !== "livematch" && livePresentationMode !== "standard") exitLivePresentation(false);
     activeView = target;
@@ -2254,15 +2252,10 @@
       case "knockout": renderKnockout(); break;
       case "print": renderPrintCenter(); break;
       case "archive": renderArchive(); break;
-      case "museum": renderSeasonMuseum(); break;
-      case "seasonhub": window.FIFA_SEASON_HUB?.render?.(view); break;
       case "benchmark": renderTournamentBenchmark(); break;
       case "alltime": renderAllTime(); break;
       case "teams": renderTeamStatistics(); break;
       case "backup": renderBackup(); break;
-      case "managerroom": window.FIFA_MANAGER_ROOM?.render?.(view); break;
-      case "managerhall": window.FIFA_MANAGER_ROOM?.renderHall?.(view); break;
-      case "formula1": window.F1_RACING?.render?.(view); break;
       case "playeraccess": renderPlayerAccessPage(); break;
       case "finalpoll": renderFinalPollPage(); break;
       default: renderDashboard();
@@ -2308,24 +2301,21 @@
     const completedResults = leagueDone + goldDone + silverDone;
     const champ = state.current.knockout.championId;
     const stage = currentStage();
-    const season = (seasonSystem().seasons || []).find(item => Number(item.edition) === Number(seasonSystem().activeEdition || 10));
-    const managerCareer = window.FIFA_MANAGER_ROOM?.getActiveCareer?.();
     const activeLive = getActiveLive();
     const nextMatch = !activeLive ? liveEligibleMatches().find(match => match.homeId && match.awayId) : activeLive.match;
     const leader = state.current.league.generated ? leagueStandings()[0] : null;
     const progress = progressPercent();
+    const participantCount = (state.current.participants || []).length;
     const stageLabel = {
       setup:"KURA HAZIRLIĞI", league:"LEAGUE PHASE", "phase2-ready":"GRUPLAR HAZIR",
       phase2:"ALTIN + GÜMÜŞ", "knockout-ready":"FINAL CHAPTER HAZIR",
-      knockout:"FINAL CHAPTER", completed:"SEZON TAMAMLANDI"
+      knockout:"FINAL CHAPTER", completed:"TURNUVA TAMAMLANDI"
     }[stage] || "FIFA 09";
     const nextHome = nextMatch ? displayName(nextMatch.homeId) : "Oyuncu 1";
     const nextAway = nextMatch ? displayName(nextMatch.awayId) : "Oyuncu 2";
     const nextStage = nextMatch ? liveStageLabel(nextMatch) : "Fikstür hazırlanıyor";
     const liveScore = activeLive ? `${activeLive.live.homeScore} — ${activeLive.live.awayScore}` : "VS";
     const liveMeta = activeLive ? `${liveStatusText(activeLive.live)} · ${liveMinuteText(activeLive.live)}` : "NEXT MATCH";
-    const managerName = managerCareer?.playerName || "Manager profile ready";
-    const managerClub = managerCareer?.clubName || "Create your football legacy";
 
     view.innerHTML = `<div class="os-home" data-os-page="home">
       <section class="os-hero" aria-labelledby="osHeroTitle">
@@ -2334,22 +2324,22 @@
         <div class="os-hero-grid">
           <div class="os-hero-copy">
             <div class="os-kicker"><span class="os-live-beacon"></span><b>FIFA 09 · ${escapeHTML(stageLabel)}</b><i>${completedResults} OFFICIAL RESULTS</i></div>
-            <h2 id="osHeroTitle">Every match<br><em>rewrites the universe.</em></h2>
-            <p>One living platform for the Final Chapter, career management, real-time match intelligence and Formula Horizon competition.</p>
+            <h2 id="osHeroTitle">Every match<br><em>writes the final chapter.</em></h2>
+            <p>Final Chapter, live match operations, tournament intelligence and the complete FIFA 1–9 archive—now in one faster, focused hub.</p>
             <div class="os-hero-actions">
               <button class="os-primary-action" data-nav="knockout"><span>Enter Final Chapter</span><b>↗</b></button>
               <button class="os-secondary-action" data-nav="livematch"><i></i><span>Open Live Centre</span></button>
-              <button class="os-text-action" id="dashboardModeLauncher"><span>Explore universe</span><b>⌘K</b></button>
+              <button class="os-text-action" id="dashboardModeLauncher"><span>Explore tournament</span><b>⌘K</b></button>
             </div>
             <div class="os-hero-proof">
               <article><small>Edition</small><strong>09</strong><span>Final Chapter</span></article>
               <article><small>Progress</small><strong data-os-count="${progress}">${progress}</strong><span>percent complete</span></article>
-              <article><small>Formula</small><strong>03</strong><span>masterpiece circuits</span></article>
+              <article><small>Archive</small><strong>09</strong><span>tournament editions</span></article>
             </div>
           </div>
 
           <div class="os-hero-console">
-            <article class="os-match-console" data-os-tilt data-nav="${activeLive ? "livematch" : "odds"}">
+            <article class="os-match-console" data-nav="${activeLive ? "livematch" : "odds"}">
               <div class="os-console-grid" aria-hidden="true"></div>
               <header><span><i class="${activeLive ? "is-live" : ""}"></i>${liveMeta}</span><b>${escapeHTML(nextStage)}</b></header>
               <div class="os-match-identity">
@@ -2362,55 +2352,55 @@
             </article>
 
             <div class="os-console-metrics">
-              <article data-os-tilt><small>TOURNAMENT PULSE</small><strong>${progress}%</strong><div class="os-progress-ring" style="--os-progress:${progress * 3.6}deg"><span>${completedResults}</span></div><p>Official results recorded across the active competition.</p></article>
-              <article data-os-tilt><small>CURRENT LEADER</small><strong>${leader ? escapeHTML(leader.p) : "Awaiting draw"}</strong><span>${leader ? `${leader.pts} PTS · ${leader.w} WINS` : "League table will activate automatically"}</span><div class="os-sparkline"><i></i><i></i><i></i><i></i><i></i><i></i></div></article>
+              <article><small>TOURNAMENT PULSE</small><strong>${progress}%</strong><div class="os-progress-ring" style="--os-progress:${progress * 3.6}deg"><span>${completedResults}</span></div><p>Official results recorded across the active competition.</p></article>
+              <article><small>CURRENT LEADER</small><strong>${leader ? escapeHTML(leader.p) : "Awaiting draw"}</strong><span>${leader ? `${leader.pts} PTS · ${leader.w} WINS` : "League table will activate automatically"}</span><div class="os-sparkline"><i></i><i></i><i></i><i></i><i></i><i></i></div></article>
             </div>
           </div>
         </div>
-        <div class="os-scroll-signal"><span>SCROLL TO ENTER THE UNIVERSE</span><i></i></div>
+        <div class="os-scroll-signal"><span>SCROLL TO ENTER THE TOURNAMENT</span><i></i></div>
       </section>
 
       <section class="os-ticker" aria-label="Tournament signal stream">
         <div><span>LIVE SYSTEM</span><b>${state.current.live?.active ? "MATCH ACTIVE" : "READY"}</b></div>
         <div><span>CURRENT STAGE</span><b>${escapeHTML(stageLabel)}</b></div>
-        <div><span>CAREER ENGINE</span><b>FIFA ${seasonSystem().activeEdition || 10}</b></div>
-        <div><span>MANAGER ID</span><b>${escapeHTML(managerName)}</b></div>
-        <div><span>FORMULA NETWORK</span><b>3 CIRCUITS · 5 LAPS</b></div>
+        <div><span>OFFICIAL RESULTS</span><b>${completedResults}</b></div>
+        <div><span>PLAYER FIELD</span><b>${participantCount || 16} PLAYERS</b></div>
+        <div><span>ARCHIVE</span><b>FIFA I — IX</b></div>
       </section>
 
       <section class="os-arena-section">
         <div class="os-section-heading">
-          <div><span>01 / CHOOSE YOUR ARENA</span><h3>One platform.<br>Four competitive worlds.</h3></div>
-          <p>Each mode has its own rhythm, data language and visual atmosphere—connected by a single identity.</p>
+          <div><span>01 / TOURNAMENT CONTROL</span><h3>One competition.<br>Four decisive layers.</h3></div>
+          <p>The hub is now focused only on tournament operations, live data, comparative report cards and historical records.</p>
         </div>
 
-        <div class="os-arena-grid">
-          <article class="os-arena-card os-tournament-card" data-os-tilt data-nav="knockout">
+        <div class="os-arena-grid os-tournament-only-grid">
+          <article class="os-arena-card os-tournament-card" data-nav="knockout">
             <div class="os-card-noise"></div>
             <header><span>01</span><b>${escapeHTML(stageLabel)}</b></header>
-            <div><small>FIFA 09</small><h4>Final Chapter</h4><p>Playoff pressure, knockout series and the final path to one champion.</p></div>
+            <div><small>FIFA 09</small><h4>Final Chapter</h4><p>Semifinals, third-place match and the final path to one champion.</p></div>
             <div class="os-stage-path"><span class="done">League</span><i></i><span class="done">Groups</span><i></i><span class="active">Final</span></div>
             <footer><strong>${champ ? `${escapeHTML(playerName(champ))} · CHAMPION` : `${progress}% COMPLETE`}</strong><b>ENTER ↗</b></footer>
           </article>
 
-          <article class="os-arena-card os-career-card" data-os-tilt data-nav="managerroom">
-            <header><span>02</span><b>CAREER OS</b></header>
-            <div class="os-career-visual"><i></i><i></i><i></i><span>MR</span></div>
-            <div><small>THE MANAGER'S ROOM</small><h4>${escapeHTML(managerClub)}</h4><p>${escapeHTML(managerName)} · reputation, tactical identity and a living season.</p></div>
-            <footer><strong>${managerCareer ? `ELO ${managerCareer.managerElo}` : "CAREER READY"}</strong><b>MANAGE ↗</b></footer>
+          <article class="os-arena-card os-live-core-card" data-nav="livematch">
+            <header><span>02</span><b>LIVE OPERATIONS</b></header>
+            <div class="os-radar-visual"><span></span><i></i><i></i><i></i></div>
+            <div><small>MATCH CENTRE</small><h4>Control match night.</h4><p>Score, timeline, broadcast view and live statistical flow in one place.</p></div>
+            <footer><strong>${activeLive ? "MATCH ACTIVE" : "SYSTEM READY"}</strong><b>OPEN ↗</b></footer>
           </article>
 
-          <article class="os-arena-card os-formula-card" data-os-tilt data-nav="formula1">
-            <header><span>03</span><b>WEBGL RACING</b></header>
-            <div class="os-track-visual"><svg viewBox="0 0 320 170" aria-hidden="true"><path d="M34 104C28 52 68 24 118 38c48 13 59 70 100 68 35-2 28-58 61-55 27 2 22 66-4 85-43 31-92-7-129 3-49 14-103 15-112-35Z"/><circle cx="34" cy="104" r="5"/><circle cx="279" cy="51" r="5"/></svg><span>5 LAPS</span></div>
-            <div><small>FORMULA HORIZON REBORN</small><h4>Drive the record.</h4><p>Three real 3D circuits, personal ghost and global timing architecture.</p></div>
-            <footer><strong>ORUÇ REİS · FILYOS · DRAGON</strong><b>RACE ↗</b></footer>
+          <article class="os-arena-card os-report-card" data-nav="benchmark">
+            <header><span>03</span><b>FIFA I — IX</b></header>
+            <div class="os-career-visual"><i></i><i></i><i></i><span>∑</span></div>
+            <div><small>TOURNAMENT REPORT CARDS</small><h4>Compare every edition.</h4><p>Tempo, balance, drama, match profile and non-champion performance atlas.</p></div>
+            <footer><strong>9 EDITIONS</strong><b>COMPARE ↗</b></footer>
           </article>
 
-          <article class="os-arena-card os-intelligence-card" data-os-tilt data-nav="intelligence">
+          <article class="os-arena-card os-intelligence-card" data-nav="intelligence">
             <header><span>04</span><b>AI DIRECTOR</b></header>
             <div class="os-radar-visual"><span></span><i></i><i></i><i></i></div>
-            <div><small>INTELLIGENCE CENTRE</small><h4>Read what happens next.</h4><p>Form, pressure, probability and destiny signals in one live decision layer.</p></div>
+            <div><small>INTELLIGENCE CENTRE</small><h4>Read what happens next.</h4><p>Form, pressure, probability and destiny signals in one decision layer.</p></div>
             <footer><strong>LIVE MODELS</strong><b>ANALYSE ↗</b></footer>
           </article>
         </div>
@@ -2429,12 +2419,12 @@
 
       <section class="os-system-section">
         <article class="os-system-story">
-          <span>03 / LIVING FOOTBALL SYSTEM</span><h3>The competition does not end when the match does.</h3><p>Persistent careers, historic records and every rivalry remain connected across editions.</p>
-          <div><button data-nav="seasonhub">Open FIFA ${seasonSystem().activeEdition || 10} League System <b>↗</b></button><button data-nav="alltime">Explore all-time legacy</button></div>
+          <span>03 / TOURNAMENT LEGACY</span><h3>The competition does not end when the final whistle blows.</h3><p>Every edition, result, rivalry and record remains connected without loading separate game engines.</p>
+          <div><button data-nav="benchmark">Open Tournament Report Cards <b>↗</b></button><button data-nav="alltime">Explore all-time legacy</button></div>
         </article>
         <div class="os-system-data">
-          <article><small>ACTIVE SEASON</small><strong>FIFA ${seasonSystem().activeEdition || 10}</strong><span>${season?.players?.length || 0} registered players</span></article>
-          <article><small>CAREER IDENTITY</small><strong>${escapeHTML(managerClub)}</strong><span>${managerCareer ? `Manager ELO ${managerCareer.managerElo}` : "No active career yet"}</span></article>
+          <article><small>ACTIVE EDITION</small><strong>FIFA 09</strong><span>${escapeHTML(stageLabel)}</span></article>
+          <article><small>RESULT DATABASE</small><strong>${completedResults}</strong><span>official FIFA 09 results</span></article>
           <article><small>ARCHIVE</small><strong>FIFA I — IX</strong><span>Titles, finals and rivalries</span></article>
         </div>
       </section>
@@ -10467,7 +10457,6 @@ ${shareData.url}`)}`;
 
   document.addEventListener("click", event => {
     if (window.FIFA_CHAT_UI?.handleClick?.(event)) return;
-    if (window.FIFA_SEASON_HUB?.handleClick?.(event)) return;
     const nav = event.target.closest("[data-nav]");
     if (nav) { navTo(nav.dataset.nav); return; }
     const action = event.target.closest("[data-action]");
@@ -10704,7 +10693,6 @@ ${shareData.url}`)}`;
   });
 
   document.addEventListener("input", event => {
-    if (window.FIFA_SEASON_HUB?.handleInput?.(event)) return;
     if (event.target.dataset.fifa10Name && canEdit()) {
       const player=seasonSystem().fifa10Draft.players.find(item=>item.id===event.target.dataset.fifa10Name);
       if (player) { player.name=event.target.value; seasonSystem().fifa10Draft.updatedAt=new Date().toISOString(); saveState(); }
@@ -10736,7 +10724,6 @@ ${shareData.url}`)}`;
 
   document.addEventListener("submit", event => {
     if (window.FIFA_CHAT_UI?.handleSubmit?.(event)) return;
-    if (window.FIFA_SEASON_HUB?.handleSubmit?.(event)) return;
     if (event.target.id === "playerPageLoginForm") { event.preventDefault(); handlePlayerPageLogin(event.target); return; }
     if (event.target.id === "playerSignupForm") { event.preventDefault(); handlePlayerSignup(event.target); return; }
     if (event.target.id === "playerClaimForm") { event.preventDefault(); handlePlayerClaim(event.target); return; }
@@ -10766,7 +10753,6 @@ ${shareData.url}`)}`;
   });
 
   document.addEventListener("change", event => {
-    if (window.FIFA_SEASON_HUB?.handleChange?.(event)) return;
     if (event.target.dataset.fifa10League && canEdit()) {
       const player=seasonSystem().fifa10Draft.players.find(item=>item.id===event.target.dataset.fifa10League);
       if (player) { player.league=event.target.value==="premier"?"premier":"championship"; seasonSystem().fifa10Draft.updatedAt=new Date().toISOString(); saveState(); renderSeasonMuseum(); }
@@ -10836,7 +10822,6 @@ ${shareData.url}`)}`;
 
   $("#modalClose").addEventListener("click", closeModal);
   modalBackdrop.addEventListener("click", event => { if (event.target === modalBackdrop) closeModal(); });
-  $("#mobileMenu").addEventListener("click", () => window.FIFA9_NAVIGATION?.toggle?.());
   $("#quickBackupBtn").addEventListener("click", exportJSON);
   document.addEventListener("keydown", event => { if (event.key === "Escape") closeModal(); });
 

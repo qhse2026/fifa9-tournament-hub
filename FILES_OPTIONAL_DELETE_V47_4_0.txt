@@ -1,0 +1,25 @@
+Bu dosyalar V47.4.0 tarafından artık yüklenmez. GitHub repository boyutunu küçültmek için isteğe bağlı olarak silinebilir:
+
+formula-reborn/  (klasörün tamamı)
+season-hub.js
+season-hub.css
+season-experience.js
+season-experience.css
+manager-room.js
+manager-room.css
+manager-match-engine.js
+me4-worker-bridge.js
+me4-match-worker.js
+manager-match-engine-v4-phase13-safe.bundle.js
+manager-v42-4.css
+manager-v42-5.css
+manager-v42-5-levels.css
+manager-friendly.css
+manager-season-closure.css
+me4-simulate.css
+league-result-integrity.css
+oruc-reis-single-match.css
+data/manager-bootstrap-v42.json
+data/manager-team-catalog-fc25.json
+
+DİKKAT: index.html ve app.js dosyalarını silmeyin.

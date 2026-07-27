@@ -3,9 +3,7 @@
 
   const GROUPS = {
     tournament: new Set(["livematch","livestats","form","odds","intelligence","chat","setup","league","gold","silver","knockout","finalpoll","print"]),
-    "league-system": new Set(["seasonhub","managerroom","managerhall","museum"]),
     records: new Set(["archive","benchmark","alltime","teams","backup"]),
-    "formula-racing": new Set(["formula1"])
   };
 
   const BREADCRUMBS = {
@@ -16,11 +14,8 @@
     league:["FIFA 9","Turnuva Modu","League Phase"], gold:["FIFA 9","Turnuva Modu","Altın Grup"],
     silver:["FIFA 9","Turnuva Modu","Gümüş Grup"], knockout:["FIFA 9","Turnuva Modu","Final Chapter"],
     finalpoll:["FIFA 9","Turnuva Modu","Final Chapter Kararı"], print:["FIFA 9","Turnuva Modu","Çıktı Merkezi"],
-    seasonhub:["FIFA 9","FIFA Lig Sistemi","Lig Merkezi"], managerroom:["FIFA 9","FIFA Lig Sistemi","Manager's Room"],
-    managerhall:["FIFA 9","FIFA Lig Sistemi","Manager Hall"], museum:["FIFA 9","FIFA Lig Sistemi","Kupa Müzesi"],
     archive:["FIFA 9","Arşiv & Yönetim","Turnuva Arşivi"], benchmark:["FIFA 9","Arşiv & Yönetim","Turnuva Karnesi"], alltime:["FIFA 9","Arşiv & Yönetim","Tüm Zamanlar"],
-    teams:["FIFA 9","Arşiv & Yönetim","Takım İstatistikleri"], backup:["FIFA 9","Arşiv & Yönetim","Veri & Yedek"],
-    formula1:["Tournament Universe","Formula Horizon Reborn","PC + Mobile"]
+    teams:["FIFA 9","Arşiv & Yönetim","Takım İstatistikleri"], backup:["FIFA 9","Arşiv & Yönetim","Veri & Yedek"]
   };
 
   function clusterForView(view) {
@@ -76,7 +71,7 @@
 
     document.querySelectorAll(".mobile-hub-dock [data-nav]").forEach(button => {
       const target = button.dataset.nav;
-      const activeMobile = target === view || (target === "league" && GROUPS.tournament.has(view)) || (target === "seasonhub" && GROUPS["league-system"].has(view)) || (target === "formula1" && view === "formula1");
+      const activeMobile = target === view || (target === "league" && GROUPS.tournament.has(view));
       button.classList.toggle("active", activeMobile);
     });
   }

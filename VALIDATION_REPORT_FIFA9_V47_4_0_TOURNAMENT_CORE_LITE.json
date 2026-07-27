@@ -1,0 +1,101 @@
+{
+  "version": "FIFA9 V47.4.0",
+  "build": "Tournament Core Lite",
+  "generated_at": "2026-07-27T14:05:54.839935+00:00",
+  "summary": {
+    "passed": 18,
+    "failed": 0
+  },
+  "checks": [
+    {
+      "name": "HTML parse",
+      "status": "PASS",
+      "detail": "Sidebar and menu trigger present"
+    },
+    {
+      "name": "Career and Formula navigation removed",
+      "status": "PASS",
+      "detail": "No removed game navigation or runtime references in index.html"
+    },
+    {
+      "name": "Tournament navigation preserved",
+      "status": "PASS",
+      "detail": "Final Chapter, live, report cards, intelligence and archive remain"
+    },
+    {
+      "name": "Heavy runtime removed from service worker",
+      "status": "PASS",
+      "detail": "Old game files are no longer precached"
+    },
+    {
+      "name": "Fresh cache namespace",
+      "status": "PASS",
+      "detail": "Previous service-worker caches will be deleted on activation"
+    },
+    {
+      "name": "Independent sidebar trigger",
+      "status": "PASS",
+      "detail": "Drawer no longer depends on app.js click binding"
+    },
+    {
+      "name": "Single menu owner",
+      "status": "PASS",
+      "detail": "Double-toggle risk removed"
+    },
+    {
+      "name": "Drawer deterministic CSS",
+      "status": "PASS",
+      "detail": "Open/closed state and backdrop are explicitly controlled"
+    },
+    {
+      "name": "Continuous canvas loop removed",
+      "status": "PASS",
+      "detail": "Dashboard field is static and redraws only on resize"
+    },
+    {
+      "name": "Pointer effects disabled",
+      "status": "PASS",
+      "detail": "Pointer glow and tilt handlers are not activated"
+    },
+    {
+      "name": "Third-place match preserved",
+      "status": "PASS",
+      "detail": "Semifinal losers still feed the third-place match"
+    },
+    {
+      "name": "Tournament report card preserved",
+      "status": "PASS",
+      "detail": "Report Card and player atlas remain available"
+    },
+    {
+      "name": "Removed routes guarded",
+      "status": "PASS",
+      "detail": "Stale route requests redirect safely to dashboard"
+    },
+    {
+      "name": "JavaScript syntax: app.js",
+      "status": "PASS",
+      "detail": "node --check PASS"
+    },
+    {
+      "name": "JavaScript syntax: fifa9-experience-hub.js",
+      "status": "PASS",
+      "detail": "node --check PASS"
+    },
+    {
+      "name": "JavaScript syntax: horizon-os-v47.js",
+      "status": "PASS",
+      "detail": "node --check PASS"
+    },
+    {
+      "name": "JavaScript syntax: navigation-os-v47-1.js",
+      "status": "PASS",
+      "detail": "node --check PASS"
+    },
+    {
+      "name": "JavaScript syntax: service-worker.js",
+      "status": "PASS",
+      "detail": "node --check PASS"
+    }
+  ]
+}

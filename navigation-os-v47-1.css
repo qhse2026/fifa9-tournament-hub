@@ -1,4 +1,4 @@
-/* FIFA9 V47.1.0 — Navigation OS Pro */
+/* FIFA9 V47.4.0 — Tournament Core Lite · Sidebar Reliability */
 :root{--nav-drawer-width:clamp(400px,31vw,468px);--nav-text:#eef2f7;--nav-muted:#9aa6b8;--nav-dim:#697586;--nav-surface:#0a0f17;--nav-surface-2:#101722;--nav-border:rgba(255,255,255,.095);--nav-row:54px}
 body.os-drawer-open{overflow:hidden!important;touch-action:none}
 .sidebar{display:grid!important;grid-template-rows:auto auto minmax(0,1fr) auto;top:10px!important;bottom:10px!important;left:10px!important;width:min(var(--nav-drawer-width),calc(100vw - 20px))!important;padding:0!important;overflow:hidden!important;border-radius:28px!important;background:linear-gradient(160deg,rgba(13,19,29,.985),rgba(6,10,16,.99))!important;box-shadow:0 40px 140px rgba(0,0,0,.72),inset 0 1px rgba(255,255,255,.04)!important;transform:translate3d(calc(-100% - 36px),0,0);will-change:transform}
@@ -21,3 +21,46 @@ body.os-drawer-open{overflow:hidden!important;touch-action:none}
 @media(max-width:700px){:root{--nav-drawer-width:100vw}.sidebar{inset:0!important;width:100vw!important;height:100dvh!important;border:0!important;border-radius:0!important}.sidebar .brand{min-height:84px;padding:17px 68px 15px 17px!important}.sidebar .brand-mark{width:48px!important;height:48px!important}.sidebar .brand-title{font-size:19px!important}.os-drawer-close{right:16px}.os-drawer-search-wrap{padding:12px 14px}.main-nav{padding:12px 12px calc(34px + env(safe-area-inset-bottom))!important}.nav-cluster-toggle{min-height:68px!important}.hub-nav .nav-item{min-height:54px!important;font-size:14px!important}.hub-nav .nav-item strong{font-size:13.5px!important}.hub-nav .nav-item small{font-size:10.5px!important}.sidebar-footer{padding-bottom:calc(15px + env(safe-area-inset-bottom))!important}.os-sidebar-backdrop{display:none!important}}
 @media(min-width:701px) and (max-height:760px){.sidebar .brand{min-height:78px;padding-top:14px!important;padding-bottom:14px!important}.os-drawer-search-wrap{padding-top:10px;padding-bottom:10px}.main-nav{padding-top:10px!important}.nav-cluster-toggle{min-height:62px!important}.hub-nav .nav-item{min-height:48px!important}}
 @media(prefers-reduced-motion:reduce){.sidebar,.nav-cluster-body,.hub-nav .nav-item,.os-drawer-close{transition:none!important}}
+
+
+/* V47.4.0 — deterministic drawer state; independent from legacy sidebar rules */
+.sidebar{
+  position:fixed!important;
+  z-index:10050!important;
+  opacity:0!important;
+  visibility:hidden!important;
+  pointer-events:none!important;
+  transition:transform .32s cubic-bezier(.22,.8,.2,1),opacity .22s ease,visibility 0s linear .32s!important;
+  contain:layout paint;
+}
+.sidebar.open{
+  opacity:1!important;
+  visibility:visible!important;
+  pointer-events:auto!important;
+  transition:transform .32s cubic-bezier(.22,.8,.2,1),opacity .22s ease,visibility 0s!important;
+}
+.os-sidebar-backdrop{
+  position:fixed!important;
+  inset:0!important;
+  z-index:10040!important;
+  display:block!important;
+  opacity:0!important;
+  visibility:hidden!important;
+  pointer-events:none!important;
+  border:0!important;
+  transition:opacity .22s ease,visibility 0s linear .22s!important;
+}
+body.os-drawer-open .os-sidebar-backdrop,
+.sidebar.open + .os-sidebar-backdrop{
+  opacity:1!important;
+  visibility:visible!important;
+  pointer-events:auto!important;
+  transition:opacity .22s ease,visibility 0s!important;
+}
+.mobile-menu.os-menu-trigger{position:relative;z-index:2;pointer-events:auto!important;touch-action:manipulation}
+.os-tournament-only-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+@media(max-width:900px){.os-tournament-only-grid{grid-template-columns:1fr!important}}
+@media(max-width:700px){
+  .os-sidebar-backdrop{display:none!important}
+  .sidebar{contain:layout paint style}
+}
