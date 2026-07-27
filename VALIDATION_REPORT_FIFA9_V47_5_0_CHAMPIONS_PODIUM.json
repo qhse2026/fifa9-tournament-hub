@@ -1,0 +1,162 @@
+{
+  "version": "FIFA9 V47.5.0",
+  "name": "Champions Podium",
+  "result": "PASS",
+  "checks": [
+    {
+      "check": "required:index.html",
+      "status": "PASS",
+      "detail": "12693"
+    },
+    {
+      "check": "required:app.js",
+      "status": "PASS",
+      "detail": "845939"
+    },
+    {
+      "check": "required:service-worker.js",
+      "status": "PASS",
+      "detail": "1949"
+    },
+    {
+      "check": "required:champions-podium.css",
+      "status": "PASS",
+      "detail": "11462"
+    },
+    {
+      "check": "required:assets/trophies/fifa9-champion-gold.webp",
+      "status": "PASS",
+      "detail": "221944"
+    },
+    {
+      "check": "required:assets/trophies/fifa9-runner-up-silver.webp",
+      "status": "PASS",
+      "detail": "243328"
+    },
+    {
+      "check": "required:assets/trophies/fifa9-third-place-bronze.webp",
+      "status": "PASS",
+      "detail": "223082"
+    },
+    {
+      "check": "required:navigation-os-v47-1.js",
+      "status": "PASS",
+      "detail": "6426"
+    },
+    {
+      "check": "required:navigation-os-v47-1.css",
+      "status": "PASS",
+      "detail": "13305"
+    },
+    {
+      "check": "node-syntax:app.js",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "node-syntax:service-worker.js",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "node-syntax:navigation-os-v47-1.js",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "node-syntax:horizon-os-v47.js",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "index-loads-podium-css",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "index-loads-v47.5-app",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "homepage-render-hook",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "dynamic-final-chapter-podium",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "current-honour-final-chapter",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "trophy-nameplates",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "champions-list",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "career-scripts-absent",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "sidebar-fix-preserved",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "service-worker:champions-podium.css",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "service-worker:assets/trophies/fifa9-champion-gold.webp",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "service-worker:assets/trophies/fifa9-runner-up-silver.webp",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "service-worker:assets/trophies/fifa9-third-place-bronze.webp",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "css-balanced",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "css-parse",
+      "status": "PASS",
+      "detail": "[]"
+    },
+    {
+      "check": "image:fifa9-champion-gold.webp",
+      "status": "PASS",
+      "detail": "1024x1536 srgba 4.0"
+    },
+    {
+      "check": "image:fifa9-runner-up-silver.webp",
+      "status": "PASS",
+      "detail": "1024x1536 srgba 4.0"
+    },
+    {
+      "check": "image:fifa9-third-place-bronze.webp",
+      "status": "PASS",
+      "detail": "1024x1536 srgba 4.0"
+    }
+  ]
+}

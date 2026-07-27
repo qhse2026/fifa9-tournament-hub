@@ -1,0 +1,24 @@
+FIFA9 V47.5.0 — CHAMPIONS PODIUM
+
+KURULUM
+1. ZIP dosyasını bilgisayarınıza çıkarın.
+2. İçindeki tüm dosya ve klasörleri GitHub repository ana dizinine yükleyin.
+3. Aynı isimli mevcut dosyaların üzerine yazılmasını onaylayın.
+4. GitHub Pages / deployment tamamlandıktan sonra siteyi Ctrl + Shift + R ile yenileyin.
+
+YENİ DOSYALAR
+- champions-podium.css
+- assets/trophies/fifa9-champion-gold.webp
+- assets/trophies/fifa9-runner-up-silver.webp
+- assets/trophies/fifa9-third-place-bronze.webp
+
+YENİ ANA SAYFA
+- FIFA 09 Final Chapter için ultra-HD altın, gümüş ve bronz podyum
+- Kupa kaidesi üzerinde dinamik turnuva ve kupa adı plakaları
+- Şampiyon, finalist ve üçüncü sonuçlarının otomatik gösterimi
+- FIFA 1–9 Şampiyonlar Listesi / Turnuva Podyumları
+- Geçmiş turnuvalarda şampiyon, ikinci ve üçüncü kayıtları
+- FIFA 09 tamamlanmadan önce canlı bekleme durumları
+
+VERİ GÜVENLİĞİ
+Bu paket turnuva kayıtlarını sıfırlamaz. Mevcut yarı final, üçüncülük, final, canlı maç, arşiv ve Supabase verileri korunur.

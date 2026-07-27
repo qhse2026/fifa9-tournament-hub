@@ -1962,18 +1962,37 @@
   }
 
   function currentFifa9Honour() {
+    const fc = finalChapterState();
+    const finalMatch = fc?.final?.match || null;
+    const championId = fc?.final?.championId || null;
+    const thirdPlaceMatch = fc?.thirdPlace?.match || null;
+    const thirdPlaceWinnerId = fc?.thirdPlace?.winnerId || null;
+
+    if (championId && finalMatch && matchComplete(finalMatch)) {
+      const runnerId = finalMatch.homeId === championId ? finalMatch.awayId : finalMatch.homeId;
+      return {
+        id: "live-oruc-9",
+        edition: 9,
+        competition: "oruc",
+        winner: playerName(championId),
+        runnerUp: playerName(runnerId),
+        third: thirdPlaceWinnerId ? playerName(thirdPlaceWinnerId) : "",
+        source: "live"
+      };
+    }
+
+    // Legacy fallback for installations that completed FIFA 09 before Final Chapter migration.
     const ko = state.current?.knockout || {};
     if (!ko.championId || !ko.final || !matchComplete(ko.final)) return null;
-    const winnerId = ko.championId;
-    const runnerId = ko.final.homeId === winnerId ? ko.final.awayId : ko.final.homeId;
+    const runnerId = ko.final.homeId === ko.championId ? ko.final.awayId : ko.final.homeId;
     return {
       id: "live-oruc-9",
       edition: 9,
       competition: "oruc",
-      winner: playerName(winnerId),
+      winner: playerName(ko.championId),
       runnerUp: playerName(runnerId),
-      third: "",
-      source: "live"
+      third: thirdPlaceWinnerId && thirdPlaceMatch ? playerName(thirdPlaceWinnerId) : "",
+      source: "legacy-live"
     };
   }
 
@@ -2294,12 +2313,98 @@
     }).join("")}</div>`;
   }
 
+  function dashboardFifa9PodiumSnapshot() {
+    const fc = finalChapterState();
+    const finalMatch = fc?.final?.match || null;
+    const championId = fc?.final?.championId || null;
+    const thirdPlaceMatch = fc?.thirdPlace?.match || null;
+    const thirdPlaceWinnerId = fc?.thirdPlace?.winnerId || null;
+    const runnerId = championId && finalMatch
+      ? (finalMatch.homeId === championId ? finalMatch.awayId : finalMatch.homeId)
+      : null;
+
+    return {
+      edition: 9,
+      competition: "oruc",
+      winner: championId ? playerName(championId) : "Şampiyon bekleniyor",
+      runnerUp: runnerId ? playerName(runnerId) : (finalMatch ? `${playerName(finalMatch.homeId)} / ${playerName(finalMatch.awayId)}` : "Finalistler bekleniyor"),
+      third: thirdPlaceWinnerId ? playerName(thirdPlaceWinnerId) : (thirdPlaceMatch ? `${playerName(thirdPlaceMatch.homeId)} / ${playerName(thirdPlaceMatch.awayId)}` : "Yarı final kaybedenleri"),
+      winnerReady: Boolean(championId),
+      runnerReady: Boolean(runnerId),
+      thirdReady: Boolean(thirdPlaceWinnerId),
+      status: championId && thirdPlaceWinnerId ? "TAMAMLANDI" : finalMatch || thirdPlaceMatch ? "FİNAL GECESİ" : "DEVAM EDİYOR"
+    };
+  }
+
+  function dashboardTournamentPodiums() {
+    return allMuseumHonours()
+      .filter(item => item.competition === "oruc" && Number(item.edition) >= 1 && Number(item.edition) <= 9)
+      .sort((a, b) => Number(a.edition) - Number(b.edition));
+  }
+
+  function dashboardPodiumTrophy({ place, image, cupName, player, ready, sideLabel }) {
+    return `<article class="home-podium-place home-podium-${place} ${ready ? "is-decided" : "is-pending"}">
+      <div class="home-podium-rank"><span>${place === "gold" ? "01" : place === "silver" ? "02" : "03"}</span><b>${escapeHTML(sideLabel)}</b></div>
+      <div class="home-trophy-stage">
+        <div class="home-trophy-halo" aria-hidden="true"></div>
+        <img src="${image}" alt="${escapeHTML(cupName)}" class="home-trophy-image" ${place === "gold" ? 'loading="eager" fetchpriority="high"' : 'loading="lazy"'} decoding="async" />
+        <div class="home-trophy-nameplate">
+          <span>FIFA 09 · FINAL CHAPTER</span>
+          <strong>${escapeHTML(cupName)}</strong>
+        </div>
+      </div>
+      <div class="home-podium-player"><small>${ready ? "RESMÎ SONUÇ" : "EŞLEŞME DURUMU"}</small><strong>${escapeHTML(player)}</strong></div>
+    </article>`;
+  }
+
+  function renderDashboardChampionsPodium() {
+    const live = dashboardFifa9PodiumSnapshot();
+    const records = dashboardTournamentPodiums();
+    const championCards = records.length ? records : historicalHonours().slice(0, 8);
+
+    return `<section class="home-champions-section" aria-labelledby="homeChampionsTitle">
+      <div class="home-champions-heading">
+        <div><span>01 / HALL OF CHAMPIONS</span><h3 id="homeChampionsTitle">Şampiyonlar ve<br>turnuva podyumları.</h3></div>
+        <div><p>Her edisyonun şampiyonu, finalisti ve üçüncüsü tek bir prestij duvarında. FIFA 09 sonuçları Final Chapter tamamlandıkça otomatik güncellenir.</p><button type="button" data-nav="alltime">Tüm zamanları aç <b>↗</b></button></div>
+      </div>
+
+      <div class="home-podium-shell">
+        <header><div><span>FEATURED PODIUM</span><strong>FIFA 09 · FINAL CHAPTER</strong></div><b class="home-podium-status">${escapeHTML(live.status)}</b></header>
+        <div class="home-podium-grid">
+          ${dashboardPodiumTrophy({ place: "silver", image: "assets/trophies/fifa9-runner-up-silver.webp", cupName: "RUNNER-UP CUP", player: live.runnerUp, ready: live.runnerReady, sideLabel: "İKİNCİ" })}
+          ${dashboardPodiumTrophy({ place: "gold", image: "assets/trophies/fifa9-champion-gold.webp", cupName: "CHAMPION CUP", player: live.winner, ready: live.winnerReady, sideLabel: "ŞAMPİYON" })}
+          ${dashboardPodiumTrophy({ place: "bronze", image: "assets/trophies/fifa9-third-place-bronze.webp", cupName: "THIRD PLACE CUP", player: live.third, ready: live.thirdReady, sideLabel: "ÜÇÜNCÜ" })}
+        </div>
+      </div>
+
+      <div class="home-champion-wall">
+        <div class="home-champion-wall-title"><div><span>CHAMPIONS LIST</span><h4>FIFA I — IX Şampiyonları</h4></div><small>${championCards.filter(item => item.winner).length} kayıtlı edisyon</small></div>
+        <div class="home-champion-cards">
+          ${championCards.map(record => `<article class="home-champion-card ${Number(record.edition) === 9 ? "current" : ""}">
+            <div class="home-champion-edition"><span>FIFA</span><strong>${String(Number(record.edition) || 0).padStart(2, "0")}</strong></div>
+            <div class="home-champion-mini-trophy"><img src="assets/trophies/fifa9-champion-gold.webp" alt="" loading="lazy" decoding="async" /></div>
+            <div class="home-champion-name"><small>ŞAMPİYON</small><strong>${escapeHTML(record.winner || "Bekleniyor")}</strong></div>
+            <div class="home-champion-podium-row"><span><i>2</i>${escapeHTML(record.runnerUp || "—")}</span><span><i>3</i>${escapeHTML(record.third || "—")}</span></div>
+            <div class="home-champion-cup-label">FIFA ${String(Number(record.edition) || 0).padStart(2, "0")} TOURNAMENT CUP</div>
+          </article>`).join("")}
+          ${!championCards.some(item => Number(item.edition) === 9) ? `<article class="home-champion-card current pending">
+            <div class="home-champion-edition"><span>FIFA</span><strong>09</strong></div>
+            <div class="home-champion-mini-trophy"><img src="assets/trophies/fifa9-champion-gold.webp" alt="" loading="lazy" decoding="async" /></div>
+            <div class="home-champion-name"><small>ŞAMPİYON</small><strong>${escapeHTML(live.winner)}</strong></div>
+            <div class="home-champion-podium-row"><span><i>2</i>${escapeHTML(live.runnerUp)}</span><span><i>3</i>${escapeHTML(live.third)}</span></div>
+            <div class="home-champion-cup-label">FIFA 09 FINAL CHAPTER CUP</div>
+          </article>` : ""}
+        </div>
+      </div>
+    </section>`;
+  }
+
   function renderDashboard() {
     const leagueDone = leagueMatches().filter(matchComplete).length;
     const goldDone = goldMatches().filter(matchComplete).length;
     const silverDone = silverMatches().filter(matchComplete).length;
     const completedResults = leagueDone + goldDone + silverDone;
-    const champ = state.current.knockout.championId;
+    const champ = state.current.finalChapter?.final?.championId || state.current.knockout.championId;
     const stage = currentStage();
     const activeLive = getActiveLive();
     const nextMatch = !activeLive ? liveEligibleMatches().find(match => match.homeId && match.awayId) : activeLive.match;
@@ -2368,9 +2473,11 @@
         <div><span>ARCHIVE</span><b>FIFA I — IX</b></div>
       </section>
 
+      ${renderDashboardChampionsPodium()}
+
       <section class="os-arena-section">
         <div class="os-section-heading">
-          <div><span>01 / TOURNAMENT CONTROL</span><h3>One competition.<br>Four decisive layers.</h3></div>
+          <div><span>02 / TOURNAMENT CONTROL</span><h3>One competition.<br>Four decisive layers.</h3></div>
           <p>The hub is now focused only on tournament operations, live data, comparative report cards and historical records.</p>
         </div>
 
@@ -2407,7 +2514,7 @@
       </section>
 
       <section class="os-operations-section">
-        <div class="os-section-heading compact"><div><span>02 / OPERATIONS LAYER</span><h3>Everything live.<br>Nothing buried.</h3></div><p>Fast access to the tools used during match night.</p></div>
+        <div class="os-section-heading compact"><div><span>03 / OPERATIONS LAYER</span><h3>Everything live.<br>Nothing buried.</h3></div><p>Fast access to the tools used during match night.</p></div>
         <div class="os-operation-rail">
           <button data-nav="livematch"><span class="os-op-icon live"><i></i></span><div><small>NOW</small><strong>Live Match</strong><p>Broadcast, score and match flow</p></div><b>↗</b></button>
           <button data-nav="livestats"><span class="os-op-icon">⌁</span><div><small>DATA</small><strong>Live Statistics</strong><p>xT, momentum and performance</p></div><b>↗</b></button>
@@ -2419,7 +2526,7 @@
 
       <section class="os-system-section">
         <article class="os-system-story">
-          <span>03 / TOURNAMENT LEGACY</span><h3>The competition does not end when the final whistle blows.</h3><p>Every edition, result, rivalry and record remains connected without loading separate game engines.</p>
+          <span>04 / TOURNAMENT LEGACY</span><h3>The competition does not end when the final whistle blows.</h3><p>Every edition, result, rivalry and record remains connected without loading separate game engines.</p>
           <div><button data-nav="benchmark">Open Tournament Report Cards <b>↗</b></button><button data-nav="alltime">Explore all-time legacy</button></div>
         </article>
         <div class="os-system-data">

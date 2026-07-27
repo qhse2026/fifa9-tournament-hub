@@ -1,0 +1,13 @@
+FIFA9 V47.5.0 — Champions Podium
+
+- Ana sayfaya Hall of Champions bölümü eklendi.
+- FIFA 09 Final Chapter için 3D altın, gümüş ve bronz kupa podyumu eklendi.
+- Kupa kaidelerine HTML/CSS tabanlı dinamik isim plakaları eklendi.
+- Plakalarda turnuva adı ve kupa derecesi birlikte gösterilir.
+- FIFA 1–9 Şampiyonlar Listesi ve geçmiş podyum sonuçları eklendi.
+- FIFA 09 şampiyon, finalist ve üçüncü bilgisi Final Chapter verisine bağlandı.
+- Eski knockout şampiyon kaydı için geriye dönük uyumluluk korundu.
+- Kupa görselleri 1024x1536 WebP alpha formatında optimize edildi.
+- Görseller lazy-load ve async decoding kullanır; yalnız ana altın kupa öncelikli yüklenir.
+- Career ve Formula oyunları kaldırılmış halde kalır.
+- V47.4.0 sidebar güvenilirlik düzeltmeleri korunur.

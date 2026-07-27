@@ -1,4 +1,4 @@
-const CACHE = "tournament-universe-v47-4-0-core-lite";
+const CACHE = "tournament-universe-v47-5-0-champions-podium";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -8,6 +8,7 @@ const APP_SHELL = [
   "./navigation-os-v47-1.css",
   "./navigation-os-v47-1.js",
   "./final-chapter-third-place.css",
+  "./champions-podium.css",
   "./fifa9-experience-hub.css",
   "./fifa9-experience-hub.js",
   "./final-chapter-progression.css",
@@ -20,6 +21,9 @@ const APP_SHELL = [
   "./community.js",
   "./data/historical-data.js",
   "./assets/f9-mark.svg",
+  "./assets/trophies/fifa9-champion-gold.webp",
+  "./assets/trophies/fifa9-runner-up-silver.webp",
+  "./assets/trophies/fifa9-third-place-bronze.webp",
   "./manifest.webmanifest"
 ];
 
