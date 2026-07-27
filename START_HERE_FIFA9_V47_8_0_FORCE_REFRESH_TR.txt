@@ -1,0 +1,12 @@
+FIFA9 V47.8.0 — FORCE REFRESH FINAL NIGHT
+
+Bu paket eski V47.6/V47.7 cache problemini zorla temizlemek için hazırlanmıştır.
+
+KURULUM
+1. ZIP dosyasını bilgisayarınızda çıkartın.
+2. Çıkan TÜM dosya ve klasörleri GitHub repository ana dizinine yükleyin.
+3. Özellikle index.html dosyasında “Replace file” / üzerine yazma işlemini onaylayın.
+4. Deploy tamamlanınca siteyi normal şekilde açın. İlk açılış eski service worker ve cache kayıtlarını otomatik temizleyip sayfayı bir kez yeniden yükler.
+5. Açılış ekranının sağ üstünde “V47.8 · FINAL NIGHT” yazısını görmelisiniz.
+
+Not: Sadece ZIP dosyasını repository’ye yüklemeyin; ZIP içindeki dosyalar çıkarılarak yüklenmelidir.

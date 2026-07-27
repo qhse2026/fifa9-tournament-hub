@@ -1,0 +1,6 @@
+V47.8.0
+- Unique final-night-v478.css and final-night-v478.js filenames
+- One-time automatic deletion of old Cache Storage and service-worker registrations
+- Full-screen central trophy poster
+- Visible build verification: V47.8 · FINAL NIGHT
+- 5-second close-button delay retained

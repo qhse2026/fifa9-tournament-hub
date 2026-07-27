@@ -1,0 +1,15 @@
+FIFA9 V47.7.0 — FINAL NIGHT POSTER
+
+Bu sürüm önceki kart/modal tasarımını tamamen kaldırır ve tam ekran final gecesi posteri getirir.
+
+İçerik:
+- 28/07/2026 · 01.00
+- Kerim Özmen vs Çağlar Can Tatar
+- Merkezde gümüş Final Chapter kupası
+- Özgün yıldız-küre arka plan kompozisyonu
+- 5 saniye sonra aktif olan kapatma işareti
+
+Kurulum:
+1. ZIP içindeki tüm dosyaları repository ana dizinine yükleyin.
+2. Mevcut dosyaların üzerine yazın.
+3. Deploy sonrası Ctrl + Shift + R yapın.

@@ -5,39 +5,58 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#061417" />
   <meta name="description" content="FIFA Turnuva Merkezi — canlı skor, Elo gücü, Power Exchange, mental baskı analizi, Destiny Path, Live Match Pulse, Broadcast Mode, TV / projektör görünümü, canlı xT, oyuncu ısı rozetleri, AI Tournament Director ve dinamik turnuva simülasyonu." />
+  <meta name="fifa9-build" content="47.8.0-force-refresh" />
+  <script>
+  (()=>{
+    const BUILD="47.8.0-force-refresh";
+    const KEY="fifa9-active-build";
+    if(localStorage.getItem(KEY)===BUILD) return;
+    localStorage.setItem(KEY,BUILD);
+    const cleanup=[];
+    if("caches" in window) cleanup.push(caches.keys().then(keys=>Promise.all(keys.map(key=>caches.delete(key)))));
+    if("serviceWorker" in navigator) cleanup.push(navigator.serviceWorker.getRegistrations().then(regs=>Promise.all(regs.map(reg=>reg.unregister()))));
+    Promise.allSettled(cleanup).finally(()=>{
+      const url=new URL(location.href);
+      if(url.searchParams.get("fifa9build")!=="478"){url.searchParams.set("fifa9build","478");location.replace(url.toString());}
+    });
+  })();
+  </script>
   <title>FIFA Turnuva Merkezi</title>
   <link rel="icon" href="assets/f9-mark.svg" type="image/svg+xml" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="stylesheet" href="styles.css?v=44.5.0" />
-  <link rel="stylesheet" href="season-hub.css?v=44.5.0" />
-  <link rel="stylesheet" href="season-experience.css?v=44.5.0" />
-  <link rel="stylesheet" href="manager-room.css?v=44.5.0" />
-  <link rel="stylesheet" href="manager-v42-4.css?v=44.5.0" />
-  <link rel="stylesheet" href="manager-v42-5.css?v=44.5.0" />
-  <link rel="stylesheet" href="manager-v42-5-levels.css?v=44.5.0" />
-  <link rel="stylesheet" href="me4-simulate.css?v=44.7.5-simulate1">
-  <link rel="stylesheet" href="manager-friendly.css?v=44.7.7-profiles1">
   <link rel="stylesheet" href="fifa9-experience-hub.css?v=44.8.0-hub1" />
   <link rel="stylesheet" href="final-chapter-progression.css?v=44.8.3-readable-admin1" />
-  <link rel="stylesheet" href="league-result-integrity.css?v=44.8.4-integrity1" />
-  <link rel="stylesheet" href="oruc-reis-single-match.css?v=44.8.5-oruc1" />
-  <link rel="stylesheet" href="manager-season-closure.css?v=44.8.6-closure1" />
   <link rel="stylesheet" href="all-time-elite.css?v=44.8.7-elite1" />
-  <link rel="stylesheet" href="formula-reborn/formula-reborn.css?v=45.0.5-clear-corridor" />
+  <link rel="stylesheet" href="tournament-benchmark.css?v=47.4.0" />
   <link rel="stylesheet" href="horizon-os-v47.css?v=47.0.0" />
+  <link rel="stylesheet" href="navigation-os-v47-1.css?v=47.4.0-sidebar-fix" />
+  <link rel="stylesheet" href="final-chapter-third-place.css?v=47.5.0" />
+  <link rel="stylesheet" href="champions-podium.css?v=47.5.0" />
+  <link rel="stylesheet" href="final-night-v478.css?v=47.8.0-force" />
 </head>
 <body>
   <div class="ambient ambient-one"></div>
   <div class="ambient ambient-two"></div>
 
   <div id="app" class="app-shell">
-    <aside class="sidebar" id="sidebar">
+    <aside class="sidebar" id="sidebar" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="sidebarTitle">
       <div class="brand" data-nav="dashboard" role="button" tabindex="0">
         <img src="assets/f9-mark.svg" alt="F9" class="brand-mark" />
         <div>
-          <div class="brand-title">FIFA 9</div>
+          <div class="brand-title" id="sidebarTitle">FIFA 9</div>
           <div class="brand-subtitle">EXPERIENCE HUB</div><div class="brand-edition-line">EDITION 09 · FINAL CHAPTER</div>
         </div>
+        <button class="os-drawer-close" id="sidebarClose" type="button" aria-label="Komuta menüsünü kapat"><span></span><span></span></button>
+      </div>
+
+      <div class="os-drawer-search-wrap">
+        <label class="os-drawer-search" for="sidebarSearch">
+          <span aria-hidden="true">⌕</span>
+          <input id="sidebarSearch" type="search" autocomplete="off" placeholder="Mod, araç veya kayıt ara…" />
+          <kbd>ESC</kbd>
+        </label>
+        <div class="os-drawer-search-meta"><span>COMMAND NAVIGATION</span><b id="sidebarSearchCount">24 seçenek</b></div>
       </div>
 
       <nav class="main-nav hub-nav" aria-label="FIFA 9 ana navigasyonu">
@@ -56,7 +75,7 @@
             <div class="nav-subheading final-heading current-stage-heading">Aktif Aşama</div>
             <button class="nav-item final-chapter-link final-chapter-primary" data-nav="knockout">
               <span class="nav-icon">◆</span>
-              <span><strong>FIFA09 Final Chapter</strong><small>Playoff · eleme · büyük final</small></span>
+              <span><strong>FIFA09 Final Chapter</strong><small>Playoff · eleme · üçüncülük · büyük final</small></span>
               <em>AKTİF</em>
             </button>
             <button class="nav-item final-control-link" data-nav="finalpoll"><span class="nav-icon">✓</span><span>Final Chapter Kararı</span></button>
@@ -90,33 +109,7 @@
             <button class="nav-item" data-nav="print"><span class="nav-icon">▤</span><span>Çıktı Merkezi</span></button>
           </div>
         </section>
-
-        <section class="nav-cluster" data-nav-cluster="league-system">
-          <button class="nav-cluster-toggle" type="button" data-nav-cluster-toggle="league-system" aria-expanded="false">
-            <span class="nav-cluster-icon league-system">LS</span>
-            <span><strong>FIFA Lig Sistemi</strong><small>Kalıcı sezon ve kariyer evreni</small></span>
-            <i>⌄</i>
-          </button>
-          <div class="nav-cluster-body">
-            <button class="nav-item" data-nav="seasonhub"><span class="nav-icon">⚽</span><span>Lig Merkezi</span></button>
-            <button class="nav-item" data-nav="managerroom"><span class="nav-icon">♟</span><span>The Manager's Room</span></button>
-            <button class="nav-item" data-nav="managerhall"><span class="nav-icon">♛</span><span>Manager Hall</span></button>
-            <button class="nav-item" data-nav="museum"><span class="nav-icon">♜</span><span>Sezonlar & Kupa Müzesi</span></button>
-          </div>
-        </section>
-
-        <section class="nav-cluster" data-nav-cluster="formula-racing">
-          <button class="nav-cluster-toggle" type="button" data-nav-cluster-toggle="formula-racing" aria-expanded="false">
-            <span class="nav-cluster-icon formula">FR</span>
-            <span><strong>Formula Horizon Reborn</strong><small>WebGL · 5 tur · global records</small></span>
-            <i>⌄</i>
-          </button>
-          <div class="nav-cluster-body">
-            <button class="nav-item formula-nav-primary" data-nav="formula1"><span class="nav-icon">🏎</span><span><strong>Formula Horizon Reborn</strong><small>3 masterpiece pist · gerçek WebGL</small></span></button>
-          </div>
-        </section>
-
-        <section class="nav-cluster" data-nav-cluster="records">
+<section class="nav-cluster" data-nav-cluster="records">
           <button class="nav-cluster-toggle" type="button" data-nav-cluster-toggle="records" aria-expanded="false">
             <span class="nav-cluster-icon records">AR</span>
             <span><strong>Arşiv & Yönetim</strong><small>Tarihçe, istatistik ve yedek</small></span>
@@ -124,6 +117,7 @@
           </button>
           <div class="nav-cluster-body">
             <button class="nav-item" data-nav="archive"><span class="nav-icon">◇</span><span>Turnuva Arşivi</span></button>
+            <button class="nav-item benchmark-nav" data-nav="benchmark"><span class="nav-icon">∑</span><span><strong>Turnuva Karnesi</strong><small>Edisyon kıyası + oyuncu atlası</small></span><em>YENİ</em></button>
             <button class="nav-item" data-nav="alltime"><span class="nav-icon">♛</span><span>Tüm Zamanlar</span></button>
             <button class="nav-item" data-nav="teams"><span class="nav-icon">◉</span><span>Takım İstatistikleri</span></button>
             <button class="nav-item" data-nav="backup"><span class="nav-icon">⇩</span><span>Veri & Yedek</span></button>
@@ -133,7 +127,7 @@
 
       <div class="sidebar-footer">
         <div class="save-indicator" id="sidebarCloudStatus"><span class="status-dot"></span> Canlı bağlantı hazırlanıyor</div>
-        <div class="sidebar-version">Tournament Universe · V47.0.0 · Horizon OS</div>
+        <div class="sidebar-version">Tournament Universe · V47.8.0 · Forced Final Night</div>
       </div>
     </aside>
     <button class="os-sidebar-backdrop" id="sidebarBackdrop" type="button" aria-label="Komuta menüsünü kapat"></button>
@@ -152,9 +146,7 @@
           <button data-nav="dashboard"><span>Universe</span></button>
           <button data-nav="knockout"><span>Final Chapter</span></button>
           <button data-nav="livematch"><i></i><span>Live</span></button>
-          <button data-nav="seasonhub"><span>Career</span></button>
-          <button data-nav="formula1"><span>Formula</span></button>
-          <button data-nav="alltime"><span>Legacy</span></button>
+          <button data-nav="benchmark"><span>Karneler</span></button>
         </nav>
 
         <div class="os-context-zone">
@@ -193,6 +185,67 @@
     </div>
   </div>
 
+  <div class="final-night-experience hidden" id="grandFinalAnnouncement" aria-hidden="true" data-build="V47.8.0">
+    <div class="final-night-sky" id="grandFinalBackdrop" aria-hidden="true">
+      <span class="final-night-nebula nebula-a"></span>
+      <span class="final-night-nebula nebula-b"></span>
+      <span class="final-night-stars stars-a"></span>
+      <span class="final-night-stars stars-b"></span>
+    </div>
+    <section class="final-night-poster" role="dialog" aria-modal="true" aria-labelledby="grandFinalTitle" aria-describedby="grandFinalDesc">
+      <button class="final-night-close" id="grandFinalClose" type="button" aria-label="Duyuruyu kapat" disabled>×</button>
+
+      <header class="final-night-header">
+        <div class="final-night-brand">
+          <img src="assets/f9-mark.svg" alt="" />
+          <div><strong>FIFA 09</strong><span>FINAL CHAPTER</span></div>
+        </div>
+        <div class="final-night-date">
+          <span>28 JULY 2026</span><i></i><strong>01.00</strong>
+        </div>
+        <div class="final-night-build">V47.8 · FINAL NIGHT</div>
+      </header>
+
+      <main class="final-night-main">
+        <div class="final-night-copy">
+          <span class="final-night-kicker">OFFICIAL GRAND FINAL</span>
+          <h1 id="grandFinalTitle">FINAL <em>2026</em></h1>
+          <p id="grandFinalDesc">One match. One champion. The final chapter will be written tonight.</p>
+        </div>
+
+        <div class="final-night-monument" aria-hidden="true">
+          <div class="final-night-starball">
+            <span class="orbit orbit-1"></span><span class="orbit orbit-2"></span><span class="orbit orbit-3"></span>
+            <span class="star star-1"></span><span class="star star-2"></span><span class="star star-3"></span><span class="star star-4"></span><span class="star star-5"></span>
+          </div>
+          <div class="final-night-trophy-glow"></div>
+          <figure class="final-night-trophy">
+            <img src="assets/trophies/fifa9-runner-up-silver.webp" alt="FIFA 09 Final Chapter Grand Final Kupası" />
+            <figcaption><span>FIFA 09</span><strong>FINAL CHAPTER CUP</strong></figcaption>
+          </figure>
+        </div>
+      </main>
+
+      <section class="final-night-fixture" aria-label="Büyük final eşleşmesi">
+        <article class="final-night-player player-left">
+          <small>FINALIST 01</small><strong>KERİM<br>ÖZMEN</strong><span>THE CHALLENGER</span>
+        </article>
+        <div class="final-night-versus"><span>VS</span><i></i><small>GRAND FINAL</small></div>
+        <article class="final-night-player player-right">
+          <small>FINALIST 02</small><strong>ÇAĞLAR<br>CAN TATAR</strong><span>THE FINALIST</span>
+        </article>
+      </section>
+
+      <footer class="final-night-footer">
+        <div class="final-night-event-line"><span></span>FIFA 09 FINAL CHAPTER · OFFICIAL MAIN EVENT<span></span></div>
+        <div class="final-night-actions">
+          <div class="final-night-countdown" id="grandFinalCountdown">Çıkış işareti 5 saniye içinde aktif olacak</div>
+          <button class="final-night-enter" id="grandFinalEnter" type="button">SITEYE GİR <b>↗</b></button>
+        </div>
+      </footer>
+    </section>
+  </div>
+
   <div class="toast-stack" id="toastStack" aria-live="assertive"></div>
 
   <div class="hub-launcher-backdrop hidden" id="hubLauncherBackdrop">
@@ -204,9 +257,7 @@
       <div class="hub-launcher-grid">
         <button data-nav="dashboard" class="home"><span>⌂</span><strong>Ana Merkez</strong><small>Tüm modlar ve güncel durum</small></button>
         <button data-nav="league" class="tournament"><span>09</span><strong>Turnuva Modu</strong><small>League Phase ve Final Chapter</small></button>
-        <button data-nav="seasonhub" class="league"><span>LS</span><strong>FIFA Lig Sistemi</strong><small>Sezonlar, ligler ve kupalar</small></button>
-        <button data-nav="managerroom" class="manager"><span>MR</span><strong>Manager's Room</strong><small>Kariyer, canlı maç ve taktik</small></button>
-        <button data-nav="formula1" class="formula"><span>FR</span><strong>Formula Reborn</strong><small>3 pist · 5 tur · global records</small></button>
+        <button data-nav="benchmark" class="records"><span>∑</span><strong>Turnuva Karnesi</strong><small>FIFA 1–9 kıyaslama ve performans atlası</small></button>
       </div>
     </section>
   </div>
@@ -214,10 +265,8 @@
   <nav class="mobile-hub-dock" aria-label="Hızlı mobil navigasyon">
     <button data-nav="dashboard"><span>⌂</span><small>Ana</small></button>
     <button data-nav="livematch"><span>●</span><small>Canlı</small></button>
-    <button data-nav="league"><span>09</span><small>Turnuva</small></button>
-    <button data-nav="seasonhub"><span>LS</span><small>Lig</small></button>
-    <button data-nav="managerroom"><span>♟</span><small>Manager</small></button>
-    <button data-nav="formula1"><span>FR</span><small>Formula</small></button>
+    <button data-nav="knockout"><span>◆</span><small>Final</small></button>
+    <button data-nav="benchmark"><span>∑</span><small>Karneler</small></button>
   </nav>
 
 
@@ -228,14 +277,10 @@
   <script src="cloud.js?v=44.5.0"></script>
   <script src="chat.js?v=44.5.0"></script>
   <script src="community.js?v=44.5.0"></script>
-  <script src="formula-reborn/formula-reborn-loader.js?v=45.0.5-clear-corridor"></script>
-  <script src="app.js?v=45.0.0-formula-reborn"></script>
-  <script src="season-hub.js?v=44.8.5-oruc-single1"></script>
- <script src="season-experience.js?v=44.8.4-league-integrity1"></script>
-<script src="manager-room.js?v=44.8.6-season-closure1"></script>
-<script src="manager-match-engine.js?v=44.8.6-season-closure1"></script>
-<script src="me4-worker-bridge.js?v=4.0.0-worker-bridge-w2.1-final.1"></script>
-  <script src="fifa9-experience-hub.js?v=45.0.0-formula-reborn"></script>
-  <script src="horizon-os-v47.js?v=47.0.0"></script>
+  <script src="app.js?v=47.8.0-forced-final-night"></script>
+  <script src="fifa9-experience-hub.js?v=47.8.0-tournament-only"></script>
+  <script src="horizon-os-v47.js?v=47.8.0-performance-lite"></script>
+  <script src="navigation-os-v47-1.js?v=47.8.0-sidebar-fix"></script>
+  <script src="final-night-v478.js?v=47.8.0-force"></script>
 </body>
 </html>

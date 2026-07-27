@@ -1,0 +1,6 @@
+FIFA9 V47.7.0
+- Replaced dashboard-style grand final modal with a full-screen broadcast poster.
+- Added original faceted star-orbit artwork.
+- Added central silver trophy composition.
+- Rebuilt typography and finalist lockup.
+- Retained five-second close delay and session dismiss behaviour.

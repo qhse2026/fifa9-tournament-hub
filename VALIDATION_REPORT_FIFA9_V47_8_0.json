@@ -1,0 +1,14 @@
+{
+  "package": "FIFA9_V47_8_0_FORCE_REFRESH_FINAL_NIGHT",
+  "status": "PASS",
+  "checks": {
+    "unique_css_ref": true,
+    "unique_js_ref": true,
+    "force_cache_reset": true,
+    "new_markup": true,
+    "old_panel_absent": true,
+    "visible_build": true,
+    "sw_new_cache": true,
+    "layout_box_sizing": true
+  }
+}

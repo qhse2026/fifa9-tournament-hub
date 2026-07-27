@@ -27,7 +27,7 @@
   const FINAL_CHAPTER_WITHDRAWN_NAMES = Object.freeze(["Sultan Atasaral"]);
   const FINAL_CHAPTER_FORMAT_VERSION = 43;
   const FINAL_CHAPTER_CONNECTED_UNIVERSE_VERSION = "44.7.0";
-  const FINAL_CHAPTER_STAGE_ORDER = Object.freeze({ playoff: 1, secondChanceSemi: 2, secondChanceFinal: 3, quarterfinal: 4, semifinal: 5, final: 6 });
+  const FINAL_CHAPTER_STAGE_ORDER = Object.freeze({ playoff: 1, secondChanceSemi: 2, secondChanceFinal: 3, quarterfinal: 4, semifinal: 5, thirdPlace: 6, final: 7 });
   let registrationPlayers = [];
   let registrationPlayersLoading = false;
   let registrationPlayersLoadedAt = 0;
@@ -64,17 +64,15 @@
     knockout: "FIFA09 Final Chapter",
     print: "Çıktı Merkezi",
     archive: "Turnuva Arşivi",
-    museum: "Sezonlar & Kupa Müzesi",
-    seasonhub: "FIFA Lig Sistemi",
+    benchmark: "Turnuva Karnesi & Performans Atlası",
     alltime: "Tüm Zamanlar",
     teams: "Takım İstatistikleri",
     backup: "Veri & Yedek",
-    managerroom: "The Manager's Room",
-    managerhall: "Manager Hall",
-    formula1: "Formula Horizon Reborn",
     playeraccess: "Oyuncu Girişi",
     finalpoll: "FIFA09 Final Chapter Kararı"
   };
+
+  const REMOVED_GAME_ROUTES = new Set(["seasonhub", "managerroom", "managerhall", "museum", "formula1"]);
 
   let activeView = "dashboard";
   let adminLoginInProgress = false;
@@ -88,6 +86,9 @@
   let allTimeRivalryB = "";
   let allTimeEliteCategory = "legacy";
   let allTimeMatchRecordCategory = "biggest";
+  let tournamentBenchmarkMetric = "benchmark";
+  let tournamentBenchmarkSelectedPlayer = "";
+  let tournamentBenchmarkSection = "report-card";
   const ALL_TIME_ELITE_MIN_GAMES = 20;
   let selectedTeamStatName = "";
   let selectedTeamPlayerName = "";
@@ -676,6 +677,7 @@
         playoffStars: 4,
         quarterfinalStars: 4.5,
         semifinalStars: 5,
+        thirdPlaceStars: 5,
         finalStars: 5,
         preventTeamRepeat: true,
         drawPolicy: "ask"
@@ -684,6 +686,7 @@
         playoff: [],
         quarterfinal: [],
         semifinal: [],
+        thirdPlace: [],
         final: []
       },
       playoff: { drawn: false, locked: false, drawSeed: null, luckyId: null, drawMethod: null, entrantIds: [], drawnAt: null, lockedAt: null, series: [] },
@@ -691,6 +694,7 @@
       secondChanceFinal: { drawn: false, locked: false, drawSeed: null, drawMethod: null, entrantIds: [], drawnAt: null, lockedAt: null, series: [] },
       quarterfinal: { drawn: false, locked: false, drawSeed: null, drawMethod: null, entrantIds: [], drawnAt: null, lockedAt: null, series: [] },
       semifinal: { drawn: false, locked: false, drawSeed: null, drawMethod: null, entrantIds: [], drawnAt: null, lockedAt: null, series: [] },
+      thirdPlace: { match: null, winnerId: null },
       final: { match: null, championId: null },
       history: []
     };
@@ -709,6 +713,7 @@
         playoff: Array.isArray(raw.teamPools?.playoff) ? raw.teamPools.playoff : [],
         quarterfinal: Array.isArray(raw.teamPools?.quarterfinal) ? raw.teamPools.quarterfinal : [],
         semifinal: Array.isArray(raw.teamPools?.semifinal) ? raw.teamPools.semifinal : [],
+        thirdPlace: Array.isArray(raw.teamPools?.thirdPlace) ? raw.teamPools.thirdPlace : [],
         final: Array.isArray(raw.teamPools?.final) ? raw.teamPools.final : []
       },
       playoff: { ...fresh.playoff, ...(raw.playoff || {}), series: Array.isArray(raw.playoff?.series) ? raw.playoff.series : [] },
@@ -716,6 +721,7 @@
       secondChanceFinal: { ...fresh.secondChanceFinal, ...(raw.secondChanceFinal || {}), series: Array.isArray(raw.secondChanceFinal?.series) ? raw.secondChanceFinal.series : [] },
       quarterfinal: { ...fresh.quarterfinal, ...(raw.quarterfinal || {}), series: Array.isArray(raw.quarterfinal?.series) ? raw.quarterfinal.series : [] },
       semifinal: { ...fresh.semifinal, ...(raw.semifinal || {}), series: Array.isArray(raw.semifinal?.series) ? raw.semifinal.series : [] },
+      thirdPlace: { ...fresh.thirdPlace, ...(raw.thirdPlace || {}) },
       final: { ...fresh.final, ...(raw.final || {}) },
       participantIds: Array.isArray(raw.participantIds) ? raw.participantIds : [],
       directQuarterFinalistIds: Array.isArray(raw.directQuarterFinalistIds) ? raw.directQuarterFinalistIds : [],
@@ -727,7 +733,7 @@
   function finalChapterRawHasCompletedGames(fc) {
     const stageKeys = ["playoff", "secondChanceSemi", "secondChanceFinal", "quarterfinal", "semifinal"];
     const stageHasResult = stageKeys.some(stage => (fc?.[stage]?.series || []).some(series => (series.games || []).some(matchComplete)));
-    return stageHasResult || Boolean(fc?.final?.match && matchComplete(fc.final.match));
+    return stageHasResult || Boolean(fc?.thirdPlace?.match && matchComplete(fc.thirdPlace.match)) || Boolean(fc?.final?.match && matchComplete(fc.final.match));
   }
 
   function migrateFinalChapterFormat(fc) {
@@ -749,6 +755,7 @@
     fc.secondChanceFinal = { ...fresh.secondChanceFinal };
     fc.quarterfinal = { ...fresh.quarterfinal };
     fc.semifinal = { ...fresh.semifinal };
+    fc.thirdPlace = { ...fresh.thirdPlace };
     fc.final = { ...fresh.final };
     fc.status = fc.enabled ? "setup" : "not-started";
     fc.history = [{ action: "format-v42-last-ticket", at: new Date().toISOString(), withdrawnIds }, ...(fc.history || [])].slice(0, 60);
@@ -792,6 +799,7 @@
       ...finalChapterSeries("secondChanceFinal").flatMap(series => series.games || []),
       ...finalChapterSeries("quarterfinal").flatMap(series => series.games || []),
       ...finalChapterSeries("semifinal").flatMap(series => series.games || []),
+      ...(fc.thirdPlace?.match ? [fc.thirdPlace.match] : []),
       ...(fc.final?.match ? [fc.final.match] : [])
     ];
   }
@@ -803,12 +811,14 @@
       secondChanceFinal: "Son Bilet Play-off Finali",
       quarterfinal: "Çeyrek Final",
       semifinal: "Yarı Final",
+      thirdPlace: "Üçüncülük Maçı",
       final: "Büyük Final"
     })[stage] || "Final Chapter";
   }
 
   function finalChapterPoolStage(stage) {
-    return ["playoff", "secondChanceSemi", "secondChanceFinal"].includes(stage) ? "playoff" : stage;
+    if (["playoff", "secondChanceSemi", "secondChanceFinal"].includes(stage)) return "playoff";
+    return stage;
   }
 
   function finalChapterStars(stage) {
@@ -819,6 +829,7 @@
       secondChanceFinal: settings.playoffStars,
       quarterfinal: settings.quarterfinalStars,
       semifinal: settings.semifinalStars,
+      thirdPlace: settings.thirdPlaceStars || settings.semifinalStars,
       final: settings.finalStars
     })[stage] || "";
   }
@@ -837,6 +848,7 @@
       secondChanceFinal: fc.settings?.playoffStars || 4,
       quarterfinal: fc.settings?.quarterfinalStars || 4.5,
       semifinal: fc.settings?.semifinalStars || 5,
+      thirdPlace: fc.settings?.thirdPlaceStars || fc.settings?.semifinalStars || 5,
       final: fc.settings?.finalStars || 5
     };
     stageKeys.forEach(stage => {
@@ -858,23 +870,24 @@
         });
       });
     });
-    if (fc.final?.match) {
-      const match = fc.final.match;
+    [["thirdPlace", fc.thirdPlace?.match, "fc-third-place"], ["final", fc.final?.match, "fc-final"]].forEach(([stage, match, seriesId]) => {
+      if (!match) return;
       match.competition = "final-chapter";
-      match.chapterStage = "final";
-      match.finalChapterStage = "final";
-      match.seriesId = "fc-final";
+      match.chapterStage = stage;
+      match.finalChapterStage = stage;
+      match.seriesId = seriesId;
       match.seriesGame = 1;
       match.bestOf = 1;
       match.seriesTargetWins = 1;
       match.eliminationMatch = true;
-      match.stars = Number(match.stars || starsByStage.final);
-    }
+      match.stars = Number(match.stars || starsByStage[stage]);
+      match.sameTeamRequired = true;
+    });
     return fc;
   }
 
   function finalChapterSeriesForMatch(match) {
-    if (!match?.finalChapterStage || match.finalChapterStage === "final") return null;
+    if (!match?.finalChapterStage || ["thirdPlace", "final"].includes(match.finalChapterStage)) return null;
     const stage = match.finalChapterStage;
     return finalChapterSeries(stage).find(series => series.key === match.seriesKey || series.key === match.seriesId || (series.games || []).some(game => game.id === match.id)) || null;
   }
@@ -910,10 +923,11 @@
       secondChanceSemi: intelligenceCopy("Kaybeden Final Chapter'a veda eder; kazanan Son Bilet finaline çıkar.", "The loser exits the Final Chapter; the winner reaches the Last Ticket final."),
       secondChanceFinal: intelligenceCopy("Kazanan sekizinci ve son çeyrek finalist olur.", "The winner becomes the eighth and final quarter-finalist."),
       quarterfinal: intelligenceCopy("Seri galibi FIFA 09'un son dört oyuncusu arasına girer.", "The series winner reaches the FIFA 09 final four."),
-      semifinal: intelligenceCopy("Seri galibi Büyük Final biletini alır.", "The series winner earns a place in the Grand Final."),
+      semifinal: intelligenceCopy("Seri galibi Büyük Final biletini alır; kaybeden Üçüncülük Maçı'na gider.", "The series winner earns a place in the Grand Final; the loser enters the Third-place Match."),
+      thirdPlace: intelligenceCopy("Kazanan FIFA 09'u üçüncü, kaybeden dördüncü tamamlar.", "The winner finishes FIFA 09 in third place; the loser finishes fourth."),
       final: intelligenceCopy("Tek maç, tek kupa, FIFA 09 şampiyonluğu.", "One match, one trophy, the FIFA 09 championship.")
     })[stage] || intelligenceCopy("Final Chapter eleme maçı.", "Final Chapter elimination match.");
-    const shortLabel = ({ playoff: "ANA ELEME", secondChanceSemi: "SON BİLET YF", secondChanceFinal: "SON BİLET FİNALİ", quarterfinal: "ÇEYREK FİNAL", semifinal: "YARI FİNAL", final: "BÜYÜK FİNAL" })[stage] || "FINAL CHAPTER";
+    const shortLabel = ({ playoff: "ANA ELEME", secondChanceSemi: "SON BİLET YF", secondChanceFinal: "SON BİLET FİNALİ", quarterfinal: "ÇEYREK FİNAL", semifinal: "YARI FİNAL", thirdPlace: "ÜÇÜNCÜLÜK", final: "BÜYÜK FİNAL" })[stage] || "FINAL CHAPTER";
     return {
       stage,
       label: finalChapterStageLabel(stage),
@@ -922,12 +936,12 @@
       series,
       gameIndex,
       gameNumber: Number(match.seriesGame || gameIndex + 1 || 1),
-      bestOf: stage === "final" ? 1 : 3,
-      targetWins: stage === "final" ? 1 : 2,
+      bestOf: ["thirdPlace", "final"].includes(stage) ? 1 : 3,
+      targetWins: ["thirdPlace", "final"].includes(stage) ? 1 : 2,
       wins,
       winner,
       stakes,
-      isDecider: stage === "final" || Boolean(series && (wins.a === 1 && wins.b === 1)),
+      isDecider: ["thirdPlace", "final"].includes(stage) || Boolean(series && (wins.a === 1 && wins.b === 1)),
       seriesScore: series ? `${wins.a}–${wins.b}` : "0–0"
     };
   }
@@ -940,12 +954,14 @@
   }
 
   function finalChapterProgressRows() {
-    const stages = ["playoff", "secondChanceSemi", "secondChanceFinal", "quarterfinal", "semifinal", "final"];
+    const stages = ["playoff", "secondChanceSemi", "secondChanceFinal", "quarterfinal", "semifinal", "thirdPlace", "final"];
     return stages.map(stage => {
       const matches = allFinalChapterGames().filter(match => match.finalChapterStage === stage && !seriesEndedUnused(match));
       const completed = matches.filter(matchComplete);
-      const series = stage === "final" ? (finalChapterState().final.match ? 1 : 0) : finalChapterSeries(stage).length;
-      const completedSeries = stage === "final" ? (finalChapterState().final.championId ? 1 : 0) : finalChapterSeries(stage).filter(item => seriesWinner(item)).length;
+      const singleMatchStage = ["thirdPlace", "final"].includes(stage);
+      const stageRecord = finalChapterState()[stage];
+      const series = singleMatchStage ? (stageRecord?.match ? 1 : 0) : finalChapterSeries(stage).length;
+      const completedSeries = singleMatchStage ? (stage === "final" ? (stageRecord?.championId ? 1 : 0) : (stageRecord?.winnerId ? 1 : 0)) : finalChapterSeries(stage).filter(item => seriesWinner(item)).length;
       return { stage, label: finalChapterStageLabel(stage), matches: matches.length, completedMatches: completed.length, series, completedSeries, goals: completed.reduce((sum, match) => sum + Number(match.homeScore || 0) + Number(match.awayScore || 0), 0) };
     });
   }
@@ -954,6 +970,11 @@
     const fc = finalChapterState();
     if (fc.withdrawnPlayerIds.includes(playerId)) return intelligenceCopy("Çekildi", "Withdrawn");
     if (fc.final.championId === playerId) return intelligenceCopy("FIFA 09 Şampiyonu", "FIFA 09 Champion");
+    if (fc.thirdPlace?.winnerId === playerId) return intelligenceCopy("FIFA 09 Üçüncüsü", "FIFA 09 Third Place");
+    if (fc.thirdPlace?.match && [fc.thirdPlace.match.homeId, fc.thirdPlace.match.awayId].includes(playerId)) {
+      if (!matchComplete(fc.thirdPlace.match)) return intelligenceCopy("Üçüncülük Maçı", "Third-place Match");
+      return intelligenceCopy("FIFA 09 Dördüncüsü", "FIFA 09 Fourth Place");
+    }
     const stageLabels = [
       ["final", intelligenceCopy("Büyük Final", "Grand Final")],
       ["semifinal", intelligenceCopy("Yarı Final", "Semi-final")],
@@ -1180,7 +1201,7 @@
       secondChanceSemi: { winner: "Son Bilet Finali", loser: "Final Chapter'dan Elendi" },
       secondChanceFinal: { winner: "Çeyrek Final · 8. Kontenjan", loser: "Final Chapter'dan Elendi" },
       quarterfinal: { winner: "Yarı Final Havuzu", loser: "Final Chapter'dan Elendi" },
-      semifinal: { winner: "Büyük Final", loser: "Final Chapter'dan Elendi" }
+      semifinal: { winner: "Büyük Final", loser: "Üçüncülük Maçı" }
     };
     return map[stage]?.[resultType] || "Bekliyor";
   }
@@ -1203,7 +1224,9 @@
     const qfLosers = finalChapterStageLosers("quarterfinal");
     const sfWinners = finalChapterStageWinners("semifinal");
     const sfLosers = finalChapterStageLosers("semifinal");
-    const eliminated = [...lastTicketSemiLosers, ...lastTicketLoser, ...qfLosers, ...sfLosers].filter(Boolean);
+    const thirdPlaceWinner = fc.thirdPlace?.winnerId ? [fc.thirdPlace.winnerId] : [];
+    const thirdPlaceLoser = fc.thirdPlace?.match && matchComplete(fc.thirdPlace.match) ? [fc.thirdPlace.match.homeId === fc.thirdPlace.winnerId ? fc.thirdPlace.match.awayId : fc.thirdPlace.match.homeId] : [];
+    const eliminated = [...lastTicketSemiLosers, ...lastTicketLoser, ...qfLosers].filter(Boolean);
     return `<section class="fc-progression-centre">
       <div class="fc-progression-head"><div><span>OTOMATİK TUR AKTARIM MERKEZİ</span><h3>Kazanan ve kaybedenlerin yolu</h3><p>Sonuç tamamlandığı anda oyuncu doğru sonraki havuza otomatik aktarılır. Kura yöntemi yalnızca eşleşmenin nasıl kurulacağını belirler.</p></div><aside><strong>${finalChapterDrawPolicyLabel()}</strong><small>AKTİF KURA POLİTİKASI</small></aside></div>
       <div class="fc-route-grid">
@@ -1213,8 +1236,10 @@
         <article><header><b>SON BİLET ŞAMPİYONU</b><span>→ QF 8. KONTENJAN</span></header><div>${finalChapterPlayerChips(lastTicketWinner, "Son bilet sahibi bekleniyor")}</div></article>
         <article><header><b>ÇEYREK FİNAL GALİPLERİ</b><span>→ YARI FİNAL</span></header><div>${finalChapterPlayerChips(qfWinners, "4 yarı finalist bekleniyor")}</div></article>
         <article><header><b>YARI FİNAL GALİPLERİ</b><span>→ BÜYÜK FİNAL</span></header><div>${finalChapterPlayerChips(sfWinners, "2 finalist bekleniyor")}</div></article>
+        <article class="bronze-route"><header><b>YARI FİNAL KAYBEDENLERİ</b><span>→ ÜÇÜNCÜLÜK MAÇI</span></header><div>${finalChapterPlayerChips(sfLosers, "2 oyuncu bekleniyor")}</div></article>
+        <article class="bronze-route"><header><b>ÜÇÜNCÜLÜK SONUCU</b><span>→ 3. / 4. SIRA</span></header><div>${finalChapterPlayerChips(thirdPlaceWinner, "Üçüncü bekleniyor")}${thirdPlaceLoser.length ? `<span class="fc-route-rank-four">4. ${escapeHTML(displayName(thirdPlaceLoser[0]))}</span>` : ""}</div></article>
       </div>
-      <div class="fc-eliminated-route"><span>ELENENLER</span><div>${finalChapterPlayerChips(eliminated, "Henüz kesinleşen elenen yok")}</div></div>
+      <div class="fc-eliminated-route"><span>DİĞER ELENENLER</span><div>${finalChapterPlayerChips(eliminated, "Henüz kesinleşen elenen yok")}</div></div>
     </section>`;
   }
 
@@ -1325,12 +1350,32 @@
     </article>`;
   }
 
+  function finalChapterBracketThirdPlace(match, winnerId) {
+    if (!match) {
+      return `<article class="fc-tree-match fc-tree-third-place placeholder">
+        <header><span>ÜÇÜNCÜLÜK MAÇI</span><b>BEKLİYOR</b></header>
+        ${finalChapterBracketPlayer(null, "A", null, "Yarı Final 1 kaybedeni", "Yarı Final 1 kaybedeni")}
+        ${finalChapterBracketPlayer(null, "B", null, "Yarı Final 2 kaybedeni", "Yarı Final 2 kaybedeni")}
+        <div class="fc-tree-cup">🥉</div>
+      </article>`;
+    }
+    return `<article class="fc-tree-match fc-tree-third-place ${winnerId ? "complete" : "live"}">
+      <header><span>ÜÇÜNCÜLÜK MAÇI</span><b>${winnerId ? "3. SIRA BELLİ" : "TEK MAÇ"}</b></header>
+      ${finalChapterBracketPlayer(match.homeId, "A", winnerId)}
+      ${finalChapterBracketPlayer(match.awayId, "B", winnerId)}
+      <div class="fc-tree-series-score"><span>Maç Skoru</span><strong>${matchComplete(match) ? `${match.homeScore} – ${match.awayScore}` : "–"}</strong></div>
+      <div class="fc-tree-cup">🥉</div>
+    </article>`;
+  }
+
   function finalChapterBracketTree() {
     const fc = finalChapterState();
     const playoff = fc.playoff?.series || [];
     const ticketSemi = fc.secondChanceSemi?.series || [];
     const ticketFinal = fc.secondChanceFinal?.series || [];
     const sf = fc.semifinal?.series || [];
+    const thirdPlaceMatch = fc.thirdPlace?.match || null;
+    const thirdPlaceWinner = fc.thirdPlace?.winnerId || null;
     const finalMatch = fc.final?.match || null;
     const champion = fc.final?.championId || null;
 
@@ -1371,7 +1416,7 @@
       </section>
 
       <section class="fc-title-bracket-zone">
-        <header><div><span>ŞAMPİYONLUK AĞACI</span><h4>Çeyrek Final → Yarı Final → Büyük Final</h4></div><small>Doğrudan finalistler ve tur atlayanlar aynı kartta</small></header>
+        <header><div><span>ŞAMPİYONLUK AĞACI</span><h4>Çeyrek Final → Yarı Final → Üçüncülük & Büyük Final</h4></div><small>Doğrudan finalistler ve tur atlayanlar aynı kartta</small></header>
         <div class="fc-title-bracket-grid">
           <section class="fc-title-stage quarterfinal-stage">
             <div class="fc-title-stage-head"><strong>04 · ÇEYREK FİNAL</strong><small>3 sabit QF + 4 ana eleme galibi + Son Bilet galibi</small></div>
@@ -1384,8 +1429,8 @@
           </section>
           <div class="fc-title-connector"><span>→</span></div>
           <section class="fc-title-stage final-stage">
-            <div class="fc-title-stage-head"><strong>06 · BÜYÜK FİNAL</strong><small>Tek maç · aynı takım</small></div>
-            <div class="fc-title-stage-cards">${finalChapterBracketFinal(finalMatch, champion)}</div>
+            <div class="fc-title-stage-head"><strong>06–07 · FİNAL MAÇLARI</strong><small>Üçüncülük + Büyük Final · tek maç · aynı takım</small></div>
+            <div class="fc-title-stage-cards fc-placement-stage-cards">${finalChapterBracketThirdPlace(thirdPlaceMatch, thirdPlaceWinner)}${finalChapterBracketFinal(finalMatch, champion)}</div>
           </section>
         </div>
       </section>
@@ -1472,7 +1517,7 @@
     if (match.finalChapterStage === "secondChanceSemi" && fc.secondChanceFinal.drawn) return "Son Bilet finali oluşturulduğu için play-off yarı final sonuçları artık değiştirilemez.";
     if (match.finalChapterStage === "secondChanceFinal" && fc.quarterfinal.drawn) return "Çeyrek final kurası oluşturulduğu için Son Bilet finali sonucu artık değiştirilemez.";
     if (match.finalChapterStage === "quarterfinal" && fc.semifinal.drawn) return "Yarı final kurası oluşturulduğu için çeyrek final sonuçları artık değiştirilemez.";
-    if (match.finalChapterStage === "semifinal" && fc.final.match) return "Final oluşturulduğu için yarı final sonuçları artık değiştirilemez.";
+    if (match.finalChapterStage === "semifinal" && (fc.final.match || fc.thirdPlace?.match)) return "Final ve üçüncülük eşleşmeleri oluşturulduğu için yarı final sonuçları artık değiştirilemez.";
     return "";
   }
 
@@ -1482,6 +1527,7 @@
     processAutomaticFinalChapterProgression();
     if (fc.semifinal.drawn && finalChapterStageComplete("semifinal")) {
       const winners = finalChapterStageWinners("semifinal");
+      const losers = finalChapterStageLosers("semifinal");
       if (winners.length === 2 && (!fc.final.match || ![fc.final.match.homeId, fc.final.match.awayId].every(id => winners.includes(id)))) {
         const match = createMatch("final", 1, winners[0], winners[1], { allowDraw: false });
         match.competition = "final-chapter";
@@ -1499,9 +1545,28 @@
         fc.final.championId = null;
         finalChapterHistory("final-created", { playerIds: winners });
       }
+      if (losers.length === 2 && (!fc.thirdPlace.match || ![fc.thirdPlace.match.homeId, fc.thirdPlace.match.awayId].every(id => losers.includes(id)))) {
+        const match = createMatch("third-place", 1, losers[0], losers[1], { allowDraw: false });
+        match.competition = "final-chapter";
+        match.chapterStage = "thirdPlace";
+        match.finalChapterStage = "thirdPlace";
+        match.seriesId = "fc-third-place";
+        match.seriesGame = 1;
+        match.bestOf = 1;
+        match.seriesTargetWins = 1;
+        match.eliminationMatch = true;
+        match.stars = finalChapterStars("thirdPlace");
+        match.sameTeamRequired = true;
+        match.note = `FIFA09 Final Chapter Üçüncülük Maçı · ${match.stars}★ · Aynı takım`;
+        fc.thirdPlace.match = match;
+        fc.thirdPlace.winnerId = null;
+        finalChapterHistory("third-place-created", { playerIds: losers });
+      }
     }
+    fc.thirdPlace.winnerId = fc.thirdPlace.match ? matchWinnerId(fc.thirdPlace.match) : null;
     fc.final.championId = fc.final.match ? matchWinnerId(fc.final.match) : null;
-    if (fc.final.championId) fc.status = "completed";
+    if (fc.final.championId && fc.thirdPlace.winnerId) fc.status = "completed";
+    else if (fc.final.championId && fc.thirdPlace.match) fc.status = "third-place";
     else if (fc.final.match) fc.status = "final";
     else if (fc.semifinal.drawn) fc.status = "semifinal";
     else if (fc.quarterfinal.drawn) fc.status = "quarterfinal";
@@ -1606,9 +1671,10 @@
         <div class="field"><label>Ana Eleme + Son Bilet Play-off · 4★</label><textarea name="playoff" placeholder="Her satıra bir takım">${escapeHTML(pools.playoff.join("\n"))}</textarea></div>
         <div class="field"><label>Çeyrek Final · 4.5★</label><textarea name="quarterfinal" placeholder="Her satıra bir takım">${escapeHTML(pools.quarterfinal.join("\n"))}</textarea></div>
         <div class="field"><label>Yarı Final · 5★</label><textarea name="semifinal" placeholder="Her satıra bir takım">${escapeHTML(pools.semifinal.join("\n"))}</textarea></div>
-        <div class="field"><label>Final · Aynı Takım</label><textarea name="final" placeholder="Her satıra bir takım">${escapeHTML(pools.final.join("\n"))}</textarea></div>
+        <div class="field"><label>Üçüncülük · 5★ · Aynı Takım</label><textarea name="thirdPlace" placeholder="Her satıra bir takım">${escapeHTML(pools.thirdPlace.join("\n"))}</textarea></div>
+        <div class="field"><label>Büyük Final · Aynı Takım</label><textarea name="final" placeholder="Her satıra bir takım">${escapeHTML(pools.final.join("\n"))}</textarea></div>
       </div>
-      <div class="info-box mt-16">Takım isimleri satır, virgül veya noktalı virgülle ayrılabilir. Çeyrek final ve yarı finalde bir oyuncu aynı tur içinde aynı takımı tekrar çekemez.</div>
+      <div class="info-box mt-16">Takım isimleri satır, virgül veya noktalı virgülle ayrılabilir. Çeyrek final ve yarı finalde takım tekrarı engellenir; üçüncülük ve Büyük Finalde iki oyuncu aynı takımı kullanır. Üçüncülük havuzu boş bırakılırsa Büyük Final havuzu kullanılır.</div>
       <div class="modal-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">İptal</button><button type="submit" class="btn btn-gold">Havuzları Kaydet</button></div>
     </form>`, "TEAM DRAW CONTROL");
   }
@@ -1617,7 +1683,7 @@
     if (!canEdit()) return;
     const data = new FormData(form);
     const fc = finalChapterState();
-    ["playoff", "quarterfinal", "semifinal", "final"].forEach(stage => { fc.teamPools[stage] = parseTeamPool(data.get(stage)); });
+    ["playoff", "quarterfinal", "semifinal", "thirdPlace", "final"].forEach(stage => { fc.teamPools[stage] = parseTeamPool(data.get(stage)); });
     finalChapterHistory("team-pools-updated", { counts: Object.fromEntries(Object.entries(fc.teamPools).map(([key, value]) => [key, value.length])) });
     saveState(true, true);
     closeModal();
@@ -1642,7 +1708,7 @@
   function validateFinalChapterTeams(match, homeTeam, awayTeam) {
     if (!match?.finalChapterStage) return "";
     const stage = match.finalChapterStage;
-    if (stage === "final" && homeTeam && awayTeam && normalizeTeamKey(homeTeam) !== normalizeTeamKey(awayTeam)) return "Büyük finalde iki oyuncu aynı takımı kullanmalıdır.";
+    if (["thirdPlace", "final"].includes(stage) && homeTeam && awayTeam && normalizeTeamKey(homeTeam) !== normalizeTeamKey(awayTeam)) return `${finalChapterStageLabel(stage)} için iki oyuncu aynı takımı kullanmalıdır.`;
     if (!finalChapterState().settings.preventTeamRepeat || !["quarterfinal", "semifinal"].includes(stage)) return "";
     const checks = [[match.homeId, homeTeam], [match.awayId, awayTeam]];
     for (const [playerId, team] of checks) {
@@ -1658,10 +1724,11 @@
     if (!match?.finalChapterStage) return;
     const stage = match.finalChapterStage;
     const poolStage = finalChapterPoolStage(stage);
-    const pool = finalChapterState().teamPools[poolStage] || [];
+    const configuredPool = finalChapterState().teamPools[poolStage] || [];
+    const pool = configuredPool.length ? configuredPool : stage === "thirdPlace" ? (finalChapterState().teamPools.final || []) : [];
     if (!pool.length) { toast(`${finalChapterStageLabel(stage)} takım havuzu boş. Önce takım havuzlarını düzenle.`, "error"); return; }
     if (matchComplete(match)) { toast("Sonucu girilmiş maçın takım kurası değiştirilemez.", "error"); return; }
-    if (stage === "final") {
+    if (["thirdPlace", "final"].includes(stage)) {
       const team = shuffled(pool, randomSeed())[0];
       match.homeTeam = team;
       match.awayTeam = team;
@@ -1752,10 +1819,12 @@
     const secondChanceFinalReady = fc.secondChanceSemi.locked && finalChapterStageComplete("secondChanceSemi");
     const qfReady = fc.secondChanceFinal.locked && finalChapterStageComplete("secondChanceFinal");
     const sfReady = fc.quarterfinal.locked && finalChapterStageComplete("quarterfinal");
+    const thirdPlaceMatch = fc.thirdPlace.match;
+    const thirdPlaceWinner = fc.thirdPlace.winnerId;
     const finalMatch = fc.final.match;
     const champion = fc.final.championId;
     view.innerHTML = `<div class="fc-engine-page">
-      <section class="fc-engine-hero"><div><div class="eyebrow">FIFA09 · FINAL CHAPTER</div><h2>Road to the Final</h2><p>Ana eleme ve Son Bilet play-off'u 4★, çeyrek final 4.5★, yarı final 5★. Bütün seriler Best of 3; iki galibiyet tur getirir. Büyük final tek maç ve aynı takım formatındadır.</p><div class="fc-direct-mini">${directNames.map(name => `<span>QF · ${name}</span>`).join("")}${withdrawnNames.map(name => `<span class="withdrawn">ÇEKİLDİ · ${name}</span>`).join("")}</div></div><div class="fc-engine-mark"><strong>${champion ? "🏆" : "09"}</strong><span>${champion ? `${displayName(champion)}<br>ŞAMPİYON` : "FINAL<br>CHAPTER"}</span></div></section>
+      <section class="fc-engine-hero"><div><div class="eyebrow">FIFA09 · FINAL CHAPTER</div><h2>Road to the Final</h2><p>Ana eleme ve Son Bilet play-off'u 4★, çeyrek final 4.5★, yarı final 5★. Bütün seriler Best of 3; iki galibiyet tur getirir. Yarı final kaybedenleri üçüncülük maçına, kazananları Büyük Final'e çıkar. İki final maçı da tek maç ve aynı takım formatındadır.</p><div class="fc-direct-mini">${directNames.map(name => `<span>QF · ${name}</span>`).join("")}${withdrawnNames.map(name => `<span class="withdrawn">ÇEKİLDİ · ${name}</span>`).join("")}</div></div><div class="fc-engine-mark"><strong>${champion ? "🏆" : "09"}</strong><span>${champion ? `${displayName(champion)}<br>ŞAMPİYON` : "FINAL<br>CHAPTER"}</span></div></section>
       <div class="fc-engine-toolbar"><div><span class="badge badge-gold">${escapeHTML(fc.status.toLocaleUpperCase("tr-TR"))}</span><small>Aktivasyon: ${fc.activatedAt ? new Date(fc.activatedAt).toLocaleString("tr-TR") : "—"}</small></div>${canEdit() ? `<div><button class="btn btn-ghost" data-action="open-fc-team-pools">Takım Havuzları</button><button class="btn btn-danger" data-action="fc-cancel-format">Formatı İptal Et</button></div>` : ""}</div>
       ${finalChapterBracketTree()}
       ${finalChapterProgressionBoard()}
@@ -1766,9 +1835,12 @@
       ${finalChapterStageSection("secondChanceSemi", "02 · SON BİLET PLAY-OFF YARI FİNALLERİ", "Ana elemede elenen dört oyuncu yeniden kuraya girer ve iki Best of 3 seri oynar. 4★.", secondChanceSemiReady, "Dört ana eleme kaybedeni bekleniyor")}
       ${finalChapterStageSection("secondChanceFinal", "03 · SON BİLET PLAY-OFF FİNALİ", "İki play-off yarı final galibi Best of 3 seride karşılaşır. Kazanan, sekizinci ve son çeyrek finalist olur. 4★.", secondChanceFinalReady, "Son Bilet yarı final galipleri bekleniyor")}
       ${finalChapterStageSection("quarterfinal", "04 · ÇEYREK FİNAL", "3 doğrudan finalist + 4 ana eleme galibi + 1 Son Bilet galibi: toplam 8 oyuncu. Best of 3 · 4.5★ · aynı tur içinde takım tekrarı yasak.", qfReady, "Son Bilet final galibi bekleniyor")}
-      ${finalChapterStageSection("semifinal", "05 · YARI FİNAL", "4 oyuncu yeniden kuraya girer. Best of 3 · 5★ · aynı tur içinde takım tekrarı yasak.", sfReady, "Çeyrek final galipleri bekleniyor")}
-      <section class="panel fc-engine-final ${finalMatch ? "ready" : "locked"}"><div class="fc-final-trophy">🏆</div><div><div class="eyebrow">06 · BÜYÜK FİNAL</div><h3>${finalMatch ? `${displayName(finalMatch.homeId)} vs ${displayName(finalMatch.awayId)}` : "Yarı final galipleri bekleniyor"}</h3><p>Tek maç · iki oyuncu aynı takım · beraberlikte uzatma ve penaltılar.</p>${finalMatch ? `<div class="fc-final-team">Takım: <strong>${escapeHTML(finalMatch.homeTeam || "Kura bekleniyor")}</strong></div>` : ""}</div>${finalMatch && canEdit() ? `<div class="fc-final-actions"><button class="btn btn-ghost" data-action="fc-draw-teams" data-match-id="${finalMatch.id}" ${matchComplete(finalMatch) ? "disabled" : ""}>Ortak Takımı Çek</button><button class="btn btn-gold" data-action="edit-match" data-match-id="${finalMatch.id}">${matchComplete(finalMatch) ? "Sonucu Düzelt" : "Final Sonucunu Gir"}</button></div>` : ""}</section>
-      ${champion ? `<section class="fc-champion-celebration"><span>FIFA09 ŞAMPİYONU</span><h2>${displayName(champion)}</h2><p>Final Chapter tamamlandı.</p></section>` : ""}
+      ${finalChapterStageSection("semifinal", "05 · YARI FİNAL", "4 oyuncu yeniden kuraya girer. Best of 3 · 5★ · aynı tur içinde takım tekrarı yasak. Kazananlar Büyük Final'e, kaybedenler Üçüncülük Maçı'na gider.", sfReady, "Çeyrek final galipleri bekleniyor")}
+      <div class="fc-placement-finals-grid">
+        <section class="panel fc-engine-final fc-engine-third-place ${thirdPlaceMatch ? "ready" : "locked"}"><div class="fc-final-trophy">🥉</div><div><div class="eyebrow">06 · ÜÇÜNCÜLÜK MAÇI</div><h3>${thirdPlaceMatch ? `${displayName(thirdPlaceMatch.homeId)} vs ${displayName(thirdPlaceMatch.awayId)}` : "Yarı final kaybedenleri bekleniyor"}</h3><p>Tek maç · iki oyuncu aynı takım · beraberlikte uzatma ve penaltılar.</p>${thirdPlaceMatch ? `<div class="fc-final-team">Takım: <strong>${escapeHTML(thirdPlaceMatch.homeTeam || "Kura bekleniyor")}</strong></div>` : ""}${thirdPlaceWinner ? `<div class="fc-placement-winner">🥉 ${escapeHTML(displayName(thirdPlaceWinner))} · FIFA 09 ÜÇÜNCÜSÜ</div>` : ""}</div>${thirdPlaceMatch && canEdit() ? `<div class="fc-final-actions"><button class="btn btn-ghost" data-action="fc-draw-teams" data-match-id="${thirdPlaceMatch.id}" ${matchComplete(thirdPlaceMatch) ? "disabled" : ""}>Ortak Takımı Çek</button><button class="btn btn-bronze" data-action="edit-match" data-match-id="${thirdPlaceMatch.id}">${matchComplete(thirdPlaceMatch) ? "Sonucu Düzelt" : "Üçüncülük Sonucunu Gir"}</button></div>` : ""}</section>
+        <section class="panel fc-engine-final ${finalMatch ? "ready" : "locked"}"><div class="fc-final-trophy">🏆</div><div><div class="eyebrow">07 · BÜYÜK FİNAL</div><h3>${finalMatch ? `${displayName(finalMatch.homeId)} vs ${displayName(finalMatch.awayId)}` : "Yarı final galipleri bekleniyor"}</h3><p>Tek maç · iki oyuncu aynı takım · beraberlikte uzatma ve penaltılar.</p>${finalMatch ? `<div class="fc-final-team">Takım: <strong>${escapeHTML(finalMatch.homeTeam || "Kura bekleniyor")}</strong></div>` : ""}</div>${finalMatch && canEdit() ? `<div class="fc-final-actions"><button class="btn btn-ghost" data-action="fc-draw-teams" data-match-id="${finalMatch.id}" ${matchComplete(finalMatch) ? "disabled" : ""}>Ortak Takımı Çek</button><button class="btn btn-gold" data-action="edit-match" data-match-id="${finalMatch.id}">${matchComplete(finalMatch) ? "Sonucu Düzelt" : "Final Sonucunu Gir"}</button></div>` : ""}</section>
+      </div>
+      ${champion ? `<section class="fc-champion-celebration"><span>FIFA09 ŞAMPİYONU</span><h2>${displayName(champion)}</h2><p>${thirdPlaceWinner ? `Final Chapter tamamlandı · Üçüncü: ${escapeHTML(displayName(thirdPlaceWinner))}` : "Üçüncülük maçı sonucu bekleniyor."}</p></section>` : ""}
     </div>`;
   }
 
@@ -1816,7 +1888,8 @@
     if (!phase2Finished()) return "phase2";
     if (finalChapterIsEnabled()) {
       refreshFinalChapter();
-      return finalChapterState().final.championId ? "completed" : "knockout";
+      const fc = finalChapterState();
+      return fc.final.championId && fc.thirdPlace?.winnerId ? "completed" : "knockout";
     }
     if (!state.current.knockout.generated) return "knockout-ready";
     if (!state.current.knockout.championId) return "knockout";
@@ -1889,18 +1962,37 @@
   }
 
   function currentFifa9Honour() {
+    const fc = finalChapterState();
+    const finalMatch = fc?.final?.match || null;
+    const championId = fc?.final?.championId || null;
+    const thirdPlaceMatch = fc?.thirdPlace?.match || null;
+    const thirdPlaceWinnerId = fc?.thirdPlace?.winnerId || null;
+
+    if (championId && finalMatch && matchComplete(finalMatch)) {
+      const runnerId = finalMatch.homeId === championId ? finalMatch.awayId : finalMatch.homeId;
+      return {
+        id: "live-oruc-9",
+        edition: 9,
+        competition: "oruc",
+        winner: playerName(championId),
+        runnerUp: playerName(runnerId),
+        third: thirdPlaceWinnerId ? playerName(thirdPlaceWinnerId) : "",
+        source: "live"
+      };
+    }
+
+    // Legacy fallback for installations that completed FIFA 09 before Final Chapter migration.
     const ko = state.current?.knockout || {};
     if (!ko.championId || !ko.final || !matchComplete(ko.final)) return null;
-    const winnerId = ko.championId;
-    const runnerId = ko.final.homeId === winnerId ? ko.final.awayId : ko.final.homeId;
+    const runnerId = ko.final.homeId === ko.championId ? ko.final.awayId : ko.final.homeId;
     return {
       id: "live-oruc-9",
       edition: 9,
       competition: "oruc",
-      winner: playerName(winnerId),
+      winner: playerName(ko.championId),
       runnerUp: playerName(runnerId),
-      third: "",
-      source: "live"
+      third: thirdPlaceWinnerId && thirdPlaceMatch ? playerName(thirdPlaceWinnerId) : "",
+      source: "legacy-live"
     };
   }
 
@@ -2146,14 +2238,15 @@
   }
 
   function navTo(target) {
-    if (activeView === "formula1" && target !== "formula1") {
-      window.F1_RACING?.stopRace?.();
+    if (REMOVED_GAME_ROUTES.has(target)) {
+      target = "dashboard";
+      toast("Career ve Formula modları performans sürümünde kaldırıldı.", "info");
     }
     if (target !== "livematch" && livePresentationMode !== "standard") exitLivePresentation(false);
     activeView = target;
     pageTitle.textContent = titleMap[target] || "FIFA 9";
     $$(".nav-item").forEach(item => item.classList.toggle("active", item.dataset.nav === target));
-    $("#sidebar").classList.remove("open");
+    window.FIFA9_NAVIGATION?.close?.({ restoreFocus: false }) || $("#sidebar").classList.remove("open");
     render();
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -2178,14 +2271,10 @@
       case "knockout": renderKnockout(); break;
       case "print": renderPrintCenter(); break;
       case "archive": renderArchive(); break;
-      case "museum": renderSeasonMuseum(); break;
-      case "seasonhub": window.FIFA_SEASON_HUB?.render?.(view); break;
+      case "benchmark": renderTournamentBenchmark(); break;
       case "alltime": renderAllTime(); break;
       case "teams": renderTeamStatistics(); break;
       case "backup": renderBackup(); break;
-      case "managerroom": window.FIFA_MANAGER_ROOM?.render?.(view); break;
-      case "managerhall": window.FIFA_MANAGER_ROOM?.renderHall?.(view); break;
-      case "formula1": window.F1_RACING?.render?.(view); break;
       case "playeraccess": renderPlayerAccessPage(); break;
       case "finalpoll": renderFinalPollPage(); break;
       default: renderDashboard();
@@ -2224,31 +2313,114 @@
     }).join("")}</div>`;
   }
 
+  function dashboardFifa9PodiumSnapshot() {
+    const fc = finalChapterState();
+    const finalMatch = fc?.final?.match || null;
+    const championId = fc?.final?.championId || null;
+    const thirdPlaceMatch = fc?.thirdPlace?.match || null;
+    const thirdPlaceWinnerId = fc?.thirdPlace?.winnerId || null;
+    const runnerId = championId && finalMatch
+      ? (finalMatch.homeId === championId ? finalMatch.awayId : finalMatch.homeId)
+      : null;
+
+    return {
+      edition: 9,
+      competition: "oruc",
+      winner: championId ? playerName(championId) : "Şampiyon bekleniyor",
+      runnerUp: runnerId ? playerName(runnerId) : (finalMatch ? `${playerName(finalMatch.homeId)} / ${playerName(finalMatch.awayId)}` : "Finalistler bekleniyor"),
+      third: thirdPlaceWinnerId ? playerName(thirdPlaceWinnerId) : (thirdPlaceMatch ? `${playerName(thirdPlaceMatch.homeId)} / ${playerName(thirdPlaceMatch.awayId)}` : "Yarı final kaybedenleri"),
+      winnerReady: Boolean(championId),
+      runnerReady: Boolean(runnerId),
+      thirdReady: Boolean(thirdPlaceWinnerId),
+      status: championId && thirdPlaceWinnerId ? "TAMAMLANDI" : finalMatch || thirdPlaceMatch ? "FİNAL GECESİ" : "DEVAM EDİYOR"
+    };
+  }
+
+  function dashboardTournamentPodiums() {
+    return allMuseumHonours()
+      .filter(item => item.competition === "oruc" && Number(item.edition) >= 1 && Number(item.edition) <= 9)
+      .sort((a, b) => Number(a.edition) - Number(b.edition));
+  }
+
+  function dashboardPodiumTrophy({ place, image, cupName, player, ready, sideLabel }) {
+    return `<article class="home-podium-place home-podium-${place} ${ready ? "is-decided" : "is-pending"}">
+      <div class="home-podium-rank"><span>${place === "gold" ? "01" : place === "silver" ? "02" : "03"}</span><b>${escapeHTML(sideLabel)}</b></div>
+      <div class="home-trophy-stage">
+        <div class="home-trophy-halo" aria-hidden="true"></div>
+        <img src="${image}" alt="${escapeHTML(cupName)}" class="home-trophy-image" ${place === "gold" ? 'loading="eager" fetchpriority="high"' : 'loading="lazy"'} decoding="async" />
+        <div class="home-trophy-nameplate">
+          <span>FIFA 09 · FINAL CHAPTER</span>
+          <strong>${escapeHTML(cupName)}</strong>
+        </div>
+      </div>
+      <div class="home-podium-player"><small>${ready ? "RESMÎ SONUÇ" : "EŞLEŞME DURUMU"}</small><strong>${escapeHTML(player)}</strong></div>
+    </article>`;
+  }
+
+  function renderDashboardChampionsPodium() {
+    const live = dashboardFifa9PodiumSnapshot();
+    const records = dashboardTournamentPodiums();
+    const championCards = records.length ? records : historicalHonours().slice(0, 8);
+
+    return `<section class="home-champions-section" aria-labelledby="homeChampionsTitle">
+      <div class="home-champions-heading">
+        <div><span>01 / HALL OF CHAMPIONS</span><h3 id="homeChampionsTitle">Şampiyonlar ve<br>turnuva podyumları.</h3></div>
+        <div><p>Her edisyonun şampiyonu, finalisti ve üçüncüsü tek bir prestij duvarında. FIFA 09 sonuçları Final Chapter tamamlandıkça otomatik güncellenir.</p><button type="button" data-nav="alltime">Tüm zamanları aç <b>↗</b></button></div>
+      </div>
+
+      <div class="home-podium-shell">
+        <header><div><span>FEATURED PODIUM</span><strong>FIFA 09 · FINAL CHAPTER</strong></div><b class="home-podium-status">${escapeHTML(live.status)}</b></header>
+        <div class="home-podium-grid">
+          ${dashboardPodiumTrophy({ place: "silver", image: "assets/trophies/fifa9-runner-up-silver.webp", cupName: "RUNNER-UP CUP", player: live.runnerUp, ready: live.runnerReady, sideLabel: "İKİNCİ" })}
+          ${dashboardPodiumTrophy({ place: "gold", image: "assets/trophies/fifa9-champion-gold.webp", cupName: "CHAMPION CUP", player: live.winner, ready: live.winnerReady, sideLabel: "ŞAMPİYON" })}
+          ${dashboardPodiumTrophy({ place: "bronze", image: "assets/trophies/fifa9-third-place-bronze.webp", cupName: "THIRD PLACE CUP", player: live.third, ready: live.thirdReady, sideLabel: "ÜÇÜNCÜ" })}
+        </div>
+      </div>
+
+      <div class="home-champion-wall">
+        <div class="home-champion-wall-title"><div><span>CHAMPIONS LIST</span><h4>FIFA I — IX Şampiyonları</h4></div><small>${championCards.filter(item => item.winner).length} kayıtlı edisyon</small></div>
+        <div class="home-champion-cards">
+          ${championCards.map(record => `<article class="home-champion-card ${Number(record.edition) === 9 ? "current" : ""}">
+            <div class="home-champion-edition"><span>FIFA</span><strong>${String(Number(record.edition) || 0).padStart(2, "0")}</strong></div>
+            <div class="home-champion-mini-trophy"><img src="assets/trophies/fifa9-champion-gold.webp" alt="" loading="lazy" decoding="async" /></div>
+            <div class="home-champion-name"><small>ŞAMPİYON</small><strong>${escapeHTML(record.winner || "Bekleniyor")}</strong></div>
+            <div class="home-champion-podium-row"><span><i>2</i>${escapeHTML(record.runnerUp || "—")}</span><span><i>3</i>${escapeHTML(record.third || "—")}</span></div>
+            <div class="home-champion-cup-label">FIFA ${String(Number(record.edition) || 0).padStart(2, "0")} TOURNAMENT CUP</div>
+          </article>`).join("")}
+          ${!championCards.some(item => Number(item.edition) === 9) ? `<article class="home-champion-card current pending">
+            <div class="home-champion-edition"><span>FIFA</span><strong>09</strong></div>
+            <div class="home-champion-mini-trophy"><img src="assets/trophies/fifa9-champion-gold.webp" alt="" loading="lazy" decoding="async" /></div>
+            <div class="home-champion-name"><small>ŞAMPİYON</small><strong>${escapeHTML(live.winner)}</strong></div>
+            <div class="home-champion-podium-row"><span><i>2</i>${escapeHTML(live.runnerUp)}</span><span><i>3</i>${escapeHTML(live.third)}</span></div>
+            <div class="home-champion-cup-label">FIFA 09 FINAL CHAPTER CUP</div>
+          </article>` : ""}
+        </div>
+      </div>
+    </section>`;
+  }
+
   function renderDashboard() {
     const leagueDone = leagueMatches().filter(matchComplete).length;
     const goldDone = goldMatches().filter(matchComplete).length;
     const silverDone = silverMatches().filter(matchComplete).length;
     const completedResults = leagueDone + goldDone + silverDone;
-    const champ = state.current.knockout.championId;
+    const champ = state.current.finalChapter?.final?.championId || state.current.knockout.championId;
     const stage = currentStage();
-    const season = (seasonSystem().seasons || []).find(item => Number(item.edition) === Number(seasonSystem().activeEdition || 10));
-    const managerCareer = window.FIFA_MANAGER_ROOM?.getActiveCareer?.();
     const activeLive = getActiveLive();
     const nextMatch = !activeLive ? liveEligibleMatches().find(match => match.homeId && match.awayId) : activeLive.match;
     const leader = state.current.league.generated ? leagueStandings()[0] : null;
     const progress = progressPercent();
+    const participantCount = (state.current.participants || []).length;
     const stageLabel = {
       setup:"KURA HAZIRLIĞI", league:"LEAGUE PHASE", "phase2-ready":"GRUPLAR HAZIR",
       phase2:"ALTIN + GÜMÜŞ", "knockout-ready":"FINAL CHAPTER HAZIR",
-      knockout:"FINAL CHAPTER", completed:"SEZON TAMAMLANDI"
+      knockout:"FINAL CHAPTER", completed:"TURNUVA TAMAMLANDI"
     }[stage] || "FIFA 09";
     const nextHome = nextMatch ? displayName(nextMatch.homeId) : "Oyuncu 1";
     const nextAway = nextMatch ? displayName(nextMatch.awayId) : "Oyuncu 2";
     const nextStage = nextMatch ? liveStageLabel(nextMatch) : "Fikstür hazırlanıyor";
     const liveScore = activeLive ? `${activeLive.live.homeScore} — ${activeLive.live.awayScore}` : "VS";
     const liveMeta = activeLive ? `${liveStatusText(activeLive.live)} · ${liveMinuteText(activeLive.live)}` : "NEXT MATCH";
-    const managerName = managerCareer?.playerName || "Manager profile ready";
-    const managerClub = managerCareer?.clubName || "Create your football legacy";
 
     view.innerHTML = `<div class="os-home" data-os-page="home">
       <section class="os-hero" aria-labelledby="osHeroTitle">
@@ -2257,22 +2429,22 @@
         <div class="os-hero-grid">
           <div class="os-hero-copy">
             <div class="os-kicker"><span class="os-live-beacon"></span><b>FIFA 09 · ${escapeHTML(stageLabel)}</b><i>${completedResults} OFFICIAL RESULTS</i></div>
-            <h2 id="osHeroTitle">Every match<br><em>rewrites the universe.</em></h2>
-            <p>One living platform for the Final Chapter, career management, real-time match intelligence and Formula Horizon competition.</p>
+            <h2 id="osHeroTitle">Every match<br><em>writes the final chapter.</em></h2>
+            <p>Final Chapter, live match operations, tournament intelligence and the complete FIFA 1–9 archive—now in one faster, focused hub.</p>
             <div class="os-hero-actions">
               <button class="os-primary-action" data-nav="knockout"><span>Enter Final Chapter</span><b>↗</b></button>
               <button class="os-secondary-action" data-nav="livematch"><i></i><span>Open Live Centre</span></button>
-              <button class="os-text-action" id="dashboardModeLauncher"><span>Explore universe</span><b>⌘K</b></button>
+              <button class="os-text-action" id="dashboardModeLauncher"><span>Explore tournament</span><b>⌘K</b></button>
             </div>
             <div class="os-hero-proof">
               <article><small>Edition</small><strong>09</strong><span>Final Chapter</span></article>
               <article><small>Progress</small><strong data-os-count="${progress}">${progress}</strong><span>percent complete</span></article>
-              <article><small>Formula</small><strong>03</strong><span>masterpiece circuits</span></article>
+              <article><small>Archive</small><strong>09</strong><span>tournament editions</span></article>
             </div>
           </div>
 
           <div class="os-hero-console">
-            <article class="os-match-console" data-os-tilt data-nav="${activeLive ? "livematch" : "odds"}">
+            <article class="os-match-console" data-nav="${activeLive ? "livematch" : "odds"}">
               <div class="os-console-grid" aria-hidden="true"></div>
               <header><span><i class="${activeLive ? "is-live" : ""}"></i>${liveMeta}</span><b>${escapeHTML(nextStage)}</b></header>
               <div class="os-match-identity">
@@ -2285,62 +2457,64 @@
             </article>
 
             <div class="os-console-metrics">
-              <article data-os-tilt><small>TOURNAMENT PULSE</small><strong>${progress}%</strong><div class="os-progress-ring" style="--os-progress:${progress * 3.6}deg"><span>${completedResults}</span></div><p>Official results recorded across the active competition.</p></article>
-              <article data-os-tilt><small>CURRENT LEADER</small><strong>${leader ? escapeHTML(leader.p) : "Awaiting draw"}</strong><span>${leader ? `${leader.pts} PTS · ${leader.w} WINS` : "League table will activate automatically"}</span><div class="os-sparkline"><i></i><i></i><i></i><i></i><i></i><i></i></div></article>
+              <article><small>TOURNAMENT PULSE</small><strong>${progress}%</strong><div class="os-progress-ring" style="--os-progress:${progress * 3.6}deg"><span>${completedResults}</span></div><p>Official results recorded across the active competition.</p></article>
+              <article><small>CURRENT LEADER</small><strong>${leader ? escapeHTML(leader.p) : "Awaiting draw"}</strong><span>${leader ? `${leader.pts} PTS · ${leader.w} WINS` : "League table will activate automatically"}</span><div class="os-sparkline"><i></i><i></i><i></i><i></i><i></i><i></i></div></article>
             </div>
           </div>
         </div>
-        <div class="os-scroll-signal"><span>SCROLL TO ENTER THE UNIVERSE</span><i></i></div>
+        <div class="os-scroll-signal"><span>SCROLL TO ENTER THE TOURNAMENT</span><i></i></div>
       </section>
 
       <section class="os-ticker" aria-label="Tournament signal stream">
         <div><span>LIVE SYSTEM</span><b>${state.current.live?.active ? "MATCH ACTIVE" : "READY"}</b></div>
         <div><span>CURRENT STAGE</span><b>${escapeHTML(stageLabel)}</b></div>
-        <div><span>CAREER ENGINE</span><b>FIFA ${seasonSystem().activeEdition || 10}</b></div>
-        <div><span>MANAGER ID</span><b>${escapeHTML(managerName)}</b></div>
-        <div><span>FORMULA NETWORK</span><b>3 CIRCUITS · 5 LAPS</b></div>
+        <div><span>OFFICIAL RESULTS</span><b>${completedResults}</b></div>
+        <div><span>PLAYER FIELD</span><b>${participantCount || 16} PLAYERS</b></div>
+        <div><span>ARCHIVE</span><b>FIFA I — IX</b></div>
       </section>
+
+      ${renderDashboardChampionsPodium()}
 
       <section class="os-arena-section">
         <div class="os-section-heading">
-          <div><span>01 / CHOOSE YOUR ARENA</span><h3>One platform.<br>Four competitive worlds.</h3></div>
-          <p>Each mode has its own rhythm, data language and visual atmosphere—connected by a single identity.</p>
+          <div><span>02 / TOURNAMENT CONTROL</span><h3>One competition.<br>Four decisive layers.</h3></div>
+          <p>The hub is now focused only on tournament operations, live data, comparative report cards and historical records.</p>
         </div>
 
-        <div class="os-arena-grid">
-          <article class="os-arena-card os-tournament-card" data-os-tilt data-nav="knockout">
+        <div class="os-arena-grid os-tournament-only-grid">
+          <article class="os-arena-card os-tournament-card" data-nav="knockout">
             <div class="os-card-noise"></div>
             <header><span>01</span><b>${escapeHTML(stageLabel)}</b></header>
-            <div><small>FIFA 09</small><h4>Final Chapter</h4><p>Playoff pressure, knockout series and the final path to one champion.</p></div>
+            <div><small>FIFA 09</small><h4>Final Chapter</h4><p>Semifinals, third-place match and the final path to one champion.</p></div>
             <div class="os-stage-path"><span class="done">League</span><i></i><span class="done">Groups</span><i></i><span class="active">Final</span></div>
             <footer><strong>${champ ? `${escapeHTML(playerName(champ))} · CHAMPION` : `${progress}% COMPLETE`}</strong><b>ENTER ↗</b></footer>
           </article>
 
-          <article class="os-arena-card os-career-card" data-os-tilt data-nav="managerroom">
-            <header><span>02</span><b>CAREER OS</b></header>
-            <div class="os-career-visual"><i></i><i></i><i></i><span>MR</span></div>
-            <div><small>THE MANAGER'S ROOM</small><h4>${escapeHTML(managerClub)}</h4><p>${escapeHTML(managerName)} · reputation, tactical identity and a living season.</p></div>
-            <footer><strong>${managerCareer ? `ELO ${managerCareer.managerElo}` : "CAREER READY"}</strong><b>MANAGE ↗</b></footer>
+          <article class="os-arena-card os-live-core-card" data-nav="livematch">
+            <header><span>02</span><b>LIVE OPERATIONS</b></header>
+            <div class="os-radar-visual"><span></span><i></i><i></i><i></i></div>
+            <div><small>MATCH CENTRE</small><h4>Control match night.</h4><p>Score, timeline, broadcast view and live statistical flow in one place.</p></div>
+            <footer><strong>${activeLive ? "MATCH ACTIVE" : "SYSTEM READY"}</strong><b>OPEN ↗</b></footer>
           </article>
 
-          <article class="os-arena-card os-formula-card" data-os-tilt data-nav="formula1">
-            <header><span>03</span><b>WEBGL RACING</b></header>
-            <div class="os-track-visual"><svg viewBox="0 0 320 170" aria-hidden="true"><path d="M34 104C28 52 68 24 118 38c48 13 59 70 100 68 35-2 28-58 61-55 27 2 22 66-4 85-43 31-92-7-129 3-49 14-103 15-112-35Z"/><circle cx="34" cy="104" r="5"/><circle cx="279" cy="51" r="5"/></svg><span>5 LAPS</span></div>
-            <div><small>FORMULA HORIZON REBORN</small><h4>Drive the record.</h4><p>Three real 3D circuits, personal ghost and global timing architecture.</p></div>
-            <footer><strong>ORUÇ REİS · FILYOS · DRAGON</strong><b>RACE ↗</b></footer>
+          <article class="os-arena-card os-report-card" data-nav="benchmark">
+            <header><span>03</span><b>FIFA I — IX</b></header>
+            <div class="os-career-visual"><i></i><i></i><i></i><span>∑</span></div>
+            <div><small>TOURNAMENT REPORT CARDS</small><h4>Compare every edition.</h4><p>Tempo, balance, drama, match profile and non-champion performance atlas.</p></div>
+            <footer><strong>9 EDITIONS</strong><b>COMPARE ↗</b></footer>
           </article>
 
-          <article class="os-arena-card os-intelligence-card" data-os-tilt data-nav="intelligence">
+          <article class="os-arena-card os-intelligence-card" data-nav="intelligence">
             <header><span>04</span><b>AI DIRECTOR</b></header>
             <div class="os-radar-visual"><span></span><i></i><i></i><i></i></div>
-            <div><small>INTELLIGENCE CENTRE</small><h4>Read what happens next.</h4><p>Form, pressure, probability and destiny signals in one live decision layer.</p></div>
+            <div><small>INTELLIGENCE CENTRE</small><h4>Read what happens next.</h4><p>Form, pressure, probability and destiny signals in one decision layer.</p></div>
             <footer><strong>LIVE MODELS</strong><b>ANALYSE ↗</b></footer>
           </article>
         </div>
       </section>
 
       <section class="os-operations-section">
-        <div class="os-section-heading compact"><div><span>02 / OPERATIONS LAYER</span><h3>Everything live.<br>Nothing buried.</h3></div><p>Fast access to the tools used during match night.</p></div>
+        <div class="os-section-heading compact"><div><span>03 / OPERATIONS LAYER</span><h3>Everything live.<br>Nothing buried.</h3></div><p>Fast access to the tools used during match night.</p></div>
         <div class="os-operation-rail">
           <button data-nav="livematch"><span class="os-op-icon live"><i></i></span><div><small>NOW</small><strong>Live Match</strong><p>Broadcast, score and match flow</p></div><b>↗</b></button>
           <button data-nav="livestats"><span class="os-op-icon">⌁</span><div><small>DATA</small><strong>Live Statistics</strong><p>xT, momentum and performance</p></div><b>↗</b></button>
@@ -2352,12 +2526,12 @@
 
       <section class="os-system-section">
         <article class="os-system-story">
-          <span>03 / LIVING FOOTBALL SYSTEM</span><h3>The competition does not end when the match does.</h3><p>Persistent careers, historic records and every rivalry remain connected across editions.</p>
-          <div><button data-nav="seasonhub">Open FIFA ${seasonSystem().activeEdition || 10} League System <b>↗</b></button><button data-nav="alltime">Explore all-time legacy</button></div>
+          <span>04 / TOURNAMENT LEGACY</span><h3>The competition does not end when the final whistle blows.</h3><p>Every edition, result, rivalry and record remains connected without loading separate game engines.</p>
+          <div><button data-nav="benchmark">Open Tournament Report Cards <b>↗</b></button><button data-nav="alltime">Explore all-time legacy</button></div>
         </article>
         <div class="os-system-data">
-          <article><small>ACTIVE SEASON</small><strong>FIFA ${seasonSystem().activeEdition || 10}</strong><span>${season?.players?.length || 0} registered players</span></article>
-          <article><small>CAREER IDENTITY</small><strong>${escapeHTML(managerClub)}</strong><span>${managerCareer ? `Manager ELO ${managerCareer.managerElo}` : "No active career yet"}</span></article>
+          <article><small>ACTIVE EDITION</small><strong>FIFA 09</strong><span>${escapeHTML(stageLabel)}</span></article>
+          <article><small>RESULT DATABASE</small><strong>${completedResults}</strong><span>official FIFA 09 results</span></article>
           <article><small>ARCHIVE</small><strong>FIFA I — IX</strong><span>Titles, finals and rivalries</span></article>
         </div>
       </section>
@@ -3868,6 +4042,559 @@
     }).join("")}</div>`;
   }
 
+
+  function benchmarkClamp(value, min = 0, max = 100) {
+    return Math.max(min, Math.min(max, Number(value) || 0));
+  }
+
+  function benchmarkNumber(value, digits = 2) {
+    const number = Number(value || 0);
+    return Number.isFinite(number) ? number.toFixed(digits) : (0).toFixed(digits);
+  }
+
+  function benchmarkStdDev(values) {
+    const clean = values.map(Number).filter(Number.isFinite);
+    if (clean.length < 2) return 0;
+    const mean = clean.reduce((sum, value) => sum + value, 0) / clean.length;
+    return Math.sqrt(clean.reduce((sum, value) => sum + Math.pow(value - mean, 2), 0) / clean.length);
+  }
+
+  function benchmarkMedian(values) {
+    const clean = values.map(Number).filter(Number.isFinite).sort((a, b) => a - b);
+    if (!clean.length) return 0;
+    const middle = Math.floor(clean.length / 2);
+    return clean.length % 2 ? clean[middle] : (clean[middle - 1] + clean[middle]) / 2;
+  }
+
+  function benchmarkNameKey(name) {
+    return normalizeAdministrativeName(String(name || "").trim());
+  }
+
+  function benchmarkChampionSet() {
+    const champions = new Set();
+    const add = name => {
+      const key = benchmarkNameKey(name);
+      if (key) champions.add(key);
+    };
+    (historical.champions || []).forEach(row => {
+      if (Number(row.titles || 0) > 0) add(row.name);
+    });
+    (historical.editions || []).forEach(edition => add(edition.champion));
+    const finalChapterChampion = state.current.finalChapter?.final?.championId;
+    const legacyChampion = state.current.knockout?.championId;
+    if (finalChapterChampion) add(playerName(finalChapterChampion));
+    if (legacyChampion) add(playerName(legacyChampion));
+    return champions;
+  }
+
+  function benchmarkHonoursMap() {
+    const map = new Map();
+    const ensure = name => {
+      const key = benchmarkNameKey(name);
+      if (!key) return null;
+      if (!map.has(key)) map.set(key, { name: String(name || "").trim(), titles: 0, finals: 0, podiums: 0 });
+      return map.get(key);
+    };
+    (historical.champions || []).forEach(row => {
+      const record = ensure(row.name);
+      if (!record) return;
+      record.titles = Math.max(record.titles, Number(row.titles || 0));
+      record.finals = Math.max(record.finals, Number(row.finals || 0));
+      record.podiums = Math.max(record.podiums, Number(row.podiums || 0));
+    });
+    const derived = new Map();
+    const countDerived = (name, field) => {
+      const key = benchmarkNameKey(name);
+      if (!key) return;
+      if (!derived.has(key)) derived.set(key, { name: String(name || "").trim(), titles: 0, finals: 0, podiums: 0 });
+      derived.get(key)[field] += 1;
+    };
+    (historical.editions || []).forEach(edition => {
+      countDerived(edition.champion, "titles"); countDerived(edition.champion, "finals"); countDerived(edition.champion, "podiums");
+      countDerived(edition.runnerUp, "finals"); countDerived(edition.runnerUp, "podiums");
+      countDerived(edition.third, "podiums");
+    });
+    derived.forEach(row => {
+      const record = ensure(row.name);
+      record.titles = Math.max(record.titles, row.titles);
+      record.finals = Math.max(record.finals, row.finals);
+      record.podiums = Math.max(record.podiums, row.podiums);
+    });
+    const fc = state.current.finalChapter;
+    const finalMatch = fc?.final?.match;
+    const championId = fc?.final?.championId;
+    if (finalMatch && championId) {
+      const winner = ensure(playerName(championId));
+      const runnerId = championId === finalMatch.homeId ? finalMatch.awayId : finalMatch.homeId;
+      const runner = ensure(playerName(runnerId));
+      if (winner) { winner.titles += 1; winner.finals += 1; winner.podiums += 1; }
+      if (runner) { runner.finals += 1; runner.podiums += 1; }
+    }
+    const thirdId = fc?.thirdPlace?.winnerId;
+    if (thirdId) {
+      const third = ensure(playerName(thirdId));
+      if (third) third.podiums += 1;
+    }
+    if (!championId && state.current.knockout?.championId && state.current.knockout?.final) {
+      const legacyFinal = state.current.knockout.final;
+      const legacyChampionId = state.current.knockout.championId;
+      const winner = ensure(playerName(legacyChampionId));
+      const runnerId = legacyChampionId === legacyFinal.homeId ? legacyFinal.awayId : legacyFinal.homeId;
+      const runner = ensure(playerName(runnerId));
+      if (winner) { winner.titles += 1; winner.finals += 1; winner.podiums += 1; }
+      if (runner) { runner.finals += 1; runner.podiums += 1; }
+    }
+    return map;
+  }
+
+  function benchmarkStageWeight(stage) {
+    const value = String(stage || "").toLocaleLowerCase("en-US");
+    if (/third|3rd|üçün/.test(value)) return 1.25;
+    if (/semi|yarı/.test(value)) return 1.35;
+    if (/quarter|çeyrek/.test(value)) return 1.20;
+    if (/grand final|büyük final/.test(value)) return 1.50;
+    if (/final/.test(value) && !/chapter/.test(value)) return 1.50;
+    if (/knockout|play.?off|son bilet|eleme/.test(value)) return 1.15;
+    if (/gold|silver|altın|gümüş/.test(value)) return 1.05;
+    return 1;
+  }
+
+  function benchmarkMatchResult(match) {
+    const homeScore = Number(match.homeScore);
+    const awayScore = Number(match.awayScore);
+    const homeName = String(match.homeName || "").trim();
+    const awayName = String(match.awayName || "").trim();
+    if (homeScore > awayScore) return { home: 3, away: 0, winner: homeName, draw: false };
+    if (awayScore > homeScore) return { home: 0, away: 3, winner: awayName, draw: false };
+    const winnerKey = benchmarkNameKey(match.winnerName);
+    if (winnerKey) {
+      const homeWins = winnerKey === benchmarkNameKey(homeName);
+      return { home: homeWins ? 3 : 0, away: homeWins ? 0 : 3, winner: homeWins ? homeName : awayName, draw: false };
+    }
+    return { home: 1, away: 1, winner: "", draw: true };
+  }
+
+  function benchmarkEmptyRow(name, edition = null) {
+    return {
+      name, edition, games: 0, wins: 0, draws: 0, losses: 0, points: 0,
+      gf: 0, ga: 0, weightedPoints: 0, weightedGames: 0,
+      clutchGames: 0, clutchPoints: 0, closeGames: 0, editions: new Map()
+    };
+  }
+
+  function benchmarkApplySide(row, editionRow, side) {
+    for (const target of [row, editionRow]) {
+      target.games += 1;
+      target.gf += side.gf;
+      target.ga += side.ga;
+      target.points += side.points;
+      target.weightedPoints += side.points * side.weight;
+      target.weightedGames += side.weight;
+      if (side.points === 3) target.wins += 1;
+      else if (side.points === 1) target.draws += 1;
+      else target.losses += 1;
+      if (side.weight >= 1.20) {
+        target.clutchGames += 1;
+        target.clutchPoints += side.points;
+      }
+      if (side.margin <= 1) target.closeGames += 1;
+    }
+  }
+
+  function buildTournamentBenchmarkAnalytics() {
+    const championSet = benchmarkChampionSet();
+    const honours = benchmarkHonoursMap();
+    const matches = buildUnifiedAllTimeMatches().filter(match => {
+      const home = String(match.homeName || "").trim();
+      const away = String(match.awayName || "").trim();
+      return home && away && !/^P\d+$/i.test(home) && !/^P\d+$/i.test(away) && Number.isFinite(Number(match.homeScore)) && Number.isFinite(Number(match.awayScore));
+    });
+    const playerMap = new Map();
+    const editionMap = new Map();
+
+    const ensurePlayer = name => {
+      const key = benchmarkNameKey(name);
+      if (!playerMap.has(key)) playerMap.set(key, benchmarkEmptyRow(String(name || "").trim()));
+      return playerMap.get(key);
+    };
+    const ensureEdition = edition => {
+      const number = Number(edition) || 0;
+      if (!editionMap.has(number)) editionMap.set(number, { edition: number, label: `FIFA ${number}`, matches: [], players: new Map(), champion: "" });
+      return editionMap.get(number);
+    };
+    const ensureEditionPlayer = (editionRecord, name) => {
+      const key = benchmarkNameKey(name);
+      if (!editionRecord.players.has(key)) editionRecord.players.set(key, benchmarkEmptyRow(String(name || "").trim(), editionRecord.edition));
+      return editionRecord.players.get(key);
+    };
+
+    matches.forEach(match => {
+      const edition = Number(match.edition) || 0;
+      const editionRecord = ensureEdition(edition);
+      editionRecord.matches.push(match);
+      const result = benchmarkMatchResult(match);
+      const weight = benchmarkStageWeight(match.stage);
+      const margin = Math.abs(Number(match.homeScore) - Number(match.awayScore));
+      const home = ensurePlayer(match.homeName);
+      const away = ensurePlayer(match.awayName);
+      const homeEdition = ensureEditionPlayer(editionRecord, match.homeName);
+      const awayEdition = ensureEditionPlayer(editionRecord, match.awayName);
+      benchmarkApplySide(home, homeEdition, { gf: Number(match.homeScore), ga: Number(match.awayScore), points: result.home, weight, margin });
+      benchmarkApplySide(away, awayEdition, { gf: Number(match.awayScore), ga: Number(match.homeScore), points: result.away, weight, margin });
+      home.editions.set(edition, homeEdition);
+      away.editions.set(edition, awayEdition);
+    });
+
+    (historical.editions || []).forEach(edition => {
+      const record = ensureEdition(edition.edition);
+      record.champion = edition.champion || record.champion;
+    });
+    const currentChampion = state.current.finalChapter?.final?.championId || state.current.knockout?.championId;
+    if (currentChampion) ensureEdition(state.current.edition || 9).champion = playerName(currentChampion);
+
+    const finalizeBasic = row => {
+      row.gd = row.gf - row.ga;
+      row.ppg = row.games ? row.points / row.games : 0;
+      row.winRate = row.games ? row.wins / row.games * 100 : 0;
+      row.unbeatenRate = row.games ? (row.wins + row.draws) / row.games * 100 : 0;
+      row.gfPerGame = row.games ? row.gf / row.games : 0;
+      row.gaPerGame = row.games ? row.ga / row.games : 0;
+      row.gdPerGame = row.games ? row.gd / row.games : 0;
+      row.weightedPPG = row.weightedGames ? row.weightedPoints / row.weightedGames : row.ppg;
+      row.clutchPPG = row.clutchGames ? row.clutchPoints / row.clutchGames : row.ppg;
+      row.closeRate = row.games ? row.closeGames / row.games * 100 : 0;
+      return row;
+    };
+
+    const editionRows = [...editionMap.values()].filter(edition => edition.matches.length).sort((a, b) => a.edition - b.edition).map(edition => {
+      const players = [...edition.players.values()].map(finalizeBasic);
+      const ppgValues = players.map(row => row.ppg);
+      const avgPPG = players.length ? players.reduce((sum, row) => sum + row.ppg, 0) / players.length : 0;
+      const avgGF = edition.matches.length ? edition.matches.reduce((sum, match) => sum + Number(match.homeScore) + Number(match.awayScore), 0) / edition.matches.length : 0;
+      const drawCount = edition.matches.filter(match => benchmarkMatchResult(match).draw).length;
+      const avgMargin = edition.matches.length ? edition.matches.reduce((sum, match) => sum + Math.abs(Number(match.homeScore) - Number(match.awayScore)), 0) / edition.matches.length : 0;
+      const closeRate = edition.matches.length ? edition.matches.filter(match => Math.abs(Number(match.homeScore) - Number(match.awayScore)) <= 1).length / edition.matches.length * 100 : 0;
+      const balanceIndex = Math.round(benchmarkClamp(100 - benchmarkStdDev(ppgValues) / 1.25 * 100));
+      const medianPPG = benchmarkMedian(ppgValues);
+      players.forEach(row => {
+        row.performanceRaw = row.ppg / 3 * 55 + row.winRate / 100 * 25 + benchmarkClamp(50 + row.gdPerGame * 18) / 100 * 20;
+      });
+      const ranked = [...players].sort((a, b) => b.performanceRaw - a.performanceRaw || b.games - a.games || a.name.localeCompare(b.name, "tr"));
+      ranked.forEach((row, index) => {
+        row.percentile = ranked.length <= 1 ? 50 : (ranked.length - 1 - index) / (ranked.length - 1) * 100;
+        row.relativePPG = row.ppg - avgPPG;
+        row.editionAveragePPG = avgPPG;
+      });
+      const eligible = ranked.filter(row => !championSet.has(benchmarkNameKey(row.name)));
+      return {
+        ...edition,
+        players: ranked,
+        playerMap: new Map(ranked.map(row => [benchmarkNameKey(row.name), row])),
+        avgPPG, medianPPG, goalsPerMatch: avgGF, drawRate: edition.matches.length ? drawCount / edition.matches.length * 100 : 0,
+        avgMargin, closeRate, balanceIndex, nonChampionLeader: eligible[0] || null
+      };
+    });
+    const editionAnalyticsMap = new Map(editionRows.map(row => [row.edition, row]));
+
+    const allRows = [...playerMap.values()].map(row => {
+      finalizeBasic(row);
+      const editions = [...row.editions.entries()].sort((a, b) => a[0] - b[0]).map(([edition, raw]) => {
+        const finalized = finalizeBasic(raw);
+        const environment = editionAnalyticsMap.get(edition);
+        const official = environment?.playerMap.get(benchmarkNameKey(row.name));
+        return {
+          ...finalized,
+          percentile: official?.percentile ?? 50,
+          relativePPG: official?.relativePPG ?? 0,
+          editionAveragePPG: official?.editionAveragePPG ?? 0,
+          balanceIndex: environment?.balanceIndex ?? 0
+        };
+      });
+      const percentiles = editions.map(item => item.percentile);
+      const eraIndex = percentiles.length ? percentiles.reduce((sum, value) => sum + value, 0) / percentiles.length : 0;
+      const rawConsistency = benchmarkClamp(100 - benchmarkStdDev(percentiles) * 1.65);
+      const consistencySample = editions.length <= 1 ? 0 : Math.min(1, (editions.length - 1) / 3);
+      const consistency = editions.length <= 1 ? 50 : 50 + (rawConsistency - 50) * consistencySample;
+      const peakEdition = editions.length ? [...editions].sort((a, b) => b.percentile - a.percentile || b.ppg - a.ppg)[0] : null;
+      const aboveAverage = editions.filter(item => item.relativePPG >= 0).length;
+      const globalAveragePPG = matches.length ? [...playerMap.values()].reduce((sum, item) => sum + item.points, 0) / Math.max(1, matches.length * 2) : 1.5;
+      const adjustedPPG = (row.points + globalAveragePPG * 5) / (row.games + 5);
+      const reliability = 1 - Math.exp(-row.games / 18);
+      const gdIndex = benchmarkClamp(50 + row.gdPerGame * 20);
+      const rawScore = adjustedPPG / 3 * 100 * .27 + row.winRate * .18 + gdIndex * .16 + row.clutchPPG / 3 * 100 * .16 + eraIndex * .13 + consistency * .10;
+      const benchmarkScore = rawScore * (.78 + reliability * .22);
+      const versatility = editions.length ? benchmarkClamp((editions.length / Math.max(1, editionRows.length) * 100) * .58 + (aboveAverage / editions.length * 100) * .42) : 0;
+      const firstEdition = editions[0] || null;
+      const lastEdition = editions[editions.length - 1] || null;
+      const momentum = editions.length > 1 ? lastEdition.ppg - firstEdition.ppg : 0;
+      const honour = honours.get(benchmarkNameKey(row.name)) || { titles: 0, finals: 0, podiums: 0 };
+      return {
+        ...row, editions, editionCount: editions.length, eraIndex, consistency, peakEdition, aboveAverage,
+        adjustedPPG, reliability, benchmarkScore, versatility, momentum,
+        finals: Number(honour.finals || 0), podiums: Number(honour.podiums || 0), titles: Number(honour.titles || 0)
+      };
+    });
+
+    const players = allRows.filter(row => !championSet.has(benchmarkNameKey(row.name))).sort((a, b) => b.benchmarkScore - a.benchmarkScore || b.games - a.games || a.name.localeCompare(b.name, "tr"));
+    players.forEach((row, index) => row.benchmarkRank = index + 1);
+    const metricDefinitions = {
+      benchmark: { label: intelligenceCopy("Benchmark", "Benchmark"), short: "BMX", description: intelligenceCopy("Maç başı üretim, büyük maç, dönem uyumu ve istikrar", "Per-match production, big matches, era fit and consistency"), value: row => row.benchmarkScore, format: row => benchmarkNumber(row.benchmarkScore, 1) },
+      ppg: { label: intelligenceCopy("Puan / Maç", "Points / Match"), short: "PPG", description: intelligenceCopy("Bütün sonuçların standart 3-1-0 ortalaması", "Standard 3-1-0 average across every result"), value: row => row.ppg, format: row => benchmarkNumber(row.ppg, 2) },
+      clutch: { label: intelligenceCopy("Büyük Maç", "Big Match"), short: "CLUTCH", description: intelligenceCopy("Çeyrek final ve sonrası maç başı puan", "Points per match from quarter-finals onward"), value: row => row.clutchPPG, format: row => benchmarkNumber(row.clutchPPG, 2) },
+      consistency: { label: intelligenceCopy("İstikrar", "Consistency"), short: "CONS", description: intelligenceCopy("Turnuvalar arası performans sapmasının düşüklüğü", "Low performance variance between tournaments"), value: row => row.consistency, format: row => benchmarkNumber(row.consistency, 0) },
+      era: { label: intelligenceCopy("Dönem Üstünlüğü", "Era Dominance"), short: "ERA", description: intelligenceCopy("Her turnuvanın kendi ortamındaki yüzdelik dilim", "Percentile rank inside each tournament environment"), value: row => row.eraIndex, format: row => benchmarkNumber(row.eraIndex, 0) }
+    };
+    const selectedMetric = metricDefinitions[tournamentBenchmarkMetric] || metricDefinitions.benchmark;
+    const sortedPlayers = [...players].sort((a, b) => selectedMetric.value(b) - selectedMetric.value(a) || b.games - a.games || a.name.localeCompare(b.name, "tr"));
+    sortedPlayers.forEach((row, index) => row.metricRank = index + 1);
+
+    const mostImproved = players.filter(row => row.editionCount >= 2).sort((a, b) => b.momentum - a.momentum || b.games - a.games)[0] || null;
+    const almostChampion = [...players].sort((a, b) => b.finals - a.finals || b.podiums - a.podiums || b.benchmarkScore - a.benchmarkScore)[0] || null;
+    const mostBalancedEdition = [...editionRows].sort((a, b) => b.balanceIndex - a.balanceIndex || b.closeRate - a.closeRate)[0] || null;
+    const highestTempoEdition = [...editionRows].sort((a, b) => b.goalsPerMatch - a.goalsPerMatch)[0] || null;
+
+    return {
+      players, sortedPlayers, allRows, editionRows, championSet, metricDefinitions, selectedMetric,
+      records: {
+        benchmark: players[0] || null,
+        ppg: [...players].sort((a, b) => b.ppg - a.ppg || b.games - a.games)[0] || null,
+        clutch: [...players].filter(row => row.clutchGames > 0).sort((a, b) => b.clutchPPG - a.clutchPPG || b.clutchGames - a.clutchGames)[0] || null,
+        consistency: [...players].filter(row => row.editionCount >= 2).sort((a, b) => b.consistency - a.consistency || b.editionCount - a.editionCount)[0] || null,
+        mostImproved, almostChampion, mostBalancedEdition, highestTempoEdition
+      },
+      summary: {
+        matches: matches.length,
+        players: players.length,
+        championsExcluded: championSet.size,
+        editions: editionRows.length,
+        avgGames: players.length ? players.reduce((sum, row) => sum + row.games, 0) / players.length : 0
+      }
+    };
+  }
+
+  function tournamentBenchmarkIdentity(row) {
+    if (!row) return [];
+    const tags = [];
+    if (row.clutchGames >= 2 && row.clutchPPG >= 2.1) tags.push(intelligenceCopy("Büyük Maç Oyuncusu", "Big-Game Player"));
+    if (row.consistency >= 78 && row.editionCount >= 2) tags.push(intelligenceCopy("İstikrar Ustası", "Consistency Master"));
+    if (row.momentum >= .45) tags.push(intelligenceCopy("Yükselişte", "On the Rise"));
+    if (row.gfPerGame >= 3.25) tags.push(intelligenceCopy("Yüksek Tempo", "High Tempo"));
+    if (row.gaPerGame <= 2.15) tags.push(intelligenceCopy("Kontrollü Oyun", "Controlled Game"));
+    if (row.versatility >= 70) tags.push(intelligenceCopy("Dönemler Üstü", "Cross-Era"));
+    if (!tags.length) tags.push(intelligenceCopy("Dengeli Rakip", "Balanced Contender"));
+    return tags.slice(0, 3);
+  }
+
+  function tournamentBenchmarkLeaderCard(label, row, value, note, code) {
+    if (!row) return `<article class="tb-leader-card empty"><span>${escapeHTML(code)}</span><h3>–</h3><p>${escapeHTML(note)}</p></article>`;
+    return `<article class="tb-leader-card"><span>${escapeHTML(code)}</span><small>${escapeHTML(label)}</small><h3>${escapeHTML(row.name)}</h3><strong>${escapeHTML(value)}</strong><p>${escapeHTML(note)}</p></article>`;
+  }
+
+  function tournamentBenchmarkMetricTabs(analytics) {
+    return `<div class="tb-metric-tabs">${Object.entries(analytics.metricDefinitions).map(([key, definition]) => `<button class="${tournamentBenchmarkMetric === key ? "active" : ""}" data-action="set-tournament-benchmark-metric" data-benchmark-metric="${key}"><span>${escapeHTML(definition.short)}</span><strong>${escapeHTML(definition.label)}</strong><small>${escapeHTML(definition.description)}</small></button>`).join("")}</div>`;
+  }
+
+  function tournamentBenchmarkTable(analytics) {
+    const rows = analytics.sortedPlayers;
+    if (!rows.length) return `<div class="info-box">${intelligenceCopy("Şampiyonlar çıkarıldıktan sonra sıralanacak oyuncu verisi bulunmuyor.", "No player data remains after champions are excluded.")}</div>`;
+    return `<div class="table-wrap tb-ranking-table"><table><thead><tr><th>#</th><th class="player-col">${intelligenceCopy("Oyuncu", "Player")}</th><th>${intelligenceCopy("Turnuva", "Editions")}</th><th>O</th><th>P</th><th>PPG</th><th>G%</th><th>GF/M</th><th>GA/M</th><th>GD/M</th><th>${intelligenceCopy("Büyük Maç", "Clutch")}</th><th>${intelligenceCopy("İstikrar", "Consistency")}</th><th>${escapeHTML(analytics.selectedMetric.short)}</th></tr></thead><tbody>${rows.map(row => `<tr class="${tournamentBenchmarkSelectedPlayer === row.name ? "selected" : ""}" data-action="select-tournament-benchmark-player" data-player-name="${escapeHTML(row.name)}"><td><b>${row.metricRank}</b></td><td class="player-col"><div class="tb-player-cell"><span class="player-name">${escapeHTML(row.name)}</span><small class="tb-confidence ${row.games < 10 ? "developing" : row.games < 20 ? "medium" : "high"}">${row.games < 10 ? intelligenceCopy("Gelişen örneklem", "Developing sample") : row.games < 20 ? intelligenceCopy("Orta güven", "Medium confidence") : intelligenceCopy("Yüksek güven", "High confidence")}</small></div></td><td>${row.editionCount}</td><td>${row.games}</td><td>${row.points}</td><td><strong>${benchmarkNumber(row.ppg, 2)}</strong></td><td>${benchmarkNumber(row.winRate, 1)}%</td><td>${benchmarkNumber(row.gfPerGame, 2)}</td><td>${benchmarkNumber(row.gaPerGame, 2)}</td><td class="${row.gdPerGame > 0 ? "gd-positive" : row.gdPerGame < 0 ? "gd-negative" : ""}">${row.gdPerGame > 0 ? "+" : ""}${benchmarkNumber(row.gdPerGame, 2)}</td><td>${benchmarkNumber(row.clutchPPG, 2)}</td><td>${benchmarkNumber(row.consistency, 0)}</td><td class="tb-score-cell"><strong>${escapeHTML(analytics.selectedMetric.format(row))}</strong></td></tr>`).join("")}</tbody></table></div>`;
+  }
+
+  function tournamentBenchmarkPlayerPanel(analytics) {
+    if (!analytics.players.length) return "";
+    if (!tournamentBenchmarkSelectedPlayer || !analytics.players.some(row => row.name === tournamentBenchmarkSelectedPlayer)) tournamentBenchmarkSelectedPlayer = analytics.players[0].name;
+    const row = analytics.players.find(item => item.name === tournamentBenchmarkSelectedPlayer) || analytics.players[0];
+    const identity = tournamentBenchmarkIdentity(row);
+    const maxPPG = Math.max(3, ...row.editions.map(item => item.ppg));
+    return `<section class="panel tb-player-lab">
+      <div class="panel-header"><div><div class="eyebrow">PLAYER PERFORMANCE LAB</div><h3 class="panel-title">${intelligenceCopy("Oyuncu Turnuva Profili", "Player Tournament Profile")}</h3><div class="panel-subtitle">${intelligenceCopy("Aynı oyuncunun farklı turnuva ortamlarındaki maç başı seviyesi.", "The same player's per-match level across different tournament environments.")}</div></div><label class="tb-player-select"><span>${intelligenceCopy("Oyuncu", "Player")}</span><select id="tournamentBenchmarkPlayerSelect">${analytics.players.map(item => `<option value="${escapeHTML(item.name)}" ${item.name === row.name ? "selected" : ""}>${escapeHTML(item.name)}</option>`).join("")}</select></label></div>
+      <div class="tb-player-hero"><div class="tb-player-rank"><span>#${row.benchmarkRank}</span><small>NO-CROWN RANK</small></div><div><h3>${escapeHTML(row.name)}</h3><div class="tb-identity-tags">${identity.map(tag => `<span>${escapeHTML(tag)}</span>`).join("")}</div></div><div class="tb-player-score"><strong>${benchmarkNumber(row.benchmarkScore, 1)}</strong><small>BENCHMARK</small></div></div>
+      <div class="tb-player-kpis"><div><span>PPG</span><strong>${benchmarkNumber(row.ppg, 2)}</strong><small>${row.points} ${intelligenceCopy("puan", "points")} · ${row.games} ${intelligenceCopy("maç", "matches")}</small></div><div><span>CLUTCH</span><strong>${benchmarkNumber(row.clutchPPG, 2)}</strong><small>${row.clutchGames} ${intelligenceCopy("büyük maç", "big matches")}</small></div><div><span>ERA INDEX</span><strong>${benchmarkNumber(row.eraIndex, 0)}</strong><small>${row.aboveAverage}/${row.editionCount} ${intelligenceCopy("turnuvada ortalama üstü", "editions above average")}</small></div><div><span>CONSISTENCY</span><strong>${benchmarkNumber(row.consistency, 0)}</strong><small>${row.editionCount} ${intelligenceCopy("turnuva örneklemi", "edition sample")}</small></div></div>
+      <div class="tb-edition-track">${row.editions.map(item => {
+        const width = Math.max(4, item.ppg / maxPPG * 100);
+        const relative = item.relativePPG;
+        return `<article class="${relative >= 0 ? "above" : "below"}"><header><span>FIFA ${String(item.edition).padStart(2, "0")}</span><strong>${benchmarkNumber(item.ppg, 2)} PPG</strong></header><div class="tb-track"><i style="width:${width}%"></i><b style="left:${Math.min(100, item.editionAveragePPG / maxPPG * 100)}%"></b></div><footer><span>${item.games} ${intelligenceCopy("maç", "matches")}</span><em>${relative >= 0 ? "+" : ""}${benchmarkNumber(relative, 2)} ${intelligenceCopy("turnuva ort.", "vs edition avg")}</em><strong>${benchmarkNumber(item.percentile, 0)}p</strong></footer></article>`;
+      }).join("")}</div>
+      <div class="tb-profile-footer"><div><span>${intelligenceCopy("Zirve Turnuvası", "Peak Edition")}</span><strong>${row.peakEdition ? `FIFA ${String(row.peakEdition.edition).padStart(2, "0")}` : "–"}</strong><small>${row.peakEdition ? `${benchmarkNumber(row.peakEdition.ppg, 2)} PPG · ${benchmarkNumber(row.peakEdition.percentile, 0)}. ${intelligenceCopy("yüzdelik", "percentile")}` : "–"}</small></div><div><span>${intelligenceCopy("Dönem Hareketi", "Era Movement")}</span><strong>${row.momentum > .15 ? intelligenceCopy("Yükseliş", "Rising") : row.momentum < -.15 ? intelligenceCopy("Gerileme", "Declining") : intelligenceCopy("Dengeli", "Stable")}</strong><small>${row.momentum >= 0 ? "+" : ""}${benchmarkNumber(row.momentum, 2)} PPG</small></div><div><span>${intelligenceCopy("Kupa Yakınlığı", "Near-Crown Record")}</span><strong>${row.finals} ${intelligenceCopy("final", "finals")}</strong><small>${row.podiums} ${intelligenceCopy("podyum · şampiyonluk yok", "podiums · no title")}</small></div></div>
+    </section>`;
+  }
+
+  function tournamentEditionCard(edition) {
+    const tempo = edition.goalsPerMatch >= 7 ? intelligenceCopy("Yüksek tempo", "High tempo") : edition.goalsPerMatch <= 4.5 ? intelligenceCopy("Kontrollü", "Controlled") : intelligenceCopy("Dengeli", "Balanced");
+    return `<article class="tb-edition-card"><header><div><span>EDITION</span><strong>${String(edition.edition).padStart(2, "0")}</strong></div><em>${escapeHTML(tempo)}</em></header><h3>${edition.nonChampionLeader ? escapeHTML(edition.nonChampionLeader.name) : "–"}</h3><p>${intelligenceCopy("Şampiyon hariç turnuva lideri", "Edition leader excluding champion")}</p><div class="tb-edition-metrics"><div><span>GOL/M</span><strong>${benchmarkNumber(edition.goalsPerMatch, 2)}</strong></div><div><span>${intelligenceCopy("Yakın Maç", "Close Games")}</span><strong>${benchmarkNumber(edition.closeRate, 0)}%</strong></div><div><span>${intelligenceCopy("Denge", "Balance")}</span><strong>${edition.balanceIndex}</strong></div><div><span>${intelligenceCopy("Fark/M", "Margin/M")}</span><strong>${benchmarkNumber(edition.avgMargin, 2)}</strong></div></div><footer><span>${edition.matches.length} ${intelligenceCopy("maç", "matches")}</span><span>${edition.players.length} ${intelligenceCopy("oyuncu", "players")}</span><span>${benchmarkNumber(edition.drawRate, 1)}% ${intelligenceCopy("beraberlik", "draws")}</span></footer></article>`;
+  }
+
+  function tournamentBenchmarkHeatmap(analytics) {
+    const editions = analytics.editionRows;
+    const rows = analytics.players;
+    if (!rows.length || !editions.length) return "";
+    return `<section class="panel tb-heatmap-panel"><div class="panel-header"><div><div class="eyebrow">CROSS-EDITION MATRIX</div><h3 class="panel-title">${intelligenceCopy("Turnuvalar Arası Performans Haritası", "Cross-Tournament Performance Map")}</h3><div class="panel-subtitle">${intelligenceCopy("Hücrelerde PPG görünür; renk, oyuncunun o turnuva ortalamasına göre konumunu gösterir.", "Cells show PPG; colour represents position versus that edition's average.")}</div></div><div class="tb-heat-legend"><span class="down">−</span><small>${intelligenceCopy("Ortalama", "Average")}</small><span class="up">+</span></div></div><div class="tb-heatmap-scroll"><div class="tb-heatmap" style="--tb-editions:${editions.length}"><div class="tb-heat-head"><strong>${intelligenceCopy("Oyuncu", "Player")}</strong>${editions.map(edition => `<span>F${String(edition.edition).padStart(2, "0")}</span>`).join("")}</div>${rows.map(row => `<div class="tb-heat-row"><strong>${escapeHTML(row.name)}</strong>${editions.map(edition => {
+      const item = row.editions.find(value => value.edition === edition.edition);
+      if (!item) return `<span class="empty">–</span>`;
+      const intensity = Math.min(1, Math.abs(item.relativePPG) / 1.15);
+      return `<span class="${item.relativePPG >= 0 ? "positive" : "negative"}" style="--tb-intensity:${intensity.toFixed(2)}" title="FIFA ${edition.edition}: ${benchmarkNumber(item.ppg, 2)} PPG · ${item.relativePPG >= 0 ? "+" : ""}${benchmarkNumber(item.relativePPG, 2)} vs avg">${benchmarkNumber(item.ppg, 2)}</span>`;
+    }).join("")}</div>`).join("")}</div></div></section>`;
+  }
+
+
+  function tournamentReportStageName(stage) {
+    return String(stage || "").toLocaleLowerCase("tr-TR");
+  }
+
+  function tournamentReportIsThirdPlace(stage) {
+    return /third|3rd|üçün/.test(tournamentReportStageName(stage));
+  }
+
+  function tournamentReportIsFinal(stage) {
+    const value = tournamentReportStageName(stage);
+    if (/grand final|büyük final/.test(value)) return true;
+    return /final/.test(value) && !/semi|yarı|quarter|çeyrek|third|3rd|üçün|chapter|second chance|son bilet/.test(value);
+  }
+
+  function tournamentReportMatchWinner(match) {
+    if (!match) return "";
+    const result = benchmarkMatchResult(match);
+    return result.winner || "";
+  }
+
+  function tournamentReportMatchLoser(match) {
+    if (!match) return "";
+    const winner = benchmarkNameKey(tournamentReportMatchWinner(match));
+    if (!winner) return "";
+    return winner === benchmarkNameKey(match.homeName) ? String(match.awayName || "").trim() : String(match.homeName || "").trim();
+  }
+
+  function tournamentReportGrade(score) {
+    const value = Number(score) || 0;
+    if (value >= 90) return "A+";
+    if (value >= 84) return "A";
+    if (value >= 78) return "A−";
+    if (value >= 72) return "B+";
+    if (value >= 66) return "B";
+    if (value >= 60) return "B−";
+    if (value >= 54) return "C+";
+    if (value >= 48) return "C";
+    return "C−";
+  }
+
+  function tournamentReportTag(report) {
+    const tags = [];
+    if (report.balanceIndex >= 82) tags.push(intelligenceCopy("Ultra Dengeli", "Ultra Balanced"));
+    if (report.closeRate >= 62) tags.push(intelligenceCopy("Nefes Kesen", "Nail-Biting"));
+    if (report.goalsPerMatch >= 5.2) tags.push(intelligenceCopy("Gol Şöleni", "Goal Festival"));
+    if (report.drawRate >= 28) tags.push(intelligenceCopy("Taktik Savaşı", "Tactical Battle"));
+    if (report.finalMatch && report.finalMargin <= 1) tags.push(intelligenceCopy("Destansı Final", "Epic Final"));
+    if (report.championWinRate >= 75) tags.push(intelligenceCopy("Dominant Şampiyon", "Dominant Champion"));
+    return tags.slice(0, 3);
+  }
+
+  function buildTournamentReportCards(analytics) {
+    const reports = analytics.editionRows.map(edition => {
+      const finalMatch = [...edition.matches].reverse().find(match => tournamentReportIsFinal(match.stage)) || null;
+      const thirdPlaceMatch = [...edition.matches].reverse().find(match => tournamentReportIsThirdPlace(match.stage)) || null;
+      const champion = String(edition.champion || tournamentReportMatchWinner(finalMatch) || "").trim();
+      const runnerUp = tournamentReportMatchLoser(finalMatch);
+      const thirdPlace = tournamentReportMatchWinner(thirdPlaceMatch);
+      const championRow = champion ? edition.playerMap.get(benchmarkNameKey(champion)) : null;
+      const finalMargin = finalMatch ? Math.abs(Number(finalMatch.homeScore) - Number(finalMatch.awayScore)) : 0;
+      const finalGoals = finalMatch ? Number(finalMatch.homeScore) + Number(finalMatch.awayScore) : 0;
+      const tightnessIndex = benchmarkClamp(100 - edition.avgMargin / 3.6 * 100);
+      const tempoIndex = benchmarkClamp(edition.goalsPerMatch / 5.5 * 100);
+      const competitionIndex = benchmarkClamp(edition.balanceIndex * .50 + edition.closeRate * .34 + tightnessIndex * .16);
+      const finalDrama = finalMatch ? benchmarkClamp((100 - finalMargin / 4 * 100) * .62 + Math.min(100, finalGoals / 7 * 100) * .38) : 50;
+      const dramaIndex = benchmarkClamp(edition.closeRate * .45 + tightnessIndex * .25 + finalDrama * .20 + Math.min(100, edition.drawRate * 2.2) * .10);
+      const decisivenessIndex = benchmarkClamp((100 - edition.drawRate) * .72 + Math.min(100, edition.avgMargin / 2.8 * 100) * .28);
+      const reportScore = benchmarkClamp(competitionIndex * .48 + dramaIndex * .29 + tempoIndex * .15 + decisivenessIndex * .08);
+      const stageCount = new Set(edition.matches.map(match => String(match.stage || "").trim()).filter(Boolean)).size;
+      const complete = Boolean(champion && finalMatch);
+      const report = {
+        ...edition,
+        champion, runnerUp, thirdPlace, finalMatch, thirdPlaceMatch, finalMargin, finalGoals, complete,
+        championPPG: championRow?.ppg || 0,
+        championWinRate: championRow?.winRate || 0,
+        championGDPerGame: championRow?.gdPerGame || 0,
+        tightnessIndex, tempoIndex, competitionIndex, dramaIndex, decisivenessIndex,
+        reportScore, reportGrade: complete ? tournamentReportGrade(reportScore) : intelligenceCopy("CANLI", "LIVE"), stageCount
+      };
+      report.tags = tournamentReportTag(report);
+      return report;
+    });
+    const completedReports = reports.filter(report => report.complete);
+    const awardPool = completedReports.length ? completedReports : reports;
+    const by = selector => [...awardPool].sort((a, b) => selector(b) - selector(a) || b.matches.length - a.matches.length)[0] || null;
+    return {
+      reports,
+      awards: {
+        bestOverall: by(row => row.reportScore),
+        mostBalanced: by(row => row.balanceIndex),
+        mostDramatic: by(row => row.dramaIndex),
+        highestTempo: by(row => row.goalsPerMatch),
+        tightest: by(row => row.tightnessIndex),
+        dominantChampion: by(row => row.championPPG)
+      }
+    };
+  }
+
+  function tournamentReportSwitcher() {
+    return `<div class="tb-mode-switch" role="tablist" aria-label="${intelligenceCopy("Turnuva analiz görünümü", "Tournament analysis view")}"><button type="button" role="tab" aria-selected="${tournamentBenchmarkSection === "report-card"}" class="${tournamentBenchmarkSection === "report-card" ? "active" : ""}" data-action="set-tournament-benchmark-section" data-benchmark-section="report-card"><span>01</span><strong>${intelligenceCopy("Turnuva Karnesi", "Tournament Report Card")}</strong><small>${intelligenceCopy("FIFA 1–9 edisyonlarını doğrudan kıyasla", "Compare FIFA 1–9 editions directly")}</small></button><button type="button" role="tab" aria-selected="${tournamentBenchmarkSection === "player-atlas"}" class="${tournamentBenchmarkSection === "player-atlas" ? "active" : ""}" data-action="set-tournament-benchmark-section" data-benchmark-section="player-atlas"><span>02</span><strong>${intelligenceCopy("Şampiyonsuz Oyuncu Atlası", "No-Champion Player Atlas")}</strong><small>${intelligenceCopy("Mevcut maç başı oyuncu benchmarkı", "Existing per-match player benchmark")}</small></button></div>`;
+  }
+
+  function tournamentReportAwardCard(label, report, value, note, code) {
+    if (!report) return `<article class="trc-award-card empty"><span>${escapeHTML(code)}</span><small>${escapeHTML(label)}</small><h3>–</h3><p>${escapeHTML(note)}</p></article>`;
+    return `<article class="trc-award-card"><span>${escapeHTML(code)}</span><small>${escapeHTML(label)}</small><h3>FIFA ${String(report.edition).padStart(2, "0")}</h3><strong>${escapeHTML(value)}</strong><p>${escapeHTML(note)}</p></article>`;
+  }
+
+  function tournamentReportComparisonTable(reportData) {
+    const rows = [...reportData.reports].sort((a, b) => Number(b.complete) - Number(a.complete) || b.reportScore - a.reportScore || b.balanceIndex - a.balanceIndex);
+    let completedRank = 0;
+    return `<div class="table-wrap trc-comparison-table"><table><thead><tr><th>#</th><th>${intelligenceCopy("Turnuva", "Edition")}</th><th>${intelligenceCopy("Şampiyon", "Champion")}</th><th>${intelligenceCopy("Maç", "Matches")}</th><th>${intelligenceCopy("Oyuncu", "Players")}</th><th>Gol/M</th><th>${intelligenceCopy("Yakın Maç", "Close Games")}</th><th>${intelligenceCopy("Beraberlik", "Draws")}</th><th>${intelligenceCopy("Fark/M", "Margin/M")}</th><th>${intelligenceCopy("Denge", "Balance")}</th><th>${intelligenceCopy("Drama", "Drama")}</th><th>${intelligenceCopy("Karne", "Grade")}</th></tr></thead><tbody>${rows.map(row => { const rank = row.complete ? ++completedRank : "●"; return `<tr class="${row.complete ? "" : "provisional"}"><td><b>${rank}</b></td><td><div class="trc-edition-name"><strong>FIFA ${String(row.edition).padStart(2, "0")}</strong><small>${row.complete ? (row.tags[0] || intelligenceCopy("Standart Profil", "Standard Profile")) : intelligenceCopy("Canlı · geçici karne", "Live · provisional report")}</small></div></td><td><span class="trc-champion-name">${escapeHTML(row.champion || intelligenceCopy("Henüz belli değil", "Not decided"))}</span></td><td>${row.matches.length}</td><td>${row.players.length}</td><td>${benchmarkNumber(row.goalsPerMatch, 2)}</td><td>${benchmarkNumber(row.closeRate, 1)}%</td><td>${benchmarkNumber(row.drawRate, 1)}%</td><td>${benchmarkNumber(row.avgMargin, 2)}</td><td>${row.balanceIndex}</td><td>${benchmarkNumber(row.dramaIndex, 0)}</td><td><span class="trc-grade grade-${row.reportGrade.replace(/[^A-Z0-9]/g, "").toLowerCase()}">${escapeHTML(row.reportGrade)}</span></td></tr>`; }).join("")}</tbody></table></div>`;
+  }
+
+  function tournamentReportEditionCard(report) {
+    const metrics = [
+      [intelligenceCopy("Rekabet", "Competition"), report.competitionIndex],
+      [intelligenceCopy("Drama", "Drama"), report.dramaIndex],
+      [intelligenceCopy("Tempo", "Tempo"), report.tempoIndex],
+      [intelligenceCopy("Denge", "Balance"), report.balanceIndex]
+    ];
+    return `<article class="trc-edition-card ${report.complete ? "" : "provisional"}"><header><div><span>EDITION ${String(report.edition).padStart(2, "0")}</span><h3>FIFA ${String(report.edition).padStart(2, "0")}</h3></div><div class="trc-grade-orb"><strong>${escapeHTML(report.reportGrade)}</strong><small>${report.complete ? benchmarkNumber(report.reportScore, 0) : intelligenceCopy("GEÇİCİ", "PROV.")}</small></div></header><div class="trc-podium"><div><span>${intelligenceCopy("Şampiyon", "Champion")}</span><strong>${escapeHTML(report.champion || "–")}</strong></div><div><span>${intelligenceCopy("Finalist", "Runner-up")}</span><strong>${escapeHTML(report.runnerUp || "–")}</strong></div><div><span>${intelligenceCopy("Üçüncü", "Third")}</span><strong>${escapeHTML(report.thirdPlace || "–")}</strong></div></div><div class="trc-metric-bars">${metrics.map(([label, value]) => `<div><span>${escapeHTML(label)}</span><i><b style="width:${benchmarkClamp(value)}%"></b></i><strong>${benchmarkNumber(value, 0)}</strong></div>`).join("")}</div><div class="trc-tags">${report.tags.map(tag => `<span>${escapeHTML(tag)}</span>`).join("") || `<span>${intelligenceCopy("Dengeli Profil", "Balanced Profile")}</span>`}</div><footer><span>${report.matches.length} ${intelligenceCopy("maç", "matches")}</span><span>${report.players.length} ${intelligenceCopy("oyuncu", "players")}</span><span>${benchmarkNumber(report.goalsPerMatch, 2)} Gol/M</span><span>${report.stageCount} ${intelligenceCopy("aşama", "stages")}</span></footer></article>`;
+  }
+
+  function renderTournamentReportCard(analytics) {
+    const reportData = buildTournamentReportCards(analytics);
+    const awards = reportData.awards;
+    const best = awards.bestOverall;
+    return `<section class="trc-hero"><div class="trc-hero-grid"></div><div class="trc-hero-copy"><div class="eyebrow">FIFA 1–9 · TOURNAMENT REPORT CARD</div><h2>${intelligenceCopy("Turnuvaların Karnesi", "The Tournament Report Card")}</h2><p>${intelligenceCopy("Bu görünüm oyuncuları değil, turnuvaların kendisini değerlendirir. Her edisyon; rekabet dengesi, yakın maç oranı, gol temposu, final draması ve format yoğunluğu üzerinden aynı ölçekte kıyaslanır.", "This view evaluates the tournaments themselves, not individual players. Every edition is compared on a common scale through competitive balance, close-game rate, scoring tempo, final drama and format intensity.")}</p><div class="trc-hero-tags"><span>EDITION VS EDITION</span><span>PER-MATCH DATA</span><span>REPORT GRADE</span><span>FIFA 09 LIVE</span></div></div><div class="trc-hero-grade"><small>${intelligenceCopy("EN İYİ KARNE", "BEST REPORT")}</small><strong>${best ? escapeHTML(best.reportGrade) : "–"}</strong><span>${best ? `FIFA ${String(best.edition).padStart(2, "0")}` : "–"}</span><em>${best ? benchmarkNumber(best.reportScore, 0) : "–"}/100</em></div></section>
+      ${tournamentReportSwitcher()}
+      <div class="trc-kpi-grid"><article><span>${intelligenceCopy("İncelenen Turnuva", "Editions Reviewed")}</span><strong>${reportData.reports.length}</strong><small>FIFA 01–${String(Math.max(0, ...reportData.reports.map(item => item.edition))).padStart(2, "0")}</small></article><article><span>${intelligenceCopy("En İyi Genel Karne", "Best Overall Report")}</span><strong>${best ? `FIFA ${String(best.edition).padStart(2, "0")}` : "–"}</strong><small>${best ? `${best.reportGrade} · ${benchmarkNumber(best.reportScore, 0)}/100` : "–"}</small></article><article><span>${intelligenceCopy("En Dengeli", "Most Balanced")}</span><strong>${awards.mostBalanced ? `FIFA ${String(awards.mostBalanced.edition).padStart(2, "0")}` : "–"}</strong><small>${awards.mostBalanced ? `${awards.mostBalanced.balanceIndex}/100` : "–"}</small></article><article><span>${intelligenceCopy("En Dramatik", "Most Dramatic")}</span><strong>${awards.mostDramatic ? `FIFA ${String(awards.mostDramatic.edition).padStart(2, "0")}` : "–"}</strong><small>${awards.mostDramatic ? `${benchmarkNumber(awards.mostDramatic.dramaIndex, 0)}/100` : "–"}</small></article></div>
+      <section class="trc-award-grid">${tournamentReportAwardCard(intelligenceCopy("En İyi Genel Karne", "Best Overall Report"), awards.bestOverall, awards.bestOverall ? `${awards.bestOverall.reportGrade} · ${benchmarkNumber(awards.bestOverall.reportScore, 0)}` : "–", intelligenceCopy("Rekabet, drama, tempo ve denge birleşimi", "Combined competition, drama, tempo and balance"), "01")}${tournamentReportAwardCard(intelligenceCopy("En Dengeli Turnuva", "Most Balanced Edition"), awards.mostBalanced, awards.mostBalanced ? `${awards.mostBalanced.balanceIndex}/100` : "–", intelligenceCopy("Oyuncular arasındaki performans dağılımı en yakın", "Tightest performance distribution between players"), "02")}${tournamentReportAwardCard(intelligenceCopy("En Dramatik Turnuva", "Most Dramatic Edition"), awards.mostDramatic, awards.mostDramatic ? `${benchmarkNumber(awards.mostDramatic.dramaIndex, 0)}/100` : "–", intelligenceCopy("Yakın maçlar ve final gerilimi en yüksek", "Highest close-game and final tension"), "03")}${tournamentReportAwardCard(intelligenceCopy("En Yüksek Tempo", "Highest Tempo"), awards.highestTempo, awards.highestTempo ? `${benchmarkNumber(awards.highestTempo.goalsPerMatch, 2)} Gol/M` : "–", intelligenceCopy("Maç başına en fazla skor üretimi", "Highest scoring output per match"), "04")}${tournamentReportAwardCard(intelligenceCopy("En İnce Farklar", "Tightest Margins"), awards.tightest, awards.tightest ? `${benchmarkNumber(awards.tightest.avgMargin, 2)} Fark/M` : "–", intelligenceCopy("Ortalama skor farkı en düşük turnuva", "Edition with the lowest average score margin"), "05")}${tournamentReportAwardCard(intelligenceCopy("En Dominant Şampiyon", "Most Dominant Champion"), awards.dominantChampion, awards.dominantChampion ? `${benchmarkNumber(awards.dominantChampion.championPPG, 2)} PPG` : "–", awards.dominantChampion?.champion || intelligenceCopy("Şampiyon yolu", "Champion path"), "06")}</section>
+      <section class="panel trc-table-panel"><div class="panel-header"><div><div class="eyebrow">EDITION SCOREBOARD</div><h3 class="panel-title">${intelligenceCopy("FIFA 1–9 Turnuva Karşılaştırma Tablosu", "FIFA 1–9 Tournament Comparison Table")}</h3><div class="panel-subtitle">${intelligenceCopy("Toplam gol gibi turnuva uzunluğundan etkilenen veriler yerine maç başına ve yüzde bazlı göstergeler kullanılır.", "Per-match and percentage metrics are used instead of raw totals affected by tournament length.")}</div></div><span class="badge badge-gold">${reportData.reports.length} EDITIONS</span></div>${tournamentReportComparisonTable(reportData)}</section>
+      <section class="panel trc-dna-panel"><div class="panel-header"><div><div class="eyebrow">TOURNAMENT DNA</div><h3 class="panel-title">${intelligenceCopy("Her Turnuvanın Kimliği", "The Identity of Every Tournament")}</h3><div class="panel-subtitle">${intelligenceCopy("Şampiyon, finalist, üçüncü, karne notu ve dört temel performans ekseni tek kartta.", "Champion, runner-up, third place, grade and four core performance axes on one card.")}</div></div><span class="badge badge-blue">REPORT CARDS</span></div><div class="trc-edition-grid">${reportData.reports.map(tournamentReportEditionCard).join("")}</div></section>
+      <section class="trc-methodology"><div><span>01</span><strong>${intelligenceCopy("Rekabet", "Competition")}</strong><p>${intelligenceCopy("Denge endeksi, yakın maç oranı ve ortalama skor farkı birlikte değerlendirilir.", "Balance, close-game rate and average margin are evaluated together.")}</p></div><div><span>02</span><strong>${intelligenceCopy("Drama", "Drama")}</strong><p>${intelligenceCopy("Yakın maç yoğunluğu, final skoru ve beraberlik oranı turnuvanın gerilimini oluşturur.", "Close-game density, final score and draw rate create the tournament tension index.")}</p></div><div><span>03</span><strong>${intelligenceCopy("Tempo", "Tempo")}</strong><p>${intelligenceCopy("Sadece maç başına gol kullanılır; uzun turnuvalar toplam hacim nedeniyle avantaj kazanmaz.", "Only goals per match are used, so longer formats receive no volume advantage.")}</p></div><div><span>04</span><strong>${intelligenceCopy("Karne Notu", "Report Grade")}</strong><p>${intelligenceCopy("A+–C− arası not, turnuvanın genel izleme ve rekabet kalitesinin özetidir.", "The A+–C− grade summarises the edition's overall viewing and competitive quality.")}</p></div></section>`;
+  }
+
+  function renderTournamentPlayerAtlas(analytics) {
+    const records = analytics.records;
+    return `<section class="tb-hero"><div class="tb-hero-grid"></div><div class="tb-hero-copy"><div class="eyebrow">FIFA 1–9 · PERFORMANCE ATLAS</div><h2>${intelligenceCopy("Şampiyonsuz Taht", "The No-Crown Throne")}</h2><p>${intelligenceCopy("Şampiyon olmuş oyuncular sıralamadan çıkarıldı. Geriye kalan bütün oyuncular; toplam hacimle değil, maç başı üretim, turnuva içi yüzdelik, büyük maç seviyesi ve dönemler arası istikrarla karşılaştırılıyor.", "Every champion is removed from the ranking. Remaining players are compared through per-match production, tournament percentile, big-match level and cross-era consistency—not raw volume.")}</p><div class="tb-hero-tags"><span>CHAMPIONS EXCLUDED</span><span>PER-MATCH NORMALIZED</span><span>ERA ADJUSTED</span><span>LIVE FIFA 09</span></div></div><div class="tb-hero-mark"><span>NO</span><strong>CROWN</strong><small>PERFORMANCE LEAGUE</small></div></section>
+      ${tournamentReportSwitcher()}
+      <div class="tb-kpi-grid"><article><span>${intelligenceCopy("Uygun Oyuncu", "Eligible Players")}</span><strong>${analytics.summary.players}</strong><small>${analytics.summary.championsExcluded} ${intelligenceCopy("şampiyon hariç tutuldu", "champions excluded")}</small></article><article><span>${intelligenceCopy("Turnuva Kapsamı", "Edition Coverage")}</span><strong>${analytics.summary.editions}</strong><small>FIFA 01–${String(Math.max(0, ...analytics.editionRows.map(item => item.edition))).padStart(2, "0")}</small></article><article><span>${intelligenceCopy("Ortalama Örneklem", "Average Sample")}</span><strong>${benchmarkNumber(analytics.summary.avgGames, 1)}</strong><small>${intelligenceCopy("oyuncu başına maç", "matches per player")}</small></article><article><span>${intelligenceCopy("En Dengeli Turnuva", "Most Balanced Edition")}</span><strong>${records.mostBalancedEdition ? `FIFA ${String(records.mostBalancedEdition.edition).padStart(2, "0")}` : "–"}</strong><small>${records.mostBalancedEdition ? `${records.mostBalancedEdition.balanceIndex}/100 ${intelligenceCopy("denge", "balance")}` : "–"}</small></article></div>
+      <section class="tb-leader-grid">${tournamentBenchmarkLeaderCard(intelligenceCopy("Tahtın Sahibi", "No-Crown Leader"), records.benchmark, records.benchmark ? `${benchmarkNumber(records.benchmark.benchmarkScore, 1)} BMX` : "–", intelligenceCopy("Kupa puanı olmadan en güçlü birleşik profil", "Strongest combined profile without trophy points"), "01")}${tournamentBenchmarkLeaderCard("PPG MASTER", records.ppg, records.ppg ? `${benchmarkNumber(records.ppg.ppg, 2)} PPG` : "–", intelligenceCopy("Bütün maçlarda en yüksek puan ortalaması", "Highest points average across all matches"), "02")}${tournamentBenchmarkLeaderCard("CLUTCH HUNTER", records.clutch, records.clutch ? `${benchmarkNumber(records.clutch.clutchPPG, 2)} PPG` : "–", intelligenceCopy("Çeyrek final ve sonrası üretim", "Production from quarter-finals onward"), "03")}${tournamentBenchmarkLeaderCard(intelligenceCopy("En İstikrarlı", "Most Consistent"), records.consistency, records.consistency ? `${benchmarkNumber(records.consistency.consistency, 0)}/100` : "–", intelligenceCopy("Turnuvalar arasında en az performans kaybı", "Lowest performance loss across editions"), "04")}${tournamentBenchmarkLeaderCard(intelligenceCopy("Kupaya En Yakın", "Closest to the Crown"), records.almostChampion, records.almostChampion ? `${records.almostChampion.finals} ${intelligenceCopy("final", "finals")}` : "–", intelligenceCopy("Şampiyon olmadan en fazla final ve podyum", "Most finals and podiums without a title"), "05")}${tournamentBenchmarkLeaderCard(intelligenceCopy("En Büyük Yükseliş", "Biggest Rise"), records.mostImproved, records.mostImproved ? `${records.mostImproved.momentum >= 0 ? "+" : ""}${benchmarkNumber(records.mostImproved.momentum, 2)} PPG` : "–", intelligenceCopy("İlk ve son turnuva arasındaki gelişim", "Improvement from first to latest edition"), "06")}</section>
+      <section class="panel tb-ranking-panel"><div class="panel-header"><div><div class="eyebrow">NO-CROWN MASTER TABLE</div><h3 class="panel-title">${intelligenceCopy("Tüm Sonuçlar · Maç Başı Puan Durumu", "All Results · Per-Match Standings")}</h3><div class="panel-subtitle">${intelligenceCopy("Standart puan 3-1-0'dır. BMX sıralaması kupa sayısını kullanmaz; beş maçlık dengeleme küçük örneklemi kontrol eder.", "Standard points use 3-1-0. BMX uses no trophy count; a five-match prior controls small samples.")}</div></div><span class="badge badge-gold">${analytics.players.length} ${intelligenceCopy("OYUNCU", "PLAYERS")}</span></div>${tournamentBenchmarkMetricTabs(analytics)}${tournamentBenchmarkTable(analytics)}</section>
+      ${tournamentBenchmarkPlayerPanel(analytics)}
+      <section class="panel tb-edition-panel"><div class="panel-header"><div><div class="eyebrow">EDITION DNA</div><h3 class="panel-title">${intelligenceCopy("Turnuvalar Arası Karşılaştırma", "Tournament-to-Tournament Comparison")}</h3><div class="panel-subtitle">${intelligenceCopy("Toplamlar yerine her turnuvanın maç başı temposu, yakınlık oranı, ortalama skor farkı ve rekabet dengesi.", "Per-match tempo, close-game rate, average margin and competitive balance instead of raw totals.")}</div></div><span class="badge badge-blue">PER MATCH</span></div><div class="tb-edition-grid">${analytics.editionRows.map(tournamentEditionCard).join("")}</div></section>
+      ${tournamentBenchmarkHeatmap(analytics)}
+      <section class="tb-methodology"><div><span>01</span><strong>${intelligenceCopy("Şampiyon Filtresi", "Champion Filter")}</strong><p>${intelligenceCopy("FIFA 1–9 içinde en az bir kez şampiyon olan herkes ana analizden çıkarılır.", "Anyone with at least one FIFA 1–9 title is removed from the main analysis.")}</p></div><div><span>02</span><strong>${intelligenceCopy("Maç Başı Normalizasyon", "Per-Match Normalization")}</strong><p>${intelligenceCopy("PPG, gol/maç, yenilen gol/maç ve averaj/maç farklı formatları karşılaştırılabilir yapar.", "PPG, goals per match, conceded per match and goal difference per match make formats comparable.")}</p></div><div><span>03</span><strong>${intelligenceCopy("Dönem Endeksi", "Era Index")}</strong><p>${intelligenceCopy("Oyuncu her turnuvada o turnuvanın kendi rekabet ortamına göre yüzdelik dilime yerleştirilir.", "Each player receives a percentile inside that edition's own competitive environment.")}</p></div><div><span>04</span><strong>${intelligenceCopy("Büyük Maç Etkisi", "Big-Match Impact")}</strong><p>${intelligenceCopy("Çeyrek final, yarı final, üçüncülük ve final maçları ayrı Clutch PPG ile ölçülür.", "Quarter-finals, semi-finals, third-place and final matches are measured through a separate Clutch PPG.")}</p></div></section>`;
+  }
+
+  function renderTournamentBenchmark() {
+    const analytics = buildTournamentBenchmarkAnalytics();
+    if (!analytics.editionRows.length) {
+      view.innerHTML = emptyState("∑", intelligenceCopy("Turnuva verisi hazır değil", "Tournament data is not ready"), intelligenceCopy("FIFA 1–9 sonuçları yüklendiğinde turnuva karnesi ve oyuncu atlası burada görünecek.", "The tournament report card and player atlas will appear here when FIFA 1–9 results are loaded."));
+      return;
+    }
+    view.innerHTML = tournamentBenchmarkSection === "player-atlas" ? renderTournamentPlayerAtlas(analytics) : renderTournamentReportCard(analytics);
+  }
+
   function renderAllTime() {
     const analytics = buildAllTimeAnalytics();
     if (!analytics.players.length) {
@@ -4289,7 +5016,7 @@
 
   function currentMatchStageLabel(match) {
     const chapter = finalChapterMatchContext(match);
-    if (chapter) return chapter.stage === "final" ? `FIFA 09 Final Chapter · ${chapter.label}` : `FIFA 09 Final Chapter · ${chapter.label} · ${intelligenceCopy("Maç", "Match")} ${chapter.gameNumber}`;
+    if (chapter) return ["thirdPlace", "final"].includes(chapter.stage) ? `FIFA 09 Final Chapter · ${chapter.label}` : `FIFA 09 Final Chapter · ${chapter.label} · ${intelligenceCopy("Maç", "Match")} ${chapter.gameNumber}`;
     const seriesMap = { qf1: "Quarter-final 1", qf2: "Quarter-final 2", qf3: "Quarter-final 3", sf1: "Semi-final 1", sf2: "Semi-final 2" };
     if (match.phase === "league") return `League Phase · Round ${match.round}`;
     if (match.phase === "gold") return `Gold Group · Round ${match.round}`;
@@ -4308,6 +5035,7 @@
       ["last-ticket", intelligenceCopy("Son Bilet", "Last Ticket")],
       ["quarterfinal", intelligenceCopy("Çeyrek Final", "Quarter-final")],
       ["semifinal", intelligenceCopy("Yarı Final", "Semi-final")],
+      ["thirdPlace", intelligenceCopy("Üçüncülük", "Third Place")],
       ["final", intelligenceCopy("Büyük Final", "Grand Final")]
     ];
     return `<section class="panel fc-connected-filter"><div><span>CONNECTED UNIVERSE · V${FINAL_CHAPTER_CONNECTED_UNIVERSE_VERSION}</span><h3>${intelligenceCopy("İstatistik kapsamı", "Statistics scope")}</h3></div><div class="segmented-control fc-scope-control">${scopes.map(([key,label])=>`<button class="segment-btn ${liveStatsScope===key?"active":""}" data-action="set-live-stats-scope" data-live-stats-scope="${key}">${escapeHTML(label)}</button>`).join("")}</div></section>`;
@@ -8538,7 +9266,7 @@
     const generic = id => intelligenceClamp(1/(1+Math.pow(10,(average-(strengthMap.get(id)||1500))/460)),.28,.72);
     const stageSeries = stage => finalChapterSeries(stage);
     const activeSeries = id => ["playoff","secondChanceSemi","secondChanceFinal","quarterfinal","semifinal"].map(stage => ({ stage, series:stageSeries(stage).find(item=>!seriesWinner(item)&&[item.playerAId,item.playerBId].includes(id)) })).find(item=>item.series) || null;
-    const lostStage = id => ["secondChanceSemi","secondChanceFinal","quarterfinal","semifinal"].find(stage=>stageSeries(stage).some(item=>seriesWinner(item)&&[item.playerAId,item.playerBId].includes(id)&&seriesWinner(item)!==id)) || (fc.final.match&&matchComplete(fc.final.match)&&[fc.final.match.homeId,fc.final.match.awayId].includes(id)&&matchWinnerId(fc.final.match)!==id?"final":"");
+    const lostStage = id => ["secondChanceSemi","secondChanceFinal","quarterfinal"].find(stage=>stageSeries(stage).some(item=>seriesWinner(item)&&[item.playerAId,item.playerBId].includes(id)&&seriesWinner(item)!==id)) || (fc.thirdPlace.match&&matchComplete(fc.thirdPlace.match)&&[fc.thirdPlace.match.homeId,fc.thirdPlace.match.awayId].includes(id)&&matchWinnerId(fc.thirdPlace.match)!==id?"thirdPlace":"") || (fc.final.match&&matchComplete(fc.final.match)&&[fc.final.match.homeId,fc.final.match.awayId].includes(id)&&matchWinnerId(fc.final.match)!==id?"final":"");
     const rows = ids.map(id => {
       const name = playerName(id), strength = strengthMap.get(id)||1500, base = generic(id);
       const active = activeSeries(id);
@@ -8546,7 +9274,7 @@
       const champion = fc.final.championId === id;
       let qf = 0, semi = 0, final = 0, title = 0;
       if (champion) qf=semi=final=title=1;
-      else if (eliminatedStage) qf = ["semifinal","final"].includes(eliminatedStage) ? 1 : eliminatedStage === "quarterfinal" ? 1 : 0;
+      else if (eliminatedStage) qf = ["thirdPlace","final"].includes(eliminatedStage) ? 1 : eliminatedStage === "quarterfinal" ? 1 : 0;
       else {
         const wonMain = stageSeries("playoff").some(series=>seriesWinner(series)===id);
         const wonLast = stageSeries("secondChanceFinal").some(series=>seriesWinner(series)===id);
@@ -9060,7 +9788,7 @@
         ${!match.allowDraw ? `<div class="field mt-16"><label>Eşitlik durumunda kazanan</label><select name="tiebreakWinnerId"><option value="">Skor eşit değil / seçilmedi</option><option value="${match.homeId}" ${match.tiebreakWinnerId === match.homeId ? "selected" : ""}>${displayName(match.homeId)} (Uzatma/Penaltı)</option><option value="${match.awayId}" ${match.tiebreakWinnerId === match.awayId ? "selected" : ""}>${displayName(match.awayId)} (Uzatma/Penaltı)</option></select></div>` : ""}
         <div class="field mt-16"><label>Maç Notu</label><input name="note" type="text" value="${escapeHTML(match.note || "")}" placeholder="Opsiyonel not"></div>
         <div class="modal-actions"><button type="button" class="btn btn-danger" data-action="clear-match" data-match-id="${match.id}">Sonucu Temizle</button><button type="button" class="btn btn-ghost" data-action="close-modal">İptal</button><button type="submit" class="btn btn-gold">Sonucu Kaydet</button></div>
-      </form>`, match.phase === "final" ? "BÜYÜK FİNAL" : match.seriesKey ? "ELEME SERİSİ" : "MATCH CENTRE");
+      </form>`, match.finalChapterStage ? finalChapterStageLabel(match.finalChapterStage).toLocaleUpperCase("tr-TR") : match.phase === "final" ? "BÜYÜK FİNAL" : match.seriesKey ? "ELEME SERİSİ" : "MATCH CENTRE");
   }
 
   function openNameImport() {
@@ -9579,7 +10307,8 @@ ${shareData.url}`)}`;
       <div class="fc-journey-arrow">›</div>
       <article class="fc-stage semi"><span>05</span><div><small>YARI FİNAL</small><h3>4 Oyuncu · BO3</h3><p>5★ kura · takım tekrarı yok</p></div></article>
       <div class="fc-journey-arrow">›</div>
-      <article class="fc-stage final"><span>06</span><div><small>BÜYÜK FİNAL</small><h3>Tek Maç</h3><p>Aynı takım · uzatma + penaltı</p></div></article>
+      <article class="fc-stage final"><span>06</span><div><small>ÜÇÜNCÜLÜK MAÇI</small><h3>Tek Maç</h3><p>Yarı final kaybedenleri · aynı takım</p></div></article>
+      <article class="fc-stage final"><span>07</span><div><small>BÜYÜK FİNAL</small><h3>Tek Maç</h3><p>Aynı takım · uzatma + penaltı</p></div></article>
     </section>`;
 
     if (!cloudConfigured) {
@@ -9835,7 +10564,6 @@ ${shareData.url}`)}`;
 
   document.addEventListener("click", event => {
     if (window.FIFA_CHAT_UI?.handleClick?.(event)) return;
-    if (window.FIFA_SEASON_HUB?.handleClick?.(event)) return;
     const nav = event.target.closest("[data-nav]");
     if (nav) { navTo(nav.dataset.nav); return; }
     const action = event.target.closest("[data-action]");
@@ -9956,7 +10684,7 @@ ${shareData.url}`)}`;
     if (type === "share-odds") { shareOdds(); return; }
     if (type === "share-single-odds") { shareOdds(action.dataset.matchId); return; }
     if (type === "set-live-stats-scope") {
-      liveStatsScope = ["all","final-chapter","playoff","last-ticket","quarterfinal","semifinal","final"].includes(action.dataset.liveStatsScope) ? action.dataset.liveStatsScope : "all";
+      liveStatsScope = ["all","final-chapter","playoff","last-ticket","quarterfinal","semifinal","thirdPlace","final"].includes(action.dataset.liveStatsScope) ? action.dataset.liveStatsScope : "all";
       if (activeView === "livestats") renderLiveStatistics();
       return;
     }
@@ -9995,6 +10723,21 @@ ${shareData.url}`)}`;
     if (type === "select-team-stat") {
       selectedTeamStatName = action.dataset.teamName || selectedTeamStatName;
       if (activeView === "teams") renderTeamStatistics();
+      return;
+    }
+    if (type === "set-tournament-benchmark-section") {
+      tournamentBenchmarkSection = action.dataset.benchmarkSection === "player-atlas" ? "player-atlas" : "report-card";
+      if (activeView === "benchmark") renderTournamentBenchmark();
+      return;
+    }
+    if (type === "set-tournament-benchmark-metric") {
+      tournamentBenchmarkMetric = ["benchmark","ppg","clutch","consistency","era"].includes(action.dataset.benchmarkMetric) ? action.dataset.benchmarkMetric : "benchmark";
+      if (activeView === "benchmark") renderTournamentBenchmark();
+      return;
+    }
+    if (type === "select-tournament-benchmark-player") {
+      tournamentBenchmarkSelectedPlayer = action.dataset.playerName || tournamentBenchmarkSelectedPlayer;
+      if (activeView === "benchmark") renderTournamentBenchmark();
       return;
     }
     if (type === "select-alltime-player") {
@@ -10057,7 +10800,6 @@ ${shareData.url}`)}`;
   });
 
   document.addEventListener("input", event => {
-    if (window.FIFA_SEASON_HUB?.handleInput?.(event)) return;
     if (event.target.dataset.fifa10Name && canEdit()) {
       const player=seasonSystem().fifa10Draft.players.find(item=>item.id===event.target.dataset.fifa10Name);
       if (player) { player.name=event.target.value; seasonSystem().fifa10Draft.updatedAt=new Date().toISOString(); saveState(); }
@@ -10089,7 +10831,6 @@ ${shareData.url}`)}`;
 
   document.addEventListener("submit", event => {
     if (window.FIFA_CHAT_UI?.handleSubmit?.(event)) return;
-    if (window.FIFA_SEASON_HUB?.handleSubmit?.(event)) return;
     if (event.target.id === "playerPageLoginForm") { event.preventDefault(); handlePlayerPageLogin(event.target); return; }
     if (event.target.id === "playerSignupForm") { event.preventDefault(); handlePlayerSignup(event.target); return; }
     if (event.target.id === "playerClaimForm") { event.preventDefault(); handlePlayerClaim(event.target); return; }
@@ -10119,7 +10860,6 @@ ${shareData.url}`)}`;
   });
 
   document.addEventListener("change", event => {
-    if (window.FIFA_SEASON_HUB?.handleChange?.(event)) return;
     if (event.target.dataset.fifa10League && canEdit()) {
       const player=seasonSystem().fifa10Draft.players.find(item=>item.id===event.target.dataset.fifa10League);
       if (player) { player.league=event.target.value==="premier"?"premier":"championship"; seasonSystem().fifa10Draft.updatedAt=new Date().toISOString(); saveState(); renderSeasonMuseum(); }
@@ -10165,6 +10905,7 @@ ${shareData.url}`)}`;
     }
     if (event.target.id === "importFile" && event.target.files?.[0]) importBackup(event.target.files[0]);
     if (event.target.id === "formPlayerSelect") { selectedFormPlayerName = event.target.value; if (activeView === "form") renderFormCentre(); }
+    if (event.target.id === "tournamentBenchmarkPlayerSelect") { tournamentBenchmarkSelectedPlayer = event.target.value; if (activeView === "benchmark") renderTournamentBenchmark(); return; }
     if (event.target.id === "allTimePlayerSelect") { allTimeSelectedPlayerName = event.target.value; if (activeView === "alltime") renderAllTime(); }
     if (event.target.id === "rivalrySelectA") {
       allTimeRivalryA = event.target.value;
@@ -10188,7 +10929,6 @@ ${shareData.url}`)}`;
 
   $("#modalClose").addEventListener("click", closeModal);
   modalBackdrop.addEventListener("click", event => { if (event.target === modalBackdrop) closeModal(); });
-  $("#mobileMenu").addEventListener("click", () => $("#sidebar").classList.toggle("open"));
   $("#quickBackupBtn").addEventListener("click", exportJSON);
   document.addEventListener("keydown", event => { if (event.key === "Escape") closeModal(); });
 
@@ -10210,7 +10950,8 @@ ${shareData.url}`)}`;
     closeModal,
     escapeHTML,
     refreshView: () => render(),
-    navigate: target => navTo(target)
+    navigate: target => navTo(target),
+    buildTournamentBenchmarkAnalytics: () => buildTournamentBenchmarkAnalytics()
   };
 
   window.FIFA_FINAL_CHAPTER = {
