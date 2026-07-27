@@ -1,0 +1,10 @@
+FIFA9 V47.9.0 — FINAL NIGHT VISUAL IDENTITY
+
+- Final Night poster palette applied site-wide.
+- Neon-lime primary accent replaced by electric blue / violet / magenta system.
+- Green reserved for live and positive states.
+- Navigation, sidebar, cards, tables, lists and report screens modernized.
+- Champions podium and report-card views aligned with the new identity.
+- Force-refresh build marker updated to 47.9.0.
+- Service worker cache updated.
+- No tournament data or gameplay logic changed.

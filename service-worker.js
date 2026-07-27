@@ -1,4 +1,4 @@
-const CACHE = "tournament-universe-v47-8-0-forced-final-night";
+const CACHE = "tournament-universe-v47-9-0-final-night-identity";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -10,6 +10,7 @@ const APP_SHELL = [
   "./final-chapter-third-place.css",
   "./champions-podium.css",
   "./final-night-v478.css",
+  "./final-night-theme-v479.css",
   "./final-night-v478.js",
   "./fifa9-experience-hub.css",
   "./fifa9-experience-hub.js",

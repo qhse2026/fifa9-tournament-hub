@@ -1,0 +1,26 @@
+FIFA9 V47.9.0 — FINAL NIGHT VISUAL IDENTITY
+
+Bu sürüm, Final Night açılış ekranındaki renk sistemini tüm siteye uygular.
+
+RENK SİSTEMİ
+- Derin gece laciverti
+- Elektrik mavisi
+- Mor / magenta geçişleri
+- Beyaz ve buz mavisi tipografi
+- Yeşil yalnızca canlı / olumlu durumlarda
+
+GÜNCELLENEN ALANLAR
+- Üst navigasyon
+- Sidebar
+- Ana sayfa hero ve kontrol kartları
+- Şampiyonlar / podyumlar
+- Turnuva Karnesi ve oyuncu atlası
+- Tüm tablo ve liste görünümleri
+- Modallar, butonlar, formlar ve mobil dock
+
+KURULUM
+1. ZIP'i bilgisayarınızda çıkartın.
+2. Tüm dosya ve klasörleri repository ana dizinine yükleyin.
+3. index.html dahil mevcut dosyaların üzerine yazmayı onaylayın.
+4. Deploy sonrasında siteyi açın. Sistem cache'i otomatik yeniler.
+5. Sağ üstte V47.9 · FINAL NIGHT IDENTITY görünmelidir.
