@@ -1,0 +1,76 @@
+{
+  "version": "V47.1.1",
+  "build": "Final Chapter Third-place Match",
+  "created_at_utc": "2026-07-27T10:21:18.635068+00:00",
+  "status": "PASS",
+  "syntax_checks": {
+    "app.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    "service-worker.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    "fifa9-experience-hub.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    "horizon-os-v47.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    },
+    "navigation-os-v47-1.js": {
+      "passed": true,
+      "message": "Syntax OK"
+    }
+  },
+  "feature_checks": {
+    "legacy_state_merge_adds_third_place": true,
+    "semifinal_losers_are_routed": true,
+    "third_place_match_auto_created": true,
+    "third_place_is_single_match": true,
+    "third_place_uses_same_team": true,
+    "third_place_result_required_for_completion": true,
+    "third_place_in_official_match_pool": true,
+    "third_place_in_live_stats": true,
+    "third_place_in_bracket": true,
+    "third_place_in_team_pools": true,
+    "final_pool_fallback": true,
+    "existing_semifinal_results_preserved": true,
+    "new_css_loaded": true,
+    "new_css_cached": true,
+    "cache_version_bumped": true,
+    "responsive_bronze_layout": true
+  },
+  "routing_test": {
+    "semifinal_winners": [
+      "P1",
+      "P4"
+    ],
+    "grand_final": [
+      "P1",
+      "P4"
+    ],
+    "semifinal_losers": [
+      "P2",
+      "P3"
+    ],
+    "third_place_match": [
+      "P2",
+      "P3"
+    ],
+    "passed": true
+  },
+  "compatibility_note": "The Final Chapter format version remains 43 so existing in-progress semifinal data is not migrated or reset. The new thirdPlace object is added by mergeFinalChapter when older saved state is loaded.",
+  "browser_note": "Static and deterministic routing validation passed. Deploy over the existing repository and hard-refresh once so the new service-worker cache is activated.",
+  "legacy_state_runtime_test": {
+    "passed": true,
+    "thirdPlace": {
+      "match": null,
+      "winnerId": null
+    },
+    "preservedFinal": "old-final",
+    "preservedSemifinalSeries": 1
+  }
+}

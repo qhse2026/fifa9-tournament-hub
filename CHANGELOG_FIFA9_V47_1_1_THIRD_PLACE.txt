@@ -1,0 +1,18 @@
+FIFA9 V47.1.1 — CHANGELOG
+
+ADDED
+- Automatic third-place match from the two semifinal losers.
+- Third-place state persistence and backward-compatible state merge.
+- Third-place 5-star team pool with Grand Final pool fallback.
+- Bronze match bracket card, management panel and progression routing.
+- Live Match and Live Statistics third-place scope.
+- Third/fourth-place player status labels.
+- Completion gate requiring both champion and third-place winner.
+- Dedicated responsive bronze visual layer.
+
+UNCHANGED
+- Existing Final Chapter semifinal series and results.
+- Existing draw policy and locked rounds.
+- Grand Final logic.
+- Supabase/cloud structure.
+- League Phase, Gold Group and Silver Group data.

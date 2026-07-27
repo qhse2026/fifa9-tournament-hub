@@ -1,0 +1,52 @@
+FIFA9 V47.1.1 — FINAL CHAPTER ÜÇÜNCÜLÜK MAÇI
+
+BU GÜNCELLEME NE EKLER?
+- İki yarı final galibi otomatik olarak Büyük Final'e gider.
+- İki yarı final kaybedeni otomatik olarak Üçüncülük Maçı'na gider.
+- Üçüncülük Maçı tek maçtır ve beraberlikte uzatma / penaltı galibi seçilir.
+- Büyük Finalde olduğu gibi iki oyuncu aynı takımı kullanır.
+- Üçüncülük için ayrı takım havuzu eklenmiştir.
+- Üçüncülük havuzu boş bırakılırsa Büyük Final takım havuzu otomatik kullanılır.
+- Üçüncülük maçı bracket, otomatik tur aktarımı, canlı maç, canlı istatistik ve resmi maç havuzuna bağlanmıştır.
+- Kazanan FIFA 09 üçüncüsü, kaybeden FIFA 09 dördüncüsü olarak gösterilir.
+- Turnuva yalnızca hem şampiyon hem üçüncü belli olduğunda tamamlanmış sayılır.
+
+MEVCUT YARI FİNAL KAYITLARI KORUNUR MU?
+Evet. Final Chapter format sürümü özellikle değiştirilmemiştir. Mevcut yarı final serileri,
+takım seçimleri ve girilmiş skorlar sıfırlanmaz. Eski kayıtta thirdPlace alanı yoksa sistem
+bunu otomatik olarak ekler. Yarı finaller daha önce tamamlandıysa güncelleme açıldığında
+üçüncülük eşleşmesi yarı final kaybedenlerinden otomatik oluşturulur.
+
+KURAL
+- Yarı Final 1 kaybedeni vs Yarı Final 2 kaybedeni
+- Tek maç
+- 5 yıldız
+- Aynı takım
+- Beraberlikte uzatma / penaltı
+
+YÜKLENECEK DOSYALAR
+Bu ZIP içindeki bütün dosyaları repository ana dizinine yükleyin ve mevcut dosyaların
+üzerine yazılmasına izin verin.
+
+ÖNEMLİ DOSYALAR
+- app.js
+- index.html
+- service-worker.js
+- final-chapter-third-place.css
+
+YÜKLEME SONRASI
+1. GitHub değişikliklerini commit edin.
+2. Siteyi açın.
+3. Bir kez Ctrl + Shift + R ile sert yenileme yapın.
+4. Final Chapter ekranına girin.
+5. Yarı finaller tamamlandığında Üçüncülük Maçı ve Büyük Final birlikte oluşacaktır.
+
+TAKIM HAVUZU
+Final Chapter > Takım Havuzları içinde yeni “Üçüncülük · 5★ · Aynı Takım” alanı vardır.
+Bu alanı boş bırakırsanız sistem Büyük Final takım havuzunu kullanır.
+
+ÖNERİLEN COMMIT MESAJI
+Add Final Chapter third-place match V47.1.1
+
+DOĞRULAMA
+VALIDATION_REPORT_FIFA9_V47_1_1_THIRD_PLACE.json dosyasındaki tüm kontroller PASS durumundadır.

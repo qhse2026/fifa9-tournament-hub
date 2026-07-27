@@ -1,4 +1,4 @@
-const CACHE = "tournament-universe-v47-1-0-navigation-os-pro";
+const CACHE = "tournament-universe-v47-1-1-final-chapter-third-place";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -6,6 +6,7 @@ const APP_SHELL = [
   "./horizon-os-v47.css",
   "./horizon-os-v47.js",
   "./navigation-os-v47-1.css",
+  "./final-chapter-third-place.css",
   "./navigation-os-v47-1.js",
   "./fifa9-experience-hub.css",
   "./final-chapter-progression.css",
