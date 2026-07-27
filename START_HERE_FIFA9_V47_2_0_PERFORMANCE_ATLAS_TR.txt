@@ -1,0 +1,24 @@
+FIFA9 V47.2.0 — PERFORMANCE ATLAS KURULUMU
+
+1. ZIP dosyasını açın.
+2. İçindeki dosyaların tamamını GitHub repository ana dizinine yükleyin.
+3. Mevcut dosyaların üzerine yazılmasına izin verin.
+4. Commit mesajı olarak şunu kullanabilirsiniz:
+   Add Tournament Performance Atlas V47.2.0
+5. Deploy tamamlandıktan sonra siteyi Ctrl + Shift + R ile yenileyin.
+
+YENİ SAYFA
+Arşiv & Yönetim > Turnuva Benchmark
+Üst menüde: Atlas
+
+SAYFANIN MANTIĞI
+- FIFA 1–9 içinde şampiyon olmuş oyuncular ana sıralamadan çıkarılır.
+- Bütün tamamlanan maçlar standart 3-1-0 puan sistemiyle değerlendirilir.
+- Toplam gol yerine PPG, GF/M, GA/M ve GD/M kullanılır.
+- BMX Benchmark Score kupa sayısı kullanmaz.
+- Küçük maç örneklemlerini dengelemek için 5 maçlık güvenilirlik önceliği uygulanır.
+- Her oyuncu oynadığı turnuvanın kendi rekabet ortamında yüzdelik dilime yerleştirilir.
+- Çeyrek final ve sonrası için Clutch PPG ayrıca hesaplanır.
+
+MEVCUT VERİLER
+Bu güncelleme Final Chapter eşleşmelerini, yarı final sonuçlarını, üçüncülük maçını, canlı maçları veya Supabase kayıtlarını sıfırlamaz.

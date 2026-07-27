@@ -1,4 +1,4 @@
-const CACHE = "tournament-universe-v47-1-1-final-chapter-third-place";
+const CACHE = "tournament-universe-v47-2-0-performance-atlas";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -46,6 +46,7 @@ const APP_SHELL = [
   "./manager-room.css",
   "./manager-season-closure.css",
   "./all-time-elite.css",
+  "./tournament-benchmark.css",
   "./me4-simulate.css",
   "./manager-friendly.css",
   "./manager-v42-4.css",

@@ -1,0 +1,16 @@
+FIFA9 V47.2.0 — PERFORMANCE ATLAS
+
+NEW
+- Added a dedicated Tournament Benchmark / Performance Atlas page.
+- Excludes every player who has won at least one FIFA tournament.
+- Adds all-result 3-1-0 standings with PPG, win rate, GF/M, GA/M and GD/M.
+- Adds a trophy-free Benchmark Score with small-sample reliability control.
+- Adds Clutch PPG for quarter-final and later matches.
+- Adds tournament-native percentile and cross-era consistency metrics.
+- Adds player edition evolution profiles and a cross-edition heatmap.
+- Adds per-match tournament comparison cards: tempo, close games, margin and balance.
+- Adds No-Crown Leader, PPG Master, Clutch Hunter, Consistency Master, Closest to Crown and Biggest Rise insights.
+
+COMPATIBILITY
+- Existing FIFA 1–9 archive, Final Chapter, third-place match and live results are preserved.
+- No state reset or schema migration is required.

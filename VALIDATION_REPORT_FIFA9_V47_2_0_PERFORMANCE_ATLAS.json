@@ -1,0 +1,146 @@
+{
+  "package": "FIFA9 V47.2.0 Tournament Performance Atlas",
+  "generatedAt": "2026-07-27T10:40:36.264585+00:00",
+  "status": "PASS",
+  "checks": [
+    {
+      "name": "JavaScript syntax: app.js",
+      "status": "PASS",
+      "detail": "No syntax errors"
+    },
+    {
+      "name": "JavaScript syntax: navigation-os-v47-1.js",
+      "status": "PASS",
+      "detail": "No syntax errors"
+    },
+    {
+      "name": "JavaScript syntax: horizon-os-v47.js",
+      "status": "PASS",
+      "detail": "No syntax errors"
+    },
+    {
+      "name": "JavaScript syntax: fifa9-experience-hub.js",
+      "status": "PASS",
+      "detail": "No syntax errors"
+    },
+    {
+      "name": "JavaScript syntax: service-worker.js",
+      "status": "PASS",
+      "detail": "No syntax errors"
+    },
+    {
+      "name": "Synthetic cross-edition analytics test",
+      "status": "PASS",
+      "detail": "{\n  \"checks\": {\n    \"championsExcluded\": true,\n    \"nonChampionsPresent\": true,\n    \"editionCount\": true,\n    \"routeRendered\": true,\n    \"finiteScores\": true,\n    \"noTitles\": true\n  },\n  \"status\": \"PASS\",\n  \"players\": [\n    \"Cem\",\n    \"Efe\",\n    \"Deniz\",\n    \"Fikret\"\n  ],\n  \"top\": \"Cem\",\n  \"htmlLength\": 12474\n}"
+    },
+    {
+      "name": "Benchmark stylesheet linked",
+      "status": "PASS",
+      "detail": "tournament-benchmark.css present in <head>"
+    },
+    {
+      "name": "Benchmark navigation route present",
+      "status": "PASS",
+      "detail": "Sidebar / top navigation route found"
+    },
+    {
+      "name": "V47.2.0 version visible",
+      "status": "PASS",
+      "detail": "Sidebar version updated"
+    },
+    {
+      "name": "Application script cache-busted",
+      "status": "PASS",
+      "detail": "app.js version query updated"
+    },
+    {
+      "name": "Benchmark route renderer wired",
+      "status": "PASS",
+      "detail": "Router switch contains benchmark page"
+    },
+    {
+      "name": "Champion exclusion logic present",
+      "status": "PASS",
+      "detail": "Historical and current champions filtered"
+    },
+    {
+      "name": "Per-match metrics present",
+      "status": "PASS",
+      "detail": "PPG / GF-M / GA-M / GD-M / Clutch metrics found"
+    },
+    {
+      "name": "Cross-edition percentile present",
+      "status": "PASS",
+      "detail": "Era normalization and consistency found"
+    },
+    {
+      "name": "Third-place logic preserved",
+      "status": "PASS",
+      "detail": "V47.1.1 third-place implementation remains"
+    },
+    {
+      "name": "No state reset or schema migration added",
+      "status": "PASS",
+      "detail": "Benchmark UI state remains ephemeral"
+    },
+    {
+      "name": "Service worker cache version updated",
+      "status": "PASS",
+      "detail": "New cache name active"
+    },
+    {
+      "name": "Benchmark CSS cached",
+      "status": "PASS",
+      "detail": "Offline shell includes new stylesheet"
+    },
+    {
+      "name": "CSS braces balanced",
+      "status": "PASS",
+      "detail": "127 opening / 127 closing braces"
+    },
+    {
+      "name": "Responsive rules present",
+      "status": "PASS",
+      "detail": "Desktop, tablet and mobile layouts included"
+    },
+    {
+      "name": "Reduced-motion support present",
+      "status": "PASS",
+      "detail": "Accessibility motion override included"
+    }
+  ],
+  "syntheticTest": {
+    "checks": {
+      "championsExcluded": true,
+      "nonChampionsPresent": true,
+      "editionCount": true,
+      "routeRendered": true,
+      "finiteScores": true,
+      "noTitles": true
+    },
+    "status": "PASS",
+    "players": [
+      "Cem",
+      "Efe",
+      "Deniz",
+      "Fikret"
+    ],
+    "top": "Cem",
+    "htmlLength": 12474
+  },
+  "packageFiles": [
+    "index.html",
+    "app.js",
+    "tournament-benchmark.css",
+    "final-chapter-third-place.css",
+    "navigation-os-v47-1.css",
+    "navigation-os-v47-1.js",
+    "horizon-os-v47.js",
+    "fifa9-experience-hub.js",
+    "service-worker.js",
+    "CHANGELOG_FIFA9_V47_2_0_PERFORMANCE_ATLAS.txt",
+    "START_HERE_FIFA9_V47_2_0_PERFORMANCE_ATLAS_TR.txt",
+    "VALIDATION_REPORT_FIFA9_V47_2_0_PERFORMANCE_ATLAS.json",
+    "SHA256SUMS_FIFA9_V47_2_0_PERFORMANCE_ATLAS.txt"
+  ]
+}
