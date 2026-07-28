@@ -50,7 +50,7 @@
   const toastStack = $("#toastStack");
 
   const titleMap = {
-    dashboard: "FIFA 9 Ana Merkezi",
+    dashboard: "FIFA 10 Ana Merkezi",
     livematch: "Canlı Maç Merkezi",
     livestats: "Canlı İstatistikler",
     form: "Form Merkezi",
@@ -2388,7 +2388,7 @@
     }
     if (target !== "livematch" && livePresentationMode !== "standard") exitLivePresentation(false);
     activeView = target;
-    pageTitle.textContent = titleMap[target] || "FIFA 9";
+    pageTitle.textContent = titleMap[target] || "Oruç Reis FIFA World";
     $$(".nav-item").forEach(item => item.classList.toggle("active", item.dataset.nav === target));
     window.FIFA9_NAVIGATION?.close?.({ restoreFocus: false }) || $("#sidebar").classList.remove("open");
     render();
@@ -2396,7 +2396,7 @@
   }
 
   function render() {
-    pageTitle.textContent = titleMap[activeView] || "FIFA 9";
+    pageTitle.textContent = titleMap[activeView] || "Oruç Reis FIFA World";
     $$(".nav-item").forEach(item => item.classList.toggle("active", item.dataset.nav === activeView));
     refreshKnockout();
     const liveNav = document.querySelector('[data-nav="livematch"]');
@@ -2507,177 +2507,136 @@
     const records = dashboardTournamentPodiums();
     const championCards = records.length ? records : historicalHonours().slice(0, 8);
 
-    return `<section class="home-champions-section" aria-labelledby="homeChampionsTitle">
+    return `<section class="home-champions-section fifa09-legacy-podium" aria-labelledby="homeChampionsTitle">
       <div class="home-champions-heading">
-        <div><span>01 / HALL OF CHAMPIONS</span><h3 id="homeChampionsTitle">Şampiyonlar ve<br>turnuva podyumları.</h3></div>
-        <div><p>Her edisyonun şampiyonu, finalisti ve üçüncüsü tek bir prestij duvarında. FIFA 09 sonuçları Final Chapter tamamlandıkça otomatik güncellenir.</p><button type="button" data-nav="alltime">Tüm zamanları aç <b>↗</b></button></div>
+        <div><span>03 / FIFA 09 LEGACY</span><h3 id="homeChampionsTitle">The Final Chapter<br>is now history.</h3></div>
+        <div><p>FIFA 09 tamamlandı. Şampiyonluk kürsüsü, kupalar ve dokuz edisyonluk şampiyonlar listesi artık Oruç Reis FIFA World mirasının kalıcı parçası.</p><button type="button" data-nav="alltime">Tüm zamanları aç <b>↗</b></button></div>
       </div>
 
       <div class="home-podium-shell">
-        <header><div><span>FEATURED PODIUM</span><strong>FIFA 09 · FINAL CHAPTER</strong></div><b class="home-podium-status">${escapeHTML(live.status)}</b></header>
+        <header><div><span>LEGACY PODIUM</span><strong>FIFA 09 · FINAL CHAPTER</strong></div><b class="home-podium-status">LEGACY SEALED</b></header>
         <div class="home-podium-grid">
-          ${dashboardPodiumTrophy({ place: "silver", image: "assets/trophies/fifa9-runner-up-silver.webp", cupName: "RUNNER-UP CUP", player: live.runnerUp, ready: live.runnerReady, sideLabel: "İKİNCİ" })}
-          ${dashboardPodiumTrophy({ place: "gold", image: "assets/trophies/fifa9-champion-gold.webp", cupName: "CHAMPION CUP", player: live.winner, ready: live.winnerReady, sideLabel: "ŞAMPİYON" })}
-          ${dashboardPodiumTrophy({ place: "bronze", image: "assets/trophies/fifa9-third-place-bronze.webp", cupName: "THIRD PLACE CUP", player: live.third, ready: live.thirdReady, sideLabel: "ÜÇÜNCÜ" })}
+          ${dashboardPodiumTrophy({ place: "silver", image: "assets/trophies/fifa9-runner-up-silver.webp", cupName: "RUNNER-UP CUP", player: live.runnerUp, ready: true, sideLabel: "FİNALİST" })}
+          ${dashboardPodiumTrophy({ place: "gold", image: "assets/trophies/fifa9-champion-gold.webp", cupName: "CHAMPION CUP", player: live.winner, ready: true, sideLabel: "ŞAMPİYON" })}
+          ${dashboardPodiumTrophy({ place: "bronze", image: "assets/trophies/fifa9-third-place-bronze.webp", cupName: "THIRD PLACE CUP", player: live.third, ready: true, sideLabel: "ÜÇÜNCÜ" })}
         </div>
       </div>
 
       <div class="home-champion-wall">
-        <div class="home-champion-wall-title"><div><span>CHAMPIONS LIST</span><h4>FIFA I — IX Şampiyonları</h4></div><small>${championCards.filter(item => item.winner).length} kayıtlı edisyon</small></div>
+        <div class="home-champion-wall-title"><div><span>CHAMPIONS ARCHIVE</span><h4>FIFA I — IX Şampiyonları</h4></div><small>${championCards.filter(item => item.winner).length} tamamlanmış edisyon</small></div>
         <div class="home-champion-cards">
-          ${championCards.map(record => `<article class="home-champion-card ${Number(record.edition) === 9 ? "current" : ""}">
+          ${championCards.map(record => `<article class="home-champion-card ${Number(record.edition) === 9 ? "current legacy-sealed" : ""}">
             <div class="home-champion-edition"><span>FIFA</span><strong>${String(Number(record.edition) || 0).padStart(2, "0")}</strong></div>
             <div class="home-champion-mini-trophy"><img src="assets/trophies/fifa9-champion-gold.webp" alt="" loading="lazy" decoding="async" /></div>
-            <div class="home-champion-name"><small>ŞAMPİYON</small><strong>${escapeHTML(record.winner || "Bekleniyor")}</strong></div>
+            <div class="home-champion-name"><small>ŞAMPİYON</small><strong>${escapeHTML(record.winner || "—")}</strong></div>
             <div class="home-champion-podium-row"><span><i>2</i>${escapeHTML(record.runnerUp || "—")}</span><span><i>3</i>${escapeHTML(record.third || "—")}</span></div>
             <div class="home-champion-cup-label">FIFA ${String(Number(record.edition) || 0).padStart(2, "0")} TOURNAMENT CUP</div>
           </article>`).join("")}
-          ${!championCards.some(item => Number(item.edition) === 9) ? `<article class="home-champion-card current pending">
-            <div class="home-champion-edition"><span>FIFA</span><strong>09</strong></div>
-            <div class="home-champion-mini-trophy"><img src="assets/trophies/fifa9-champion-gold.webp" alt="" loading="lazy" decoding="async" /></div>
-            <div class="home-champion-name"><small>ŞAMPİYON</small><strong>${escapeHTML(live.winner)}</strong></div>
-            <div class="home-champion-podium-row"><span><i>2</i>${escapeHTML(live.runnerUp)}</span><span><i>3</i>${escapeHTML(live.third)}</span></div>
-            <div class="home-champion-cup-label">FIFA 09 FINAL CHAPTER CUP</div>
-          </article>` : ""}
         </div>
       </div>
     </section>`;
   }
 
   function renderDashboard() {
-    const leagueDone = leagueMatches().filter(matchComplete).length;
-    const goldDone = goldMatches().filter(matchComplete).length;
-    const silverDone = silverMatches().filter(matchComplete).length;
-    const completedResults = leagueDone + goldDone + silverDone;
-    const champ = state.current.finalChapter?.final?.championId || state.current.knockout.championId;
-    const stage = currentStage();
-    const activeLive = getActiveLive();
-    const nextMatch = !activeLive ? liveEligibleMatches().find(match => match.homeId && match.awayId) : activeLive.match;
-    const leader = state.current.league.generated ? leagueStandings()[0] : null;
-    const progress = progressPercent();
-    const participantCount = (state.current.participants || []).length;
-    const stageLabel = {
-      setup:"KURA HAZIRLIĞI", league:"LEAGUE PHASE", "phase2-ready":"GRUPLAR HAZIR",
-      phase2:"ALTIN + GÜMÜŞ", "knockout-ready":"FINAL CHAPTER HAZIR",
-      knockout:"FINAL CHAPTER", completed:"TURNUVA TAMAMLANDI"
-    }[stage] || "FIFA 09";
-    const nextHome = nextMatch ? displayName(nextMatch.homeId) : "Oyuncu 1";
-    const nextAway = nextMatch ? displayName(nextMatch.awayId) : "Oyuncu 2";
-    const nextStage = nextMatch ? liveStageLabel(nextMatch) : "Fikstür hazırlanıyor";
-    const liveScore = activeLive ? `${activeLive.live.homeScore} — ${activeLive.live.awayScore}` : "VS";
-    const liveMeta = activeLive ? `${liveStatusText(activeLive.live)} · ${liveMinuteText(activeLive.live)}` : "NEXT MATCH";
+    syncCompletedFifa9Legacy();
+    const system = seasonSystem();
+    const draft = system.fifa10Draft || defaultSeasonSystem().fifa10Draft;
+    const settings = { ...defaultSeasonSystem().fifa10Draft.settings, ...(draft.settings || {}) };
+    const premier = fifa10DraftPlayersByLeague("premier");
+    const championship = fifa10DraftPlayersByLeague("championship");
+    const playerPool = (draft.players || []).length || (state.current.participants || []).filter(player => player.name?.trim()).length || PLAYER_COUNT;
+    const honour = allMuseumHonours().find(item => Number(item.edition) === 9 && item.competition === "oruc") || currentFifa9Honour();
+    const champion = honour?.winner || "Çağlar Can Tatar";
+    const runnerUp = honour?.runnerUp || "Kerim Özmen";
+    const third = honour?.third || "Sergei Smirnov";
+    const draftReady = draft.status === "draft";
+    const seasonStatus = draftReady ? "PLAYER DISTRIBUTION ACTIVE" : "LEAGUE BLUEPRINT READY";
+    const premierCount = draftReady ? premier.length : settings.premierSize || 7;
+    const championshipCount = draftReady ? championship.length : Math.max(0, playerPool - (settings.premierSize || 7));
 
-    view.innerHTML = `<div class="os-home" data-os-page="home">
-      <section class="os-hero" aria-labelledby="osHeroTitle">
+    view.innerHTML = `<div class="os-home f10-era-home" data-os-page="fifa10-home">
+      <section class="os-hero f10-era-hero" aria-labelledby="osHeroTitle">
         <canvas class="os-field-canvas" data-os-field aria-hidden="true"></canvas>
         <div class="os-hero-aurora" aria-hidden="true"></div>
+        <div class="f10-era-number" aria-hidden="true">10</div>
         <div class="os-hero-grid">
           <div class="os-hero-copy">
-            <div class="os-kicker"><span class="os-live-beacon"></span><b>FIFA 09 · ${escapeHTML(stageLabel)}</b><i>${completedResults} OFFICIAL RESULTS</i></div>
-            <h2 id="osHeroTitle">Every match<br><em>writes the final chapter.</em></h2>
-            <p>Final Chapter, live match operations, tournament intelligence and the complete FIFA 1–9 archive—now in one faster, focused hub.</p>
+            <div class="os-kicker f10-era-kicker"><span class="f10-era-dot"></span><b>FIFA 10 · THE NEW ERA</b><i>${escapeHTML(seasonStatus)}</i></div>
+            <h2 id="osHeroTitle">The final chapter<br><em>became a legacy.</em><br>The league era begins.</h2>
+            <p>FIFA 09 tarih oldu. Oruç Reis FIFA World artık Premier League, Championship, Oruç Reis Kupası ve Super Cup ile kalıcı lig dönemine geçiyor.</p>
             <div class="os-hero-actions">
-              <button class="os-primary-action" data-nav="knockout"><span>Enter Final Chapter</span><b>↗</b></button>
-              <button class="os-secondary-action" data-nav="livematch"><i></i><span>Open Live Centre</span></button>
-              <button class="os-text-action" id="dashboardModeLauncher"><span>Explore tournament</span><b>⌘K</b></button>
+              <button class="os-primary-action" data-nav="seasonhub"><span>Enter FIFA 10</span><b>↗</b></button>
+              <button class="os-secondary-action" data-nav="knockout"><span>FIFA 09 Legacy</span></button>
+              <button class="os-text-action" data-nav="alltime"><span>Explore all-time records</span><b>↗</b></button>
             </div>
-            <div class="os-hero-proof">
-              <article><small>Edition</small><strong>09</strong><span>Final Chapter</span></article>
-              <article><small>Progress</small><strong data-os-count="${progress}">${progress}</strong><span>percent complete</span></article>
-              <article><small>Archive</small><strong>09</strong><span>tournament editions</span></article>
+            <div class="os-hero-proof f10-era-proof">
+              <article><small>Active Edition</small><strong>10</strong><span>League Era</span></article>
+              <article><small>Divisions</small><strong>02</strong><span>Premier + Championship</span></article>
+              <article><small>Competitions</small><strong>04</strong><span>League · Cup · Super Cup</span></article>
             </div>
           </div>
 
-          <div class="os-hero-console">
-            <article class="os-match-console" data-nav="${activeLive ? "livematch" : "odds"}">
-              <div class="os-console-grid" aria-hidden="true"></div>
-              <header><span><i class="${activeLive ? "is-live" : ""}"></i>${liveMeta}</span><b>${escapeHTML(nextStage)}</b></header>
-              <div class="os-match-identity">
-                <div><span>${escapeHTML(nextHome).slice(0,1)}</span><strong>${escapeHTML(nextHome)}</strong></div>
-                <em>${liveScore}</em>
-                <div><span>${escapeHTML(nextAway).slice(0,1)}</span><strong>${escapeHTML(nextAway)}</strong></div>
+          <div class="f10-era-console-wrap">
+            <article class="f10-era-console" data-nav="seasonhub">
+              <div class="f10-console-grid" aria-hidden="true"></div>
+              <header><span><i></i>FIFA 10 COMMAND CENTRE</span><b>${escapeHTML(draftReady ? "DRAFT ACTIVE" : "READY")}</b></header>
+              <div class="f10-console-main">
+                <div class="f10-console-crest"><span>FIFA</span><strong>10</strong><small>NEW ERA</small></div>
+                <div class="f10-console-divisions">
+                  <article><span>PL</span><div><small>TOP DIVISION</small><strong>Premier League</strong></div><b>${premierCount}</b></article>
+                  <article><span>CH</span><div><small>CHALLENGER DIVISION</small><strong>Championship</strong></div><b>${championshipCount || "—"}</b></article>
+                </div>
               </div>
-              <footer><span>${activeLive ? "Match pulse is active" : "AI preview available"}</span><b>Open match intelligence ↗</b></footer>
-              <div class="os-orbit orbit-one"></div><div class="os-orbit orbit-two"></div>
+              <footer><span>3 LEGS · 4★ / 4.5★ / 5★</span><b>OPEN LEAGUE SYSTEM ↗</b></footer>
             </article>
-
-            <div class="os-console-metrics">
-              <article><small>TOURNAMENT PULSE</small><strong>${progress}%</strong><div class="os-progress-ring" style="--os-progress:${progress * 3.6}deg"><span>${completedResults}</span></div><p>Official results recorded across the active competition.</p></article>
-              <article><small>CURRENT LEADER</small><strong>${leader ? escapeHTML(leader.p) : "Awaiting draw"}</strong><span>${leader ? `${leader.pts} PTS · ${leader.w} WINS` : "League table will activate automatically"}</span><div class="os-sparkline"><i></i><i></i><i></i><i></i><i></i><i></i></div></article>
+            <div class="f10-era-metrics">
+              <article><small>FIFA 09 CHAMPION</small><strong>${escapeHTML(champion)}</strong><span>Legacy sealed · 28.07.2026</span></article>
+              <article><small>SEASON ARCHITECTURE</small><strong>${playerPool} Players</strong><span>${settings.promotion || 2} promotion · ${settings.relegation || 2} relegation</span></article>
             </div>
           </div>
         </div>
-        <div class="os-scroll-signal"><span>SCROLL TO ENTER THE TOURNAMENT</span><i></i></div>
+        <div class="os-scroll-signal"><span>WELCOME TO THE FIFA 10 ERA</span><i></i></div>
       </section>
 
-      <section class="os-ticker" aria-label="Tournament signal stream">
-        <div><span>LIVE SYSTEM</span><b>${state.current.live?.active ? "MATCH ACTIVE" : "READY"}</b></div>
-        <div><span>CURRENT STAGE</span><b>${escapeHTML(stageLabel)}</b></div>
-        <div><span>OFFICIAL RESULTS</span><b>${completedResults}</b></div>
-        <div><span>PLAYER FIELD</span><b>${participantCount || 16} PLAYERS</b></div>
-        <div><span>ARCHIVE</span><b>FIFA I — IX</b></div>
+      <section class="os-ticker f10-era-ticker" aria-label="FIFA 10 signal stream">
+        <div><span>ACTIVE ERA</span><b>FIFA 10</b></div>
+        <div><span>LEAGUE SYSTEM</span><b>PREMIER + CHAMPIONSHIP</b></div>
+        <div><span>SEASON FORMAT</span><b>3 LEGS</b></div>
+        <div><span>FIFA 09 CHAMPION</span><b>${escapeHTML(champion)}</b></div>
+        <div><span>LEGACY ARCHIVE</span><b>FIFA I — IX</b></div>
+      </section>
+
+      <section class="f10-command-section">
+        <div class="os-section-heading">
+          <div><span>01 / FIFA 10 COMMAND CENTRE</span><h3>A league ecosystem.<br>Built to last.</h3></div>
+          <p>FIFA 10 artık ana dönem. İki lig, üç devre, yükselme-düşme ve iki prestij kupası tek merkezden yönetilecek.</p>
+        </div>
+        <div class="f10-command-grid">
+          <article class="f10-command-card premier" data-nav="seasonhub"><header><span>PL</span><b>TOP DIVISION</b></header><div><small>FIFA 10</small><h4>Premier League</h4><p>${settings.premierSize || 7} oyuncu · üç devre · sezon şampiyonluğu.</p></div><footer><strong>${premierCount} PLAYERS</strong><b>OPEN ↗</b></footer></article>
+          <article class="f10-command-card championship" data-nav="seasonhub"><header><span>CH</span><b>SECOND DIVISION</b></header><div><small>PROMOTION RACE</small><h4>Championship</h4><p>Premier League’e çıkış için sezon boyu mücadele.</p></div><footer><strong>${championshipCount || "PLAYER POOL"}</strong><b>OPEN ↗</b></footer></article>
+          <article class="f10-command-card cup" data-nav="seasonhub"><header><span>OR</span><b>KNOCKOUT CUP</b></header><div><small>TRADITION</small><h4>Oruç Reis Kupası</h4><p>Lig sezonuna paralel ilerleyen eleme kupası.</p></div><footer><strong>ONE TROPHY</strong><b>FORMAT ↗</b></footer></article>
+          <article class="f10-command-card super" data-nav="seasonhub"><header><span>SC</span><b>SEASON OPENER</b></header><div><small>CHAMPIONS ONLY</small><h4>Super Cup</h4><p>Lig şampiyonu ile kupa şampiyonu tek finalde.</p></div><footer><strong>ONE NIGHT</strong><b>FORMAT ↗</b></footer></article>
+        </div>
+      </section>
+
+      <section class="f10-transition-section">
+        <article><span>02 / ERA TRANSITION</span><h3>FIFA 09 gave us a champion.<br>FIFA 10 will build a dynasty.</h3><p>Final Chapter sonuçları, oyuncu kartları, rekorlar ve dokuz edisyonun bütün mirası korunuyor. Yeni sezon geçmişi silmeden onun üzerine kuruluyor.</p><div><button data-nav="seasonhub">Prepare FIFA 10 <b>↗</b></button><button data-nav="benchmark">Compare FIFA I — IX</button></div></article>
+        <div class="f10-transition-data">
+          <div><small>CHAMPION</small><strong>${escapeHTML(champion)}</strong><span>FIFA 09</span></div>
+          <div><small>FINALIST</small><strong>${escapeHTML(runnerUp)}</strong><span>FIFA 09</span></div>
+          <div><small>THIRD PLACE</small><strong>${escapeHTML(third)}</strong><span>FIFA 09</span></div>
+        </div>
       </section>
 
       ${renderDashboardChampionsPodium()}
 
-      <section class="os-arena-section">
-        <div class="os-section-heading">
-          <div><span>02 / TOURNAMENT CONTROL</span><h3>One competition.<br>Four decisive layers.</h3></div>
-          <p>The hub is now focused only on tournament operations, live data, comparative report cards and historical records.</p>
-        </div>
-
-        <div class="os-arena-grid os-tournament-only-grid">
-          <article class="os-arena-card os-tournament-card" data-nav="knockout">
-            <div class="os-card-noise"></div>
-            <header><span>01</span><b>${escapeHTML(stageLabel)}</b></header>
-            <div><small>FIFA 09</small><h4>Final Chapter</h4><p>Semifinals, third-place match and the final path to one champion.</p></div>
-            <div class="os-stage-path"><span class="done">League</span><i></i><span class="done">Groups</span><i></i><span class="active">Final</span></div>
-            <footer><strong>${champ ? `${escapeHTML(playerName(champ))} · CHAMPION` : `${progress}% COMPLETE`}</strong><b>ENTER ↗</b></footer>
-          </article>
-
-          <article class="os-arena-card os-live-core-card" data-nav="livematch">
-            <header><span>02</span><b>LIVE OPERATIONS</b></header>
-            <div class="os-radar-visual"><span></span><i></i><i></i><i></i></div>
-            <div><small>MATCH CENTRE</small><h4>Control match night.</h4><p>Score, timeline, broadcast view and live statistical flow in one place.</p></div>
-            <footer><strong>${activeLive ? "MATCH ACTIVE" : "SYSTEM READY"}</strong><b>OPEN ↗</b></footer>
-          </article>
-
-          <article class="os-arena-card os-report-card" data-nav="benchmark">
-            <header><span>03</span><b>FIFA I — IX</b></header>
-            <div class="os-career-visual"><i></i><i></i><i></i><span>∑</span></div>
-            <div><small>TOURNAMENT REPORT CARDS</small><h4>Compare every edition.</h4><p>Tempo, balance, drama, match profile and non-champion performance atlas.</p></div>
-            <footer><strong>9 EDITIONS</strong><b>COMPARE ↗</b></footer>
-          </article>
-
-          <article class="os-arena-card os-intelligence-card" data-nav="intelligence">
-            <header><span>04</span><b>AI DIRECTOR</b></header>
-            <div class="os-radar-visual"><span></span><i></i><i></i><i></i></div>
-            <div><small>INTELLIGENCE CENTRE</small><h4>Read what happens next.</h4><p>Form, pressure, probability and destiny signals in one decision layer.</p></div>
-            <footer><strong>LIVE MODELS</strong><b>ANALYSE ↗</b></footer>
-          </article>
-        </div>
-      </section>
-
-      <section class="os-operations-section">
-        <div class="os-section-heading compact"><div><span>03 / OPERATIONS LAYER</span><h3>Everything live.<br>Nothing buried.</h3></div><p>Fast access to the tools used during match night.</p></div>
+      <section class="os-operations-section f10-records-section">
+        <div class="os-section-heading compact"><div><span>04 / FOOTBALL INTELLIGENCE</span><h3>The new era remembers<br>everything before it.</h3></div><p>Turnuva karneleri, oyuncu atlası, takım istatistikleri ve tüm zamanlar kayıtları FIFA 10 döneminin veri temelidir.</p></div>
         <div class="os-operation-rail">
-          <button data-nav="livematch"><span class="os-op-icon live"><i></i></span><div><small>NOW</small><strong>Live Match</strong><p>Broadcast, score and match flow</p></div><b>↗</b></button>
-          <button data-nav="livestats"><span class="os-op-icon">⌁</span><div><small>DATA</small><strong>Live Statistics</strong><p>xT, momentum and performance</p></div><b>↗</b></button>
-          <button data-nav="form"><span class="os-op-icon">↗</span><div><small>FORM</small><strong>Power Curve</strong><p>Recent results and trajectory</p></div><b>↗</b></button>
-          <button data-nav="odds"><span class="os-op-icon">1X2</span><div><small>MODEL</small><strong>Match Odds</strong><p>Probability and prediction market</p></div><b>↗</b></button>
-          <button data-nav="chat"><span class="os-op-icon">◌</span><div><small>SOCIAL</small><strong>Community</strong><p>Players, predictions and conversation</p></div><b>↗</b></button>
-        </div>
-      </section>
-
-      <section class="os-system-section">
-        <article class="os-system-story">
-          <span>04 / TOURNAMENT LEGACY</span><h3>The competition does not end when the final whistle blows.</h3><p>Every edition, result, rivalry and record remains connected without loading separate game engines.</p>
-          <div><button data-nav="benchmark">Open Tournament Report Cards <b>↗</b></button><button data-nav="alltime">Explore all-time legacy</button></div>
-        </article>
-        <div class="os-system-data">
-          <article><small>ACTIVE EDITION</small><strong>FIFA 09</strong><span>${escapeHTML(stageLabel)}</span></article>
-          <article><small>RESULT DATABASE</small><strong>${completedResults}</strong><span>official FIFA 09 results</span></article>
-          <article><small>ARCHIVE</small><strong>FIFA I — IX</strong><span>Titles, finals and rivalries</span></article>
+          <button data-nav="benchmark"><span class="os-op-icon">∑</span><div><small>COMPARE</small><strong>Turnuva Karnesi</strong><p>FIFA I–IX dönem ve performans kıyası</p></div><b>↗</b></button>
+          <button data-nav="alltime"><span class="os-op-icon">♛</span><div><small>LEGACY</small><strong>Tüm Zamanlar</strong><p>Şampiyonluklar, rekorlar ve oyuncu kartları</p></div><b>↗</b></button>
+          <button data-nav="teams"><span class="os-op-icon">◉</span><div><small>CLUB DATA</small><strong>Takım İstatistikleri</strong><p>Kullanım, başarı ve güç profilleri</p></div><b>↗</b></button>
+          <button data-nav="archive"><span class="os-op-icon">◇</span><div><small>HISTORY</small><strong>Turnuva Arşivi</strong><p>Dokuz edisyonun kalıcı kayıtları</p></div><b>↗</b></button>
         </div>
       </section>
     </div>`;

@@ -1,0 +1,10 @@
+V47.11.0 — FIFA 10 ERA
+- Restored Final Night V47.9 visual identity globally.
+- Rebuilt the default dashboard around FIFA 10.
+- Added Premier League, Championship, Oruç Reis Cup and Super Cup command cards.
+- Retained the complete FIFA 09 trophy podium and champions archive on the home page.
+- Updated branding, navigation, edition chip, breadcrumbs, mobile dock and launcher to FIFA 10.
+- Added an original FIFA 10 badge asset.
+- Replaced lime canvas accents with electric blue and magenta.
+- Removed the completed FIFA 09 final-night opening overlay from boot.
+- No tournament data or Supabase schema changes.

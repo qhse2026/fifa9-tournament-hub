@@ -54,7 +54,7 @@
       }
       if(event.target.matches("input,textarea,select,[contenteditable='true']")) return;
       if(event.key.toLowerCase() === "h") document.querySelector('[data-nav="dashboard"]')?.click();
-      if(event.key.toLowerCase() === "l") document.querySelector('.os-primary-nav [data-nav="livematch"]')?.click();
+      if(event.key.toLowerCase() === "l") document.querySelector('.os-primary-nav [data-nav="seasonhub"]')?.click();
     });
   }
 
@@ -120,10 +120,10 @@
         const a=nodes[i];
         for(let j=i+1;j<nodes.length;j++){
           const b=nodes[j],d=Math.hypot(a.x-b.x,a.y-b.y);
-          if(d<115){ctx.strokeStyle=`rgba(150,175,190,${(1-d/115)*.075})`;ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();}
+          if(d<115){ctx.strokeStyle=`rgba(92,157,235,${(1-d/115)*.095})`;ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();}
         }
       }
-      nodes.forEach((n,i)=>{ctx.fillStyle=i%13===0?"rgba(201,255,66,.5)":"rgba(170,192,207,.20)";ctx.beginPath();ctx.arc(n.x,n.y,i%13===0?1.5:.8,0,Math.PI*2);ctx.fill();});
+      nodes.forEach((n,i)=>{ctx.fillStyle=i%13===0?(i%26===0?"rgba(74,196,255,.62)":"rgba(195,75,220,.55)"):"rgba(132,176,228,.22)";ctx.beginPath();ctx.arc(n.x,n.y,i%13===0?1.5:.8,0,Math.PI*2);ctx.fill();});
     };
     draw();
     let timer=0;
@@ -144,7 +144,7 @@
   }
 
   function boot(){
-    document.documentElement.dataset.horizonOs="47.4.0-lite";
+    document.documentElement.dataset.horizonOs="47.11.0-fifa10-era";
     enhanceCommandPalette();setupKeyboard();enhanceView();
     const view=$("#view");if(view)new MutationObserver(()=>requestAnimationFrame(enhanceView)).observe(view,{childList:true});
     document.addEventListener("click",event=>{if(event.target.closest("[data-nav]")){routeTransition();setTimeout(syncRoute,30);}},true);

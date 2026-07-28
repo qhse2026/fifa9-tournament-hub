@@ -1,0 +1,50 @@
+{
+  "package": "ORUC_REIS_FIFA_WORLD_V47_11_0_FIFA10_ERA_DASHBOARD_UPLOAD_ONLY",
+  "status": "PASS",
+  "checks": [
+    {
+      "check": "JavaScript syntax: app.js",
+      "status": "PASS"
+    },
+    {
+      "check": "JavaScript syntax: FIFA 10 navigation shell",
+      "status": "PASS"
+    },
+    {
+      "check": "Final Night V47.9 theme linked by index.html",
+      "status": "PASS"
+    },
+    {
+      "check": "FIFA 10 is the default dashboard identity",
+      "status": "PASS"
+    },
+    {
+      "check": "FIFA 09 Legacy Podium retained with gold, silver and bronze trophies",
+      "status": "PASS"
+    },
+    {
+      "check": "FIFA 09 final opening overlay removed from boot",
+      "status": "PASS"
+    },
+    {
+      "check": "FIFA 10 brand asset included",
+      "status": "PASS"
+    },
+    {
+      "check": "Neon-lime canvas accent replaced with electric blue and magenta",
+      "status": "PASS"
+    },
+    {
+      "check": "Existing localStorage key retained; no tournament data migration",
+      "status": "PASS"
+    },
+    {
+      "check": "Service worker cache bumped to V47.11.0",
+      "status": "PASS"
+    },
+    {
+      "check": "ZIP integrity",
+      "status": "PASS"
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+ORUÇ REİS FIFA WORLD V47.11.0 — FIFA 10 ERA
+
+KURULUM
+1. ZIP dosyasını bilgisayarınızda çıkartın.
+2. İçindeki bütün dosya ve klasörleri repository ana dizinine yükleyin.
+3. Mevcut dosyaların üzerine yazılmasını onaylayın.
+4. Deploy tamamlandıktan sonra siteyi açın. Sistem eski cache ve service worker kayıtlarını temizleyerek URL'ye ?fifa9build=4711 ekleyecektir.
+5. Gerekirse bir kez Ctrl + Shift + R uygulayın.
+
+ANA DEĞİŞİKLİKLER
+- FIFA 10 artık ana dashboard ve aktif dönemdir.
+- V47.9 Final Night renk kimliği yeniden ve gerçekten yüklenir.
+- Neon yeşil ana renk olmaktan çıkarıldı; yalnızca canlı/olumlu durumlarda kullanılır.
+- FIFA 09 şampiyon kürsüsü ve kupaları ana sayfada Legacy Podium olarak korunur.
+- FIFA 09 verileri, Final Chapter sonuçları ve Supabase yapısı değiştirilmez.
+- FIFA 09 final açılış duyurusu kaldırılmıştır; site doğrudan FIFA 10 ana merkezine açılır.

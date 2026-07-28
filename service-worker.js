@@ -1,4 +1,4 @@
-const CACHE = "tournament-universe-v47-10-0-legacy-sync-fifa10-return";
+const CACHE = "oruc-reis-football-universe-v47-11-0-fifa10-era";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -9,10 +9,9 @@ const APP_SHELL = [
   "./navigation-os-v47-1.js",
   "./final-chapter-third-place.css",
   "./champions-podium.css",
-  "./final-night-v478.css",
   "./final-night-theme-v479.css",
+  "./fifa10-era-dashboard-v4711.css",
   "./fifa10-league-return.css",
-  "./final-night-v478.js",
   "./fifa9-experience-hub.css",
   "./fifa9-experience-hub.js",
   "./final-chapter-progression.css",
@@ -24,7 +23,7 @@ const APP_SHELL = [
   "./chat.js",
   "./community.js",
   "./data/historical-data.js",
-  "./assets/f9-mark.svg",
+  "./assets/f10-mark.svg",
   "./assets/final/f9-final-orbit.svg",
   "./assets/trophies/fifa9-champion-gold.webp",
   "./assets/trophies/fifa9-runner-up-silver.webp",

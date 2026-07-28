@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+<title id="title">FIFA 10 Tournament Universe</title><desc id="desc">Gold star and FIFA 10 monogram on a midnight blue badge.</desc>
+<defs><linearGradient id="g" x1="16" y1="10" x2="112" y2="118" gradientUnits="userSpaceOnUse"><stop stop-color="#35b9ff"/><stop offset=".52" stop-color="#795ee8"/><stop offset="1" stop-color="#d04bc7"/></linearGradient><linearGradient id="gold" x1="34" y1="24" x2="94" y2="104" gradientUnits="userSpaceOnUse"><stop stop-color="#fff0a9"/><stop offset=".45" stop-color="#e7c36d"/><stop offset="1" stop-color="#9d6b20"/></linearGradient><filter id="glow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+<circle cx="64" cy="64" r="58" fill="#06142d" stroke="url(#g)" stroke-width="3"/><circle cx="64" cy="64" r="50" fill="none" stroke="#d9ecff" stroke-opacity=".14"/>
+<path d="M64 22l9.2 18.6 20.5 3-14.8 14.4 3.5 20.4L64 68.8 45.6 78.4l3.5-20.4-14.8-14.4 20.5-3L64 22z" fill="none" stroke="url(#gold)" stroke-width="4" stroke-linejoin="round" filter="url(#glow)"/>
+<text x="64" y="99" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="26" font-weight="900" letter-spacing="-1" fill="url(#gold)">10</text>
+<text x="64" y="114" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="7" font-weight="700" letter-spacing="2" fill="#a9dcff">FIFA</text>
+</svg>

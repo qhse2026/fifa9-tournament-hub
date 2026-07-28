@@ -7,15 +7,15 @@
   };
 
   const BREADCRUMBS = {
-    dashboard:["FIFA 9","Ana Merkez"], livematch:["FIFA 9","Turnuva Modu","Canlı Maç"],
-    livestats:["FIFA 9","Turnuva Modu","Canlı İstatistikler"], form:["FIFA 9","Turnuva Modu","Form Merkezi"],
-    odds:["FIFA 9","Turnuva Modu","Maç Oranları"], intelligence:["FIFA 9","Turnuva Modu","Zekâ Merkezi"],
-    chat:["FIFA 9","Turnuva Modu","Turnuva Sohbeti"], setup:["FIFA 9","Turnuva Modu","Kura & Oyuncular"],
-    league:["FIFA 9","Turnuva Modu","League Phase"], gold:["FIFA 9","Turnuva Modu","Altın Grup"],
-    silver:["FIFA 9","Turnuva Modu","Gümüş Grup"], knockout:["FIFA 9","Turnuva Modu","Final Chapter"],
-    finalpoll:["FIFA 9","Turnuva Modu","Final Chapter Kararı"], seasonhub:["FIFA 10","Lig Sistemi","Sezon Hazırlığı"], print:["FIFA 9","Turnuva Modu","Çıktı Merkezi"],
-    archive:["FIFA 9","Arşiv & Yönetim","Turnuva Arşivi"], benchmark:["FIFA 9","Arşiv & Yönetim","Turnuva Karnesi"], alltime:["FIFA 9","Arşiv & Yönetim","Tüm Zamanlar"],
-    teams:["FIFA 9","Arşiv & Yönetim","Takım İstatistikleri"], backup:["FIFA 9","Arşiv & Yönetim","Veri & Yedek"]
+    dashboard:["FIFA 10","Ana Merkez"], livematch:["FIFA 09 Legacy","Analiz Merkezi","Maç Merkezi"],
+    livestats:["FIFA 09 Legacy","Analiz Merkezi","Maç İstatistikleri"], form:["Football Universe","Analiz","Form Merkezi"],
+    odds:["FIFA 09 Legacy","Analiz","Maç Oranları"], intelligence:["Football Universe","Analiz","Zekâ Merkezi"],
+    chat:["Football Universe","Topluluk","Turnuva Sohbeti"], setup:["FIFA 09 Legacy","Turnuva","Kura & Oyuncular"],
+    league:["FIFA 09 Legacy","Final Chapter","League Phase"], gold:["FIFA 09 Legacy","Final Chapter","Altın Grup"],
+    silver:["FIFA 09 Legacy","Final Chapter","Gümüş Grup"], knockout:["FIFA 09 Legacy","Tamamlanan Turnuva","Final Chapter"],
+    finalpoll:["FIFA 09 Legacy","Final Chapter","Karar"], seasonhub:["FIFA 10","Lig Sistemi","Yeni Dönem"], print:["Football Universe","Yönetim","Çıktı Merkezi"],
+    archive:["Football Universe","Arşiv & Yönetim","Turnuva Arşivi"], benchmark:["Football Universe","Arşiv & Yönetim","Turnuva Karnesi"], alltime:["Football Universe","Arşiv & Yönetim","Tüm Zamanlar"],
+    teams:["Football Universe","Arşiv & Yönetim","Takım İstatistikleri"], backup:["Football Universe","Arşiv & Yönetim","Veri & Yedek"]
   };
 
   function clusterForView(view) {
@@ -65,7 +65,7 @@
       updateHeight(cluster);
     });
 
-    const crumbs = BREADCRUMBS[view] || ["FIFA 9", document.getElementById("pageTitle")?.textContent || "Merkez"];
+    const crumbs = BREADCRUMBS[view] || ["FIFA 10", document.getElementById("pageTitle")?.textContent || "Merkez"];
     const crumb = document.getElementById("hubBreadcrumb");
     if (crumb) crumb.innerHTML = crumbs.map((item,index) => index === 0 ? `<span>${item}</span>` : index === crumbs.length - 1 ? `<i>›</i><b>${item}</b>` : `<i>›</i><em>${item}</em>`).join("");
 
