@@ -38,6 +38,10 @@
   let temporaryPollChoice = "";
   let temporaryPollPlayerName = "";
   let temporaryPollSubmitted = null;
+  let fifa10RemoteRegistrations = [];
+  let fifa10RegistrationsLoaded = false;
+  let fifa10RegistrationsLoading = false;
+  let fifa10RegistrationsError = "";
 
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -70,7 +74,7 @@
     backup: "Veri & Yedek",
     playeraccess: "Oyuncu Girişi",
     finalpoll: "FIFA09 Final Chapter Kararı",
-    seasonhub: "FIFA 10 Lig Sistemi"
+    seasonhub: "FIFA 10 Turnuva Sistemi"
   };
 
   const REMOVED_GAME_ROUTES = new Set(["managerroom", "managerhall", "museum", "formula1"]);
@@ -118,25 +122,35 @@
 
   function defaultSeasonSystem() {
     return {
-      infrastructureVersion: 39,
+      infrastructureVersion: 40,
       activeEdition: 10,
       seasons: [],
       fifa10Draft: {
-        status: "none",
+        status: "registration",
         createdAt: null,
         updatedAt: null,
         players: [],
         settings: {
-          premierSize: 7,
-          legs: [
-            { id: "leg-1", label: "1. Devre", stars: 4 },
-            { id: "leg-2", label: "2. Devre", stars: 4.5 },
-            { id: "leg-3", label: "3. Devre", stars: 5 }
+          formatId: "triple-circuit-v1",
+          formatName: "FIFA 10 Triple Circuit",
+          registrationOpen: true,
+          potsLocked: false,
+          potCount: 5,
+          groupCount: 3,
+          newPlayerBaseElo: 1500,
+          groupRounds: [
+            { id: "round-1", label: "1. Devre", stars: 4 },
+            { id: "round-2", label: "2. Devre", stars: 4.5 },
+            { id: "round-3", label: "3. Devre", stars: 5 }
           ],
-          promotion: 2,
-          relegation: 2,
-          cupFormat: "Oruç Reis Kupası",
-          superCup: "Premier League Şampiyonu vs Oruç Reis Kupası Şampiyonu",
+          directQuarterFinalists: 4,
+          playInSeeds: [
+            [5, 12], [6, 11], [7, 10], [8, 9]
+          ],
+          bestOfThreeStars: [4, 4.5, 5],
+          thirdPlaceStars: 4.5,
+          finalStars: 5,
+          teamPassport: true,
           testMode: false
         }
       },
@@ -207,7 +221,7 @@
         customHonours: Array.isArray(raw.seasonSystem?.customHonours) ? raw.seasonSystem.customHonours : [],
         seasons: Array.isArray(raw.seasonSystem?.seasons) ? raw.seasonSystem.seasons : [],
         activeEdition: Number(raw.seasonSystem?.activeEdition) || 10,
-        infrastructureVersion: Math.max(37, Number(raw.seasonSystem?.infrastructureVersion) || 0)
+        infrastructureVersion: Math.max(40, Number(raw.seasonSystem?.infrastructureVersion) || 0)
       },
       current: {
         ...fresh.current,
@@ -2327,6 +2341,206 @@
       ${renderFifa10DraftPanel()}`;
   }
 
+  function fifa10RegistrationState() {
+    const system = seasonSystem();
+    if (!system.fifa10Draft) system.fifa10Draft = defaultSeasonSystem().fifa10Draft;
+    const defaults = defaultSeasonSystem().fifa10Draft;
+    system.fifa10Draft = {
+      ...defaults,
+      ...system.fifa10Draft,
+      settings: { ...defaults.settings, ...(system.fifa10Draft.settings || {}) },
+      players: Array.isArray(system.fifa10Draft.players) ? system.fifa10Draft.players : []
+    };
+    return system.fifa10Draft;
+  }
+
+  function fifa10RegistrationApi() {
+    return window.FIFA10_REGISTRATION_CLOUD || null;
+  }
+
+  function fifa10RegistrationCloudActive() {
+    try { return Boolean(fifa10RegistrationApi()?.isConfigured?.()); } catch (_) { return false; }
+  }
+
+  async function refreshFifa10Registrations(force = false) {
+    const api = fifa10RegistrationApi();
+    if (!api?.isConfigured?.()) return;
+    if (fifa10RegistrationsLoading || (!force && fifa10RegistrationsLoaded)) return;
+    fifa10RegistrationsLoading = true;
+    fifa10RegistrationsError = "";
+    try {
+      fifa10RemoteRegistrations = await api.list();
+      fifa10RegistrationsLoaded = true;
+    } catch (error) {
+      fifa10RegistrationsError = String(error?.message || error || "Kayıt listesi yüklenemedi.");
+      console.warn("FIFA 10 registrations could not be loaded", error);
+    } finally {
+      fifa10RegistrationsLoading = false;
+      if (["dashboard", "seasonhub"].includes(activeView)) render();
+    }
+  }
+
+  function fifa10RegistrationSourceRows() {
+    const draft = fifa10RegistrationState();
+    if (fifa10RegistrationCloudActive() && fifa10RegistrationsLoaded) return fifa10RemoteRegistrations;
+    return draft.players || [];
+  }
+
+  function fifa10KnownPlayers() {
+    const elo = buildEloAnalytics();
+    const names = new Map();
+    elo.players.forEach(row => names.set(row.name, { name: row.name, elo: Number(row.rating) || 1500, rank: row.rank, games: row.games || 0 }));
+    combinedAllTime().forEach(row => {
+      const name = String(row.name || "").trim();
+      if (name && !names.has(name)) names.set(name, { name, elo: 1500, rank: 999, games: row.p || row.mp || 0 });
+    });
+    (state.current.participants || []).forEach(row => {
+      const name = String(row.name || "").trim();
+      if (name && !/^P\d+$/i.test(name) && !names.has(name)) names.set(name, { name, elo: 1500, rank: 999, games: 0 });
+    });
+    return [...names.values()].sort((a,b) => b.elo-a.elo || a.rank-b.rank || a.name.localeCompare(b.name,"tr"));
+  }
+
+  function fifa10AssignPots(sourceRows = fifa10RegistrationSourceRows()) {
+    const eloMap = buildEloAnalytics().playerMap;
+    const rows = sourceRows.map((item, index) => {
+      const name = String(item.playerName || item.player_name || item.name || "").trim();
+      const known = eloMap.get(name);
+      const storedElo = Number(item.elo);
+      return {
+        id: String(item.id || `f10-reg-${index}-${name}`),
+        name,
+        source: item.source || (known ? "existing" : "new"),
+        elo: known?.rating || (Number.isFinite(storedElo) ? storedElo : 1500),
+        registeredAt: item.registeredAt || item.registered_at || null
+      };
+    }).filter(item => item.name).sort((a,b) => b.elo-a.elo || a.name.localeCompare(b.name,"tr"));
+    const potCount = Math.max(1, Number(fifa10RegistrationState().settings.potCount) || 5);
+    const base = Math.floor(rows.length / potCount);
+    const remainder = rows.length % potCount;
+    const sizes = Array.from({length:potCount}, (_,i) => base + (i < remainder ? 1 : 0));
+    let cursor = 0;
+    sizes.forEach((size, potIndex) => {
+      for (let offset=0; offset<size && cursor<rows.length; offset++,cursor++) rows[cursor].pot = potIndex + 1;
+    });
+    return { rows, sizes, potCount };
+  }
+
+  function fifa10RegisteredNameSet() {
+    return new Set(fifa10AssignPots().rows.map(item => item.name.toLocaleLowerCase("tr-TR")));
+  }
+
+  function fifa10RegistrationOptions() {
+    const registered = fifa10RegisteredNameSet();
+    return fifa10KnownPlayers().filter(item => !registered.has(item.name.toLocaleLowerCase("tr-TR"))).map(item => `<option value="${escapeHTML(item.name)}">${escapeHTML(item.name)} · ${item.elo} ELO</option>`).join("");
+  }
+
+  async function submitFifa10Registration(form) {
+    const draft = fifa10RegistrationState();
+    if (draft.settings.registrationOpen === false) { toast("FIFA 10 kayıtları şu anda kapalı.", "error"); return; }
+    const data = new FormData(form);
+    const selection = String(data.get("playerName") || "").trim();
+    const isNew = selection === "__new__";
+    const name = String(isNew ? data.get("newPlayerName") : selection || "").replace(/\s+/g," ").trim();
+    if (!name || name.length < 3) { toast("Lütfen geçerli bir ad ve soyad girin.", "error"); return; }
+    if (fifa10RegisteredNameSet().has(name.toLocaleLowerCase("tr-TR"))) { toast("Bu oyuncu FIFA 10'a zaten kayıtlı.", "error"); return; }
+    const known = buildEloAnalytics().playerMap.get(name);
+    const elo = known?.rating || Number(draft.settings.newPlayerBaseElo) || 1500;
+    const payload = { playerName:name, elo, source:isNew ? "new" : "existing", registeredAt:new Date().toISOString() };
+    const button = form.querySelector('button[type="submit"]');
+    if (button) { button.disabled=true; button.textContent="Kayıt yapılıyor…"; }
+    try {
+      const api = fifa10RegistrationApi();
+      if (api?.isConfigured?.()) {
+        await api.register(payload);
+        fifa10RegistrationsLoaded = false;
+        await refreshFifa10Registrations(true);
+      } else {
+        draft.players.push({ id:`F10-${Date.now().toString(36)}`, name, elo, source:payload.source, registeredAt:payload.registeredAt });
+        draft.status = "registration";
+        draft.updatedAt = new Date().toISOString();
+        saveState(true,true);
+      }
+      form.reset();
+      const newField = document.getElementById("fifa10NewPlayerField");
+      if (newField) newField.hidden = true;
+      toast(`${name} FIFA 10'a kaydedildi. Geçici torbası ELO sıralamasına göre belirlendi.`, "success");
+      render();
+    } catch (error) {
+      toast(String(error?.message || error || "Kayıt tamamlanamadı."), "error");
+    } finally {
+      if (button) { button.disabled=false; button.textContent="FIFA 10'a Kayıt Ol"; }
+    }
+  }
+
+  async function removeFifa10Registration(id, name) {
+    if (!canEdit()) { toast("Kayıt silme yalnızca yöneticiye açıktır.","error"); return; }
+    try {
+      const api = fifa10RegistrationApi();
+      if (api?.isConfigured?.() && id) {
+        await api.remove(id);
+        fifa10RegistrationsLoaded = false;
+        await refreshFifa10Registrations(true);
+      } else {
+        const draft = fifa10RegistrationState();
+        draft.players = draft.players.filter(item => String(item.id) !== String(id) && String(item.name || "").toLocaleLowerCase("tr-TR") !== String(name || "").toLocaleLowerCase("tr-TR"));
+        saveState(true,true);
+      }
+      toast("Oyuncu kaydı kaldırıldı.","success");
+      render();
+    } catch (error) { toast(String(error?.message || error || "Kayıt kaldırılamadı."),"error"); }
+  }
+
+  function toggleFifa10Registration() {
+    if (!canEdit()) { toast("Bu işlem yalnızca turnuva yöneticisine açıktır.","error"); return; }
+    const draft=fifa10RegistrationState();
+    draft.settings.registrationOpen = draft.settings.registrationOpen === false;
+    draft.updatedAt=new Date().toISOString();
+    saveState(true,true);
+    toast(draft.settings.registrationOpen ? "FIFA 10 kayıtları açıldı." : "FIFA 10 kayıtları kapatıldı.","success");
+    render();
+  }
+
+  function renderFifa10RegistrationBlock({compact=false}={}) {
+    const draft=fifa10RegistrationState();
+    const assignment=fifa10AssignPots();
+    const statusOpen=draft.settings.registrationOpen !== false;
+    const cloudMode=fifa10RegistrationCloudActive();
+    if (cloudMode && !fifa10RegistrationsLoaded && !fifa10RegistrationsLoading) setTimeout(()=>refreshFifa10Registrations(),0);
+    const pots=Array.from({length:assignment.potCount},(_,index)=>assignment.rows.filter(row=>row.pot===index+1));
+    const form=`<form id="fifa10RegistrationForm" class="f10-registration-form">
+      <label><span>Oyuncu</span><select id="fifa10RegistrationPlayer" name="playerName" required ${statusOpen?"":"disabled"}><option value="">İsmini seç</option>${fifa10RegistrationOptions()}<option value="__new__">＋ Yeni oyuncu</option></select></label>
+      <label id="fifa10NewPlayerField" hidden><span>İsim Soyisim</span><input type="text" name="newPlayerName" autocomplete="name" placeholder="İsim Soyisim" maxlength="60"></label>
+      <button type="submit" ${statusOpen?"":"disabled"}>FIFA 10'a Kayıt Ol</button>
+    </form>`;
+    return `<section class="f10-registration-section ${compact?"compact":""}" id="fifa10Registration">
+      <header><div><span>PLAYER REGISTRATION · ELO SEEDING</span><h3>Kaydını yap.<br>Torbanı ELO belirlesin.</h3><p>Mevcut oyuncular isimlerini listeden seçer. Yalnızca “Yeni oyuncu” seçildiğinde İsim Soyisim alanı açılır.</p></div><div class="f10-registration-status ${statusOpen?"open":"closed"}"><i></i><strong>${statusOpen?"KAYIT AÇIK":"KAYIT KAPALI"}</strong><small>${assignment.rows.length} oyuncu · ${cloudMode?"canlı kayıt":"yerel kayıt"}</small>${canEdit()?`<button type="button" data-action="toggle-fifa10-registration">${statusOpen?"Kayıtları Kapat":"Kayıtları Aç"}</button>`:""}</div></header>
+      ${fifa10RegistrationsError?`<div class="f10-registration-alert"><strong>Canlı kayıt bağlantısı hazırlanamadı.</strong><span>${escapeHTML(fifa10RegistrationsError)}</span></div>`:""}
+      <div class="f10-registration-main">${form}<div class="f10-pot-preview">${pots.map((rows,index)=>`<article class="pot-${index+1}"><header><span>TORBA</span><strong>${index+1}</strong><small>${rows.length} oyuncu</small></header><div>${rows.length?rows.map(row=>`<div><span>${escapeHTML(row.name)}</span><b>${row.elo}</b>${canEdit()?`<button type="button" data-action="remove-fifa10-registration" data-registration-id="${escapeHTML(row.id)}" data-player-name="${escapeHTML(row.name)}" aria-label="Kaydı kaldır">×</button>`:""}</div>`).join(""):`<p>Kayıt bekleniyor</p>`}</div></article>`).join("")}</div></div>
+      <footer><span>Torba dağılımı geçicidir; yeni kayıt geldikçe ELO sırasına göre otomatik dengelenir.</span><b>5 TORBA · ELO SEEDING</b></footer>
+    </section>`;
+  }
+
+  function renderFifa10EloBlock({limit=10}={}) {
+    const elo=buildEloAnalytics();
+    const registered=fifa10RegisteredNameSet();
+    const rows=elo.players.slice(0,limit);
+    return `<section class="f10-elo-section"><header><div><span>OFFICIAL PERFORMANCE RATING</span><h3>Gerçek güç sıralaması: ELO</h3><p>Torba ve seri başı değerlendirmesinde toplam gol değil, resmî maç sonuçlarından hesaplanan ELO kullanılır.</p></div><button type="button" data-nav="intelligence">ELO merkezini aç ↗</button></header><div class="f10-elo-layout"><div class="f10-elo-table"><div class="head"><span>#</span><span>Oyuncu</span><span>ELO</span><span>Durum</span></div>${rows.map(row=>`<div><span>${row.rank}</span><strong>${escapeHTML(row.name)}</strong><b>${row.rating}</b><small class="${registered.has(row.name.toLocaleLowerCase("tr-TR"))?"registered":""}">${registered.has(row.name.toLocaleLowerCase("tr-TR"))?"FIFA 10 KAYITLI":`${row.games} MAÇ`}</small></div>`).join("")}</div><div class="f10-elo-explainer"><article><span>1500</span><div><strong>Başlangıç puanı</strong><p>Yeni oyuncular sisteme 1500 ELO ile girer.</p></div></article><article><span>↗</span><div><strong>Güçlü rakibi yenmek daha değerlidir</strong><p>Beklenmeyen galibiyet daha fazla puan kazandırır.</p></div></article><article><span>↔</span><div><strong>Sıfır toplamlı sistem</strong><p>Kazananın aldığı puan, kaybedenin puanından düşer.</p></div></article><article><span>◆</span><div><strong>Büyük maçların ağırlığı artar</strong><p>Eleme, yarı final ve final sonuçları daha güçlü etki üretir.</p></div></article></div></div></section>`;
+  }
+
+  function renderFifa10FormatSpine({detailed=false}={}) {
+    const stages=[
+      {no:"01",tag:"GROUP DRAW",title:"3 dengeli grup",desc:"5 torba · ELO seri başları · oyuncular yalnızca kendi grubunda oynar.",meta:"12 → 4-4-4 · 13 → 5-4-4 · 15 → 5-5-5"},
+      {no:"02",tag:"TRIPLE CIRCUIT",title:"3 devreli grup aşaması",desc:"Aynı rakiplerle üç farklı takım seviyesinde mücadele.",meta:"1. Devre 4★ · 2. Devre 4.5★ · 3. Devre 5★"},
+      {no:"03",tag:"ONE TABLE",title:"Tek genel sıralama",desc:"Gruplar eşitse toplam puan; eşit değilse maç başına puan ortalaması.",meta:"PPG · galibiyet oranı · maç başına averaj"},
+      {no:"04",tag:"DIRECT ACCESS",title:"İlk 4 doğrudan çeyrek final",desc:"Genel sıralamanın ilk dört oyuncusu hem seri başı hem doğrudan çeyrek finalist.",meta:"1 · 2 · 3 · 4"},
+      {no:"05",tag:"CHAMPIONSHIP PLAY-IN",title:"Son dört bilet",desc:"5–12 arasındaki oyuncular Best of 3 serileriyle çeyrek final bileti arar. 13 oyuncuda önce 12–13 Preliminary Gate oynanır; kazanan 12. seri olur.",meta:"12–13 Gate · 5–12 · 6–11 · 7–10 · 8–9"},
+      {no:"06",tag:"KNOCKOUT",title:"Çeyrek final ve yarı final",desc:"Her tur üç takım seviyesini test eden Best of 3 formatında.",meta:"Maç 1: 4★ · Maç 2: 4.5★ · Maç 3: 5★"},
+      {no:"07",tag:"FINAL NIGHT",title:"Podyum ve Büyük Final",desc:"Yarı final kaybedenleri üçüncülük; kazananları tek maçlık büyük final oynar.",meta:"Üçüncülük 4.5★ · Final 5★"}
+    ];
+    return `<section class="f10-format-spine ${detailed?"detailed":""}"><header><div><span>FIFA 10 · COMPETITION BLUEPRINT</span><h3>Finale giden ana omurga</h3></div><p>Üç grup, üç devre, tek genel tablo ve Best of 3 eleme serileri. Her üst sıra daha kısa ve daha avantajlı bir şampiyonluk yolu sağlar.</p></header><div class="f10-spine-track">${stages.map((stage,index)=>`<article><div class="f10-spine-number">${stage.no}</div><div><small>${stage.tag}</small><h4>${stage.title}</h4><p>${stage.desc}</p><strong>${stage.meta}</strong></div>${index<stages.length-1?"<i></i>":""}</article>`).join("")}</div>${detailed?`<div class="f10-team-protocol"><header><span>TEAM PASSPORT</span><h4>Aynı takım, turnuva boyunca yalnızca bir kez.</h4></header><div><article><strong>4★</strong><p>Oyuncu 3 takım seçer; istediği biriyle oynar.</p></article><article><strong>4.5★</strong><p>En fazla 2 seçim. İkinci hak kullanılırsa ilk takım iptal olur ve tekrar kullanılamaz.</p></article><article><strong>5★</strong><p>Tek kura. Değişiklik hakkı yoktur.</p></article></div></div>`:""}</section>`;
+  }
+
   function fifa10DraftPlayersByLeague(league) {
     return (seasonSystem().fifa10Draft?.players || []).filter(player => player.league === league);
   }
@@ -2340,39 +2554,14 @@
 
   function renderFifa10LeagueSystem() {
     syncCompletedFifa9Legacy();
-    const system = seasonSystem();
-    const draft = system.fifa10Draft || defaultSeasonSystem().fifa10Draft;
-    const honour = allMuseumHonours().find(item => Number(item.edition) === 9 && item.competition === "oruc") || currentFifa9Honour();
-    const premier = fifa10DraftPlayersByLeague("premier");
-    const championship = fifa10DraftPlayersByLeague("championship");
-    const status = draft.status === "draft" ? "KADROLAR HAZIRLANIYOR" : "FORMAT AKTİF · KADRO BEKLİYOR";
-    const settings = { ...defaultSeasonSystem().fifa10Draft.settings, ...(draft.settings || {}) };
-    view.innerHTML = `<div class="f10-page">
-      <section class="f10-hero">
-        <div class="f10-hero-grid"></div>
-        <div class="f10-hero-copy"><span>FIFA 10 · NEXT ERA</span><h2>League football<br><em>returns.</em></h2><p>FIFA 09 Final Chapter artık tarihî kayda işlendi. FIFA 10; Premier League, Championship, Oruç Reis Kupası ve Super Cup ile kalıcı sezon dönemini başlatıyor.</p><div class="f10-status"><i></i>${escapeHTML(status)}</div></div>
-        <div class="f10-legacy-seal"><small>FIFA 09 LEGACY SEALED</small><strong>${escapeHTML(honour?.winner || "Çağlar Can Tatar")}</strong><span>Şampiyon</span><div><b>${escapeHTML(honour?.runnerUp || "Kerim Özmen")}</b><em>Finalist</em></div><div><b>${escapeHTML(honour?.third || "Sergei Smirnov")}</b><em>Üçüncü</em></div></div>
-      </section>
-
-      <section class="f10-format-section">
-        <header><div><span>01 / COMPETITION BLUEPRINT</span><h3>FIFA 10 lig formatı</h3></div><p>Career ve Formula oyunları geri dönmedi. Yalnızca hızlı, hafif ve turnuva odaklı gerçek lig sistemi yeniden aktif edildi.</p></header>
-        <div class="f10-format-grid">
-          <article class="premier"><span>PL</span><small>TOP DIVISION</small><h4>Premier League</h4><strong>${settings.premierSize || 7} oyuncu</strong><p>Üç devre: 4★, 4.5★ ve 5★. Oyuncu başına 18 lig maçı.</p><footer>Son 2 → Championship</footer></article>
-          <article class="championship"><span>CH</span><small>CHALLENGER DIVISION</small><h4>Championship</h4><strong>Kalan oyuncular</strong><p>Yeni ve geri dönen oyuncuların başlangıç ligi.</p><footer>İlk 2 → Premier League</footer></article>
-          <article class="cup"><span>OR</span><small>KNOCKOUT CUP</small><h4>Oruç Reis Kupası</h4><strong>Sezon içi eleme</strong><p>Lig sezonuna paralel yürüyen prestij kupası.</p><footer>Kupa şampiyonu → Super Cup</footer></article>
-          <article class="super"><span>SC</span><small>SEASON OPENER</small><h4>Super Cup</h4><strong>Tek final</strong><p>Premier League şampiyonu ile Oruç Reis Kupası şampiyonu karşılaşır.</p><footer>Yeni sezonun açılışı</footer></article>
-        </div>
-      </section>
-
-      <section class="f10-calendar">
-        <header><span>02 / THREE-LEG SEASON</span><h3>Her devrede yeni takım seviyesi</h3></header>
-        <div>${(settings.legs || []).map((leg, index) => `<article><span>0${index + 1}</span><div><small>${escapeHTML(leg.label)}</small><strong>${escapeHTML(String(leg.stars))}★ TAKIMLAR</strong></div><i></i></article>`).join("")}</div>
-      </section>
-
-      <section class="f10-draft-section">
-        <header><div><span>03 / PLAYER DISTRIBUTION</span><h3>FIFA 10 kadro merkezi</h3><p>Tüm Zamanlar tablosu FIFA 09 sonuçları dahil edilerek yeniden hesaplanır; en yüksek sıradaki 7 aktif oyuncu Premier League’e yerleşir.</p></div><div class="f10-draft-actions">${canEdit() ? (draft.status !== "draft" ? `<button class="btn btn-gold" data-action="create-fifa10-draft">FIFA 10 Kadrosunu Oluştur</button>` : `<button class="btn btn-blue" data-action="auto-assign-fifa10">Tüm Zamanlara Göre Dağıt</button><button class="btn btn-gold" data-action="save-fifa10-draft">Kadroyu Kaydet</button><button class="btn btn-ghost" data-action="add-fifa10-player">Oyuncu Ekle</button><button class="btn btn-danger" data-action="cancel-fifa10-draft">Taslağı İptal Et</button>`) : ""}</div></header>
-        ${draft.status === "draft" ? `<div class="f10-leagues"><section><header><span>PREMIER LEAGUE</span><strong>${premier.length}/${settings.premierSize || 7}</strong></header>${fifa10LeaguePlayerRows("premier")}</section><section><header><span>CHAMPIONSHIP</span><strong>${championship.length}</strong></header>${fifa10LeaguePlayerRows("championship")}</section></div>` : `<div class="f10-ready-panel"><span>FIFA 09 ARŞİVİ GÜVENDE</span><h4>Yeni sezonu hazırlamaya hazırsınız.</h4><p>Kadro oluşturulduğunda FIFA 09 sonuçları silinmez; şampiyonluk, final, podyum ve bütün maçlar Tüm Zamanlar kayıtlarında kalıcı olarak korunur.</p></div>`}
-      </section>
+    const draft=fifa10RegistrationState();
+    const assignment=fifa10AssignPots();
+    const honour=allMuseumHonours().find(item=>Number(item.edition)===9&&item.competition==="oruc")||currentFifa9Honour();
+    view.innerHTML=`<div class="f10-page f10-triple-page">
+      <section class="f10-triple-hero"><div><span>FIFA 10 · TRIPLE CIRCUIT</span><h2>Three circuits.<br><em>One table.</em><br>One champion.</h2><p>FIFA 10'un resmî omurgası; ELO torbaları, üç gruplu üç devre, genel sıralama ve Best of 3 şampiyonluk yolu üzerine kuruludur.</p><div><button class="btn btn-blue" data-nav="dashboard">Ana dashboard</button><a class="btn btn-gold" href="#fifa10Registration">Kayıt merkezine git</a></div></div><aside><small>FIFA 09 LEGACY CHAMPION</small><strong>${escapeHTML(honour?.winner||"Çağlar Can Tatar")}</strong><span>Yeni çağın ilk ELO referansı hazır.</span><div><b>${assignment.rows.length}</b><em>Kayıtlı oyuncu</em></div><div><b>5</b><em>ELO torbası</em></div></aside></section>
+      ${renderFifa10FormatSpine({detailed:true})}
+      ${renderFifa10RegistrationBlock()}
+      ${renderFifa10EloBlock({limit:20})}
     </div>`;
   }
 
@@ -2384,7 +2573,7 @@
   function navTo(target) {
     if (REMOVED_GAME_ROUTES.has(target)) {
       target = "dashboard";
-      toast("Career ve Formula oyunları kaldırıldı; FIFA 10 Lig Sistemi ayrı olarak aktiftir.", "info");
+      toast("Career ve Formula oyunları kaldırıldı; FIFA 10 Triple Circuit ayrı olarak aktiftir.", "info");
     }
     if (target !== "livematch" && livePresentationMode !== "standard") exitLivePresentation(false);
     activeView = target;
@@ -2539,106 +2728,22 @@
 
   function renderDashboard() {
     syncCompletedFifa9Legacy();
-    const system = seasonSystem();
-    const draft = system.fifa10Draft || defaultSeasonSystem().fifa10Draft;
-    const settings = { ...defaultSeasonSystem().fifa10Draft.settings, ...(draft.settings || {}) };
-    const premier = fifa10DraftPlayersByLeague("premier");
-    const championship = fifa10DraftPlayersByLeague("championship");
-    const playerPool = (draft.players || []).length || (state.current.participants || []).filter(player => player.name?.trim()).length || PLAYER_COUNT;
-    const honour = allMuseumHonours().find(item => Number(item.edition) === 9 && item.competition === "oruc") || currentFifa9Honour();
-    const champion = honour?.winner || "Çağlar Can Tatar";
-    const runnerUp = honour?.runnerUp || "Kerim Özmen";
-    const third = honour?.third || "Sergei Smirnov";
-    const draftReady = draft.status === "draft";
-    const seasonStatus = draftReady ? "PLAYER DISTRIBUTION ACTIVE" : "LEAGUE BLUEPRINT READY";
-    const premierCount = draftReady ? premier.length : settings.premierSize || 7;
-    const championshipCount = draftReady ? championship.length : Math.max(0, playerPool - (settings.premierSize || 7));
-
-    view.innerHTML = `<div class="os-home f10-era-home" data-os-page="fifa10-home">
-      <section class="os-hero f10-era-hero" aria-labelledby="osHeroTitle">
-        <canvas class="os-field-canvas" data-os-field aria-hidden="true"></canvas>
-        <div class="os-hero-aurora" aria-hidden="true"></div>
-        <div class="f10-era-number" aria-hidden="true">10</div>
-        <div class="os-hero-grid">
-          <div class="os-hero-copy">
-            <div class="os-kicker f10-era-kicker"><span class="f10-era-dot"></span><b>FIFA 10 · THE NEW ERA</b><i>${escapeHTML(seasonStatus)}</i></div>
-            <h2 id="osHeroTitle">The final chapter<br><em>became a legacy.</em><br>The league era begins.</h2>
-            <p>FIFA 09 tarih oldu. Oruç Reis FIFA World artık Premier League, Championship, Oruç Reis Kupası ve Super Cup ile kalıcı lig dönemine geçiyor.</p>
-            <div class="os-hero-actions">
-              <button class="os-primary-action" data-nav="seasonhub"><span>Enter FIFA 10</span><b>↗</b></button>
-              <button class="os-secondary-action" data-nav="knockout"><span>FIFA 09 Legacy</span></button>
-              <button class="os-text-action" data-nav="alltime"><span>Explore all-time records</span><b>↗</b></button>
-            </div>
-            <div class="os-hero-proof f10-era-proof">
-              <article><small>Active Edition</small><strong>10</strong><span>League Era</span></article>
-              <article><small>Divisions</small><strong>02</strong><span>Premier + Championship</span></article>
-              <article><small>Competitions</small><strong>04</strong><span>League · Cup · Super Cup</span></article>
-            </div>
-          </div>
-
-          <div class="f10-era-console-wrap">
-            <article class="f10-era-console" data-nav="seasonhub">
-              <div class="f10-console-grid" aria-hidden="true"></div>
-              <header><span><i></i>FIFA 10 COMMAND CENTRE</span><b>${escapeHTML(draftReady ? "DRAFT ACTIVE" : "READY")}</b></header>
-              <div class="f10-console-main">
-                <div class="f10-console-crest"><span>FIFA</span><strong>10</strong><small>NEW ERA</small></div>
-                <div class="f10-console-divisions">
-                  <article><span>PL</span><div><small>TOP DIVISION</small><strong>Premier League</strong></div><b>${premierCount}</b></article>
-                  <article><span>CH</span><div><small>CHALLENGER DIVISION</small><strong>Championship</strong></div><b>${championshipCount || "—"}</b></article>
-                </div>
-              </div>
-              <footer><span>3 LEGS · 4★ / 4.5★ / 5★</span><b>OPEN LEAGUE SYSTEM ↗</b></footer>
-            </article>
-            <div class="f10-era-metrics">
-              <article><small>FIFA 09 CHAMPION</small><strong>${escapeHTML(champion)}</strong><span>Legacy sealed · 28.07.2026</span></article>
-              <article><small>SEASON ARCHITECTURE</small><strong>${playerPool} Players</strong><span>${settings.promotion || 2} promotion · ${settings.relegation || 2} relegation</span></article>
-            </div>
-          </div>
-        </div>
-        <div class="os-scroll-signal"><span>WELCOME TO THE FIFA 10 ERA</span><i></i></div>
+    const assignment=fifa10AssignPots();
+    const honour=allMuseumHonours().find(item=>Number(item.edition)===9&&item.competition==="oruc")||currentFifa9Honour();
+    const champion=honour?.winner||"Çağlar Can Tatar";
+    const registeredCount=assignment.rows.length;
+    view.innerHTML=`<div class="os-home f10-era-home f10-triple-home" data-os-page="fifa10-home">
+      <section class="os-hero f10-era-hero f10-triple-dashboard-hero" aria-labelledby="osHeroTitle">
+        <canvas class="os-field-canvas" data-os-field aria-hidden="true"></canvas><div class="os-hero-aurora" aria-hidden="true"></div><div class="f10-era-number" aria-hidden="true">10</div>
+        <div class="os-hero-grid"><div class="os-hero-copy"><div class="os-kicker f10-era-kicker"><span class="f10-era-dot"></span><b>FIFA 10 · TRIPLE CIRCUIT</b><i>${fifa10RegistrationState().settings.registrationOpen===false?"REGISTRATION CLOSED":"REGISTRATION OPEN"}</i></div><h2 id="osHeroTitle">Three groups.<br><em>Three circuits.</em><br>One champion.</h2><p>ELO ile belirlenen beş torba, üç devreli grup aşaması, tek genel sıralama ve Best of 3 eleme serileri. FIFA 10'un şampiyonluk yolu artık burada başlıyor.</p><div class="os-hero-actions"><a class="os-primary-action" href="#fifa10Registration"><span>FIFA 10'a Kayıt Ol</span><b>↗</b></a><button class="os-secondary-action" data-nav="seasonhub"><span>Turnuva Formatı</span></button><button class="os-text-action" data-nav="alltime"><span>ELO geçmişini aç</span><b>↗</b></button></div><div class="os-hero-proof f10-era-proof"><article><small>Registered</small><strong>${String(registeredCount).padStart(2,"0")}</strong><span>FIFA 10 players</span></article><article><small>Seeding</small><strong>05</strong><span>ELO pots</span></article><article><small>Group rounds</small><strong>03</strong><span>4★ · 4.5★ · 5★</span></article></div></div>
+        <div class="f10-era-console-wrap"><article class="f10-era-console f10-triple-console" data-nav="seasonhub"><div class="f10-console-grid"></div><header><span><i></i>CHAMPIONSHIP ROUTE</span><b>FIFA 10</b></header><div class="f10-route-mini"><div><span>GROUPS</span><b>3 × 3 ROUNDS</b></div><i></i><div><span>TOP 4</span><b>DIRECT QF</b></div><i></i><div><span>5–12</span><b>BEST OF 3</b></div><i></i><div><span>FINAL</span><b>5★</b></div></div><footer><span>ONE TABLE · ELO SEEDING</span><b>FULL FORMAT ↗</b></footer></article><div class="f10-era-metrics"><article><small>FIFA 09 CHAMPION</small><strong>${escapeHTML(champion)}</strong><span>Legacy podium preserved</span></article><article><small>REGISTRATION</small><strong>${registeredCount} Players</strong><span>Automatic ELO pot assignment</span></article></div></div></div><div class="os-scroll-signal"><span>REGISTER · COMPETE · TAKE THE CROWN</span><i></i></div>
       </section>
-
-      <section class="os-ticker f10-era-ticker" aria-label="FIFA 10 signal stream">
-        <div><span>ACTIVE ERA</span><b>FIFA 10</b></div>
-        <div><span>LEAGUE SYSTEM</span><b>PREMIER + CHAMPIONSHIP</b></div>
-        <div><span>SEASON FORMAT</span><b>3 LEGS</b></div>
-        <div><span>FIFA 09 CHAMPION</span><b>${escapeHTML(champion)}</b></div>
-        <div><span>LEGACY ARCHIVE</span><b>FIFA I — IX</b></div>
-      </section>
-
-      <section class="f10-command-section">
-        <div class="os-section-heading">
-          <div><span>01 / FIFA 10 COMMAND CENTRE</span><h3>A league ecosystem.<br>Built to last.</h3></div>
-          <p>FIFA 10 artık ana dönem. İki lig, üç devre, yükselme-düşme ve iki prestij kupası tek merkezden yönetilecek.</p>
-        </div>
-        <div class="f10-command-grid">
-          <article class="f10-command-card premier" data-nav="seasonhub"><header><span>PL</span><b>TOP DIVISION</b></header><div><small>FIFA 10</small><h4>Premier League</h4><p>${settings.premierSize || 7} oyuncu · üç devre · sezon şampiyonluğu.</p></div><footer><strong>${premierCount} PLAYERS</strong><b>OPEN ↗</b></footer></article>
-          <article class="f10-command-card championship" data-nav="seasonhub"><header><span>CH</span><b>SECOND DIVISION</b></header><div><small>PROMOTION RACE</small><h4>Championship</h4><p>Premier League’e çıkış için sezon boyu mücadele.</p></div><footer><strong>${championshipCount || "PLAYER POOL"}</strong><b>OPEN ↗</b></footer></article>
-          <article class="f10-command-card cup" data-nav="seasonhub"><header><span>OR</span><b>KNOCKOUT CUP</b></header><div><small>TRADITION</small><h4>Oruç Reis Kupası</h4><p>Lig sezonuna paralel ilerleyen eleme kupası.</p></div><footer><strong>ONE TROPHY</strong><b>FORMAT ↗</b></footer></article>
-          <article class="f10-command-card super" data-nav="seasonhub"><header><span>SC</span><b>SEASON OPENER</b></header><div><small>CHAMPIONS ONLY</small><h4>Super Cup</h4><p>Lig şampiyonu ile kupa şampiyonu tek finalde.</p></div><footer><strong>ONE NIGHT</strong><b>FORMAT ↗</b></footer></article>
-        </div>
-      </section>
-
-      <section class="f10-transition-section">
-        <article><span>02 / ERA TRANSITION</span><h3>FIFA 09 gave us a champion.<br>FIFA 10 will build a dynasty.</h3><p>Final Chapter sonuçları, oyuncu kartları, rekorlar ve dokuz edisyonun bütün mirası korunuyor. Yeni sezon geçmişi silmeden onun üzerine kuruluyor.</p><div><button data-nav="seasonhub">Prepare FIFA 10 <b>↗</b></button><button data-nav="benchmark">Compare FIFA I — IX</button></div></article>
-        <div class="f10-transition-data">
-          <div><small>CHAMPION</small><strong>${escapeHTML(champion)}</strong><span>FIFA 09</span></div>
-          <div><small>FINALIST</small><strong>${escapeHTML(runnerUp)}</strong><span>FIFA 09</span></div>
-          <div><small>THIRD PLACE</small><strong>${escapeHTML(third)}</strong><span>FIFA 09</span></div>
-        </div>
-      </section>
-
+      <section class="os-ticker f10-era-ticker"><div><span>ACTIVE ERA</span><b>FIFA 10</b></div><div><span>FORMAT</span><b>TRIPLE CIRCUIT</b></div><div><span>SEEDING</span><b>5 ELO POTS</b></div><div><span>DIRECT QF</span><b>TOP 4</b></div><div><span>FINAL</span><b>5★ · ONE MATCH</b></div></section>
+      ${renderFifa10RegistrationBlock({compact:true})}
+      ${renderFifa10FormatSpine()}
+      ${renderFifa10EloBlock({limit:10})}
       ${renderDashboardChampionsPodium()}
-
-      <section class="os-operations-section f10-records-section">
-        <div class="os-section-heading compact"><div><span>04 / FOOTBALL INTELLIGENCE</span><h3>The new era remembers<br>everything before it.</h3></div><p>Turnuva karneleri, oyuncu atlası, takım istatistikleri ve tüm zamanlar kayıtları FIFA 10 döneminin veri temelidir.</p></div>
-        <div class="os-operation-rail">
-          <button data-nav="benchmark"><span class="os-op-icon">∑</span><div><small>COMPARE</small><strong>Turnuva Karnesi</strong><p>FIFA I–IX dönem ve performans kıyası</p></div><b>↗</b></button>
-          <button data-nav="alltime"><span class="os-op-icon">♛</span><div><small>LEGACY</small><strong>Tüm Zamanlar</strong><p>Şampiyonluklar, rekorlar ve oyuncu kartları</p></div><b>↗</b></button>
-          <button data-nav="teams"><span class="os-op-icon">◉</span><div><small>CLUB DATA</small><strong>Takım İstatistikleri</strong><p>Kullanım, başarı ve güç profilleri</p></div><b>↗</b></button>
-          <button data-nav="archive"><span class="os-op-icon">◇</span><div><small>HISTORY</small><strong>Turnuva Arşivi</strong><p>Dokuz edisyonun kalıcı kayıtları</p></div><b>↗</b></button>
-        </div>
-      </section>
+      <section class="os-operations-section f10-records-section"><div class="os-section-heading compact"><div><span>05 / FOOTBALL INTELLIGENCE</span><h3>The new era remembers<br>everything before it.</h3></div><p>ELO, turnuva karneleri ve Tüm Zamanlar kayıtları FIFA 10 torbalarının veri temelidir.</p></div><div class="os-operation-rail"><button data-nav="intelligence"><span class="os-op-icon">↗</span><div><small>RATING</small><strong>ELO Merkezi</strong><p>Gerçek performans puanı ve hareketler</p></div><b>↗</b></button><button data-nav="benchmark"><span class="os-op-icon">∑</span><div><small>COMPARE</small><strong>Turnuva Karnesi</strong><p>FIFA I–IX dönem ve performans kıyası</p></div><b>↗</b></button><button data-nav="alltime"><span class="os-op-icon">♛</span><div><small>LEGACY</small><strong>Tüm Zamanlar</strong><p>Şampiyonluklar, rekorlar ve oyuncu kartları</p></div><b>↗</b></button><button data-nav="archive"><span class="os-op-icon">◇</span><div><small>HISTORY</small><strong>Turnuva Arşivi</strong><p>Dokuz edisyonun kalıcı kayıtları</p></div><b>↗</b></button></div></section>
     </div>`;
   }
 
@@ -10691,6 +10796,8 @@ ${shareData.url}`)}`;
     const action = event.target.closest("[data-action]");
     if (!action) return;
     const type = action.dataset.action;
+    if (type === "toggle-fifa10-registration") { toggleFifa10Registration(); return; }
+    if (type === "remove-fifa10-registration") { removeFifa10Registration(action.dataset.registrationId, action.dataset.playerName); return; }
     if (type === "refresh-final-poll") { finalPollLoadedAt = 0; refreshFinalPoll(true); return; }
     if (type === "select-temporary-poll-choice") { selectTemporaryPollChoice(action.dataset.choice); return; }
     if (type === "select-temporary-poll-player") { selectTemporaryPollPlayer(action.dataset.playerName); return; }
@@ -10953,6 +11060,7 @@ ${shareData.url}`)}`;
 
   document.addEventListener("submit", event => {
     if (window.FIFA_CHAT_UI?.handleSubmit?.(event)) return;
+    if (event.target.id === "fifa10RegistrationForm") { event.preventDefault(); submitFifa10Registration(event.target); return; }
     if (event.target.id === "playerPageLoginForm") { event.preventDefault(); handlePlayerPageLogin(event.target); return; }
     if (event.target.id === "playerSignupForm") { event.preventDefault(); handlePlayerSignup(event.target); return; }
     if (event.target.id === "playerClaimForm") { event.preventDefault(); handlePlayerClaim(event.target); return; }
@@ -10982,6 +11090,14 @@ ${shareData.url}`)}`;
   });
 
   document.addEventListener("change", event => {
+    if (event.target.id === "fifa10RegistrationPlayer") {
+      const field=document.getElementById("fifa10NewPlayerField");
+      const input=field?.querySelector('input[name="newPlayerName"]');
+      const show=event.target.value === "__new__";
+      if (field) field.hidden=!show;
+      if (input) input.required=show;
+      return;
+    }
     if (event.target.dataset.fifa10League && canEdit()) {
       const player=seasonSystem().fifa10Draft.players.find(item=>item.id===event.target.dataset.fifa10League);
       if (player) { player.league=event.target.value==="premier"?"premier":"championship"; seasonSystem().fifa10Draft.updatedAt=new Date().toISOString(); saveState(); renderSeasonWorkspace(); }
@@ -11055,6 +11171,7 @@ ${shareData.url}`)}`;
   document.addEventListener("keydown", event => { if (event.key === "Escape") closeModal(); });
 
   if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+    if (fifa10RegistrationCloudActive()) refreshFifa10Registrations();
     navigator.serviceWorker.register("service-worker.js", { updateViaCache: "none" }).then(registration => registration.update()).catch(() => {});
   }
 

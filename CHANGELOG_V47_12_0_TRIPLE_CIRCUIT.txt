@@ -1,0 +1,9 @@
+V47.12.0
+- Replaced Premier/Championship dashboard with FIFA 10 Triple Circuit format.
+- Added prominent player registration on homepage.
+- Added five automatically balanced ELO pots.
+- Added existing-player selector and conditional new-player full-name field.
+- Added official ELO ranking and simple rating explanation.
+- Added full route: groups, overall table, direct QF, Play-In, QF, SF, third-place and final.
+- Added optional Supabase public registration table and client adapter.
+- Preserved FIFA 09 legacy podium, results and all-time data.

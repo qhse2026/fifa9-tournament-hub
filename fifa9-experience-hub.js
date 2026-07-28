@@ -13,7 +13,7 @@
     chat:["Football Universe","Topluluk","Turnuva Sohbeti"], setup:["FIFA 09 Legacy","Turnuva","Kura & Oyuncular"],
     league:["FIFA 09 Legacy","Final Chapter","League Phase"], gold:["FIFA 09 Legacy","Final Chapter","Altın Grup"],
     silver:["FIFA 09 Legacy","Final Chapter","Gümüş Grup"], knockout:["FIFA 09 Legacy","Tamamlanan Turnuva","Final Chapter"],
-    finalpoll:["FIFA 09 Legacy","Final Chapter","Karar"], seasonhub:["FIFA 10","Lig Sistemi","Yeni Dönem"], print:["Football Universe","Yönetim","Çıktı Merkezi"],
+    finalpoll:["FIFA 09 Legacy","Final Chapter","Karar"], seasonhub:["FIFA 10","Format & Kayıt","Triple Circuit"], print:["Football Universe","Yönetim","Çıktı Merkezi"],
     archive:["Football Universe","Arşiv & Yönetim","Turnuva Arşivi"], benchmark:["Football Universe","Arşiv & Yönetim","Turnuva Karnesi"], alltime:["Football Universe","Arşiv & Yönetim","Tüm Zamanlar"],
     teams:["Football Universe","Arşiv & Yönetim","Takım İstatistikleri"], backup:["Football Universe","Arşiv & Yönetim","Veri & Yedek"]
   };

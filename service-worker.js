@@ -1,4 +1,4 @@
-const CACHE = "oruc-reis-football-universe-v47-11-0-fifa10-era";
+const CACHE = "oruc-reis-football-universe-v47-12-0-triple-circuit";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -12,6 +12,8 @@ const APP_SHELL = [
   "./final-night-theme-v479.css",
   "./fifa10-era-dashboard-v4711.css",
   "./fifa10-league-return.css",
+  "./fifa10-triple-circuit-v4712.css",
+  "./fifa10-registration-cloud.js",
   "./fifa9-experience-hub.css",
   "./fifa9-experience-hub.js",
   "./final-chapter-progression.css",

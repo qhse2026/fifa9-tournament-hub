@@ -1,0 +1,14 @@
+ORUÇ REİS FIFA WORLD V47.12.0 — FIFA 10 TRIPLE CIRCUIT
+
+1. ZIP içindeki tüm dosya ve klasörleri repository ana dizinine yükleyin.
+2. Mevcut dosyaların üzerine yazın.
+3. Supabase SQL Editor içinde SUPABASE_FIFA10_REGISTRATION_V47_12.sql dosyasını bir kez çalıştırın. Bu adım oyuncuların farklı cihazlardan canlı kayıt yapabilmesi için gereklidir.
+4. Deploy tamamlandıktan sonra Ctrl + Shift + R ile yenileyin.
+
+Yeni sistem:
+- FIFA 10 ana dashboard
+- Triple Circuit format omurgası
+- 5 ELO torbası
+- Oyuncu seçimli kayıt formu
+- Yalnızca Yeni oyuncu seçilince İsim Soyisim alanı
+- Canlı ELO sıralaması ve basit açıklama

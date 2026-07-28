@@ -1,0 +1,106 @@
+{
+  "package": "ORUC_REIS_FIFA_WORLD_V47_12_0_FIFA10_TRIPLE_CIRCUIT_ELO_REGISTRATION",
+  "status": "PASS",
+  "checks": [
+    {
+      "check": "Triple Circuit dashboard present",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Five ELO pots configured",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Registration form present",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Known player selector present",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Conditional new player field present",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "New player base ELO 1500",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Top four direct QF",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Play-in pairings",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "13-player preliminary",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Best of 3 stars",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Third place 4.5",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Final 5 stars",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Team passport",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "ELO explainer",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Supabase adapter referenced",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Supabase SQL included",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "New CSS referenced",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Service worker bumped",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Service worker caches new files",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "13-player balanced pot sizes",
+      "status": "PASS",
+      "detail": "[3, 3, 3, 2, 2]"
+    }
+  ]
+}

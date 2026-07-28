@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#050d22" />
   <meta name="description" content="FIFA Turnuva Merkezi — canlı skor, Elo gücü, Power Exchange, mental baskı analizi, Destiny Path, Live Match Pulse, Broadcast Mode, TV / projektör görünümü, canlı xT, oyuncu ısı rozetleri, AI Tournament Director ve dinamik turnuva simülasyonu." />
-  <meta name="fifa9-build" content="47.11.0-fifa10-era" />
+  <meta name="fifa9-build" content="47.12.0-triple-circuit" />
   <script>
   (()=>{
-    const BUILD="47.11.0-fifa10-era";
+    const BUILD="47.12.0-triple-circuit";
     const KEY="fifa9-active-build";
     if(localStorage.getItem(KEY)===BUILD) return;
     localStorage.setItem(KEY,BUILD);
@@ -33,9 +33,10 @@
   <link rel="stylesheet" href="navigation-os-v47-1.css?v=47.4.0-sidebar-fix" />
   <link rel="stylesheet" href="final-chapter-third-place.css?v=47.5.0" />
   <link rel="stylesheet" href="champions-podium.css?v=47.5.0" />
-  <link rel="stylesheet" href="final-night-theme-v479.css?v=47.11.0" />
-  <link rel="stylesheet" href="fifa10-era-dashboard-v4711.css?v=47.11.0" />
-  <link rel="stylesheet" href="fifa10-league-return.css?v=47.11.0" />
+  <link rel="stylesheet" href="final-night-theme-v479.css?v=47.12.0" />
+  <link rel="stylesheet" href="fifa10-era-dashboard-v4711.css?v=47.12.0" />
+  <link rel="stylesheet" href="fifa10-league-return.css?v=47.12.0" />
+  <link rel="stylesheet" href="fifa10-triple-circuit-v4712.css?v=47.12.0" />
 </head>
 <body>
   <div class="ambient ambient-one"></div>
@@ -70,14 +71,14 @@
         <section class="nav-cluster is-open" data-nav-cluster="tournament">
           <button class="nav-cluster-toggle" type="button" data-nav-cluster-toggle="tournament" aria-expanded="true">
             <span class="nav-cluster-icon tournament">10</span>
-            <span><strong>FIFA 10 Çağı</strong><small>Premier · Championship · Cups</small></span>
+            <span><strong>FIFA 10 Çağı</strong><small>Triple Circuit · ELO Pots</small></span>
             <i>⌄</i>
           </button>
           <div class="nav-cluster-body">
             <div class="nav-subheading final-heading current-stage-heading">Aktif Dönem</div>
             <button class="nav-item fifa10-league-link" data-nav="seasonhub">
               <span class="nav-icon">10</span>
-              <span><strong>FIFA 10 Lig Sistemi</strong><small>Premier · Championship · kupalar</small></span>
+              <span><strong>FIFA 10 Turnuva Sistemi</strong><small>3 grup · 3 devre · Best of 3</small></span>
               <em>ANA DÖNEM</em>
             </button>
             <div class="nav-subheading">FIFA 09 Legacy</div>
@@ -135,7 +136,7 @@
 
       <div class="sidebar-footer">
         <div class="save-indicator" id="sidebarCloudStatus"><span class="status-dot"></span> Canlı bağlantı hazırlanıyor</div>
-        <div class="sidebar-version">Football Universe · V47.11.0 · FIFA 10 Era</div>
+        <div class="sidebar-version">Football Universe · V47.12.0 · Triple Circuit</div>
       </div>
     </aside>
     <button class="os-sidebar-backdrop" id="sidebarBackdrop" type="button" aria-label="Komuta menüsünü kapat"></button>
@@ -152,7 +153,7 @@
 
         <nav class="os-primary-nav" aria-label="Ana ürün navigasyonu">
           <button data-nav="dashboard"><span>FIFA 10</span></button>
-          <button data-nav="seasonhub"><span>League System</span></button>
+          <button data-nav="seasonhub"><span>Format & Kayıt</span></button>
           <button data-nav="knockout"><span>FIFA 09 Legacy</span></button>
           <button data-nav="benchmark"><span>Karneler</span></button>
           
@@ -204,7 +205,7 @@
       </header>
       <div class="hub-launcher-grid">
         <button data-nav="dashboard" class="home"><span>10</span><strong>FIFA 10 Ana Merkez</strong><small>Yeni lig dönemi ve sezon kontrolü</small></button>
-        <button data-nav="seasonhub" class="tournament"><span>10</span><strong>FIFA 10 Lig Sistemi</strong><small>Premier, Championship ve kupalar</small></button>
+        <button data-nav="seasonhub" class="tournament"><span>10</span><strong>FIFA 10 Format & Kayıt</strong><small>Triple Circuit, ELO torbaları ve kayıt merkezi</small></button>
         <button data-nav="benchmark" class="records"><span>∑</span><strong>Turnuva Karnesi</strong><small>FIFA 1–9 kıyaslama ve performans atlası</small></button>
       </div>
     </section>
@@ -212,7 +213,7 @@
 
   <nav class="mobile-hub-dock" aria-label="Hızlı mobil navigasyon">
     <button data-nav="dashboard"><span>10</span><small>Ana</small></button>
-    <button data-nav="seasonhub"><span>PL</span><small>Lig</small></button>
+    <button data-nav="seasonhub"><span>10</span><small>Format</small></button>
     <button data-nav="knockout"><span>09</span><small>Legacy</small></button>
     <button data-nav="benchmark"><span>∑</span><small>Karneler</small></button>
   </nav>
@@ -223,11 +224,12 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="cloud-config.js?v=44.5.0"></script>
   <script src="cloud.js?v=44.5.0"></script>
+  <script src="fifa10-registration-cloud.js?v=47.12.0"></script>
   <script src="chat.js?v=44.5.0"></script>
   <script src="community.js?v=44.5.0"></script>
-  <script src="app.js?v=47.11.0-fifa10-era"></script>
-  <script src="fifa9-experience-hub.js?v=47.11.0-fifa10-era"></script>
-  <script src="horizon-os-v47.js?v=47.11.0-fifa10-era"></script>
-  <script src="navigation-os-v47-1.js?v=47.11.0-fifa10-era"></script>
+  <script src="app.js?v=47.12.0-triple-circuit"></script>
+  <script src="fifa9-experience-hub.js?v=47.12.0-triple-circuit"></script>
+  <script src="horizon-os-v47.js?v=47.12.0-triple-circuit"></script>
+  <script src="navigation-os-v47-1.js?v=47.12.0-triple-circuit"></script>
 </body>
 </html>
