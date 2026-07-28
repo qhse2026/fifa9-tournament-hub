@@ -13,6 +13,11 @@
   }
   function getClient() {
     if (client) return client;
+    const sharedClient = window.FIFA_CLOUD?.getClient?.();
+    if (sharedClient) {
+      client = sharedClient;
+      return client;
+    }
     const {url,key}=credentials();
     if (!url || !key || !window.supabase?.createClient) return null;
     client=window.supabase.createClient(url,key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});

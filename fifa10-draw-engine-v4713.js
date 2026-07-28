@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "47.14.1";
+  const VERSION = "47.14.2";
   const STORAGE_KEY = "fifa-tournament-hub-v1";
   const GROUPS = Object.freeze(["A", "B", "C"]);
   const LEG_STARS = Object.freeze([4, 4.5, 5]);
@@ -295,6 +295,10 @@
     payload = next;
     // Always commit locally first. The tournament can continue even if the network momentarily fails.
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    // Reflect operational changes immediately. Cloud latency must never freeze
+    // manual group assignment or result entry on the tournament device.
+    scheduleRender();
+    if (manualEntryOverlayOpen) syncManualGroupOverlay();
     let cloudSaved = false;
     let cloudError = null;
     if (cloudConfigured() && isAdmin()) {
@@ -363,37 +367,40 @@
     persistViewState();
   }
 
-  async function startManualGroupEntry() {
+  function startManualGroupEntry() {
     manualEntryOverlayOpen = true;
-    manualEntryLoading = true;
+    manualEntryLoading = false;
     manualEntryOverlayError = "";
-    syncManualGroupOverlay();
     try {
-      await fetchRegistrations();
       const rows = registrationRows();
       if (rows.length < MIN_PLAYERS || rows.length > MAX_PLAYERS) {
         throw new Error(`Grup girişi için ${MIN_PLAYERS}–${MAX_PLAYERS} oyuncu gerekir. Mevcut kayıt: ${rows.length}.`);
       }
-      await mutatePayload(next => {
-        const draft = getDraft(next);
-        draft.players = rows.map(item => ({ id:item.id, name:item.name, elo:item.elo, source:item.source, registeredAt:item.registeredAt }));
-        draft.settings.registrationOpen = false;
-        draft.settings.potsLocked = true;
-        draft.status = "manual-groups";
-        const draw = createDrawState(rows);
-        draw.status = "manual-entry";
-        draw.entryMode = "manual";
-        draft.draw = draw;
-        draft.updatedAt = nowISO();
-      }, "Manuel grup giriş ekranı açıldı.");
+      const next = deepClone(payload || localPayload());
+      ensurePayloadShape(next);
+      const draft = getDraft(next);
+      draft.players = rows.map(item => ({ id:item.id, name:item.name, elo:item.elo, source:item.source, registeredAt:item.registeredAt }));
+      draft.settings.registrationOpen = false;
+      draft.settings.potsLocked = true;
+      draft.status = "manual-groups";
+      const draw = createDrawState(rows);
+      draw.status = "manual-entry";
+      draw.entryMode = "manual";
+      draft.draw = draw;
+      draft.updatedAt = nowISO();
+      payload = next;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       activeTab = "draw";
       persistViewState();
+      syncManualGroupOverlay();
+      scheduleRender();
+      savePayload(next, "Manuel grup giriş ekranı açıldı.").catch(error => {
+        console.error("Manual group entry cloud sync failed; local entry remains active.", error);
+      });
     } catch (error) {
       manualEntryOverlayError = String(error?.message || error || "Grup giriş ekranı açılamadı.");
-      throw error;
-    } finally {
-      manualEntryLoading = false;
       syncManualGroupOverlay();
+      throw error;
     }
   }
 
@@ -1086,8 +1093,8 @@
     const metaValue = `${VERSION}-live-draw-ppg-engine`;
     if (meta && meta.content !== metaValue) meta.content = metaValue;
     const url = new URL(location.href);
-    if (url.searchParams.get("fifa9build") !== "47141") {
-      url.searchParams.set("fifa9build", "47141");
+    if (url.searchParams.get("fifa9build") !== "47142") {
+      url.searchParams.set("fifa9build", "47142");
       history.replaceState(history.state, "", url);
     }
     document.querySelectorAll(".f10-format-spine article").forEach(article => {

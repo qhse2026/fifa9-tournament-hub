@@ -1,4 +1,4 @@
-const CACHE = "oruc-reis-football-universe-v47-14-1-manual-groups-stability";
+const CACHE = "oruc-reis-football-universe-v47-14-2-instant-manual-groups";
 const APP_SHELL = [
   "./",
   "./index.html",
