@@ -46,11 +46,11 @@
   }
   window.FIFA10_REGISTRATION_CLOUD={isConfigured,list,register,remove,newPlayerElo:NEW_PLAYER_ELO};
 
-  // V47.13.1 — load the live draw, fixture and PPG standings engine.
+  // V47.13.2 — load the live draw, fixture and PPG standings engine.
   if (!document.getElementById("fifa10DrawEngineScript")) {
     const script = document.createElement("script");
     script.id = "fifa10DrawEngineScript";
-    script.src = "fifa10-draw-engine-v4713.js?v=47.13.1";
+    script.src = "fifa10-draw-engine-v4713.js?v=47.13.2";
     script.async = true;
     document.head.appendChild(script);
   }

@@ -1,0 +1,21 @@
+{
+  "version": "47.13.2",
+  "status": "PASS",
+  "checks": [
+    "JavaScript syntax: fifa10-draw-engine-v4713.js",
+    "JavaScript syntax: fifa10-registration-cloud.js",
+    "capture-phase draw button handler",
+    "prepare button busy feedback",
+    "hard-coded 13-player confirmation removed",
+    "12-player group projection 4-4-4",
+    "13-player group projection 5-4-4",
+    "14-player group projection 5-5-4",
+    "15-player group projection 5-5-5",
+    "multiple five-player groups supported",
+    "dynamic preliminary pair preview for 12-15 players",
+    "PPG-first standings retained",
+    "uncapped goal difference retained",
+    "new-player ELO 1350 retained",
+    "cache version updated"
+  ]
+}

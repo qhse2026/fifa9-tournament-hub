@@ -1,0 +1,20 @@
+ORUÇ REİS FIFA WORLD V47.13.2
+DRAW START BUTTON & 14-PLAYER HOTFIX
+
+- Fixed the "Kayıtları Kilitle ve Kurayı Başlat" button not responding reliably.
+- Draw action now uses capture-phase delegated handling and immediate busy feedback.
+- Removed the hard-coded 13-player confirmation branch.
+- Current 14-player registration is accepted directly.
+- Group projection is dynamic:
+  12 => 4-4-4
+  13 => 5-4-4
+  14 => 5-5-4
+  15 => 5-5-5
+- Pot 5 players determine which groups become five-player groups during the live draw.
+- Multiple five-player groups are now stored and displayed correctly.
+- Qualification preview adapts to 12-15 participants:
+  13 => 12-13 Preliminary
+  14 => 11-14 and 12-13 Preliminary
+  15 => 10-15, 11-14 and 12-13 Preliminary
+- General standings remain PPG-first with uncapped full goal difference.
+- New-player starting ELO remains 1350.

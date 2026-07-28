@@ -1,0 +1,14 @@
+FIFA 10 V47.13.2 KURAYI BAŞLAT BUTONU DÜZELTMESİ
+
+1. ZIP dosyasını bilgisayarınızda çıkartın.
+2. İçindeki üç ana dosyayı repository ana dizinine yükleyin:
+   - fifa10-draw-engine-v4713.js
+   - fifa10-registration-cloud.js
+   - service-worker.js
+3. Mevcut dosyaların üzerine yazılmasını onaylayın.
+4. Deploy tamamlandıktan sonra Ctrl + Shift + R yapın.
+5. Sayfayı yeniden açın ve "Kayıtları Kilitle ve Kurayı Başlat" düğmesine basın.
+
+Mevcut 14 oyuncu için kura dağılımı 5-5-4 olacaktır.
+Hangi iki grubun 5 oyunculu olacağı Torba 5 çekimleriyle belirlenecektir.
+Supabase SQL dosyasını yeniden çalıştırmanız gerekmez.

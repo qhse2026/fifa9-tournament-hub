@@ -1,13 +1,12 @@
 (() => {
   "use strict";
 
-  const VERSION = "47.13.1";
+  const VERSION = "47.13.2";
   const STORAGE_KEY = "fifa-tournament-hub-v1";
   const GROUPS = Object.freeze(["A", "B", "C"]);
   const LEG_STARS = Object.freeze([4, 4.5, 5]);
   const MIN_PLAYERS = 12;
   const MAX_PLAYERS = 15;
-  const EXPECTED_CURRENT_PLAYERS = 13;
   const NEW_PLAYER_ELO = 1350;
   const REFRESH_MS = 15000;
 
@@ -72,6 +71,22 @@
   function randomToken(length = 6) {
     const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     return Array.from({ length }, () => alphabet[secureRandomInt(alphabet.length)]).join("");
+  }
+
+  function projectedGroupSizes(total) {
+    const safeTotal = Math.max(0, Number(total) || 0);
+    const completePots = Math.floor(safeTotal / GROUPS.length);
+    const partial = safeTotal % GROUPS.length;
+    return GROUPS.map((_, index) => completePots + (index < partial ? 1 : 0)).sort((a, b) => b - a);
+  }
+
+  function groupDistributionCopy(total) {
+    const sizes = projectedGroupSizes(total);
+    const fiveCount = sizes.filter(size => size === 5).length;
+    if (fiveCount === 0) return "Üç grup da 4 oyunculu olur.";
+    if (fiveCount === 1) return "Son torbadaki oyuncunun çekildiği grup 5 oyunculu olur.";
+    if (fiveCount === 2) return "Son torbadaki iki oyuncunun çekildiği iki grup 5 oyunculu olur.";
+    return "Üç grup da 5 oyunculu olur.";
   }
 
   function deepClone(value) {
@@ -260,7 +275,7 @@
   }
 
   async function mutatePayload(mutator, message = "") {
-    if (moduleBusy) return;
+    if (moduleBusy) throw new Error("Önceki işlem hâlâ devam ediyor. Lütfen birkaç saniye bekleyin.");
     moduleBusy = true;
     try {
       if (!payload || Date.now() - lastLoadAt > REFRESH_MS) await fetchPayload();
@@ -283,10 +298,6 @@
     const rows = registrationRows();
     if (rows.length < MIN_PLAYERS || rows.length > MAX_PLAYERS) {
       throw new Error(`Kura için ${MIN_PLAYERS}–${MAX_PLAYERS} oyuncu gerekir. Mevcut kayıt: ${rows.length}.`);
-    }
-    if (rows.length !== EXPECTED_CURRENT_PLAYERS) {
-      const proceed = window.confirm(`Şu anda ${rows.length} oyuncu kayıtlı. Mevcut plan 13 oyuncudur. Yine de kurayı hazırlamak istiyor musunuz?`);
-      if (!proceed) return;
     }
     await mutatePayload(next => {
       const draft = getDraft(next);
@@ -317,7 +328,8 @@
     draw.completedAt = nowISO();
     draw.updatedAt = nowISO();
     const groups = currentGroups(draw);
-    draw.fivePlayerGroup = GROUPS.find(group => groups[group].length === 5) || null;
+    draw.fivePlayerGroups = GROUPS.filter(group => groups[group].length === 5);
+    draw.fivePlayerGroup = draw.fivePlayerGroups[0] || null;
     draw.fixtures = generateFixtures(draw);
     draw.lastReveal = draw.assignments.at(-1) || null;
     return draw;
@@ -533,11 +545,16 @@
       .map((row, index) => ({ ...row, groupRank: index + 1 }));
   }
 
+  function preliminaryPairs(total) {
+    const count = Math.max(0, Math.min(3, total - 12));
+    return Array.from({ length: count }, (_, index) => [12 - count + index, total - index]);
+  }
+
   function qualificationLabel(rank, total) {
     if (rank <= 4) return { key: "direct", label: "DOĞRUDAN QF" };
-    if (total === 13 && rank >= 12) return { key: "gate", label: "PRELIMINARY" };
-    if (rank <= 12) return { key: "playin", label: "PLAY-IN" };
-    return { key: "outside", label: "BEKLEME" };
+    const prelimRanks = new Set(preliminaryPairs(total).flat());
+    if (prelimRanks.has(rank)) return { key: "gate", label: "PRELIMINARY" };
+    return { key: "playin", label: "PLAY-IN" };
   }
 
   function teamUsedBy(draw, playerId, team, excludeMatchId = "") {
@@ -683,13 +700,15 @@
     const remaining = draw ? unassignedPlayers(draw).length : registrationRows().length;
     const canManage = isAdmin();
     if (!draw) {
-      return `<div class="f10-draw-ready-panel"><div><span>13 PARTICIPANTS · 5 ELO POTS</span><h4>Kura sistemi hazır.</h4><p>Dört tam torbanın her birinden A, B ve C gruplarına birer oyuncu çekilir. Beşinci torbadaki son oyuncunun çekildiği grup, kurayla 5 oyunculu grup olur.</p></div>${canManage ? `<button type="button" class="f10-draw-primary" data-f10draw-action="prepare-draw">Kayıtları Kilitle ve Kurayı Başlat ↗</button>` : `<strong class="f10-public-wait">Yönetici kura hazırlığını başlatacak.</strong>`}</div>${renderPots(null)}`;
+      const count = registrationRows().length;
+      const groupCopy = groupDistributionCopy(count);
+      return `<div class="f10-draw-ready-panel"><div><span>${count} PARTICIPANTS · 5 ELO POTS</span><h4>Kura sistemi hazır.</h4><p>Her tam torbadan A, B ve C gruplarına birer oyuncu çekilir. ${groupCopy}</p></div>${canManage ? `<button type="button" class="f10-draw-primary" data-f10draw-action="prepare-draw">Kayıtları Kilitle ve Kurayı Başlat ↗</button>` : `<strong class="f10-public-wait">Yönetici kura hazırlığını başlatacak.</strong>`}</div>${renderPots(null)}`;
     }
     return `<div class="f10-draw-stage">
       <div class="f10-live-reveal ${last ? "has-reveal" : ""}"><span>${draw.status === "completed" ? "FINAL DRAW RESULT" : "LIVE DRAW REVEAL"}</span>${last ? `<small>TORBA ${last.pot}</small><h4>${escapeHTML(last.playerName)}</h4><div>GRUP <b>${last.group}</b></div><em>${last.elo} ELO</em>` : `<h4>Kura başlamaya hazır</h4><p>İlk oyuncu ve grubu güvenli rastgele seçimle belirlenecek.</p>`}<footer><strong>${draw.assignments.length}/${draw.participants.length}</strong><span>${remaining} oyuncu kaldı</span><code>${escapeHTML(draw.drawId)}</code></footer></div>
       <div class="f10-draw-controls">${canManage && draw.status !== "completed" ? `<button type="button" class="f10-draw-primary" data-f10draw-action="draw-next" ${moduleBusy || autoDrawing ? "disabled" : ""}>Sıradaki Oyuncuyu Çek</button><button type="button" data-f10draw-action="auto-draw" ${moduleBusy ? "disabled" : ""}>${autoDrawing ? "Otomatik Kurayı Durdur" : "Otomatik Kura"}</button>` : ""}${canManage ? `<button type="button" data-f10draw-action="reset-draw">Kurayı Sıfırla</button><button type="button" class="danger" data-f10draw-action="reopen-registration">Kayıtlara Dön</button>` : ""}</div>
       <div class="f10-draw-group-grid">${GROUPS.map(group => renderGroupMini(group, groups[group], draw)).join("")}</div>
-      <div class="f10-draw-log"><header><span>KURA KAYDI</span><strong>${draw.assignments.length} işlem</strong></header><div>${[...(draw.assignments || [])].reverse().slice(0, 13).map(item => `<div><i>${String(item.sequence).padStart(2, "0")}</i><span><strong>${escapeHTML(item.playerName)}</strong><small>Torba ${item.pot}</small></span><b>GRUP ${item.group}</b></div>`).join("") || `<p>Henüz çekim yapılmadı.</p>`}</div></div>
+      <div class="f10-draw-log"><header><span>KURA KAYDI</span><strong>${draw.assignments.length} işlem</strong></header><div>${[...(draw.assignments || [])].reverse().slice(0, draw.participants.length).map(item => `<div><i>${String(item.sequence).padStart(2, "0")}</i><span><strong>${escapeHTML(item.playerName)}</strong><small>Torba ${item.pot}</small></span><b>GRUP ${item.group}</b></div>`).join("") || `<p>Henüz çekim yapılmadı.</p>`}</div></div>
     </div>`;
   }
 
@@ -717,8 +736,20 @@
 
   function renderQualificationPath(rows) {
     if (!rows.length) return "";
+    const total = rows.length;
     const name = rank => escapeHTML(rows.find(row => row.rank === rank)?.name || `${rank}. Sıra`);
-    return `<div class="f10-qualification-path"><article class="direct"><span>DIRECT QUARTER-FINALISTS</span><div>${[1, 2, 3, 4].map(rank => `<b>${rank}<small>${name(rank)}</small></b>`).join("")}</div></article><article><span>PRELIMINARY GATE</span><strong>12 · ${name(12)} <i>VS</i> 13 · ${name(13)}</strong><small>Best of 3 · kazanan 12. seri olur</small></article><article><span>CHAMPIONSHIP PLAY-IN</span><div class="path-pairs"><b>5 <small>${name(5)}</small><i>VS</i> Gate Winner</b><b>6 <small>${name(6)}</small><i>VS</i> 11 <small>${name(11)}</small></b><b>7 <small>${name(7)}</small><i>VS</i> 10 <small>${name(10)}</small></b><b>8 <small>${name(8)}</small><i>VS</i> 9 <small>${name(9)}</small></b></div></article></div>`;
+    const gates = preliminaryPairs(total);
+    const gateHtml = gates.length
+      ? gates.map(([high, low]) => `<strong>${high} · ${name(high)} <i>VS</i> ${low} · ${name(low)}</strong>`).join("")
+      : `<strong>Preliminary turu yok</strong>`;
+    const gateNote = gates.length
+      ? `Best of 3 · ${gates.length} kazanan, ${13 - gates.length}–12 seri numaralarına yerleşir`
+      : `5–12 doğrudan Play-In serilerine geçer`;
+    const opponent = seed => {
+      const pair = gates.find(([high]) => high === seed);
+      return pair ? `Gate ${pair[0]}–${pair[1]} Winner` : `${seed} <small>${name(seed)}</small>`;
+    };
+    return `<div class="f10-qualification-path"><article class="direct"><span>DIRECT QUARTER-FINALISTS</span><div>${[1, 2, 3, 4].map(rank => `<b>${rank}<small>${name(rank)}</small></b>`).join("")}</div></article><article><span>PRELIMINARY GATE</span><div class="preliminary-pairs">${gateHtml}</div><small>${gateNote}</small></article><article><span>CHAMPIONSHIP PLAY-IN</span><div class="path-pairs"><b>5 <small>${name(5)}</small><i>VS</i> ${opponent(12)}</b><b>6 <small>${name(6)}</small><i>VS</i> ${opponent(11)}</b><b>7 <small>${name(7)}</small><i>VS</i> ${opponent(10)}</b><b>8 <small>${name(8)}</small><i>VS</i> 9 <small>${name(9)}</small></b></div></article></div>`;
   }
 
   function renderFixtures(draw) {
@@ -768,7 +799,9 @@
       ["standings", "GENEL PUAN"],
       ["fixtures", "FİKSTÜR"]
     ];
-    const html = `<header class="f10-draw-hero"><div><span>FIFA 10 · OFFICIAL DRAW ENGINE</span><h3>Kura çekimi.<br><em>Üç grup, tek sıralama.</em></h3><p>13 katılımcı ELO torbalarından canlı kurayla A, B ve C gruplarına dağıtılır. Beş oyunculu grubun hangisi olacağı önceden belirlenmez; son torba çekimiyle ortaya çıkar.</p></div><aside class="status-${status.key}"><i></i><strong>${status.label}</strong><small>${status.note}</small>${draw?.fivePlayerGroup ? `<b>5 OYUNCULU GRUP · ${draw.fivePlayerGroup}</b>` : `<b>5 OYUNCULU GRUP · KURADA</b>`}</aside></header>
+    const participantCount = draw?.participants?.length || registrationRows().length;
+    const sizeText = projectedGroupSizes(participantCount).join("-");
+    const html = `<header class="f10-draw-hero"><div><span>FIFA 10 · OFFICIAL DRAW ENGINE</span><h3>Kura çekimi.<br><em>Üç grup, tek sıralama.</em></h3><p>${participantCount} katılımcı ELO torbalarından canlı kurayla A, B ve C gruplarına dağıtılır. Beklenen grup dağılımı ${sizeText}; hangi grupların büyük olacağı yalnızca kura sırasında belirlenir.</p></div><aside class="status-${status.key}"><i></i><strong>${status.label}</strong><small>${status.note}</small>${draw?.fivePlayerGroups?.length ? `<b>5 OYUNCULU GRUP${draw.fivePlayerGroups.length > 1 ? "LAR" : ""} · ${draw.fivePlayerGroups.join(" / ")}</b>` : `<b>GRUP BÜYÜKLÜKLERİ · KURADA</b>`}</aside></header>
       <nav class="f10-draw-tabs">${tabs.map(([id, label]) => `<button type="button" class="${activeTab === id ? "active" : ""}" data-f10draw-action="tab" data-tab="${id}" ${!draw && id !== "draw" ? "disabled" : ""}>${label}</button>`).join("")}</nav>
       <div class="f10-draw-content">${activeTab === "draw" ? renderDrawArena(draw) : activeTab === "groups" ? (draw ? renderGroupTables(draw) : renderDrawArena(null)) : activeTab === "standings" ? (draw?.status === "completed" ? renderStandings(draw) : renderDrawArena(draw)) : (draw?.status === "completed" ? renderFixtures(draw) : renderDrawArena(draw))}</div>
       <footer class="f10-draw-footer"><span>GENEL SIRALAMA: PPG → TOPLAM PUAN → TAM AVERAJ → ATILAN GOL → GALİBİYET → KURA SIRASI</span><b>AVERAGE-POINT TABLE · NO GD CAP</b></footer>`;
@@ -799,15 +832,18 @@
     const metaValue = `${VERSION}-live-draw-ppg-engine`;
     if (meta && meta.content !== metaValue) meta.content = metaValue;
     const url = new URL(location.href);
-    if (url.searchParams.get("fifa9build") !== "47131") {
-      url.searchParams.set("fifa9build", "47131");
+    if (url.searchParams.get("fifa9build") !== "47132") {
+      url.searchParams.set("fifa9build", "47132");
       history.replaceState(history.state, "", url);
     }
     document.querySelectorAll(".f10-format-spine article").forEach(article => {
       const tag = article.querySelector("small")?.textContent?.trim();
       if (tag === "GROUP DRAW") {
         const metaNode = article.querySelector("strong");
-        if (metaNode && metaNode.textContent !== "13 oyuncu · 5-4-4 · 5 kişilik grup kurada belirlenir") metaNode.textContent = "13 oyuncu · 5-4-4 · 5 kişilik grup kurada belirlenir";
+        const count = registrationRows().length;
+        const sizes = projectedGroupSizes(count).join("-");
+        const copy = `${count} oyuncu · ${sizes} · grup büyüklükleri kurada belirlenir`;
+        if (metaNode && metaNode.textContent !== copy) metaNode.textContent = copy;
       }
       if (tag === "ONE TABLE") {
         const desc = article.querySelector("p");
@@ -916,7 +952,7 @@
       .f10-draw-log{grid-column:1/3;border:1px solid var(--f10d-line);border-radius:18px;background:rgba(5,12,31,.65);overflow:hidden}.f10-draw-log>header{display:flex;justify-content:space-between;padding:13px 16px;border-bottom:1px solid var(--f10d-line);font-size:9px;letter-spacing:.14em;color:#8090b5}.f10-draw-log>div{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--f10d-line)}.f10-draw-log>div>div{display:flex;gap:10px;align-items:center;padding:11px;background:#09122d}.f10-draw-log i{font-style:normal;color:#647295}.f10-draw-log span{flex:1}.f10-draw-log strong{display:block;color:white;font-size:11px}.f10-draw-log small{color:#7483a8}.f10-draw-log b{color:var(--f10d-gold);font-size:9px}.f10-draw-log p{padding:20px;background:#09122d;color:#7685aa}
       .f10-groups-full{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.f10-group-full{border:1px solid var(--f10d-line);border-radius:22px;overflow:hidden;background:rgba(7,14,36,.72)}.f10-group-full>header{display:flex;justify-content:space-between;align-items:center;padding:20px;border-bottom:1px solid var(--f10d-line)}.f10-group-full>header div{display:flex;align-items:end;gap:10px}.f10-group-full>header span{font-size:9px;color:#7d8cb1}.f10-group-full>header strong{font-size:42px;color:var(--f10d-gold)}.f10-group-full>header b{color:#79c9ff;font-size:10px}.f10-group-members{padding:12px;display:grid;gap:7px}.f10-group-members>div{padding:11px;border-radius:11px;background:rgba(255,255,255,.04)}.f10-group-members strong{display:block;color:white}.f10-group-members span{color:#7f8db0;font-size:10px}.f10-mini-table{border-top:1px solid var(--f10d-line)}.f10-mini-table>div{display:grid;grid-template-columns:26px 1fr repeat(3,38px);align-items:center;padding:9px 12px;border-bottom:1px solid rgba(125,151,255,.1);font-size:10px;color:#a6b2d0}.f10-mini-table .head{font-size:8px;letter-spacing:.12em;color:#6e7ca1}.f10-mini-table strong{color:white}.f10-mini-table b{color:var(--f10d-gold)}
       .f10-general-standings>header,.f10-fixtures>header{display:flex;justify-content:space-between;gap:20px;align-items:end;margin-bottom:18px}.f10-general-standings>header span,.f10-fixtures>header span{font-size:9px;letter-spacing:.18em;color:#7ec8ff;font-weight:900}.f10-general-standings h4,.f10-fixtures h4{font-size:28px;color:white;margin:7px 0}.f10-general-standings p,.f10-fixtures p{max-width:850px;color:#8e9bbb;line-height:1.6}.f10-general-standings>header>div:last-child{display:grid;text-align:right}.f10-general-standings>header>div:last-child strong{font-size:30px;color:var(--f10d-gold)}.f10-general-standings>header>div:last-child small{color:#7e8daf;font-size:9px}.f10-ranking-rules{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}.f10-ranking-rules span{padding:8px 10px;border:1px solid var(--f10d-line);border-radius:8px;color:#95a5c8;font-size:8px;font-weight:900;letter-spacing:.1em}.f10-standings-scroll{overflow:auto;border:1px solid var(--f10d-line);border-radius:18px}.f10-standings-table{min-width:1130px}.f10-standings-table>div{display:grid;grid-template-columns:35px minmax(170px,1fr) 45px repeat(9,48px) 105px;align-items:center;min-height:46px;padding:0 12px;border-bottom:1px solid rgba(125,151,255,.1);color:#9ca9c8;font-size:11px}.f10-standings-table .head{position:sticky;top:0;background:#0b1433;color:#7180a4;font-size:8px;letter-spacing:.1em;z-index:2}.f10-standings-table strong{color:white}.f10-standings-table b{color:#d6ddf2}.f10-standings-table em{font-style:normal;font-size:8px;font-weight:900;color:#76c9ff;letter-spacing:.08em}.f10-standings-table .rank-1,.f10-standings-table .rank-2,.f10-standings-table .rank-3,.f10-standings-table .rank-4{background:linear-gradient(90deg,rgba(69,167,255,.09),rgba(157,103,255,.07))}.f10-standings-table .qualification-direct em{color:var(--f10d-gold)}.f10-standings-table .qualification-gate em{color:#ff9aa9}
-      .f10-qualification-path{display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:12px;margin-top:15px}.f10-qualification-path article{padding:16px;border:1px solid var(--f10d-line);border-radius:15px;background:rgba(8,16,40,.65)}.f10-qualification-path article>span{display:block;margin-bottom:10px;color:#7cc8ff;font-size:8px;font-weight:900;letter-spacing:.14em}.f10-qualification-path .direct>div{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.f10-qualification-path b{display:block;color:var(--f10d-gold);font-size:18px}.f10-qualification-path b small{display:block;color:#a5b0cc;font-size:9px;font-weight:500;margin-top:4px}.f10-qualification-path i{font-style:normal;color:#7583a7;margin:0 5px}.f10-qualification-path article>small{color:#7584a8}.path-pairs{display:grid;grid-template-columns:1fr 1fr;gap:7px}.path-pairs b{padding:8px;border-radius:9px;background:rgba(255,255,255,.04);font-size:11px;color:white}
+      .f10-qualification-path{display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:12px;margin-top:15px}.f10-qualification-path article{padding:16px;border:1px solid var(--f10d-line);border-radius:15px;background:rgba(8,16,40,.65)}.f10-qualification-path article>span{display:block;margin-bottom:10px;color:#7cc8ff;font-size:8px;font-weight:900;letter-spacing:.14em}.f10-qualification-path .direct>div{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.f10-qualification-path b{display:block;color:var(--f10d-gold);font-size:18px}.f10-qualification-path b small{display:block;color:#a5b0cc;font-size:9px;font-weight:500;margin-top:4px}.f10-qualification-path i{font-style:normal;color:#7583a7;margin:0 5px}.f10-qualification-path article>small{color:#7584a8}.preliminary-pairs{display:grid;gap:7px;margin-bottom:8px}.preliminary-pairs strong{padding:8px;border-radius:9px;background:rgba(255,255,255,.04);font-size:10px;color:white}.f10-draw-primary:disabled{opacity:.72;cursor:wait}.path-pairs{display:grid;grid-template-columns:1fr 1fr;gap:7px}.path-pairs b{padding:8px;border-radius:9px;background:rgba(255,255,255,.04);font-size:11px;color:white}
       .f10-fixtures>header>b{color:var(--f10d-gold)}.f10-fixture-filters{display:flex;justify-content:space-between;gap:12px;margin-bottom:13px}.f10-fixture-filters>div{display:flex;gap:6px;overflow:auto}.f10-fixture-filters button{padding:9px 12px;border:1px solid var(--f10d-line);border-radius:9px;background:transparent;color:#8795b8;font-size:9px;font-weight:900;cursor:pointer;white-space:nowrap}.f10-fixture-filters button.active{background:linear-gradient(90deg,rgba(69,167,255,.18),rgba(157,103,255,.2));color:white}.f10-fixture-list{display:grid;gap:7px}.f10-fixture-row{display:grid;grid-template-columns:115px minmax(150px,1fr) 90px minmax(150px,1fr) 170px;align-items:center;gap:12px;width:100%;padding:13px;border:1px solid var(--f10d-line);border-radius:13px;background:rgba(7,14,36,.7);color:white;text-align:left}.f10-fixture-row:not(:disabled){cursor:pointer}.f10-fixture-row:disabled{opacity:.85}.f10-fixture-row>span:first-child{display:flex;justify-content:space-between;align-items:center}.f10-fixture-row small{color:#7f8db1}.f10-fixture-row>div{display:flex;justify-content:center;gap:8px;font-size:17px}.f10-fixture-row>div b{color:var(--f10d-gold)}.f10-fixture-row em{font-style:normal;color:#7fc9ff;font-size:10px}.f10-fixture-row .teams{display:grid;gap:2px;text-align:right}.f10-fixture-row.completed{border-color:rgba(82,228,160,.22)}.f10-empty-fixtures{padding:28px;text-align:center;border:1px dashed var(--f10d-line);border-radius:15px;color:#8391b5}
       .f10-draw-modal-backdrop{position:fixed;inset:0;z-index:10050;display:grid;place-items:center;padding:18px;background:rgba(1,5,17,.82);backdrop-filter:blur(12px)}.f10-draw-modal{width:min(720px,100%);border:1px solid var(--f10d-line);border-radius:23px;background:linear-gradient(145deg,#0a1432,#18103b);box-shadow:0 30px 90px rgba(0,0,0,.55);overflow:hidden}.f10-draw-modal>header{display:flex;justify-content:space-between;align-items:center;padding:20px 23px;border-bottom:1px solid var(--f10d-line)}.f10-draw-modal header span{font-size:9px;letter-spacing:.16em;color:#7dc8ff}.f10-draw-modal h3{color:white;font-size:25px;margin:5px 0 0}.f10-draw-modal header button{border:0;background:transparent;color:white;font-size:25px;cursor:pointer}.f10-draw-modal form{padding:22px}.f10-result-versus{display:grid;grid-template-columns:1fr 50px 1fr;gap:14px;align-items:center}.f10-result-versus label{display:grid;gap:7px}.f10-result-versus label strong{color:white;font-size:16px}.f10-result-versus label span{color:#8290b3;font-size:9px}.f10-result-versus input{width:100%;padding:12px;border:1px solid var(--f10d-line);border-radius:10px;background:#07122e;color:white}.f10-result-versus>b{text-align:center;color:var(--f10d-gold)}.f10-modal-rule{margin:18px 0;color:#8795b7;font-size:11px;line-height:1.55}.f10-draw-modal footer{display:flex;justify-content:flex-end;gap:8px}.f10-draw-modal footer button{padding:11px 15px;border:1px solid var(--f10d-line);border-radius:10px;background:transparent;color:white;font-weight:800;cursor:pointer}.f10-draw-modal footer button.primary{background:linear-gradient(90deg,#347fff,#a84df3);border:0}.f10-draw-modal footer button.danger{margin-right:auto;color:#ff8d9d;border-color:rgba(255,101,123,.3)}
       .f10-draw-toast-stack{position:fixed;right:20px;bottom:22px;z-index:11000;display:grid;gap:8px;width:min(390px,calc(100vw - 40px))}.f10-draw-toast{display:flex;gap:10px;align-items:center;padding:13px 15px;border:1px solid var(--f10d-line);border-radius:13px;background:#0a1432;color:white;box-shadow:0 16px 40px rgba(0,0,0,.35);opacity:0;transform:translateY(12px);transition:.25s}.f10-draw-toast.show{opacity:1;transform:none}.f10-draw-toast span{display:grid;place-items:center;width:25px;height:25px;border-radius:50%;background:rgba(69,167,255,.14);color:#7dc9ff}.f10-draw-toast.success span{color:var(--f10d-green)}.f10-draw-toast.error span{color:var(--f10d-red)}
@@ -928,10 +964,17 @@
   }
 
   async function handleClick(event) {
-    const button = event.target.closest("[data-f10draw-action]");
-    if (!button) return;
+    const target = event.target instanceof Element ? event.target : event.target?.parentElement;
+    const button = target?.closest?.("[data-f10draw-action]");
+    if (!button || button.disabled) return;
     const action = button.dataset.f10drawAction;
     event.preventDefault();
+    event.stopPropagation();
+    const originalText = button.textContent;
+    if (action === "prepare-draw") {
+      button.disabled = true;
+      button.textContent = "Kura hazırlanıyor…";
+    }
     try {
       if (action === "tab") {
         activeTab = button.dataset.tab || "draw";
@@ -955,6 +998,11 @@
       else if (action === "clear-result") await clearResult(button.dataset.fixtureId);
     } catch (error) {
       notify(String(error?.message || error || "İşlem tamamlanamadı."), "error");
+    } finally {
+      if (action === "prepare-draw" && button.isConnected && !getDraw()) {
+        button.disabled = false;
+        button.textContent = originalText;
+      }
     }
   }
 
@@ -990,7 +1038,7 @@
     const ready = await waitForApplication();
     if (!ready) return;
     installStyles();
-    document.addEventListener("click", handleClick);
+    document.addEventListener("click", handleClick, true);
     document.addEventListener("submit", handleLocalNewPlayerRegistration, true);
     document.addEventListener("submit", handleSubmit);
     observer = new MutationObserver(scheduleRender);
