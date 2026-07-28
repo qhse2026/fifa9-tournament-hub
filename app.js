@@ -11302,7 +11302,12 @@ ${shareData.url}`)}`;
           cloudUpdatedAt = meta.updatedAt || cloudUpdatedAt;
           cacheState();
           if ((replacementResult.changed || legacyResult.changed) && cloudAdmin) saveState(false, true);
-          if (meta.source === "realtime") toast("Canlı turnuva verisi güncellendi.", "success");
+          // Realtime is a background synchronization mechanism. Rendering the
+          // fresh state is sufficient; a toast for every database echo creates
+          // an endless notification loop on active tournament devices.
+          if (meta.source === "realtime") {
+            setCloudState(cloudAdmin ? "admin-online" : (cloudPlayerProfile ? "player-online" : "viewer-online"));
+          }
           render();
         },
         onAuth: ({ user, isAdmin, playerProfile }) => {

@@ -1,0 +1,29 @@
+{
+  "build": "47.14.1",
+  "url_build_marker": "47141",
+  "status": "PASS",
+  "syntax": {
+    "app.js": "PASS",
+    "fifa10-draw-engine-v4713.js": "PASS",
+    "fifa10-registration-cloud.js": "PASS",
+    "service-worker.js": "PASS"
+  },
+  "manual_group_entry": {
+    "overlay_opens": "PASS",
+    "survives_application_rerender": "PASS",
+    "mobile_safe": "PASS",
+    "players_tested": 14,
+    "distribution": "5-5-4",
+    "fixtures_generated": 78
+  },
+  "match_operations": {
+    "completed_results_tested": 2,
+    "standings_player_appearances": 4,
+    "status": "PASS"
+  },
+  "realtime": {
+    "synchronization_preserved": true,
+    "duplicate_engine_channel_removed": true,
+    "repetitive_update_toast_removed": true
+  }
+}

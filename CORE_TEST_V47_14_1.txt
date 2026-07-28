@@ -1,0 +1,17 @@
+V47.14.1 CORE TEST
+
+PASS — JavaScript syntax: app.js
+PASS — JavaScript syntax: fifa10-draw-engine-v4713.js
+PASS — JavaScript syntax: fifa10-registration-cloud.js
+PASS — JavaScript syntax: service-worker.js
+PASS — Manual group overlay opens from the official button
+PASS — Overlay survives an application #view rerender
+PASS — 14 players assigned with valid 5-5-4 distribution
+PASS — Same-pot assignment protection remains active
+PASS — Finalization generates 78 fixtures
+PASS — Overlay closes only after explicit close or successful finalization
+PASS — Two completed match results save successfully
+PASS — Standings reflect four player appearances from two matches
+PASS — Repetitive Realtime toast removed
+PASS — Mobile overlay and touch-safe CSS rules present
+

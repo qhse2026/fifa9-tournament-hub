@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "47.14.0";
+  const VERSION = "47.14.1";
   const STORAGE_KEY = "fifa-tournament-hub-v1";
   const GROUPS = Object.freeze(["A", "B", "C"]);
   const LEG_STARS = Object.freeze([4, 4.5, 5]);
@@ -23,6 +23,9 @@
   let observer = null;
   let lastRenderSignature = "";
   let operationNotice = { type: "info", text: "Kura sonuçlarını elle girebilir veya otomatik kura başlatabilirsiniz." };
+  let manualEntryOverlayOpen = false;
+  let manualEntryLoading = false;
+  let manualEntryOverlayError = "";
 
   const escapeHTML = value => String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -125,6 +128,17 @@
 
   function getDraw(source = payload) {
     return getDraft(source).draw || null;
+  }
+
+  function syncPayloadFromApplication() {
+    const applicationState = window.FIFA_APP_CONTEXT?.getState?.();
+    if (!applicationState || typeof applicationState !== "object") return;
+    const applicationUpdatedAt = drawUpdatedAt(applicationState);
+    const engineUpdatedAt = drawUpdatedAt(payload);
+    if (!payload || applicationUpdatedAt > engineUpdatedAt) {
+      payload = ensurePayloadShape(deepClone(applicationState));
+      lastLoadAt = Date.now();
+    }
   }
 
   function localPayload() {
@@ -350,25 +364,37 @@
   }
 
   async function startManualGroupEntry() {
-    await fetchRegistrations();
-    const rows = registrationRows();
-    if (rows.length < MIN_PLAYERS || rows.length > MAX_PLAYERS) {
-      throw new Error(`Grup girişi için ${MIN_PLAYERS}–${MAX_PLAYERS} oyuncu gerekir. Mevcut kayıt: ${rows.length}.`);
+    manualEntryOverlayOpen = true;
+    manualEntryLoading = true;
+    manualEntryOverlayError = "";
+    syncManualGroupOverlay();
+    try {
+      await fetchRegistrations();
+      const rows = registrationRows();
+      if (rows.length < MIN_PLAYERS || rows.length > MAX_PLAYERS) {
+        throw new Error(`Grup girişi için ${MIN_PLAYERS}–${MAX_PLAYERS} oyuncu gerekir. Mevcut kayıt: ${rows.length}.`);
+      }
+      await mutatePayload(next => {
+        const draft = getDraft(next);
+        draft.players = rows.map(item => ({ id:item.id, name:item.name, elo:item.elo, source:item.source, registeredAt:item.registeredAt }));
+        draft.settings.registrationOpen = false;
+        draft.settings.potsLocked = true;
+        draft.status = "manual-groups";
+        const draw = createDrawState(rows);
+        draw.status = "manual-entry";
+        draw.entryMode = "manual";
+        draft.draw = draw;
+        draft.updatedAt = nowISO();
+      }, "Manuel grup giriş ekranı açıldı.");
+      activeTab = "draw";
+      persistViewState();
+    } catch (error) {
+      manualEntryOverlayError = String(error?.message || error || "Grup giriş ekranı açılamadı.");
+      throw error;
+    } finally {
+      manualEntryLoading = false;
+      syncManualGroupOverlay();
     }
-    await mutatePayload(next => {
-      const draft = getDraft(next);
-      draft.players = rows.map(item => ({ id:item.id, name:item.name, elo:item.elo, source:item.source, registeredAt:item.registeredAt }));
-      draft.settings.registrationOpen = false;
-      draft.settings.potsLocked = true;
-      draft.status = "manual-groups";
-      const draw = createDrawState(rows);
-      draw.status = "manual-entry";
-      draw.entryMode = "manual";
-      draft.draw = draw;
-      draft.updatedAt = nowISO();
-    }, "Manuel grup giriş ekranı açıldı.");
-    activeTab = "draw";
-    persistViewState();
   }
 
   function expectedGroupSizePattern(total) {
@@ -422,26 +448,39 @@
     }, "Gruplar kesinleştirildi ve üç devreli fikstür oluşturuldu.");
     activeTab = "groups";
     persistViewState();
+    closeManualGroupOverlay();
   }
 
   async function switchToManualEntry() {
     const existing = getDraw();
     if (existing?.fixtures?.some(match => match.completed)) throw new Error("Sonuç girilmiş fikstürde grup düzenleme açılamaz.");
     if (existing?.assignments?.length && !window.confirm("Mevcut kura taslağı silinip çekilen gruplar elle girilecek. Devam edilsin mi?")) return;
-    await mutatePayload(next => {
-      const draft = getDraft(next);
-      const rows = snapshotPlayers(draft.draw);
-      const draw = createDrawState(rows);
-      draw.status = "manual-entry";
-      draw.entryMode = "manual";
-      draft.draw = draw;
-      draft.status = "manual-groups";
-      draft.settings.registrationOpen = false;
-      draft.settings.potsLocked = true;
-      draft.updatedAt = nowISO();
-    }, "Manuel grup giriş ekranına geçildi.");
-    activeTab = "draw";
-    persistViewState();
+    manualEntryOverlayOpen = true;
+    manualEntryLoading = true;
+    manualEntryOverlayError = "";
+    syncManualGroupOverlay();
+    try {
+      await mutatePayload(next => {
+        const draft = getDraft(next);
+        const rows = snapshotPlayers(draft.draw);
+        const draw = createDrawState(rows);
+        draw.status = "manual-entry";
+        draw.entryMode = "manual";
+        draft.draw = draw;
+        draft.status = "manual-groups";
+        draft.settings.registrationOpen = false;
+        draft.settings.potsLocked = true;
+        draft.updatedAt = nowISO();
+      }, "Manuel grup giriş ekranına geçildi.");
+      activeTab = "draw";
+      persistViewState();
+    } catch (error) {
+      manualEntryOverlayError = String(error?.message || error || "Grup giriş ekranı açılamadı.");
+      throw error;
+    } finally {
+      manualEntryLoading = false;
+      syncManualGroupOverlay();
+    }
   }
 
   function unassignedPlayers(draw) {
@@ -837,6 +876,71 @@
     </section>`;
   }
 
+  function ensureManualGroupOverlay() {
+    let overlay = document.getElementById("f10ManualGroupsOverlay");
+    if (overlay) return overlay;
+    overlay = document.createElement("div");
+    overlay.id = "f10ManualGroupsOverlay";
+    overlay.className = "f10-manual-overlay";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.setAttribute("aria-labelledby", "f10ManualGroupsTitle");
+    overlay.innerHTML = `<section class="f10-manual-sheet">
+      <header>
+        <div><span>FIFA 10 · TOURNAMENT OPERATIONS</span><h3 id="f10ManualGroupsTitle">Çekilen Grupları Elle Gir</h3></div>
+        <button type="button" data-f10draw-action="close-manual-overlay" aria-label="Grup giriş ekranını kapat">×</button>
+      </header>
+      <div class="f10-manual-sheet-body" id="f10ManualGroupsBody"></div>
+    </section>`;
+    document.body.appendChild(overlay);
+    return overlay;
+  }
+
+  function syncManualGroupOverlay() {
+    if (!manualEntryOverlayOpen) return;
+    const overlay = ensureManualGroupOverlay();
+    const body = overlay.querySelector("#f10ManualGroupsBody");
+    const previousScrollTop = body?.scrollTop || 0;
+    overlay.classList.add("is-open");
+    document.body.classList.add("f10-manual-overlay-open");
+    if (!body) return;
+    if (manualEntryLoading) {
+      body.innerHTML = `<div class="f10-manual-loading"><i></i><strong>Grup giriş ekranı hazırlanıyor…</strong><span>Kayıtlı oyuncular ve ELO torbaları kontrol ediliyor.</span></div>`;
+      return;
+    }
+    const draw = getDraw();
+    if (draw?.status === "manual-entry") {
+      body.innerHTML = renderManualGroupEntry(draw);
+      body.scrollTop = previousScrollTop;
+      return;
+    }
+    if (manualEntryOverlayError) {
+      body.innerHTML = `<div class="f10-manual-loading error"><strong>Grup giriş ekranı açılamadı.</strong><span>${escapeHTML(manualEntryOverlayError)}</span><button type="button" data-f10draw-action="close-manual-overlay">Kapat</button></div>`;
+      return;
+    }
+    closeManualGroupOverlay();
+  }
+
+  function openManualGroupOverlay() {
+    const draw = getDraw();
+    if (!draw || draw.status !== "manual-entry") {
+      notify("Önce manuel grup girişini başlatın.", "error");
+      return;
+    }
+    manualEntryOverlayOpen = true;
+    manualEntryLoading = false;
+    manualEntryOverlayError = "";
+    syncManualGroupOverlay();
+  }
+
+  function closeManualGroupOverlay() {
+    manualEntryOverlayOpen = false;
+    manualEntryLoading = false;
+    manualEntryOverlayError = "";
+    document.body.classList.remove("f10-manual-overlay-open");
+    document.getElementById("f10ManualGroupsOverlay")?.remove();
+  }
+
   function renderDrawArena(draw) {
     const groups = currentGroups(draw);
     const last = draw?.lastReveal;
@@ -847,7 +951,10 @@
       const groupCopy = groupDistributionCopy(count);
       return `<div class="f10-draw-ready-panel"><div><span>${count} PARTICIPANTS · 5 ELO POTS</span><h4>Turnuvayı şimdi başlat.</h4><p>Kura dışarıda çekildiyse sonuçları elle gir. Henüz çekilmediyse sistem üzerinden otomatik kura yap. ${groupCopy}</p></div>${canManage ? `<div class="f10-start-actions"><button type="button" class="f10-draw-primary" data-f10draw-action="manual-start">Çekilen Grupları Elle Gir ↗</button><button type="button" data-f10draw-action="prepare-draw">Sistem Üzerinden Kura Başlat</button></div>` : `<strong class="f10-public-wait">Yönetici grup sonuçlarını sisteme işleyecek.</strong>`}</div>${renderPots(null)}`;
     }
-    if (draw.status === "manual-entry") return renderManualGroupEntry(draw);
+    if (draw.status === "manual-entry") {
+      const assigned = new Set(GROUPS.flatMap(group => draw.groups?.[group] || [])).size;
+      return `<section class="f10-manual-resume"><div><span>MANUAL DRAW RESULT ENTRY</span><h4>Grup girişi devam ediyor.</h4><p>${assigned}/${draw.participants.length} oyuncu yerleştirildi. Tam ekran operasyon panelini açarak kaldığınız yerden devam edin.</p></div><button type="button" class="f10-draw-primary" data-f10draw-action="open-manual-overlay">Grup Giriş Ekranını Aç ↗</button></section>`;
+    }
     return `<div class="f10-draw-stage">
       <div class="f10-live-reveal ${last ? "has-reveal" : ""}"><span>${draw.status === "completed" ? "FINAL DRAW RESULT" : "LIVE DRAW REVEAL"}</span>${last ? `<small>TORBA ${last.pot}</small><h4>${escapeHTML(last.playerName)}</h4><div>GRUP <b>${last.group}</b></div><em>${last.elo} ELO</em>` : `<h4>Kura başlamaya hazır</h4><p>İlk oyuncu ve grubu güvenli rastgele seçimle belirlenecek.</p>`}<footer><strong>${draw.assignments.length}/${draw.participants.length}</strong><span>${remaining} oyuncu kaldı</span><code>${escapeHTML(draw.drawId)}</code></footer></div>
       <div class="f10-draw-controls">${canManage && draw.status !== "completed" ? `<button type="button" class="f10-draw-primary" data-f10draw-action="draw-next" ${moduleBusy || autoDrawing ? "disabled" : ""}>Sıradaki Oyuncuyu Çek</button><button type="button" data-f10draw-action="auto-draw" ${moduleBusy ? "disabled" : ""}>${autoDrawing ? "Otomatik Kurayı Durdur" : "Otomatik Kura"}</button><button type="button" data-f10draw-action="switch-manual">Çekilen Grupları Elle Gir</button>` : ""}${canManage ? `${draw.status === "completed" && !(draw.fixtures || []).some(match => match.completed) ? `<button type="button" data-f10draw-action="switch-manual">Grupları Düzenle</button>` : ""}<button type="button" data-f10draw-action="reset-draw">Kurayı Sıfırla</button><button type="button" class="danger" data-f10draw-action="reopen-registration">Kayıtlara Dön</button>` : ""}</div>
@@ -912,6 +1019,7 @@
   function renderModule() {
     const view = document.getElementById("view");
     if (!view) return;
+    syncPayloadFromApplication();
     patchExistingInterface();
     const pageTitle = document.getElementById("pageTitle")?.textContent || "";
     const relevant = Boolean(view.querySelector("#fifa10Registration, .f10-triple-page, .fifa10-era-dashboard")) || /FIFA 10/.test(pageTitle);
@@ -965,6 +1073,7 @@
       lastRenderSignature = renderSignature;
     }
     patchRegistrationLock(draw);
+    syncManualGroupOverlay();
   }
 
   function patchExistingInterface() {
@@ -977,8 +1086,8 @@
     const metaValue = `${VERSION}-live-draw-ppg-engine`;
     if (meta && meta.content !== metaValue) meta.content = metaValue;
     const url = new URL(location.href);
-    if (url.searchParams.get("fifa9build") !== "47140") {
-      url.searchParams.set("fifa9build", "47140");
+    if (url.searchParams.get("fifa9build") !== "47141") {
+      url.searchParams.set("fifa9build", "47141");
       history.replaceState(history.state, "", url);
     }
     document.querySelectorAll(".f10-format-spine article").forEach(article => {
@@ -1047,6 +1156,10 @@
   }
 
   function subscribeRealtime() {
+    // The primary application already owns the tournament-state Realtime channel.
+    // Reuse that state instead of opening a second channel that can duplicate
+    // updates, render passes and user notifications.
+    if (window.FIFA_APP_CONTEXT?.getState) return;
     const client = cloudClient();
     if (!client || realtimeChannel) return;
     realtimeChannel = client
@@ -1102,11 +1215,12 @@
       .f10-draw-modal-backdrop{position:fixed;inset:0;z-index:10050;display:grid;place-items:center;padding:18px;background:rgba(1,5,17,.82);backdrop-filter:blur(12px)}.f10-draw-modal{width:min(720px,100%);border:1px solid var(--f10d-line);border-radius:23px;background:linear-gradient(145deg,#0a1432,#18103b);box-shadow:0 30px 90px rgba(0,0,0,.55);overflow:hidden}.f10-draw-modal>header{display:flex;justify-content:space-between;align-items:center;padding:20px 23px;border-bottom:1px solid var(--f10d-line)}.f10-draw-modal header span{font-size:9px;letter-spacing:.16em;color:#7dc8ff}.f10-draw-modal h3{color:white;font-size:25px;margin:5px 0 0}.f10-draw-modal header button{border:0;background:transparent;color:white;font-size:25px;cursor:pointer}.f10-draw-modal form{padding:22px}.f10-result-versus{display:grid;grid-template-columns:1fr 50px 1fr;gap:14px;align-items:center}.f10-result-versus label{display:grid;gap:7px}.f10-result-versus label strong{color:white;font-size:16px}.f10-result-versus label span{color:#8290b3;font-size:9px}.f10-result-versus input{width:100%;padding:12px;border:1px solid var(--f10d-line);border-radius:10px;background:#07122e;color:white}.f10-result-versus>b{text-align:center;color:var(--f10d-gold)}.f10-modal-rule{margin:18px 0;color:#8795b7;font-size:11px;line-height:1.55}.f10-draw-modal footer{display:flex;justify-content:flex-end;gap:8px}.f10-draw-modal footer button{padding:11px 15px;border:1px solid var(--f10d-line);border-radius:10px;background:transparent;color:white;font-weight:800;cursor:pointer}.f10-draw-modal footer button.primary{background:linear-gradient(90deg,#347fff,#a84df3);border:0}.f10-draw-modal footer button.danger{margin-right:auto;color:#ff8d9d;border-color:rgba(255,101,123,.3)}
       .f10-draw-toast-stack{position:fixed;right:20px;bottom:22px;z-index:11000;display:grid;gap:8px;width:min(390px,calc(100vw - 40px))}.f10-draw-toast{display:flex;gap:10px;align-items:center;padding:13px 15px;border:1px solid var(--f10d-line);border-radius:13px;background:#0a1432;color:white;box-shadow:0 16px 40px rgba(0,0,0,.35);opacity:0;transform:translateY(12px);transition:.25s}.f10-draw-toast.show{opacity:1;transform:none}.f10-draw-toast span{display:grid;place-items:center;width:25px;height:25px;border-radius:50%;background:rgba(69,167,255,.14);color:#7dc9ff}.f10-draw-toast.success span{color:var(--f10d-green)}.f10-draw-toast.error span{color:var(--f10d-red)}
       .f10-operation-notice{position:relative;display:flex;align-items:center;gap:10px;margin:18px 28px 0;padding:12px 14px;border:1px solid var(--f10d-line);border-radius:13px;background:rgba(7,14,36,.74);color:#b6c2df;font-size:12px}.f10-operation-notice strong{display:grid;place-items:center;width:25px;height:25px;border-radius:50%;background:rgba(69,167,255,.13);color:#78c8ff}.f10-operation-notice.success{border-color:rgba(82,228,160,.28)}.f10-operation-notice.success strong{color:var(--f10d-green)}.f10-operation-notice.warning{border-color:rgba(229,189,99,.32)}.f10-operation-notice.warning strong{color:var(--f10d-gold)}
+      body.f10-manual-overlay-open{overflow:hidden!important;touch-action:none}.f10-manual-overlay{position:fixed;inset:0;z-index:12050;display:grid;place-items:center;padding:18px;background:rgba(1,5,17,.9);backdrop-filter:blur(14px) saturate(115%)}.f10-manual-sheet{display:grid;grid-template-rows:auto minmax(0,1fr);width:min(1120px,100%);height:min(900px,calc(100dvh - 36px));overflow:hidden;border:1px solid rgba(125,151,255,.32);border-radius:26px;background:linear-gradient(145deg,#07122d,#18103b);box-shadow:0 40px 120px rgba(0,0,0,.68)}.f10-manual-sheet>header{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:18px 22px;border-bottom:1px solid var(--f10d-line);background:rgba(5,12,31,.88)}.f10-manual-sheet>header span{color:#78c9ff;font-size:9px;font-weight:900;letter-spacing:.17em}.f10-manual-sheet>header h3{margin:5px 0 0;color:#fff;font-size:clamp(21px,3vw,31px)}.f10-manual-sheet>header button{display:grid;place-items:center;flex:0 0 44px;width:44px;height:44px;border:1px solid var(--f10d-line);border-radius:13px;background:#091633;color:#fff;font-size:26px;cursor:pointer}.f10-manual-sheet-body{min-height:0;overflow:auto;overscroll-behavior:contain;padding:20px;scrollbar-width:thin;scrollbar-color:rgba(125,151,255,.35) transparent}.f10-manual-loading{display:grid;place-items:center;align-content:center;gap:10px;min-height:360px;text-align:center;color:#eef5ff}.f10-manual-loading i{width:38px;height:38px;border:3px solid rgba(125,151,255,.2);border-top-color:#61baff;border-radius:50%;animation:f10ManualSpin .8s linear infinite}.f10-manual-loading strong{font-size:20px}.f10-manual-loading span{max-width:560px;color:#95a5c8;line-height:1.6}.f10-manual-loading.error strong{color:#ff94a5}.f10-manual-loading button{margin-top:10px;padding:12px 18px;border:1px solid var(--f10d-line);border-radius:11px;background:#0a1737;color:#fff;font-weight:900}.f10-manual-resume{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:26px;border:1px solid rgba(82,228,160,.24);border-radius:20px;background:linear-gradient(120deg,rgba(82,228,160,.08),rgba(69,167,255,.08))}.f10-manual-resume span{color:#65e6aa;font-size:9px;font-weight:900;letter-spacing:.15em}.f10-manual-resume h4{margin:7px 0;color:#fff;font-size:27px}.f10-manual-resume p{margin:0;color:#95a5c7;line-height:1.55}.f10-manual-resume button{flex:0 0 auto;padding:14px 18px;border:0;border-radius:12px;color:#fff;font-weight:900;cursor:pointer;background:linear-gradient(90deg,#347fff,#a84df3)}@keyframes f10ManualSpin{to{transform:rotate(360deg)}}
       .f10-start-actions{display:flex;gap:10px;flex-wrap:wrap}.f10-start-actions button{padding:14px 18px;border:1px solid var(--f10d-line);border-radius:12px;background:rgba(8,18,46,.78);color:white;font-weight:900;cursor:pointer}
       .f10-manual-groups{display:grid;gap:18px}.f10-manual-groups>header{display:flex;justify-content:space-between;gap:20px;align-items:end;padding:24px;border:1px solid var(--f10d-line);border-radius:19px;background:rgba(7,15,39,.72)}.f10-manual-groups>header span{font-size:9px;letter-spacing:.15em;color:#7fc9ff}.f10-manual-groups>header h4{margin:7px 0;font-size:30px;color:white}.f10-manual-groups>header p{margin:0;max-width:750px;color:#93a1c2;line-height:1.6}.f10-manual-groups>header>div:last-child{text-align:right}.f10-manual-groups>header>div:last-child strong{display:block;font-size:32px;color:var(--f10d-gold)}.f10-manual-groups>header>div:last-child small{font-size:8px;color:#8290b4;letter-spacing:.13em}.f10-manual-summary{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.f10-manual-summary b{display:flex;gap:10px;padding:10px 13px;border:1px solid var(--f10d-line);border-radius:10px;color:white}.f10-manual-summary b span{color:#7fc9ff}.f10-manual-summary em{margin-left:auto;color:#a7b4d2;font-style:normal}.f10-manual-player-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.f10-manual-player-list article{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 14px;border:1px solid var(--f10d-line);border-radius:13px;background:rgba(7,14,36,.74)}.f10-manual-player-list article small{display:block;color:#7584aa;font-size:8px}.f10-manual-player-list article strong{display:block;margin-top:4px;color:white}.f10-group-choice{display:flex;gap:5px}.f10-group-choice button{width:36px;height:36px;border:1px solid var(--f10d-line);border-radius:9px;background:#08132f;color:#91a0c1;font-weight:900;cursor:pointer}.f10-group-choice button.active{background:linear-gradient(135deg,#337eff,#a34ff2);border-color:transparent;color:white;box-shadow:0 6px 18px rgba(74,95,255,.25)}.f10-manual-groups>footer{display:flex;justify-content:flex-end;gap:10px}.f10-manual-groups>footer button{padding:13px 17px;border:1px solid var(--f10d-line);border-radius:11px;background:#09142f;color:white;font-weight:900;cursor:pointer}.f10-manual-groups>footer button:disabled{opacity:.4;cursor:not-allowed}
       .f10-registration-draw-locked{position:relative}.f10-registration-draw-locked:after{content:"KURA İÇİN KİLİTLENDİ";position:absolute;top:18px;right:180px;padding:7px 10px;border:1px solid rgba(229,189,99,.3);border-radius:8px;background:rgba(229,189,99,.08);color:var(--f10d-gold);font-size:8px;font-weight:900;letter-spacing:.13em}
       @media(max-width:1100px){.f10-draw-hero{grid-template-columns:1fr}.f10-draw-hero aside{width:100%}.f10-draw-pots{grid-template-columns:repeat(3,1fr)}.f10-draw-stage{grid-template-columns:1fr}.f10-live-reveal{grid-row:auto;min-height:310px}.f10-draw-log{grid-column:auto}.f10-groups-full{grid-template-columns:1fr}.f10-qualification-path{grid-template-columns:1fr}.f10-fixture-row{grid-template-columns:95px 1fr 70px 1fr}.f10-fixture-row .teams{grid-column:2/5;grid-template-columns:1fr 1fr;text-align:left}.f10-draw-group-grid{grid-template-columns:repeat(3,1fr)}}
-      @media(max-width:720px){.f10-manual-player-list{grid-template-columns:1fr}.f10-manual-groups>header{display:grid}.f10-manual-summary em{width:100%;margin-left:0}.f10-manual-groups>footer{display:grid}.f10-start-actions{display:grid}.f10-draw-centre{border-radius:20px;margin:18px 0}.f10-draw-hero{padding:27px 20px}.f10-draw-hero h3{font-size:39px}.f10-draw-content{padding:18px 12px}.f10-draw-footer{display:grid;padding:15px 18px;font-size:8px}.f10-draw-ready-panel{display:grid;align-items:start}.f10-draw-pots{grid-template-columns:1fr}.f10-draw-group-grid{grid-template-columns:1fr}.f10-draw-log>div{grid-template-columns:1fr}.f10-live-reveal>div b{font-size:75px}.f10-fixture-filters{display:grid}.f10-fixture-row{grid-template-columns:80px 1fr 50px 1fr;padding:11px 8px;gap:6px}.f10-fixture-row>span:first-child{display:grid}.f10-fixture-row>strong{font-size:10px}.f10-fixture-row .teams{grid-column:1/5}.f10-result-versus{grid-template-columns:1fr}.f10-result-versus>b{padding:4px}.f10-draw-modal footer{flex-wrap:wrap}.f10-registration-draw-locked:after{position:static;display:inline-block;margin:10px 18px}.f10-draw-tabs{padding:12px}.f10-standings-table>div{font-size:10px}}
+      @media(max-width:720px){.f10-manual-overlay{place-items:end center;padding:0}.f10-manual-sheet{width:100%;height:96dvh;border-radius:24px 24px 0 0}.f10-manual-sheet>header{padding:14px 15px}.f10-manual-sheet>header button{width:42px;height:42px}.f10-manual-sheet-body{padding:13px 11px max(18px,env(safe-area-inset-bottom))}.f10-manual-resume{display:grid;padding:20px}.f10-manual-resume button{width:100%}.f10-manual-player-list{grid-template-columns:1fr}.f10-manual-groups>header{display:grid;padding:18px 16px}.f10-manual-groups>header h4{font-size:25px}.f10-manual-summary em{width:100%;margin-left:0}.f10-manual-groups>footer{display:grid;position:sticky;bottom:-13px;z-index:2;padding:12px 0;background:linear-gradient(180deg,transparent,#0b1230 24%)}.f10-manual-groups>footer button{min-height:48px}.f10-group-choice button{width:42px;height:42px}.f10-start-actions{display:grid}.f10-draw-centre{border-radius:20px;margin:18px 0}.f10-draw-hero{padding:27px 20px}.f10-draw-hero h3{font-size:39px}.f10-draw-content{padding:18px 12px}.f10-draw-footer{display:grid;padding:15px 18px;font-size:8px}.f10-draw-ready-panel{display:grid;align-items:start}.f10-draw-pots{grid-template-columns:1fr}.f10-draw-group-grid{grid-template-columns:1fr}.f10-draw-log>div{grid-template-columns:1fr}.f10-live-reveal>div b{font-size:75px}.f10-fixture-filters{display:grid}.f10-fixture-row{grid-template-columns:80px 1fr 50px 1fr;padding:11px 8px;gap:6px}.f10-fixture-row>span:first-child{display:grid}.f10-fixture-row>strong{font-size:10px}.f10-fixture-row .teams{grid-column:1/5}.f10-result-versus{grid-template-columns:1fr}.f10-result-versus>b{padding:4px}.f10-draw-modal footer{flex-wrap:wrap}.f10-registration-draw-locked:after{position:static;display:inline-block;margin:10px 18px}.f10-draw-tabs{padding:12px}.f10-standings-table>div{font-size:10px}}
     `;
     document.head.appendChild(style);
   }
@@ -1131,6 +1245,8 @@
       } else if (action === "manual-start") await startManualGroupEntry();
       else if (action === "prepare-draw") await prepareDraw();
       else if (action === "switch-manual") await switchToManualEntry();
+      else if (action === "open-manual-overlay") openManualGroupOverlay();
+      else if (action === "close-manual-overlay") closeManualGroupOverlay();
       else if (action === "manual-assign") await assignManualGroup(button.dataset.playerId, button.dataset.group);
       else if (action === "finalize-manual") await finalizeManualGroups();
       else if (action === "draw-next") await drawNext();
@@ -1186,11 +1302,19 @@
     try { await saveResult(event.target); } catch (error) { notify(String(error?.message || error), "error"); }
   }
 
+  function handleKeydown(event) {
+    if (event.key === "Escape" && manualEntryOverlayOpen) {
+      event.preventDefault();
+      closeManualGroupOverlay();
+    }
+  }
+
   async function boot() {
     const ready = await waitForApplication();
     if (!ready) return;
     installStyles();
     document.addEventListener("click", handleClick, true);
+    document.addEventListener("keydown", handleKeydown, true);
     document.addEventListener("submit", handleLocalNewPlayerRegistration, true);
     document.addEventListener("submit", handleSubmit);
     observer = new MutationObserver(scheduleRender);

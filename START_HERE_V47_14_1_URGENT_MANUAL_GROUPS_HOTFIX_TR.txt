@@ -1,0 +1,33 @@
+ORUÇ REİS FIFA WORLD V47.14.1
+ACİL HOTFIX — MANUEL GRUP GİRİŞİ VE CANLI BİLDİRİM DÜZELTMESİ
+
+NE DÜZELTİLDİ?
+1. “Çekilen Grupları Elle Gir” butonu artık ayrı bir tam ekran operasyon paneli açar.
+2. Panel, ana sayfa canlı veri nedeniyle yeniden çizilse bile açık kalır.
+3. Mobil panel yanlışlıkla arka plana dokununca kapanmaz; yalnızca sağ üstteki × ile kapatılır.
+4. Her oyuncu atamasından sonra panel ve kaydırma konumu korunur.
+5. İşlem yarım bırakılırsa “Grup Giriş Ekranını Aç” butonuyla kaldığınız yerden devam edilir.
+6. “Canlı turnuva verisi güncellendi.” bildirimi kaldırıldı. Canlı senkronizasyon çalışmaya devam eder.
+7. İkinci Realtime kanalının açılması engellendi; tekrar eden güncelleme ve render döngüsü azaltıldı.
+
+KURULUM
+1. ZIP içindeki dosyaları repository ana dizinine yükleyin.
+2. Mevcut dosyaların üzerine yazılmasını onaylayın.
+3. Deploy tamamlandıktan sonra siteyi bir kez yenileyin.
+4. Adres çubuğunda ?fifa9build=47141 görünmelidir.
+
+GRUPLARI GİRME
+1. FIFA 10 > Format & Kura sayfasına girin.
+2. “Çekilen Grupları Elle Gir” butonuna basın.
+3. Her oyuncu için gerçek kura sonucundaki A, B veya C grubunu seçin.
+4. 14 oyuncu için geçerli dağılım 5-5-4’tür.
+5. Tüm oyuncular girildiğinde “Grupları Kaydet ve Fikstürü Oluştur” aktif olur.
+6. Sistem 78 grup maçı oluşturur.
+7. FİKSTÜR sekmesinden biten iki maçın takım ve skor bilgilerini hemen girebilirsiniz.
+
+VERİ GÜVENLİĞİ
+- FIFA 09 arşivi ve şampiyonluk kayıtları değiştirilmez.
+- Mevcut FIFA 10 kayıt listesi ve ELO değerleri korunur.
+- Her grup seçimi önce cihazda kaydedilir.
+- Canlı bağlantı geçici olarak kesilse bile işlem yerel kayıtta kalır.
+

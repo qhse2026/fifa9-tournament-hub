@@ -1,0 +1,13 @@
+V47.14.1 — URGENT MANUAL GROUPS STABILITY HOTFIX
+
+- Replaced the fragile inline manual-group flow with a dedicated full-screen operations overlay.
+- Kept the overlay outside #view so application and Realtime rerenders cannot close it.
+- Added loading, error, resume and explicit-close states.
+- Prevented accidental backdrop-close behavior on touch devices.
+- Preserved overlay scroll position while A/B/C assignments update.
+- Added mobile bottom-sheet sizing, safe-area padding and 42px touch targets.
+- Removed the repetitive “Canlı turnuva verisi güncellendi.” toast while preserving live synchronization.
+- Reused the primary application state channel instead of opening a duplicate tournament-state Realtime channel.
+- Bumped application, service-worker cache and URL build marker to 47.14.1 / 47141.
+- Verified 14-player manual entry, valid 5-5-4 distribution, 78 generated fixtures and two saved match results.
+
