@@ -1,0 +1,9 @@
+FIFA 10 V47.13.1 — YENİ OYUNCU ELO BAŞLANGICI
+
+1. Paketteki dosyaları repository ana dizinine yükleyin.
+2. Mevcut dosyaların üzerine yazılmasını onaylayın.
+3. Supabase SQL dosyasını yeniden çalıştırmanız gerekmez.
+4. Yeni oyuncu seçeneğiyle kayıt olan oyuncular 1350 ELO ile başlar.
+5. Mevcut oyuncuların ELO puanları değişmez.
+6. Deploy sonrası Ctrl + Shift + R ile yenileyin.
+7. URL üzerinde ?fifa9build=47131 görünmelidir.

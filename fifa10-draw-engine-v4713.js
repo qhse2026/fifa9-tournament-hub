@@ -1,13 +1,14 @@
 (() => {
   "use strict";
 
-  const VERSION = "47.13.0";
+  const VERSION = "47.13.1";
   const STORAGE_KEY = "fifa-tournament-hub-v1";
   const GROUPS = Object.freeze(["A", "B", "C"]);
   const LEG_STARS = Object.freeze([4, 4.5, 5]);
   const MIN_PLAYERS = 12;
   const MAX_PLAYERS = 15;
   const EXPECTED_CURRENT_PLAYERS = 13;
+  const NEW_PLAYER_ELO = 1350;
   const REFRESH_MS = 15000;
 
   let payload = null;
@@ -89,6 +90,7 @@
     draft.settings.formatName = "FIFA 10 Triple Circuit · Live Draw";
     draft.settings.potCount = 5;
     draft.settings.groupCount = 3;
+    draft.settings.newPlayerBaseElo = NEW_PLAYER_ELO;
     draft.settings.rankingPrimary = "ppg";
     draft.settings.rankingTieBreakers = ["points", "goalDifference", "goalsFor", "wins", "drawLot"];
     draft.settings.goalDifferenceCap = null;
@@ -134,6 +136,12 @@
     return payload;
   }
 
+  function resolvedRegistrationElo(item) {
+    const stored = Number(item?.elo);
+    if (Number.isFinite(stored) && stored > 0) return stored;
+    return (item?.source || "existing") === "new" ? NEW_PLAYER_ELO : 1500;
+  }
+
   async function fetchRegistrations() {
     try {
       if (window.FIFA10_REGISTRATION_CLOUD?.isConfigured?.()) {
@@ -142,7 +150,7 @@
         registrations = (getDraft().players || []).map(item => ({
           id: item.id,
           playerName: item.playerName || item.name,
-          elo: Number(item.elo) || 1500,
+          elo: resolvedRegistrationElo(item),
           source: item.source || "existing",
           registeredAt: item.registeredAt || null
         }));
@@ -152,7 +160,7 @@
       registrations = (getDraft().players || []).map(item => ({
         id: item.id,
         playerName: item.playerName || item.name,
-        elo: Number(item.elo) || 1500,
+        elo: resolvedRegistrationElo(item),
         source: item.source || "existing",
         registeredAt: item.registeredAt || null
       }));
@@ -165,7 +173,7 @@
       .map((item, index) => ({
         id: String(item.id || `F10-REG-${index + 1}`),
         name: String(item.playerName || item.player_name || item.name || "").replace(/\s+/g, " ").trim(),
-        elo: Number(item.elo) || 1500,
+        elo: resolvedRegistrationElo(item),
         source: item.source || "existing",
         registeredAt: item.registeredAt || item.registered_at || null
       }))
@@ -181,7 +189,7 @@
     return rows.map((item, index) => ({
       id: String(item.id || `F10-P-${index + 1}`),
       name: String(item.name || item.playerName || "").trim(),
-      elo: Number(item.elo) || 1500,
+      elo: resolvedRegistrationElo(item),
       pot: Number(item.pot) || Math.floor(index / GROUPS.length) + 1,
       tieBreakOrder: Number(item.tieBreakOrder) || index + 1
     })).filter(item => item.name);
@@ -791,8 +799,8 @@
     const metaValue = `${VERSION}-live-draw-ppg-engine`;
     if (meta && meta.content !== metaValue) meta.content = metaValue;
     const url = new URL(location.href);
-    if (url.searchParams.get("fifa9build") !== "47130") {
-      url.searchParams.set("fifa9build", "47130");
+    if (url.searchParams.get("fifa9build") !== "47131") {
+      url.searchParams.set("fifa9build", "47131");
       history.replaceState(history.state, "", url);
     }
     document.querySelectorAll(".f10-format-spine article").forEach(article => {
@@ -811,6 +819,14 @@
     const footer = document.querySelector("#fifa10Registration > footer span");
     const footerText = "Torbalar ELO sırasıyla 3'er oyuncu olarak doldu. Dört tam torbadan her gruba birer oyuncu gidecek; Torba 5 oyuncusunun çekildiği grup 5 kişilik olacak.";
     if (footer && footer.textContent !== footerText) footer.textContent = footerText;
+    document.querySelectorAll(".f10-elo-explainer article").forEach(article => {
+      const value = article.querySelector(":scope > span");
+      const copy = article.querySelector("p");
+      if (value?.textContent?.trim() === "1500" || copy?.textContent?.includes("1500 ELO")) {
+        if (value) value.textContent = String(NEW_PLAYER_ELO);
+        if (copy) copy.textContent = `Yeni oyuncular sisteme ${NEW_PLAYER_ELO} ELO ile girer.`;
+      }
+    });
   }
 
   function patchRegistrationLock(draw) {
@@ -942,6 +958,28 @@
     }
   }
 
+  function handleLocalNewPlayerRegistration(event) {
+    if (event.target?.id !== "fifa10RegistrationForm" || cloudConfigured()) return;
+    const form = event.target;
+    const selection = String(new FormData(form).get("playerName") || "").trim();
+    if (selection !== "__new__") return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    const name = String(new FormData(form).get("newPlayerName") || "").replace(/\s+/g, " ").trim();
+    if (name.length < 3) { notify("Lütfen geçerli bir ad ve soyad girin.", "error"); return; }
+    const next = localPayload();
+    const draft = getDraft(next);
+    const existing = (draft.players || []).some(item => normalize(item.name || item.playerName) === normalize(name));
+    if (existing) { notify("Bu oyuncu FIFA 10'a zaten kayıtlı.", "error"); return; }
+    draft.settings.newPlayerBaseElo = NEW_PLAYER_ELO;
+    draft.players.push({ id:`F10-${Date.now().toString(36)}`, name, elo:NEW_PLAYER_ELO, source:"new", registeredAt:nowISO() });
+    draft.status = "registration";
+    draft.updatedAt = nowISO();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    notify(`${name} FIFA 10'a ${NEW_PLAYER_ELO} ELO ile kaydedildi.`, "success");
+    setTimeout(() => location.reload(), 450);
+  }
+
   async function handleSubmit(event) {
     if (event.target?.id !== "f10DrawResultForm") return;
     event.preventDefault();
@@ -953,6 +991,7 @@
     if (!ready) return;
     installStyles();
     document.addEventListener("click", handleClick);
+    document.addEventListener("submit", handleLocalNewPlayerRegistration, true);
     document.addEventListener("submit", handleSubmit);
     observer = new MutationObserver(scheduleRender);
     const view = document.getElementById("view");
@@ -962,6 +1001,7 @@
     setInterval(() => reloadAll().catch(() => {}), REFRESH_MS);
     window.FIFA10_DRAW_ENGINE = {
       version: VERSION,
+      newPlayerElo: NEW_PLAYER_ELO,
       standings: () => standings(getDraw()),
       drawState: () => deepClone(getDraw()),
       refresh: reloadAll,

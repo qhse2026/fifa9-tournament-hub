@@ -2,6 +2,7 @@
   "use strict";
   const TABLE = "fifa10_registrations";
   const TOURNAMENT_ID = "fifa-10";
+  const NEW_PLAYER_ELO = 1350;
   let client = null;
 
   function credentials() {
@@ -28,11 +29,13 @@
     const c=getClient(); if(!c) throw new Error("Supabase bağlantısı bulunamadı.");
     const {data,error}=await c.from(TABLE).select("id,player_name,elo,source,registered_at").eq("tournament_id",TOURNAMENT_ID).order("elo",{ascending:false}).order("registered_at",{ascending:true});
     if(error) throw new Error(friendly(error));
-    return (data||[]).map(row=>({id:row.id,playerName:row.player_name,elo:Number(row.elo)||1500,source:row.source||"existing",registeredAt:row.registered_at}));
+    return (data||[]).map(row=>{const source=row.source||"existing";return {id:row.id,playerName:row.player_name,elo:Number(row.elo)||(source==="new"?NEW_PLAYER_ELO:1500),source,registeredAt:row.registered_at};});
   }
   async function register(payload){
     const c=getClient(); if(!c) throw new Error("Supabase bağlantısı bulunamadı.");
-    const {data,error}=await c.from(TABLE).insert({tournament_id:TOURNAMENT_ID,player_name:payload.playerName,elo:Number(payload.elo)||1500,source:payload.source||"existing"}).select("id,player_name,elo,source,registered_at").single();
+    const source=payload.source||"existing";
+    const entryElo=source==="new"?NEW_PLAYER_ELO:(Number(payload.elo)||1500);
+    const {data,error}=await c.from(TABLE).insert({tournament_id:TOURNAMENT_ID,player_name:payload.playerName,elo:entryElo,source}).select("id,player_name,elo,source,registered_at").single();
     if(error) throw new Error(friendly(error));
     return data;
   }
@@ -41,13 +44,13 @@
     const {error}=await c.from(TABLE).delete().eq("id",id).eq("tournament_id",TOURNAMENT_ID);
     if(error) throw new Error(friendly(error));
   }
-  window.FIFA10_REGISTRATION_CLOUD={isConfigured,list,register,remove};
+  window.FIFA10_REGISTRATION_CLOUD={isConfigured,list,register,remove,newPlayerElo:NEW_PLAYER_ELO};
 
-  // V47.13.0 — load the live draw, fixture and PPG standings engine.
+  // V47.13.1 — load the live draw, fixture and PPG standings engine.
   if (!document.getElementById("fifa10DrawEngineScript")) {
     const script = document.createElement("script");
     script.id = "fifa10DrawEngineScript";
-    script.src = "fifa10-draw-engine-v4713.js?v=47.13.0";
+    script.src = "fifa10-draw-engine-v4713.js?v=47.13.1";
     script.async = true;
     document.head.appendChild(script);
   }

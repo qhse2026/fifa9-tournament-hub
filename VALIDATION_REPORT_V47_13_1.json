@@ -1,0 +1,13 @@
+{
+  "version": "47.13.1",
+  "status": "PASS",
+  "checks": [
+    "new cloud player forced to 1350 ELO",
+    "new local player starts at 1350 ELO",
+    "existing ELO ratings preserved",
+    "ELO explanation displays 1350",
+    "draw engine build query bumped to 47131",
+    "service worker cache bumped",
+    "PPG and uncapped goal difference unchanged"
+  ]
+}

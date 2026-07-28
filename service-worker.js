@@ -1,4 +1,4 @@
-const CACHE = "oruc-reis-football-universe-v47-13-0-live-draw-ppg-engine";
+const CACHE = "oruc-reis-football-universe-v47-13-1-new-player-elo-1350";
 const APP_SHELL = [
   "./",
   "./index.html",

@@ -1,0 +1,9 @@
+ORUÇ REİS FIFA WORLD V47.13.1
+NEW PLAYER ELO ENTRY UPDATE
+
+- New FIFA 10 players now enter the official ELO system at 1350.
+- Existing registered players and their current ELO ratings are not changed.
+- Supabase registration writes enforce 1350 for records marked as new players.
+- Local-mode registration also applies 1350 and reloads the shared interface safely.
+- The ELO explanation card is updated from 1500 to 1350.
+- Live Draw, 5-4-4 groups, PPG standings and uncapped goal difference remain unchanged.
