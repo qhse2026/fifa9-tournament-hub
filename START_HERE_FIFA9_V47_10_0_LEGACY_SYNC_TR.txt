@@ -1,0 +1,27 @@
+FIFA9 V47.10.0 — LEGACY SYNC & FIFA 10 LEAGUE RETURN
+
+KURULUM
+1. ZIP dosyasını bilgisayarınızda çıkartın.
+2. İçindeki tüm dosya ve klasörleri GitHub repository ana dizinine yükleyin.
+3. Mevcut dosyaların üzerine yazmayı onaylayın.
+4. Deploy tamamlandıktan sonra siteyi açın.
+5. Sistem eski cache'i otomatik temizleyerek URL'ye ?fifa9build=4710 ekler.
+6. Gerekirse bir kez Ctrl + Shift + R yapın.
+
+BU SÜRÜM NEYİ DÜZELTİR?
+- FIFA 09 Final Chapter sonucu Tüm Zamanlar verisine otomatik işlenir.
+- Şampiyon, finalist ve üçüncü kalıcı FIFA 09 arşivine yazılır.
+- FIFA 09 maçları ileride FIFA 10 başladığında kaybolmaz.
+- Oyuncu kartlarındaki şampiyonluk, final, podyum ve Legacy hesapları güncellenir.
+- Final ve üçüncülük kartında resmi skor görünür.
+- FIFA 10 Lig Sistemi yeniden aktif edilir.
+- Career/Manager ve Formula oyunları geri getirilmez.
+
+FIFA 10 FORMATI
+- Premier League: 7 oyuncu
+- Championship: kalan oyuncular
+- Üç devre: 4 yıldız, 4.5 yıldız, 5 yıldız
+- Premier oyuncusu başına 18 lig maçı
+- Son 2 düşer, ilk 2 yükselir
+- Oruç Reis Kupası
+- Super Cup

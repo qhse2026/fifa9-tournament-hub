@@ -2,7 +2,7 @@
   "use strict";
 
   const GROUPS = {
-    tournament: new Set(["livematch","livestats","form","odds","intelligence","chat","setup","league","gold","silver","knockout","finalpoll","print"]),
+    tournament: new Set(["livematch","livestats","form","odds","intelligence","chat","setup","league","gold","silver","knockout","finalpoll","print","seasonhub"]),
     records: new Set(["archive","benchmark","alltime","teams","backup"]),
   };
 
@@ -13,7 +13,7 @@
     chat:["FIFA 9","Turnuva Modu","Turnuva Sohbeti"], setup:["FIFA 9","Turnuva Modu","Kura & Oyuncular"],
     league:["FIFA 9","Turnuva Modu","League Phase"], gold:["FIFA 9","Turnuva Modu","Altın Grup"],
     silver:["FIFA 9","Turnuva Modu","Gümüş Grup"], knockout:["FIFA 9","Turnuva Modu","Final Chapter"],
-    finalpoll:["FIFA 9","Turnuva Modu","Final Chapter Kararı"], print:["FIFA 9","Turnuva Modu","Çıktı Merkezi"],
+    finalpoll:["FIFA 9","Turnuva Modu","Final Chapter Kararı"], seasonhub:["FIFA 10","Lig Sistemi","Sezon Hazırlığı"], print:["FIFA 9","Turnuva Modu","Çıktı Merkezi"],
     archive:["FIFA 9","Arşiv & Yönetim","Turnuva Arşivi"], benchmark:["FIFA 9","Arşiv & Yönetim","Turnuva Karnesi"], alltime:["FIFA 9","Arşiv & Yönetim","Tüm Zamanlar"],
     teams:["FIFA 9","Arşiv & Yönetim","Takım İstatistikleri"], backup:["FIFA 9","Arşiv & Yönetim","Veri & Yedek"]
   };

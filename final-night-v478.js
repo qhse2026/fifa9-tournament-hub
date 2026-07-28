@@ -10,6 +10,9 @@
     const backdrop=document.getElementById("grandFinalBackdrop");
     const label=document.getElementById("grandFinalCountdown");
     if(!shell||!close||!enter||!label)return;
+    const current=window.FIFA_APP_CONTEXT?.getState?.()?.current;
+    const completed=Boolean(current?.finalChapter?.final?.championId&&current?.finalChapter?.thirdPlace?.winnerId);
+    if(completed){shell.classList.add("hidden");shell.setAttribute("aria-hidden","true");sessionStorage.setItem(STORAGE_KEY,"1");return;}
     if(sessionStorage.getItem(STORAGE_KEY)==="1")return;
     let ready=false,remaining=5,ticker;
     const paint=()=>{label.textContent=ready?"Duyuruyu kapatabilir ve siteyi gezebilirsiniz.":`Çıkış işareti ${remaining} saniye içinde aktif olacak`;};

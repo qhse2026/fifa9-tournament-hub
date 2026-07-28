@@ -1,0 +1,20 @@
+FIFA9 V47.10.0
+
+FIXED
+- Final Chapter champion source corrected for All-Time Player Cards.
+- FIFA 09 title/final/podium records now use the Final Chapter result, not the removed legacy knockout champion field.
+- Completed FIFA 09 is automatically sealed into seasonSystem.seasons and customHonours.
+- Archived season matches remain available after the active edition changes.
+- Final and third-place match panels now display the official score.
+
+RESTORED
+- Lightweight FIFA 10 League System page.
+- Premier League / Championship structure.
+- Three-leg 4★ / 4.5★ / 5★ season format.
+- Automatic player distribution using the updated All-Time table.
+- Oruç Reis Cup and Super Cup format cards.
+
+PRESERVED
+- Career/Manager game remains removed.
+- Formula game remains removed.
+- FIFA 09 scores, live data, Final Chapter and Supabase state remain intact.

@@ -1,0 +1,96 @@
+{
+  "package": "FIFA9_V47_10_0_LEGACY_SYNC_FIFA10_LEAGUE_RETURN_UPLOAD_ONLY",
+  "status": "PASS",
+  "checks": [
+    {
+      "check": "JavaScript syntax: app.js",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "JavaScript syntax: fifa9-experience-hub.js",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "JavaScript syntax: horizon-os-v47.js",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "JavaScript syntax: navigation-os-v47-1.js",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "JavaScript syntax: final-night-v478.js",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Build marker 47.10",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "FIFA10 stylesheet linked",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "FIFA10 navigation restored",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Seasonhub is not removed",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Final Chapter honour sync",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Persistent FIFA09 season archive",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "All-time champions rebuilt from honours",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "FIFA10 ranking uses updated all-time table",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Official final score visible",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Completed final intro suppressed",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Service worker cache bumped",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "FIFA10 breadcrumb registered",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Representative podium logic",
+      "status": "PASS",
+      "detail": "{'Kerim Özmen': {'titles': 3, 'finals': 4, 'podiums': 4}, 'A': {'titles': 0, 'finals': 1, 'podiums': 1}, 'B': {'titles': 0, 'finals': 0, 'podiums': 1}, 'C': {'titles': 0, 'finals': 1, 'podiums': 1}, 'D': {'titles': 0, 'finals': 0, 'podiums': 1}, 'E': {'titles': 0, 'finals': 1, 'podiums': 1}, 'F': {'titles': 0, 'finals': 0, 'podiums': 1}, 'Çağlar Can Tatar': {'titles': 1, 'finals': 1, 'podiums': 1}, 'Sergei Smirnov': {'titles': 0, 'finals': 0, 'podiums': 1}}"
+    }
+  ]
+}
