@@ -1,0 +1,15 @@
+{
+  "version":"47.12.2",
+  "status":"PASS",
+  "checks":[
+    "3-group pot capacity equals 3",
+    "sequential ELO pot fill",
+    "12 players => 3-3-3-3-0 and 4-4-4 groups",
+    "13 players => 3-3-3-3-1 and 5-4-4 groups",
+    "14 players => 3-3-3-3-2 and 5-5-4 groups",
+    "15 players => 3-3-3-3-3 and 5-5-5 groups",
+    "15-player registration cap",
+    "mobile registration picker retained",
+    "cache build bumped to 47122"
+  ]
+}

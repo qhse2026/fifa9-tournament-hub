@@ -1,0 +1,14 @@
+ORUÇ REİS FIFA WORLD V47.12.2
+
+KURULUM
+1. ZIP dosyasını bilgisayarınızda çıkartın.
+2. Tüm dosya ve klasörleri repository ana dizinine yükleyin.
+3. Mevcut dosyaların üzerine yazılmasını onaylayın.
+4. Deploy sonrası Ctrl + Shift + R ile yenileyin.
+5. URL üzerinde ?fifa9build=47122 görünmelidir.
+
+YENİ TORBA KURALI
+- 3 grup bulunduğu için her torbanın kapasitesi 3 oyuncudur.
+- Torbalar ELO sırasına göre sırayla dolar.
+- 13 oyuncu: 3-3-3-3-1 torba dağılımı, 5-4-4 grup dağılımı.
+- Supabase SQL dosyasını yeniden çalıştırmanız gerekmez.

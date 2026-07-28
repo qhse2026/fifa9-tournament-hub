@@ -1,0 +1,12 @@
+ORUÇ REİS FIFA WORLD V47.12.2
+THREE-GROUP SEQUENTIAL POT SEEDING
+
+- Corrected ELO pot logic for exactly 3 groups.
+- Every full pot now contains exactly 3 players.
+- Pots fill sequentially by ELO: Pot 1 first, then Pot 2, Pot 3, Pot 4 and Pot 5.
+- 13-player distribution is 3-3-3-3-1, projecting groups of 5-4-4.
+- 12-player distribution is 3-3-3-3-0, projecting groups of 4-4-4.
+- 14-player distribution is 3-3-3-3-2, projecting groups of 5-5-4.
+- 15-player distribution is 3-3-3-3-3, projecting groups of 5-5-5.
+- Registration capacity is capped at 15 players for 5 pots x 3 groups.
+- Mobile-safe player picker remains intact.

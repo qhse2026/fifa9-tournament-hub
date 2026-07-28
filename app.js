@@ -2416,15 +2416,22 @@
         registeredAt: item.registeredAt || item.registered_at || null
       };
     }).filter(item => item.name).sort((a,b) => b.elo-a.elo || a.name.localeCompare(b.name,"tr"));
-    const potCount = Math.max(1, Number(fifa10RegistrationState().settings.potCount) || 5);
-    const base = Math.floor(rows.length / potCount);
-    const remainder = rows.length % potCount;
-    const sizes = Array.from({length:potCount}, (_,i) => base + (i < remainder ? 1 : 0));
-    let cursor = 0;
-    sizes.forEach((size, potIndex) => {
-      for (let offset=0; offset<size && cursor<rows.length; offset++,cursor++) rows[cursor].pot = potIndex + 1;
+    const settings = fifa10RegistrationState().settings || {};
+    const potCount = Math.max(1, Number(settings.potCount) || 5);
+    const groupCount = Math.max(1, Number(settings.groupCount) || 3);
+    const potCapacity = groupCount;
+    const maxPlayers = potCount * potCapacity;
+    const sizes = Array.from({ length: potCount }, (_, potIndex) => {
+      const remaining = Math.max(0, rows.length - (potIndex * potCapacity));
+      return Math.min(potCapacity, remaining);
     });
-    return { rows, sizes, potCount };
+    rows.forEach((row, index) => {
+      row.pot = Math.min(potCount, Math.floor(index / potCapacity) + 1);
+    });
+    const completePots = Math.floor(Math.min(rows.length, maxPlayers) / potCapacity);
+    const partialPotPlayers = Math.min(rows.length, maxPlayers) % potCapacity;
+    const projectedGroupSizes = Array.from({ length: groupCount }, (_, groupIndex) => completePots + (groupIndex < partialPotPlayers ? 1 : 0));
+    return { rows, sizes, potCount, groupCount, potCapacity, maxPlayers, completePots, partialPotPlayers, projectedGroupSizes };
   }
 
   function fifa10RegisteredNameSet() {
@@ -2489,6 +2496,11 @@
   async function submitFifa10Registration(form) {
     const draft = fifa10RegistrationState();
     if (draft.settings.registrationOpen === false) { toast("FIFA 10 kayıtları şu anda kapalı.", "error"); return; }
+    const currentAssignment = fifa10AssignPots();
+    if (currentAssignment.rows.length >= currentAssignment.maxPlayers) {
+      toast(`FIFA 10 kayıt kapasitesi dolu: ${currentAssignment.maxPlayers} oyuncu / ${currentAssignment.potCount} torba.`, "error");
+      return;
+    }
     const data = new FormData(form);
     const selection = String(data.get("playerName") || "").trim();
     const isNew = selection === "__new__";
@@ -2515,7 +2527,7 @@
       form.reset();
       fifa10RegistrationSelection = "";
       syncFifa10RegistrationSelection("");
-      toast(`${name} FIFA 10'a kaydedildi. Geçici torbası ELO sıralamasına göre belirlendi.`, "success");
+      toast(`${name} FIFA 10'a kaydedildi. ELO sırasına göre sıradaki torbaya yerleştirildi.`, "success");
       render();
     } catch (error) {
       toast(String(error?.message || error || "Kayıt tamamlanamadı."), "error");
@@ -2559,6 +2571,8 @@
     const cloudMode=fifa10RegistrationCloudActive();
     if (cloudMode && !fifa10RegistrationsLoaded && !fifa10RegistrationsLoading) setTimeout(()=>refreshFifa10Registrations(),0);
     const pots=Array.from({length:assignment.potCount},(_,index)=>assignment.rows.filter(row=>row.pot===index+1));
+    const nextPotIndex = assignment.sizes.findIndex(size => size < assignment.potCapacity);
+    const projectedGroups = assignment.projectedGroupSizes.map((size,index)=>`Grup ${String.fromCharCode(65+index)}: ${size}`).join(" · ");
     const selectionStillValid = fifa10RegistrationSelection === "__new__" || fifa10KnownPlayers().some(item => item.name === fifa10RegistrationSelection && !fifa10RegisteredNameSet().has(item.name.toLocaleLowerCase("tr-TR")));
     if (!selectionStillValid) fifa10RegistrationSelection = "";
     const isNewSelection = fifa10RegistrationSelection === "__new__";
@@ -2570,8 +2584,8 @@
     return `<section class="f10-registration-section ${compact?"compact":""}" id="fifa10Registration">
       <header><div><span>PLAYER REGISTRATION · ELO SEEDING</span><h3>Kaydını yap.<br>Torbanı ELO belirlesin.</h3><p>Mevcut oyuncular isimlerini listeden seçer. Yalnızca “Yeni oyuncu” seçildiğinde İsim Soyisim alanı açılır.</p></div><div class="f10-registration-status ${statusOpen?"open":"closed"}"><i></i><strong>${statusOpen?"KAYIT AÇIK":"KAYIT KAPALI"}</strong><small>${assignment.rows.length} oyuncu · ${cloudMode?"canlı kayıt":"yerel kayıt"}</small>${canEdit()?`<button type="button" data-action="toggle-fifa10-registration">${statusOpen?"Kayıtları Kapat":"Kayıtları Aç"}</button>`:""}</div></header>
       ${fifa10RegistrationsError?`<div class="f10-registration-alert"><strong>Canlı kayıt bağlantısı hazırlanamadı.</strong><span>${escapeHTML(fifa10RegistrationsError)}</span></div>`:""}
-      <div class="f10-registration-main">${form}<div class="f10-pot-preview">${pots.map((rows,index)=>`<article class="pot-${index+1}"><header><span>TORBA</span><strong>${index+1}</strong><small>${rows.length} oyuncu</small></header><div>${rows.length?rows.map(row=>`<div><span>${escapeHTML(row.name)}</span><b>${row.elo}</b>${canEdit()?`<button type="button" data-action="remove-fifa10-registration" data-registration-id="${escapeHTML(row.id)}" data-player-name="${escapeHTML(row.name)}" aria-label="Kaydı kaldır">×</button>`:""}</div>`).join(""):`<p>Kayıt bekleniyor</p>`}</div></article>`).join("")}</div></div>
-      <footer><span>Torba dağılımı geçicidir; yeni kayıt geldikçe ELO sırasına göre otomatik dengelenir.</span><b>5 TORBA · ELO SEEDING</b></footer>
+      <div class="f10-registration-main">${form}<div class="f10-pot-preview">${pots.map((rows,index)=>`<article class="pot-${index+1} ${rows.length===assignment.potCapacity?"is-complete":(index===nextPotIndex?"is-filling":"is-waiting")}"><header><span>TORBA</span><strong>${index+1}</strong><small>${rows.length}/${assignment.potCapacity} oyuncu</small></header><div>${rows.length?rows.map(row=>`<div><span>${escapeHTML(row.name)}</span><b>${row.elo}</b>${canEdit()?`<button type="button" data-action="remove-fifa10-registration" data-registration-id="${escapeHTML(row.id)}" data-player-name="${escapeHTML(row.name)}" aria-label="Kaydı kaldır">×</button>`:""}</div>`).join(""):`<p>${index===nextPotIndex?"Sıradaki ELO oyuncuları burada":"Önceki torbanın dolması bekleniyor"}</p>`}</div></article>`).join("")}</div></div>
+      <footer><span>Torbalar ELO sırasına göre ardışık dolar. 3 grup olduğu için her tam torba 3 oyuncudur. Tahmini kura dağılımı: ${escapeHTML(projectedGroups)}.</span><b>${assignment.potCount} TORBA · 3 GRUP · SIRALI DOLUM</b></footer>
     </section>`;
   }
 
