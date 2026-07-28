@@ -1,0 +1,7 @@
+FIFA 10 V47.12.1
+- Replaced unstable mobile native select with a modal player picker.
+- Added searchable touch-friendly player list.
+- Added persistent registration selection state.
+- Added mobile bottom-sheet modal styling.
+- Fixed build query/cache version.
+- No changes to ELO, pots, FIFA 09 legacy, Supabase schema, or tournament results.

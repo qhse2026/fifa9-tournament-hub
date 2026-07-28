@@ -42,6 +42,7 @@
   let fifa10RegistrationsLoaded = false;
   let fifa10RegistrationsLoading = false;
   let fifa10RegistrationsError = "";
+  let fifa10RegistrationSelection = "";
 
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -2435,6 +2436,56 @@
     return fifa10KnownPlayers().filter(item => !registered.has(item.name.toLocaleLowerCase("tr-TR"))).map(item => `<option value="${escapeHTML(item.name)}">${escapeHTML(item.name)} · ${item.elo} ELO</option>`).join("");
   }
 
+  function fifa10RegistrationSelectionLabel(value = fifa10RegistrationSelection) {
+    if (value === "__new__") return "＋ Yeni oyuncu";
+    if (!value) return "İsmini seç";
+    const known = fifa10KnownPlayers().find(item => item.name === value);
+    return known ? `${known.name} · ${known.elo} ELO` : value;
+  }
+
+  function syncFifa10RegistrationSelection(value, { focusNew = false } = {}) {
+    fifa10RegistrationSelection = String(value || "").trim();
+    const hidden = document.getElementById("fifa10RegistrationPlayerValue");
+    const trigger = document.getElementById("fifa10RegistrationPlayerTrigger");
+    const field = document.getElementById("fifa10NewPlayerField");
+    const input = field?.querySelector('input[name="newPlayerName"]');
+    const showNew = fifa10RegistrationSelection === "__new__";
+    if (hidden) hidden.value = fifa10RegistrationSelection;
+    if (trigger) {
+      trigger.classList.toggle("has-value", Boolean(fifa10RegistrationSelection));
+      const label = trigger.querySelector("strong");
+      if (label) label.textContent = fifa10RegistrationSelectionLabel();
+      trigger.setAttribute("aria-label", fifa10RegistrationSelection ? `Seçili oyuncu: ${fifa10RegistrationSelectionLabel()}` : "Oyuncu seç");
+    }
+    if (field) field.hidden = !showNew;
+    if (input) {
+      input.required = showNew;
+      if (!showNew) input.value = "";
+      if (showNew && focusNew) window.setTimeout(() => input.focus({ preventScroll: true }), 80);
+    }
+  }
+
+  function openFifa10PlayerPicker() {
+    const registered = fifa10RegisteredNameSet();
+    const players = fifa10KnownPlayers().filter(item => !registered.has(item.name.toLocaleLowerCase("tr-TR")));
+    openModal("Oyuncunu Seç", `<section class="f10-player-picker" aria-label="FIFA 10 oyuncu seçimi">
+      <div class="f10-player-picker-intro"><strong>FIFA 10 Kayıt Listesi</strong><p>Kendi ismine dokun. Listede yoksan “Yeni oyuncu” seçeneğini kullan.</p></div>
+      <label class="f10-player-picker-search"><span>⌕</span><input id="fifa10PlayerPickerSearch" type="search" autocomplete="off" inputmode="search" placeholder="İsim ara…"></label>
+      <div class="f10-player-picker-list" id="fifa10PlayerPickerList">
+        ${players.map(item => `<button type="button" data-action="select-fifa10-registration-player" data-player-name="${escapeHTML(item.name)}" data-search-name="${escapeHTML(item.name.toLocaleLowerCase("tr-TR"))}"><span>${escapeHTML(item.name)}</span><b>${item.elo} ELO</b><i>↗</i></button>`).join("") || `<p class="f10-player-picker-empty">Seçilebilir mevcut oyuncu kalmadı.</p>`}
+      </div>
+      <button type="button" class="f10-player-picker-new" data-action="select-fifa10-registration-player" data-player-name="__new__"><span>＋</span><div><strong>Yeni oyuncu</strong><small>İsim ve soyisim alanını aç</small></div><i>↗</i></button>
+    </section>`, "PLAYER REGISTRATION · MOBILE SAFE");
+    if (window.matchMedia?.("(min-width: 721px) and (pointer: fine)")?.matches) window.setTimeout(() => document.getElementById("fifa10PlayerPickerSearch")?.focus({ preventScroll: true }), 120);
+  }
+
+  function selectFifa10RegistrationPlayer(value) {
+    syncFifa10RegistrationSelection(value, { focusNew: value === "__new__" });
+    closeModal();
+    const section = document.getElementById("fifa10Registration");
+    if (section) window.setTimeout(() => section.scrollIntoView({ behavior: "smooth", block: "center" }), 60);
+  }
+
   async function submitFifa10Registration(form) {
     const draft = fifa10RegistrationState();
     if (draft.settings.registrationOpen === false) { toast("FIFA 10 kayıtları şu anda kapalı.", "error"); return; }
@@ -2462,8 +2513,8 @@
         saveState(true,true);
       }
       form.reset();
-      const newField = document.getElementById("fifa10NewPlayerField");
-      if (newField) newField.hidden = true;
+      fifa10RegistrationSelection = "";
+      syncFifa10RegistrationSelection("");
       toast(`${name} FIFA 10'a kaydedildi. Geçici torbası ELO sıralamasına göre belirlendi.`, "success");
       render();
     } catch (error) {
@@ -2508,10 +2559,13 @@
     const cloudMode=fifa10RegistrationCloudActive();
     if (cloudMode && !fifa10RegistrationsLoaded && !fifa10RegistrationsLoading) setTimeout(()=>refreshFifa10Registrations(),0);
     const pots=Array.from({length:assignment.potCount},(_,index)=>assignment.rows.filter(row=>row.pot===index+1));
+    const selectionStillValid = fifa10RegistrationSelection === "__new__" || fifa10KnownPlayers().some(item => item.name === fifa10RegistrationSelection && !fifa10RegisteredNameSet().has(item.name.toLocaleLowerCase("tr-TR")));
+    if (!selectionStillValid) fifa10RegistrationSelection = "";
+    const isNewSelection = fifa10RegistrationSelection === "__new__";
     const form=`<form id="fifa10RegistrationForm" class="f10-registration-form">
-      <label><span>Oyuncu</span><select id="fifa10RegistrationPlayer" name="playerName" required ${statusOpen?"":"disabled"}><option value="">İsmini seç</option>${fifa10RegistrationOptions()}<option value="__new__">＋ Yeni oyuncu</option></select></label>
-      <label id="fifa10NewPlayerField" hidden><span>İsim Soyisim</span><input type="text" name="newPlayerName" autocomplete="name" placeholder="İsim Soyisim" maxlength="60"></label>
-      <button type="submit" ${statusOpen?"":"disabled"}>FIFA 10'a Kayıt Ol</button>
+      <label class="f10-player-select-field"><span>Oyuncu</span><input id="fifa10RegistrationPlayerValue" type="hidden" name="playerName" value="${escapeHTML(fifa10RegistrationSelection)}"><button id="fifa10RegistrationPlayerTrigger" class="f10-player-select-trigger ${fifa10RegistrationSelection?"has-value":""}" type="button" data-action="open-fifa10-player-picker" aria-haspopup="dialog" ${statusOpen?"":"disabled"}><span class="f10-player-select-icon">◉</span><strong>${escapeHTML(fifa10RegistrationSelectionLabel())}</strong><i>⌄</i></button><small>Telefon uyumlu seçim ekranını açar.</small></label>
+      <label id="fifa10NewPlayerField" ${isNewSelection?"":"hidden"}><span>İsim Soyisim</span><input type="text" name="newPlayerName" autocomplete="name" placeholder="İsim Soyisim" maxlength="60" ${isNewSelection?"required":""}></label>
+      <button class="f10-registration-submit" type="submit" ${statusOpen?"":"disabled"}>FIFA 10'a Kayıt Ol</button>
     </form>`;
     return `<section class="f10-registration-section ${compact?"compact":""}" id="fifa10Registration">
       <header><div><span>PLAYER REGISTRATION · ELO SEEDING</span><h3>Kaydını yap.<br>Torbanı ELO belirlesin.</h3><p>Mevcut oyuncular isimlerini listeden seçer. Yalnızca “Yeni oyuncu” seçildiğinde İsim Soyisim alanı açılır.</p></div><div class="f10-registration-status ${statusOpen?"open":"closed"}"><i></i><strong>${statusOpen?"KAYIT AÇIK":"KAYIT KAPALI"}</strong><small>${assignment.rows.length} oyuncu · ${cloudMode?"canlı kayıt":"yerel kayıt"}</small>${canEdit()?`<button type="button" data-action="toggle-fifa10-registration">${statusOpen?"Kayıtları Kapat":"Kayıtları Aç"}</button>`:""}</div></header>
@@ -10796,6 +10850,8 @@ ${shareData.url}`)}`;
     const action = event.target.closest("[data-action]");
     if (!action) return;
     const type = action.dataset.action;
+    if (type === "open-fifa10-player-picker") { openFifa10PlayerPicker(); return; }
+    if (type === "select-fifa10-registration-player") { selectFifa10RegistrationPlayer(action.dataset.playerName || ""); return; }
     if (type === "toggle-fifa10-registration") { toggleFifa10Registration(); return; }
     if (type === "remove-fifa10-registration") { removeFifa10Registration(action.dataset.registrationId, action.dataset.playerName); return; }
     if (type === "refresh-final-poll") { finalPollLoadedAt = 0; refreshFinalPoll(true); return; }
@@ -11029,6 +11085,13 @@ ${shareData.url}`)}`;
   });
 
   document.addEventListener("input", event => {
+    if (event.target.id === "fifa10PlayerPickerSearch") {
+      const query = String(event.target.value || "").trim().toLocaleLowerCase("tr-TR");
+      document.querySelectorAll("#fifa10PlayerPickerList [data-search-name]").forEach(button => {
+        button.hidden = Boolean(query) && !String(button.dataset.searchName || "").includes(query);
+      });
+      return;
+    }
     if (event.target.dataset.fifa10Name && canEdit()) {
       const player=seasonSystem().fifa10Draft.players.find(item=>item.id===event.target.dataset.fifa10Name);
       if (player) { player.name=event.target.value; seasonSystem().fifa10Draft.updatedAt=new Date().toISOString(); saveState(); }
@@ -11090,14 +11153,6 @@ ${shareData.url}`)}`;
   });
 
   document.addEventListener("change", event => {
-    if (event.target.id === "fifa10RegistrationPlayer") {
-      const field=document.getElementById("fifa10NewPlayerField");
-      const input=field?.querySelector('input[name="newPlayerName"]');
-      const show=event.target.value === "__new__";
-      if (field) field.hidden=!show;
-      if (input) input.required=show;
-      return;
-    }
     if (event.target.dataset.fifa10League && canEdit()) {
       const player=seasonSystem().fifa10Draft.players.find(item=>item.id===event.target.dataset.fifa10League);
       if (player) { player.league=event.target.value==="premier"?"premier":"championship"; seasonSystem().fifa10Draft.updatedAt=new Date().toISOString(); saveState(); renderSeasonWorkspace(); }

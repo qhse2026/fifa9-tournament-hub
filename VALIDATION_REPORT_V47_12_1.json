@@ -1,0 +1,15 @@
+{
+  "package": "ORUC_REIS_FIFA_WORLD_V47_12_1_MOBILE_REGISTRATION_FIX_UPLOAD_ONLY",
+  "status": "PASS",
+  "checks": {
+    "native_registration_select_removed": true,
+    "mobile_picker_trigger_present": true,
+    "searchable_picker_present": true,
+    "new_player_path_present": true,
+    "selection_state_persistent": true,
+    "mobile_bottom_sheet_css": true,
+    "build_bumped": true,
+    "service_worker_bumped": true,
+    "supabase_schema_unchanged": true
+  }
+}

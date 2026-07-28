@@ -1,0 +1,12 @@
+FIFA 10 V47.12.1 — MOBİL KAYIT DÜZELTMESİ
+
+1. ZIP içindeki tüm dosyaları repository ana dizinine yükleyin.
+2. Mevcut dosyaların üzerine yazın.
+3. Deploy sonrası mobil tarayıcıda sayfayı tamamen kapatıp yeniden açın.
+4. Gerekirse bir kez sert yenileme yapın.
+
+Düzeltme:
+- Mobilde anında kapanan native isim seçme menüsü kaldırıldı.
+- Oyuncu seçimi tam ekran, dokunmatik uyumlu liste üzerinden yapılır.
+- Arama alanı, mevcut oyuncu seçimi ve Yeni oyuncu seçeneği eklenmiştir.
+- Seçim, kayıt formu yeniden çizilse bile korunur.

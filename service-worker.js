@@ -1,4 +1,4 @@
-const CACHE = "oruc-reis-football-universe-v47-12-0-triple-circuit";
+const CACHE = "oruc-reis-football-universe-v47-12-1-mobile-registration";
 const APP_SHELL = [
   "./",
   "./index.html",
