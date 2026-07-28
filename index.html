@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#050d22" />
   <meta name="description" content="FIFA Turnuva Merkezi — canlı skor, Elo gücü, Power Exchange, mental baskı analizi, Destiny Path, Live Match Pulse, Broadcast Mode, TV / projektör görünümü, canlı xT, oyuncu ısı rozetleri, AI Tournament Director ve dinamik turnuva simülasyonu." />
-  <meta name="fifa9-build" content="47.14.2-instant-manual-groups" />
+  <meta name="fifa9-build" content="47.14.3-standalone-fixture-center" />
   <script>
   (()=>{
-    const BUILD="47.14.2-instant-manual-groups";
+    const BUILD="47.14.3-standalone-fixture-center";
     const KEY="fifa9-active-build";
     if(localStorage.getItem(KEY)===BUILD) return;
     localStorage.setItem(KEY,BUILD);
@@ -17,7 +17,7 @@
     if("serviceWorker" in navigator) cleanup.push(navigator.serviceWorker.getRegistrations().then(regs=>Promise.all(regs.map(reg=>reg.unregister()))));
     Promise.allSettled(cleanup).finally(()=>{
       const url=new URL(location.href);
-      if(url.searchParams.get("fifa9build")!=="47142"){url.searchParams.set("fifa9build","47142");location.replace(url.toString());}
+      if(url.searchParams.get("fifa9build")!=="47143"){url.searchParams.set("fifa9build","47143");location.replace(url.toString());}
     });
   })();
   </script>
@@ -33,10 +33,15 @@
   <link rel="stylesheet" href="navigation-os-v47-1.css?v=47.4.0-sidebar-fix" />
   <link rel="stylesheet" href="final-chapter-third-place.css?v=47.5.0" />
   <link rel="stylesheet" href="champions-podium.css?v=47.5.0" />
-  <link rel="stylesheet" href="final-night-theme-v479.css?v=47.14.2" />
-  <link rel="stylesheet" href="fifa10-era-dashboard-v4711.css?v=47.14.2" />
-  <link rel="stylesheet" href="fifa10-league-return.css?v=47.14.2" />
-  <link rel="stylesheet" href="fifa10-triple-circuit-v4712.css?v=47.14.2" />
+  <link rel="stylesheet" href="final-night-theme-v479.css?v=47.14.3" />
+  <link rel="stylesheet" href="fifa10-era-dashboard-v4711.css?v=47.14.3" />
+  <link rel="stylesheet" href="fifa10-league-return.css?v=47.14.3" />
+  <link rel="stylesheet" href="fifa10-triple-circuit-v4712.css?v=47.14.3" />
+  <style>
+    .f10-fixture-centre-launch{position:fixed;right:18px;bottom:84px;z-index:10040;display:flex;align-items:center;gap:10px;padding:13px 16px;border:1px solid rgba(116,153,255,.38);border-radius:14px;background:linear-gradient(90deg,#287fff,#9b48ed);color:#fff!important;text-decoration:none;font-size:11px;font-weight:900;letter-spacing:.04em;box-shadow:0 16px 44px rgba(37,65,180,.38)}
+    .f10-fixture-centre-launch b{display:grid;place-items:center;width:25px;height:25px;border-radius:8px;background:rgba(255,255,255,.15);font-size:15px}
+    @media(max-width:720px){.f10-fixture-centre-launch{right:10px;bottom:78px;left:10px;justify-content:center;padding:12px}}
+  </style>
 </head>
 <body>
   <div class="ambient ambient-one"></div>
@@ -136,7 +141,7 @@
 
       <div class="sidebar-footer">
         <div class="save-indicator" id="sidebarCloudStatus"><span class="status-dot"></span> Canlı bağlantı hazırlanıyor</div>
-        <div class="sidebar-version">Football Universe · V47.14.2 · Instant Manual Groups</div>
+        <div class="sidebar-version">Football Universe · V47.14.3 · Standalone Fixture Center</div>
       </div>
     </aside>
     <button class="os-sidebar-backdrop" id="sidebarBackdrop" type="button" aria-label="Komuta menüsünü kapat"></button>
@@ -218,19 +223,21 @@
     <button data-nav="benchmark"><span>∑</span><small>Karneler</small></button>
   </nav>
 
+  <a class="f10-fixture-centre-launch" href="fifa10-fixture-center.html" target="_blank" rel="noopener"><b>↗</b><span>FİKSTÜR &amp; SONUÇ MERKEZİ</span></a>
+
 
   <script src="data/historical-data.js"></script>
   <script src="language.js?v=44.5.0"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="cloud-config.js?v=44.5.0"></script>
   <script src="cloud.js?v=44.5.0"></script>
-  <script src="fifa10-registration-cloud.js?v=47.14.2"></script>
-  <script id="fifa10DrawEngineScript" src="fifa10-draw-engine-v4713.js?v=47.14.2"></script>
+  <script src="fifa10-registration-cloud.js?v=47.14.3"></script>
+  <script id="fifa10DrawEngineScript" src="fifa10-draw-engine-v4713.js?v=47.14.3"></script>
   <script src="chat.js?v=44.5.0"></script>
   <script src="community.js?v=44.5.0"></script>
-  <script src="app.js?v=47.14.2-instant-manual-groups"></script>
-  <script src="fifa9-experience-hub.js?v=47.14.2-instant-manual-groups"></script>
-  <script src="horizon-os-v47.js?v=47.14.2-instant-manual-groups"></script>
-  <script src="navigation-os-v47-1.js?v=47.14.2-instant-manual-groups"></script>
+  <script src="app.js?v=47.14.3-standalone-fixture-center"></script>
+  <script src="fifa9-experience-hub.js?v=47.14.3-standalone-fixture-center"></script>
+  <script src="horizon-os-v47.js?v=47.14.3-standalone-fixture-center"></script>
+  <script src="navigation-os-v47-1.js?v=47.14.3-standalone-fixture-center"></script>
 </body>
 </html>

@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "47.14.2";
+  const VERSION = "47.14.3";
   const STORAGE_KEY = "fifa-tournament-hub-v1";
   const GROUPS = Object.freeze(["A", "B", "C"]);
   const LEG_STARS = Object.freeze([4, 4.5, 5]);
@@ -1093,8 +1093,8 @@
     const metaValue = `${VERSION}-live-draw-ppg-engine`;
     if (meta && meta.content !== metaValue) meta.content = metaValue;
     const url = new URL(location.href);
-    if (url.searchParams.get("fifa9build") !== "47142") {
-      url.searchParams.set("fifa9build", "47142");
+    if (url.searchParams.get("fifa9build") !== "47143") {
+      url.searchParams.set("fifa9build", "47143");
       history.replaceState(history.state, "", url);
     }
     document.querySelectorAll(".f10-format-spine article").forEach(article => {

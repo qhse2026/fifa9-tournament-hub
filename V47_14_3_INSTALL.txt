@@ -1,0 +1,49 @@
+ORUC REIS FIFA WORLD — V47.14.3
+STANDALONE FIXTURE & RESULT CENTER
+
+UPLOAD THESE FILES TO THE REPOSITORY ROOT:
+
+1. index.html
+2. service-worker.js
+3. fifa10-draw-engine-v4713.js
+4. fifa10-registration-cloud.js
+5. fifa10-fixture-center.html
+
+IMPORTANT
+- Do not change or delete cloud-config.js.
+- After Vercel finishes deployment, open:
+  https://fifa9-tournament-hub.vercel.app/?fifa9build=47143
+- Use the fixed "FIKSTUR & SONUC MERKEZI" button at the bottom of the page.
+- The fixture center opens in a new browser tab.
+- Keep the main website administrator session signed in for cloud synchronization.
+
+FIXED GROUPS
+
+GROUP A
+- Kerim Ozmen
+- Ercan Koseoglu
+- Emre Cinar
+- Ersin Darici
+- Safak Denar
+
+GROUP B
+- Oguzhan Dindar
+- Aziz Sarioglu
+- Sergei Smirnov
+- Affan Volkan Akbal
+
+GROUP C
+- Caglar Can Tatar
+- Mohd Khairull Muzammil Bin Ramly
+- Denar Aleksandr Shulev
+- Asen Sabuncu
+- Cihan Sezgin BOTAS
+
+FORMAT
+- 78 matches
+- 1st circuit: 4-star
+- 2nd circuit: 4.5-star
+- 3rd circuit: 5-star
+- No separate group standings
+- Overall ranking: PPG, total points, goal difference, goals for, wins
+- Display: PPG (TOTAL POINTS), e.g. 3.000 (3)
