@@ -1,0 +1,975 @@
+(() => {
+  "use strict";
+
+  const VERSION = "47.13.0";
+  const STORAGE_KEY = "fifa-tournament-hub-v1";
+  const GROUPS = Object.freeze(["A", "B", "C"]);
+  const LEG_STARS = Object.freeze([4, 4.5, 5]);
+  const MIN_PLAYERS = 12;
+  const MAX_PLAYERS = 15;
+  const EXPECTED_CURRENT_PLAYERS = 13;
+  const REFRESH_MS = 15000;
+
+  let payload = null;
+  let registrations = [];
+  let realtimeChannel = null;
+  let renderQueued = false;
+  let moduleBusy = false;
+  let autoDrawing = false;
+  let activeTab = sessionStorage.getItem("fifa10-draw-active-tab") || "draw";
+  let fixtureGroupFilter = sessionStorage.getItem("fifa10-fixture-group") || "A";
+  let fixtureLegFilter = Number(sessionStorage.getItem("fifa10-fixture-leg") || 0);
+  let lastLoadAt = 0;
+  let observer = null;
+  let lastRenderSignature = "";
+
+  const escapeHTML = value => String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+
+  const normalize = value => String(value || "")
+    .trim()
+    .toLocaleLowerCase("tr-TR")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+  const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+  const nowISO = () => new Date().toISOString();
+  const rowId = () => window.FIFA_CLOUD_CONFIG?.tournamentRowId || "fifa-9";
+  const cloudConfigured = () => Boolean(window.FIFA_CLOUD?.isConfigured?.());
+  const isAdmin = () => !cloudConfigured() || Boolean(window.FIFA_CLOUD?.isAdmin?.());
+  const cloudClient = () => window.FIFA_CLOUD?.getClient?.() || null;
+
+  function secureRandomInt(max) {
+    const size = Number(max) || 0;
+    if (size <= 1) return 0;
+    const range = 0x100000000;
+    const limit = Math.floor(range / size) * size;
+    const values = new Uint32Array(1);
+    let value = 0;
+    do {
+      crypto.getRandomValues(values);
+      value = values[0];
+    } while (value >= limit);
+    return value % size;
+  }
+
+  function secureShuffle(items) {
+    const output = [...items];
+    for (let index = output.length - 1; index > 0; index -= 1) {
+      const swapIndex = secureRandomInt(index + 1);
+      [output[index], output[swapIndex]] = [output[swapIndex], output[index]];
+    }
+    return output;
+  }
+
+  function randomToken(length = 6) {
+    const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    return Array.from({ length }, () => alphabet[secureRandomInt(alphabet.length)]).join("");
+  }
+
+  function deepClone(value) {
+    if (typeof structuredClone === "function") return structuredClone(value);
+    return JSON.parse(JSON.stringify(value));
+  }
+
+  function ensurePayloadShape(source) {
+    const next = source && typeof source === "object" ? source : {};
+    next.seasonSystem ||= {};
+    next.seasonSystem.fifa10Draft ||= {};
+    const draft = next.seasonSystem.fifa10Draft;
+    draft.players = Array.isArray(draft.players) ? draft.players : [];
+    draft.settings ||= {};
+    draft.settings.formatId = "triple-circuit-v2-live-draw";
+    draft.settings.formatName = "FIFA 10 Triple Circuit · Live Draw";
+    draft.settings.potCount = 5;
+    draft.settings.groupCount = 3;
+    draft.settings.rankingPrimary = "ppg";
+    draft.settings.rankingTieBreakers = ["points", "goalDifference", "goalsFor", "wins", "drawLot"];
+    draft.settings.goalDifferenceCap = null;
+    draft.settings.goalDifferenceMode = "full-uncapped";
+    draft.settings.groupRounds = [
+      { id: "round-1", label: "1. Devre", stars: 4 },
+      { id: "round-2", label: "2. Devre", stars: 4.5 },
+      { id: "round-3", label: "3. Devre", stars: 5 }
+    ];
+    return next;
+  }
+
+  function getDraft(source = payload) {
+    return ensurePayloadShape(source).seasonSystem.fifa10Draft;
+  }
+
+  function getDraw(source = payload) {
+    return getDraft(source).draw || null;
+  }
+
+  function localPayload() {
+    try {
+      return ensurePayloadShape(JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"));
+    } catch (_) {
+      return ensurePayloadShape({});
+    }
+  }
+
+  async function fetchPayload() {
+    const client = cloudClient();
+    if (client && cloudConfigured()) {
+      const { data, error } = await client
+        .from("tournament_state")
+        .select("payload, updated_at")
+        .eq("id", rowId())
+        .maybeSingle();
+      if (error) throw error;
+      payload = ensurePayloadShape(data?.payload || localPayload());
+    } else {
+      payload = localPayload();
+    }
+    lastLoadAt = Date.now();
+    return payload;
+  }
+
+  async function fetchRegistrations() {
+    try {
+      if (window.FIFA10_REGISTRATION_CLOUD?.isConfigured?.()) {
+        registrations = await window.FIFA10_REGISTRATION_CLOUD.list();
+      } else {
+        registrations = (getDraft().players || []).map(item => ({
+          id: item.id,
+          playerName: item.playerName || item.name,
+          elo: Number(item.elo) || 1500,
+          source: item.source || "existing",
+          registeredAt: item.registeredAt || null
+        }));
+      }
+    } catch (error) {
+      console.warn("FIFA 10 draw engine could not load registrations", error);
+      registrations = (getDraft().players || []).map(item => ({
+        id: item.id,
+        playerName: item.playerName || item.name,
+        elo: Number(item.elo) || 1500,
+        source: item.source || "existing",
+        registeredAt: item.registeredAt || null
+      }));
+    }
+    return registrations;
+  }
+
+  function registrationRows() {
+    return registrations
+      .map((item, index) => ({
+        id: String(item.id || `F10-REG-${index + 1}`),
+        name: String(item.playerName || item.player_name || item.name || "").replace(/\s+/g, " ").trim(),
+        elo: Number(item.elo) || 1500,
+        source: item.source || "existing",
+        registeredAt: item.registeredAt || item.registered_at || null
+      }))
+      .filter(item => item.name)
+      .sort((a, b) => b.elo - a.elo || a.name.localeCompare(b.name, "tr"))
+      .map((item, index) => ({ ...item, pot: Math.floor(index / GROUPS.length) + 1 }));
+  }
+
+  function snapshotPlayers(draw = getDraw()) {
+    const rows = Array.isArray(draw?.participants) && draw.participants.length
+      ? draw.participants
+      : registrationRows();
+    return rows.map((item, index) => ({
+      id: String(item.id || `F10-P-${index + 1}`),
+      name: String(item.name || item.playerName || "").trim(),
+      elo: Number(item.elo) || 1500,
+      pot: Number(item.pot) || Math.floor(index / GROUPS.length) + 1,
+      tieBreakOrder: Number(item.tieBreakOrder) || index + 1
+    })).filter(item => item.name);
+  }
+
+  function playerMap(draw = getDraw()) {
+    return new Map(snapshotPlayers(draw).map(item => [item.id, item]));
+  }
+
+  function potRows(draw = getDraw()) {
+    const rows = snapshotPlayers(draw);
+    return Array.from({ length: 5 }, (_, index) => rows.filter(item => item.pot === index + 1));
+  }
+
+  function currentGroups(draw = getDraw()) {
+    const map = playerMap(draw);
+    const groups = {};
+    GROUPS.forEach(group => {
+      groups[group] = (draw?.groups?.[group] || [])
+        .map(id => map.get(id))
+        .filter(Boolean);
+    });
+    return groups;
+  }
+
+  function createDrawState(rows) {
+    const tieOrder = secureShuffle(rows.map(item => item.id));
+    const tieIndex = new Map(tieOrder.map((id, index) => [id, index + 1]));
+    const participants = rows.map((item, index) => ({
+      ...item,
+      pot: Math.floor(index / GROUPS.length) + 1,
+      tieBreakOrder: tieIndex.get(item.id) || index + 1
+    }));
+    return {
+      version: 1,
+      drawId: `F10-${Date.now().toString(36).toUpperCase()}-${randomToken(5)}`,
+      status: "ready",
+      createdAt: nowISO(),
+      updatedAt: nowISO(),
+      completedAt: null,
+      groupStageCompletedAt: null,
+      participants,
+      groups: { A: [], B: [], C: [] },
+      assignments: [],
+      fixtures: [],
+      lastReveal: null,
+      fivePlayerGroup: null,
+      rankingRule: {
+        primary: "PPG",
+        tieBreakers: ["Total Points", "Goal Difference", "Goals For", "Wins", "Draw Lot"],
+        goalDifferenceCap: null
+      }
+    };
+  }
+
+  async function savePayload(nextPayload, message = "") {
+    const next = ensurePayloadShape(nextPayload);
+    payload = next;
+    if (cloudConfigured()) {
+      if (!isAdmin()) throw new Error("Bu işlem yalnızca turnuva yöneticisine açıktır.");
+      await window.FIFA_CLOUD.save(next);
+    } else {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    }
+    if (message) notify(message, "success");
+    scheduleRender();
+    return next;
+  }
+
+  async function mutatePayload(mutator, message = "") {
+    if (moduleBusy) return;
+    moduleBusy = true;
+    try {
+      if (!payload || Date.now() - lastLoadAt > REFRESH_MS) await fetchPayload();
+      const next = deepClone(payload);
+      ensurePayloadShape(next);
+      await mutator(next);
+      await savePayload(next, message);
+    } catch (error) {
+      console.error("FIFA 10 draw engine mutation failed", error);
+      notify(String(error?.message || error || "İşlem tamamlanamadı."), "error");
+      throw error;
+    } finally {
+      moduleBusy = false;
+      scheduleRender();
+    }
+  }
+
+  async function prepareDraw() {
+    await fetchRegistrations();
+    const rows = registrationRows();
+    if (rows.length < MIN_PLAYERS || rows.length > MAX_PLAYERS) {
+      throw new Error(`Kura için ${MIN_PLAYERS}–${MAX_PLAYERS} oyuncu gerekir. Mevcut kayıt: ${rows.length}.`);
+    }
+    if (rows.length !== EXPECTED_CURRENT_PLAYERS) {
+      const proceed = window.confirm(`Şu anda ${rows.length} oyuncu kayıtlı. Mevcut plan 13 oyuncudur. Yine de kurayı hazırlamak istiyor musunuz?`);
+      if (!proceed) return;
+    }
+    await mutatePayload(next => {
+      const draft = getDraft(next);
+      draft.players = rows.map(item => ({
+        id: item.id,
+        name: item.name,
+        elo: item.elo,
+        source: item.source,
+        registeredAt: item.registeredAt
+      }));
+      draft.settings.registrationOpen = false;
+      draft.settings.potsLocked = true;
+      draft.status = "draw-ready";
+      draft.draw = createDrawState(rows);
+      draft.updatedAt = nowISO();
+    }, "Kayıtlar kilitlendi. FIFA 10 grup kurası hazır.");
+    activeTab = "draw";
+    persistViewState();
+  }
+
+  function unassignedPlayers(draw) {
+    const used = new Set((draw.assignments || []).map(item => item.playerId));
+    return snapshotPlayers(draw).filter(item => !used.has(item.id));
+  }
+
+  function finalizeDrawState(draw) {
+    draw.status = "completed";
+    draw.completedAt = nowISO();
+    draw.updatedAt = nowISO();
+    const groups = currentGroups(draw);
+    draw.fivePlayerGroup = GROUPS.find(group => groups[group].length === 5) || null;
+    draw.fixtures = generateFixtures(draw);
+    draw.lastReveal = draw.assignments.at(-1) || null;
+    return draw;
+  }
+
+  async function drawNext({ silent = false } = {}) {
+    if (!isAdmin()) throw new Error("Kura çekimini yalnızca turnuva yöneticisi yapabilir.");
+    await mutatePayload(next => {
+      const draft = getDraft(next);
+      const draw = draft.draw;
+      if (!draw) throw new Error("Önce kura hazırlığını başlatın.");
+      if (draw.status === "completed") throw new Error("Kura zaten tamamlandı.");
+      const remaining = unassignedPlayers(draw);
+      if (!remaining.length) {
+        finalizeDrawState(draw);
+        draft.status = "groups-ready";
+        draft.updatedAt = nowISO();
+        return;
+      }
+      const currentPot = Math.min(...remaining.map(item => item.pot));
+      const potPlayers = remaining.filter(item => item.pot === currentPot);
+      const selectedPlayer = potPlayers[secureRandomInt(potPlayers.length)];
+      const usedGroups = new Set((draw.assignments || []).filter(item => item.pot === currentPot).map(item => item.group));
+      const eligibleGroups = GROUPS.filter(group => !usedGroups.has(group));
+      if (!eligibleGroups.length) throw new Error(`Torba ${currentPot} için uygun grup kalmadı.`);
+      const selectedGroup = eligibleGroups[secureRandomInt(eligibleGroups.length)];
+      const assignment = {
+        sequence: (draw.assignments?.length || 0) + 1,
+        pot: currentPot,
+        playerId: selectedPlayer.id,
+        playerName: selectedPlayer.name,
+        elo: selectedPlayer.elo,
+        group: selectedGroup,
+        eligibleGroups,
+        revealedAt: nowISO()
+      };
+      draw.assignments ||= [];
+      draw.groups ||= { A: [], B: [], C: [] };
+      draw.assignments.push(assignment);
+      draw.groups[selectedGroup].push(selectedPlayer.id);
+      draw.lastReveal = assignment;
+      draw.status = "drawing";
+      draw.updatedAt = nowISO();
+      const after = unassignedPlayers(draw);
+      if (!after.length) {
+        finalizeDrawState(draw);
+        draft.status = "groups-ready";
+      } else {
+        draft.status = "drawing";
+      }
+      draft.updatedAt = nowISO();
+    }, silent ? "" : "Kura sonucu canlı sisteme işlendi.");
+  }
+
+  async function startAutoDraw() {
+    if (autoDrawing) {
+      autoDrawing = false;
+      notify("Otomatik kura durduruldu.", "info");
+      scheduleRender();
+      return;
+    }
+    autoDrawing = true;
+    scheduleRender();
+    try {
+      while (autoDrawing) {
+        const draw = getDraw();
+        if (!draw || draw.status === "completed") break;
+        await drawNext({ silent: true });
+        await sleep(950);
+      }
+      if (getDraw()?.status === "completed") notify("FIFA 10 grup kurası tamamlandı ve fikstür oluşturuldu.", "success");
+    } catch (_) {
+      autoDrawing = false;
+    } finally {
+      autoDrawing = false;
+      scheduleRender();
+    }
+  }
+
+  async function resetDraw({ reopenRegistration = false } = {}) {
+    const draw = getDraw();
+    const hasResults = Boolean(draw?.fixtures?.some(match => match.completed));
+    if (hasResults) throw new Error("Sonuç girilmiş bir kura sıfırlanamaz. Önce sonuçları temizleyin.");
+    const message = reopenRegistration
+      ? "Kura silinecek ve kayıtlar yeniden açılacak. Devam edilsin mi?"
+      : "Kura aynı katılımcılarla baştan çekilecek. Devam edilsin mi?";
+    if (!window.confirm(message)) return;
+    await mutatePayload(next => {
+      const draft = getDraft(next);
+      if (reopenRegistration) {
+        delete draft.draw;
+        draft.settings.registrationOpen = true;
+        draft.settings.potsLocked = false;
+        draft.status = "registration";
+      } else {
+        const rows = snapshotPlayers(draft.draw);
+        draft.draw = createDrawState(rows);
+        draft.settings.registrationOpen = false;
+        draft.settings.potsLocked = true;
+        draft.status = "draw-ready";
+      }
+      draft.updatedAt = nowISO();
+    }, reopenRegistration ? "Kura silindi; kayıt merkezi yeniden açıldı." : "Kura sıfırlandı; yeni çekim hazır.");
+  }
+
+  function roundRobinRounds(playerIds) {
+    const list = [...playerIds];
+    if (list.length % 2 === 1) list.push(null);
+    const size = list.length;
+    const rounds = [];
+    let rotation = [...list];
+    for (let round = 0; round < size - 1; round += 1) {
+      const pairs = [];
+      for (let index = 0; index < size / 2; index += 1) {
+        const first = rotation[index];
+        const second = rotation[size - 1 - index];
+        if (first && second) pairs.push([first, second]);
+      }
+      rounds.push(pairs);
+      rotation = [rotation[0], rotation[size - 1], ...rotation.slice(1, size - 1)];
+    }
+    return rounds;
+  }
+
+  function generateFixtures(draw) {
+    const fixtures = [];
+    let globalSequence = 0;
+    GROUPS.forEach(group => {
+      const ids = [...(draw.groups?.[group] || [])];
+      const baseRounds = roundRobinRounds(ids);
+      LEG_STARS.forEach((stars, legIndex) => {
+        baseRounds.forEach((pairs, roundIndex) => {
+          pairs.forEach((pair, pairIndex) => {
+            let [home, away] = pair;
+            if (legIndex === 1 || (legIndex === 2 && (roundIndex + pairIndex) % 2 === 1)) [home, away] = [away, home];
+            globalSequence += 1;
+            fixtures.push({
+              id: `F10-G${group}-L${legIndex + 1}-R${roundIndex + 1}-M${pairIndex + 1}`,
+              sequence: globalSequence,
+              group,
+              leg: legIndex + 1,
+              legLabel: `${legIndex + 1}. Devre`,
+              stars,
+              matchday: roundIndex + 1,
+              homeId: home,
+              awayId: away,
+              homeScore: null,
+              awayScore: null,
+              homeTeam: "",
+              awayTeam: "",
+              completed: false,
+              updatedAt: null
+            });
+          });
+        });
+      });
+    });
+    return fixtures;
+  }
+
+  function completedFixtures(draw = getDraw()) {
+    return (draw?.fixtures || []).filter(match => match.completed && Number.isFinite(Number(match.homeScore)) && Number.isFinite(Number(match.awayScore)));
+  }
+
+  function standings(draw = getDraw()) {
+    if (!draw) return [];
+    const players = snapshotPlayers(draw);
+    const groupByPlayer = new Map();
+    GROUPS.forEach(group => (draw.groups?.[group] || []).forEach(id => groupByPlayer.set(id, group)));
+    const table = new Map(players.map(player => [player.id, {
+      id: player.id,
+      name: player.name,
+      elo: player.elo,
+      group: groupByPlayer.get(player.id) || "–",
+      tieBreakOrder: player.tieBreakOrder || 999,
+      mp: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0, ppg: 0
+    }]));
+    completedFixtures(draw).forEach(match => {
+      const home = table.get(match.homeId);
+      const away = table.get(match.awayId);
+      if (!home || !away) return;
+      const hs = Number(match.homeScore);
+      const as = Number(match.awayScore);
+      home.mp += 1; away.mp += 1;
+      home.gf += hs; home.ga += as;
+      away.gf += as; away.ga += hs;
+      if (hs > as) { home.w += 1; away.l += 1; home.pts += 3; }
+      else if (hs < as) { away.w += 1; home.l += 1; away.pts += 3; }
+      else { home.d += 1; away.d += 1; home.pts += 1; away.pts += 1; }
+    });
+    const rows = [...table.values()].map(row => ({
+      ...row,
+      gd: row.gf - row.ga,
+      ppg: row.mp ? row.pts / row.mp : 0
+    }));
+    rows.sort((a, b) => {
+      const ppgDifference = b.ppg - a.ppg;
+      if (Math.abs(ppgDifference) > 1e-9) return ppgDifference;
+      return b.pts - a.pts
+        || b.gd - a.gd
+        || b.gf - a.gf
+        || b.w - a.w
+        || a.tieBreakOrder - b.tieBreakOrder;
+    });
+    return rows.map((row, index) => ({ ...row, rank: index + 1 }));
+  }
+
+  function groupStandings(group, draw = getDraw()) {
+    const ids = new Set(draw?.groups?.[group] || []);
+    return standings(draw)
+      .filter(row => ids.has(row.id))
+      .sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf || b.w - a.w || a.tieBreakOrder - b.tieBreakOrder)
+      .map((row, index) => ({ ...row, groupRank: index + 1 }));
+  }
+
+  function qualificationLabel(rank, total) {
+    if (rank <= 4) return { key: "direct", label: "DOĞRUDAN QF" };
+    if (total === 13 && rank >= 12) return { key: "gate", label: "PRELIMINARY" };
+    if (rank <= 12) return { key: "playin", label: "PLAY-IN" };
+    return { key: "outside", label: "BEKLEME" };
+  }
+
+  function teamUsedBy(draw, playerId, team, excludeMatchId = "") {
+    const target = normalize(team);
+    if (!target) return false;
+    return (draw.fixtures || []).some(match => {
+      if (match.id === excludeMatchId || !match.completed) return false;
+      if (match.homeId === playerId && normalize(match.homeTeam) === target) return true;
+      if (match.awayId === playerId && normalize(match.awayTeam) === target) return true;
+      return false;
+    });
+  }
+
+  async function saveResult(form) {
+    const data = new FormData(form);
+    const fixtureId = String(data.get("fixtureId") || "");
+    const homeScore = Number(data.get("homeScore"));
+    const awayScore = Number(data.get("awayScore"));
+    const homeTeam = String(data.get("homeTeam") || "").replace(/\s+/g, " ").trim();
+    const awayTeam = String(data.get("awayTeam") || "").replace(/\s+/g, " ").trim();
+    if (!Number.isInteger(homeScore) || !Number.isInteger(awayScore) || homeScore < 0 || awayScore < 0 || homeScore > 99 || awayScore > 99) {
+      throw new Error("Skorlar 0–99 arasında tam sayı olmalıdır.");
+    }
+    await mutatePayload(next => {
+      const draft = getDraft(next);
+      const draw = draft.draw;
+      if (!draw?.fixtures) throw new Error("Fikstür bulunamadı.");
+      const fixture = draw.fixtures.find(item => item.id === fixtureId);
+      if (!fixture) throw new Error("Maç bulunamadı.");
+      if (homeTeam && teamUsedBy(draw, fixture.homeId, homeTeam, fixture.id)) throw new Error("Ev sahibi bu takımı turnuvada daha önce kullandı.");
+      if (awayTeam && teamUsedBy(draw, fixture.awayId, awayTeam, fixture.id)) throw new Error("Deplasman oyuncusu bu takımı turnuvada daha önce kullandı.");
+      fixture.homeScore = homeScore;
+      fixture.awayScore = awayScore;
+      fixture.homeTeam = homeTeam;
+      fixture.awayTeam = awayTeam;
+      fixture.completed = true;
+      fixture.updatedAt = nowISO();
+      draw.updatedAt = nowISO();
+      if (draw.fixtures.every(item => item.completed)) draw.groupStageCompletedAt = nowISO();
+      draft.status = draw.fixtures.every(item => item.completed) ? "group-stage-completed" : "group-stage-active";
+      draft.updatedAt = nowISO();
+    }, "Maç sonucu canlı genel puan tablosuna işlendi.");
+    closeModal();
+  }
+
+  async function clearResult(fixtureId) {
+    if (!window.confirm("Bu maçın skor ve takım bilgileri silinsin mi?")) return;
+    await mutatePayload(next => {
+      const draft = getDraft(next);
+      const draw = draft.draw;
+      const fixture = draw?.fixtures?.find(item => item.id === fixtureId);
+      if (!fixture) throw new Error("Maç bulunamadı.");
+      fixture.homeScore = null;
+      fixture.awayScore = null;
+      fixture.homeTeam = "";
+      fixture.awayTeam = "";
+      fixture.completed = false;
+      fixture.updatedAt = nowISO();
+      draw.groupStageCompletedAt = null;
+      draw.updatedAt = nowISO();
+      draft.status = "group-stage-active";
+      draft.updatedAt = nowISO();
+    }, "Maç sonucu temizlendi.");
+    closeModal();
+  }
+
+  function playerName(id, draw = getDraw()) {
+    return playerMap(draw).get(id)?.name || "–";
+  }
+
+  function openResultModal(fixtureId) {
+    const draw = getDraw();
+    const fixture = draw?.fixtures?.find(item => item.id === fixtureId);
+    if (!fixture) return;
+    const homeName = playerName(fixture.homeId, draw);
+    const awayName = playerName(fixture.awayId, draw);
+    const overlay = document.createElement("div");
+    overlay.id = "f10DrawModal";
+    overlay.className = "f10-draw-modal-backdrop";
+    overlay.innerHTML = `<section class="f10-draw-modal" role="dialog" aria-modal="true" aria-labelledby="f10DrawModalTitle">
+      <header><div><span>GROUP ${fixture.group} · ${fixture.legLabel} · ${fixture.stars}★</span><h3 id="f10DrawModalTitle">Maç Sonucu</h3></div><button type="button" data-f10draw-action="close-modal" aria-label="Kapat">×</button></header>
+      <form id="f10DrawResultForm">
+        <input type="hidden" name="fixtureId" value="${escapeHTML(fixture.id)}">
+        <div class="f10-result-versus">
+          <label><strong>${escapeHTML(homeName)}</strong><span>Takım</span><input name="homeTeam" value="${escapeHTML(fixture.homeTeam || "")}" placeholder="Kullanılan takım"><span>Skor</span><input name="homeScore" type="number" min="0" max="99" inputmode="numeric" value="${fixture.completed ? fixture.homeScore : ""}" required></label>
+          <b>VS</b>
+          <label><strong>${escapeHTML(awayName)}</strong><span>Takım</span><input name="awayTeam" value="${escapeHTML(fixture.awayTeam || "")}" placeholder="Kullanılan takım"><span>Skor</span><input name="awayScore" type="number" min="0" max="99" inputmode="numeric" value="${fixture.completed ? fixture.awayScore : ""}" required></label>
+        </div>
+        <p class="f10-modal-rule">Takım pasaportu aktiftir: Aynı oyuncu aynı takımı FIFA 10 boyunca ikinci kez kullanamaz. Grup aşamasında beraberlik geçerlidir.</p>
+        <footer>${fixture.completed ? `<button type="button" class="danger" data-f10draw-action="clear-result" data-fixture-id="${escapeHTML(fixture.id)}">Sonucu Sil</button>` : ""}<button type="button" data-f10draw-action="close-modal">Vazgeç</button><button type="submit" class="primary">Sonucu Kaydet</button></footer>
+      </form>
+    </section>`;
+    document.body.appendChild(overlay);
+    overlay.addEventListener("click", event => {
+      if (event.target === overlay) closeModal();
+    });
+    overlay.querySelector("input[name='homeScore']")?.focus();
+  }
+
+  function closeModal() {
+    document.getElementById("f10DrawModal")?.remove();
+  }
+
+  function notify(message, type = "info") {
+    let stack = document.getElementById("f10DrawToastStack");
+    if (!stack) {
+      stack = document.createElement("div");
+      stack.id = "f10DrawToastStack";
+      stack.className = "f10-draw-toast-stack";
+      document.body.appendChild(stack);
+    }
+    const toast = document.createElement("div");
+    toast.className = `f10-draw-toast ${type}`;
+    toast.innerHTML = `<span>${type === "success" ? "✓" : type === "error" ? "!" : "i"}</span><strong>${escapeHTML(message)}</strong>`;
+    stack.appendChild(toast);
+    requestAnimationFrame(() => toast.classList.add("show"));
+    setTimeout(() => {
+      toast.classList.remove("show");
+      setTimeout(() => toast.remove(), 300);
+    }, 4200);
+  }
+
+  function statusMeta(draw) {
+    if (!draw) return { key: "registration", label: "KAYIT TAMAMLANDI", note: `${registrationRows().length} oyuncu` };
+    if (draw.status === "ready") return { key: "ready", label: "KURA HAZIR", note: "Torbalar kilitli" };
+    if (draw.status === "drawing") return { key: "live", label: "KURA CANLI", note: `${draw.assignments.length}/${draw.participants.length} oyuncu` };
+    return { key: "complete", label: "GRUPLAR KİLİTLİ", note: `${draw.participants.length} oyuncu` };
+  }
+
+  function renderPots(draw) {
+    const pots = potRows(draw);
+    return `<div class="f10-draw-pots">${pots.map((rows, index) => `<article class="pot-${index + 1}"><header><span>TORBA</span><b>${index + 1}</b><small>${rows.length}/3</small></header><div>${rows.map(row => `<div><strong>${escapeHTML(row.name)}</strong><span>${row.elo} ELO</span>${draw?.assignments?.find(item => item.playerId === row.id) ? `<em>GRUP ${draw.assignments.find(item => item.playerId === row.id).group}</em>` : ""}</div>`).join("") || "<p>Boş</p>"}</div></article>`).join("")}</div>`;
+  }
+
+  function renderGroupMini(group, rows, draw) {
+    const isFive = rows.length === 5;
+    return `<article class="f10-draw-group-card group-${group} ${isFive ? "is-five" : ""}"><header><div><span>GROUP</span><strong>${group}</strong></div><b>${rows.length} OYUNCU</b></header><div>${rows.map((row, index) => `<div><i>${index + 1}</i><span><strong>${escapeHTML(row.name)}</strong><small>Torba ${row.pot} · ${row.elo} ELO</small></span></div>`).join("") || `<p>Kura bekleniyor</p>`}</div>${isFive ? `<footer>★ 5 OYUNCULU GRUP · KURA SONUCU</footer>` : ""}</article>`;
+  }
+
+  function renderDrawArena(draw) {
+    const groups = currentGroups(draw);
+    const last = draw?.lastReveal;
+    const remaining = draw ? unassignedPlayers(draw).length : registrationRows().length;
+    const canManage = isAdmin();
+    if (!draw) {
+      return `<div class="f10-draw-ready-panel"><div><span>13 PARTICIPANTS · 5 ELO POTS</span><h4>Kura sistemi hazır.</h4><p>Dört tam torbanın her birinden A, B ve C gruplarına birer oyuncu çekilir. Beşinci torbadaki son oyuncunun çekildiği grup, kurayla 5 oyunculu grup olur.</p></div>${canManage ? `<button type="button" class="f10-draw-primary" data-f10draw-action="prepare-draw">Kayıtları Kilitle ve Kurayı Başlat ↗</button>` : `<strong class="f10-public-wait">Yönetici kura hazırlığını başlatacak.</strong>`}</div>${renderPots(null)}`;
+    }
+    return `<div class="f10-draw-stage">
+      <div class="f10-live-reveal ${last ? "has-reveal" : ""}"><span>${draw.status === "completed" ? "FINAL DRAW RESULT" : "LIVE DRAW REVEAL"}</span>${last ? `<small>TORBA ${last.pot}</small><h4>${escapeHTML(last.playerName)}</h4><div>GRUP <b>${last.group}</b></div><em>${last.elo} ELO</em>` : `<h4>Kura başlamaya hazır</h4><p>İlk oyuncu ve grubu güvenli rastgele seçimle belirlenecek.</p>`}<footer><strong>${draw.assignments.length}/${draw.participants.length}</strong><span>${remaining} oyuncu kaldı</span><code>${escapeHTML(draw.drawId)}</code></footer></div>
+      <div class="f10-draw-controls">${canManage && draw.status !== "completed" ? `<button type="button" class="f10-draw-primary" data-f10draw-action="draw-next" ${moduleBusy || autoDrawing ? "disabled" : ""}>Sıradaki Oyuncuyu Çek</button><button type="button" data-f10draw-action="auto-draw" ${moduleBusy ? "disabled" : ""}>${autoDrawing ? "Otomatik Kurayı Durdur" : "Otomatik Kura"}</button>` : ""}${canManage ? `<button type="button" data-f10draw-action="reset-draw">Kurayı Sıfırla</button><button type="button" class="danger" data-f10draw-action="reopen-registration">Kayıtlara Dön</button>` : ""}</div>
+      <div class="f10-draw-group-grid">${GROUPS.map(group => renderGroupMini(group, groups[group], draw)).join("")}</div>
+      <div class="f10-draw-log"><header><span>KURA KAYDI</span><strong>${draw.assignments.length} işlem</strong></header><div>${[...(draw.assignments || [])].reverse().slice(0, 13).map(item => `<div><i>${String(item.sequence).padStart(2, "0")}</i><span><strong>${escapeHTML(item.playerName)}</strong><small>Torba ${item.pot}</small></span><b>GRUP ${item.group}</b></div>`).join("") || `<p>Henüz çekim yapılmadı.</p>`}</div></div>
+    </div>`;
+  }
+
+  function renderGroupTables(draw) {
+    const groups = currentGroups(draw);
+    return `<div class="f10-groups-full">${GROUPS.map(group => {
+      const rows = groupStandings(group, draw);
+      return `<article class="f10-group-full group-${group}"><header><div><span>GROUP</span><strong>${group}</strong></div><b>${groups[group].length} OYUNCU</b></header><div class="f10-group-members">${groups[group].map(row => `<div><strong>${escapeHTML(row.name)}</strong><span>Torba ${row.pot} · ${row.elo} ELO</span></div>`).join("")}</div><div class="f10-mini-table"><div class="head"><span>#</span><span>Oyuncu</span><span>O</span><span>P</span><span>AV</span></div>${rows.map(row => `<div><span>${row.groupRank}</span><strong>${escapeHTML(row.name)}</strong><span>${row.mp}</span><b>${row.pts}</b><span>${row.gd > 0 ? "+" : ""}${row.gd}</span></div>`).join("")}</div></article>`;
+    }).join("")}</div>`;
+  }
+
+  function renderStandings(draw) {
+    const rows = standings(draw);
+    const played = completedFixtures(draw).length;
+    const total = draw.fixtures?.length || 0;
+    return `<section class="f10-general-standings"><header><div><span>ONE TABLE · PPG RANKING</span><h4>FIFA 10 Genel Puan Sıralaması</h4><p>Farklı grup büyüklükleri maç başına puan ortalamasıyla eşitlenir. Averajın tamamı kullanılır; skor farkına herhangi bir üst sınır uygulanmaz.</p></div><div><strong>${played}/${total}</strong><small>GRUP MAÇI</small></div></header>
+      <div class="f10-ranking-rules"><span>1 · PPG</span><span>2 · TOPLAM PUAN</span><span>3 · GENEL AVERAJ</span><span>4 · ATILAN GOL</span><span>5 · GALİBİYET</span><span>6 · KURA SIRASI</span></div>
+      <div class="f10-standings-scroll"><div class="f10-standings-table"><div class="head"><span>#</span><span>Oyuncu</span><span>Grup</span><span>O</span><span>G</span><span>B</span><span>M</span><span>AG</span><span>YG</span><span>AV</span><span>P</span><span>PPG</span><span>Yol</span></div>${rows.map(row => {
+        const qualification = qualificationLabel(row.rank, rows.length);
+        return `<div class="rank-${row.rank} qualification-${qualification.key}"><span>${row.rank}</span><strong>${escapeHTML(row.name)}</strong><span>${row.group}</span><span>${row.mp}</span><span>${row.w}</span><span>${row.d}</span><span>${row.l}</span><span>${row.gf}</span><span>${row.ga}</span><b>${row.gd > 0 ? "+" : ""}${row.gd}</b><b>${row.pts}</b><strong>${row.ppg.toFixed(3)}</strong><em>${qualification.label}</em></div>`;
+      }).join("")}</div></div>
+      ${renderQualificationPath(rows)}
+    </section>`;
+  }
+
+  function renderQualificationPath(rows) {
+    if (!rows.length) return "";
+    const name = rank => escapeHTML(rows.find(row => row.rank === rank)?.name || `${rank}. Sıra`);
+    return `<div class="f10-qualification-path"><article class="direct"><span>DIRECT QUARTER-FINALISTS</span><div>${[1, 2, 3, 4].map(rank => `<b>${rank}<small>${name(rank)}</small></b>`).join("")}</div></article><article><span>PRELIMINARY GATE</span><strong>12 · ${name(12)} <i>VS</i> 13 · ${name(13)}</strong><small>Best of 3 · kazanan 12. seri olur</small></article><article><span>CHAMPIONSHIP PLAY-IN</span><div class="path-pairs"><b>5 <small>${name(5)}</small><i>VS</i> Gate Winner</b><b>6 <small>${name(6)}</small><i>VS</i> 11 <small>${name(11)}</small></b><b>7 <small>${name(7)}</small><i>VS</i> 10 <small>${name(10)}</small></b><b>8 <small>${name(8)}</small><i>VS</i> 9 <small>${name(9)}</small></b></div></article></div>`;
+  }
+
+  function renderFixtures(draw) {
+    const players = playerMap(draw);
+    const group = GROUPS.includes(fixtureGroupFilter) ? fixtureGroupFilter : "A";
+    const leg = [0, 1, 2, 3].includes(fixtureLegFilter) ? fixtureLegFilter : 0;
+    const fixtures = (draw.fixtures || [])
+      .filter(match => match.group === group && (!leg || match.leg === leg))
+      .sort((a, b) => a.leg - b.leg || a.matchday - b.matchday || a.sequence - b.sequence);
+    return `<section class="f10-fixtures"><header><div><span>TRIPLE CIRCUIT FIXTURES</span><h4>Grup Fikstürü ve Sonuç Merkezi</h4><p>Her rakiplik üç kez oynanır: 4★, 4.5★ ve 5★. Sonuçlar kaydedildiği anda genel PPG tablosu güncellenir.</p></div><b>${draw.fixtures.length} MAÇ</b></header>
+      <div class="f10-fixture-filters"><div>${GROUPS.map(item => `<button type="button" class="${group === item ? "active" : ""}" data-f10draw-action="fixture-group" data-group="${item}">GRUP ${item}</button>`).join("")}</div><div>${[0, 1, 2, 3].map(item => `<button type="button" class="${leg === item ? "active" : ""}" data-f10draw-action="fixture-leg" data-leg="${item}">${item ? `${item}. DEVRE` : "TÜMÜ"}</button>`).join("")}</div></div>
+      <div class="f10-fixture-list">${fixtures.map(match => `<button type="button" class="f10-fixture-row ${match.completed ? "completed" : "pending"}" data-f10draw-action="open-result" data-fixture-id="${escapeHTML(match.id)}" ${isAdmin() ? "" : "disabled"}><span><small>${match.legLabel} · MD ${match.matchday}</small><b>${match.stars}★</b></span><strong>${escapeHTML(players.get(match.homeId)?.name || "–")}</strong><div>${match.completed ? `<b>${match.homeScore}</b><i>–</i><b>${match.awayScore}</b>` : `<em>VS</em>`}</div><strong>${escapeHTML(players.get(match.awayId)?.name || "–")}</strong><span class="teams"><small>${escapeHTML(match.homeTeam || "Takım bekleniyor")}</small><small>${escapeHTML(match.awayTeam || "Takım bekleniyor")}</small></span></button>`).join("") || `<p class="f10-empty-fixtures">Bu filtrede maç bulunamadı.</p>`}</div>
+    </section>`;
+  }
+
+  function renderModule() {
+    const view = document.getElementById("view");
+    if (!view) return;
+    patchExistingInterface();
+    const pageTitle = document.getElementById("pageTitle")?.textContent || "";
+    const relevant = Boolean(view.querySelector("#fifa10Registration, .f10-triple-page, .fifa10-era-dashboard")) || /FIFA 10/.test(pageTitle);
+    const existing = document.getElementById("fifa10DrawCentre");
+    if (!relevant) {
+      existing?.remove();
+      return;
+    }
+    const draft = getDraft();
+    const draw = draft.draw || null;
+    const status = statusMeta(draw);
+    if (draw?.status === "completed" && activeTab === "draw" && sessionStorage.getItem("fifa10-draw-tab-autoset") !== draw.drawId) {
+      activeTab = "groups";
+      sessionStorage.setItem("fifa10-draw-tab-autoset", draw.drawId);
+      persistViewState();
+    }
+    let section = existing;
+    if (!section) {
+      section = document.createElement("section");
+      section.id = "fifa10DrawCentre";
+      section.className = "f10-draw-centre";
+      const registration = view.querySelector("#fifa10Registration");
+      if (registration) registration.insertAdjacentElement("afterend", section);
+      else view.insertAdjacentElement("afterbegin", section);
+    }
+    const tabs = [
+      ["draw", "KURA"],
+      ["groups", "GRUPLAR"],
+      ["standings", "GENEL PUAN"],
+      ["fixtures", "FİKSTÜR"]
+    ];
+    const html = `<header class="f10-draw-hero"><div><span>FIFA 10 · OFFICIAL DRAW ENGINE</span><h3>Kura çekimi.<br><em>Üç grup, tek sıralama.</em></h3><p>13 katılımcı ELO torbalarından canlı kurayla A, B ve C gruplarına dağıtılır. Beş oyunculu grubun hangisi olacağı önceden belirlenmez; son torba çekimiyle ortaya çıkar.</p></div><aside class="status-${status.key}"><i></i><strong>${status.label}</strong><small>${status.note}</small>${draw?.fivePlayerGroup ? `<b>5 OYUNCULU GRUP · ${draw.fivePlayerGroup}</b>` : `<b>5 OYUNCULU GRUP · KURADA</b>`}</aside></header>
+      <nav class="f10-draw-tabs">${tabs.map(([id, label]) => `<button type="button" class="${activeTab === id ? "active" : ""}" data-f10draw-action="tab" data-tab="${id}" ${!draw && id !== "draw" ? "disabled" : ""}>${label}</button>`).join("")}</nav>
+      <div class="f10-draw-content">${activeTab === "draw" ? renderDrawArena(draw) : activeTab === "groups" ? (draw ? renderGroupTables(draw) : renderDrawArena(null)) : activeTab === "standings" ? (draw?.status === "completed" ? renderStandings(draw) : renderDrawArena(draw)) : (draw?.status === "completed" ? renderFixtures(draw) : renderDrawArena(draw))}</div>
+      <footer class="f10-draw-footer"><span>GENEL SIRALAMA: PPG → TOPLAM PUAN → TAM AVERAJ → ATILAN GOL → GALİBİYET → KURA SIRASI</span><b>AVERAGE-POINT TABLE · NO GD CAP</b></footer>`;
+    const renderSignature = JSON.stringify({
+      tab: activeTab,
+      groupFilter: fixtureGroupFilter,
+      legFilter: fixtureLegFilter,
+      admin: isAdmin(),
+      busy: moduleBusy,
+      auto: autoDrawing,
+      registrations: registrationRows().map(row => `${row.id}:${row.elo}`).join("|"),
+      draw: draw ? `${draw.drawId}:${draw.status}:${draw.updatedAt}:${draw.assignments?.length || 0}:${draw.fixtures?.filter(item => item.completed).length || 0}` : "none"
+    });
+    if (lastRenderSignature !== renderSignature || section.innerHTML !== html) {
+      section.innerHTML = html;
+      lastRenderSignature = renderSignature;
+    }
+    patchRegistrationLock(draw);
+  }
+
+  function patchExistingInterface() {
+    const navLabel = document.querySelector('.os-primary-nav [data-nav="seasonhub"] span');
+    if (navLabel && navLabel.textContent !== "Format & Kura") navLabel.textContent = "Format & Kura";
+    const version = document.querySelector(".sidebar-version");
+    const versionText = `Football Universe · V${VERSION} · Live Draw & PPG Engine`;
+    if (version && version.textContent !== versionText) version.textContent = versionText;
+    const meta = document.querySelector('meta[name="fifa9-build"]');
+    const metaValue = `${VERSION}-live-draw-ppg-engine`;
+    if (meta && meta.content !== metaValue) meta.content = metaValue;
+    const url = new URL(location.href);
+    if (url.searchParams.get("fifa9build") !== "47130") {
+      url.searchParams.set("fifa9build", "47130");
+      history.replaceState(history.state, "", url);
+    }
+    document.querySelectorAll(".f10-format-spine article").forEach(article => {
+      const tag = article.querySelector("small")?.textContent?.trim();
+      if (tag === "GROUP DRAW") {
+        const metaNode = article.querySelector("strong");
+        if (metaNode && metaNode.textContent !== "13 oyuncu · 5-4-4 · 5 kişilik grup kurada belirlenir") metaNode.textContent = "13 oyuncu · 5-4-4 · 5 kişilik grup kurada belirlenir";
+      }
+      if (tag === "ONE TABLE") {
+        const desc = article.querySelector("p");
+        const metaNode = article.querySelector("strong");
+        if (desc && desc.textContent !== "Bütün oyuncular tek tabloda maç başına puan ortalamasıyla sıralanır.") desc.textContent = "Bütün oyuncular tek tabloda maç başına puan ortalamasıyla sıralanır.";
+        if (metaNode && metaNode.textContent !== "PPG · toplam puan · tam averaj · atılan gol") metaNode.textContent = "PPG · toplam puan · tam averaj · atılan gol";
+      }
+    });
+    const footer = document.querySelector("#fifa10Registration > footer span");
+    const footerText = "Torbalar ELO sırasıyla 3'er oyuncu olarak doldu. Dört tam torbadan her gruba birer oyuncu gidecek; Torba 5 oyuncusunun çekildiği grup 5 kişilik olacak.";
+    if (footer && footer.textContent !== footerText) footer.textContent = footerText;
+  }
+
+  function patchRegistrationLock(draw) {
+    const locked = Boolean(draw);
+    const section = document.getElementById("fifa10Registration");
+    if (!section) return;
+    section.classList.toggle("f10-registration-draw-locked", locked);
+    if (locked) {
+      section.querySelectorAll('[data-action="remove-fifa10-registration"]').forEach(button => {
+        button.disabled = true;
+        button.hidden = true;
+      });
+      const submit = section.querySelector(".f10-registration-submit");
+      if (submit) submit.disabled = true;
+    }
+  }
+
+  function persistViewState() {
+    sessionStorage.setItem("fifa10-draw-active-tab", activeTab);
+    sessionStorage.setItem("fifa10-fixture-group", fixtureGroupFilter);
+    sessionStorage.setItem("fifa10-fixture-leg", String(fixtureLegFilter));
+  }
+
+  function scheduleRender() {
+    if (renderQueued) return;
+    renderQueued = true;
+    requestAnimationFrame(() => {
+      renderQueued = false;
+      try { renderModule(); } catch (error) { console.warn("FIFA 10 draw render failed", error); }
+    });
+  }
+
+  async function reloadAll() {
+    await Promise.all([fetchPayload(), fetchRegistrations()]);
+    subscribeRealtime();
+    scheduleRender();
+  }
+
+  function subscribeRealtime() {
+    const client = cloudClient();
+    if (!client || realtimeChannel) return;
+    realtimeChannel = client
+      .channel(`fifa10-draw-engine-${Math.random().toString(36).slice(2)}`)
+      .on("postgres_changes", {
+        event: "*",
+        schema: "public",
+        table: "tournament_state",
+        filter: `id=eq.${rowId()}`
+      }, event => {
+        if (event.new?.payload) {
+          payload = ensurePayloadShape(event.new.payload);
+          lastLoadAt = Date.now();
+          scheduleRender();
+        }
+      })
+      .subscribe();
+  }
+
+  async function waitForApplication() {
+    for (let attempt = 0; attempt < 80; attempt += 1) {
+      const appReady = document.getElementById("view") && window.FIFA10_REGISTRATION_CLOUD && window.FIFA_CLOUD;
+      const cloudReady = !cloudConfigured() || Boolean(cloudClient());
+      if (appReady && cloudReady) return true;
+      await sleep(100);
+    }
+    return false;
+  }
+
+  function installStyles() {
+    if (document.getElementById("fifa10DrawStyles")) return;
+    const style = document.createElement("style");
+    style.id = "fifa10DrawStyles";
+    style.textContent = `
+      :root{--f10d-bg:#050b1d;--f10d-panel:#0b1433;--f10d-panel2:#11183d;--f10d-line:rgba(125,151,255,.22);--f10d-blue:#45a7ff;--f10d-purple:#9d67ff;--f10d-magenta:#df52f4;--f10d-ice:#f4f7ff;--f10d-muted:#9aa7c9;--f10d-gold:#e5bd63;--f10d-green:#52e4a0;--f10d-red:#ff657b}
+      .f10-draw-centre{position:relative;margin:28px 0;border:1px solid var(--f10d-line);border-radius:30px;overflow:hidden;background:linear-gradient(145deg,rgba(7,16,43,.98),rgba(24,16,58,.96));box-shadow:0 34px 90px rgba(0,0,0,.3)}
+      .f10-draw-centre:before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at 15% 0%,rgba(69,167,255,.14),transparent 33%),radial-gradient(circle at 90% 10%,rgba(223,82,244,.12),transparent 30%)}
+      .f10-draw-hero{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 230px;gap:24px;padding:38px 42px;border-bottom:1px solid var(--f10d-line)}
+      .f10-draw-hero>div>span,.f10-draw-hero aside b,.f10-draw-footer,.f10-draw-tabs button{font-size:10px;letter-spacing:.17em;font-weight:900;text-transform:uppercase}
+      .f10-draw-hero>div>span{color:#82bfff}.f10-draw-hero h3{margin:12px 0 14px;font-size:clamp(34px,5vw,68px);line-height:.94;color:var(--f10d-ice);letter-spacing:-.05em}.f10-draw-hero h3 em{font-style:normal;background:linear-gradient(90deg,#77c7ff,#b78cff,#ef77db);-webkit-background-clip:text;color:transparent}.f10-draw-hero p{max-width:790px;margin:0;color:var(--f10d-muted);font-size:15px;line-height:1.75}
+      .f10-draw-hero aside{align-self:start;display:grid;gap:8px;padding:19px 20px;border:1px solid var(--f10d-line);border-radius:18px;background:rgba(10,18,46,.78)}.f10-draw-hero aside i{width:9px;height:9px;border-radius:50%;background:var(--f10d-blue);box-shadow:0 0 15px currentColor}.f10-draw-hero aside strong{color:var(--f10d-ice);font-size:13px}.f10-draw-hero aside small{color:var(--f10d-muted)}.f10-draw-hero aside b{color:var(--f10d-gold);margin-top:6px}.f10-draw-hero aside.status-live i{background:var(--f10d-green)}.f10-draw-hero aside.status-complete i{background:var(--f10d-gold)}
+      .f10-draw-tabs{position:relative;display:flex;gap:8px;padding:15px 28px;border-bottom:1px solid var(--f10d-line);background:rgba(3,8,24,.48);overflow:auto}.f10-draw-tabs button{border:1px solid transparent;border-radius:12px;padding:12px 18px;color:#8e9abd;background:transparent;cursor:pointer;white-space:nowrap}.f10-draw-tabs button.active{color:white;border-color:rgba(116,153,255,.4);background:linear-gradient(90deg,rgba(69,167,255,.18),rgba(157,103,255,.2))}.f10-draw-tabs button:disabled{opacity:.35;cursor:not-allowed}
+      .f10-draw-content{position:relative;padding:30px}.f10-draw-footer{position:relative;display:flex;justify-content:space-between;gap:20px;padding:17px 30px;border-top:1px solid var(--f10d-line);color:#94a4c8}.f10-draw-footer b{color:#78c8ff}
+      .f10-draw-ready-panel{display:flex;align-items:end;justify-content:space-between;gap:24px;padding:26px;border:1px solid var(--f10d-line);border-radius:22px;background:linear-gradient(120deg,rgba(30,53,103,.38),rgba(80,36,107,.2));margin-bottom:22px}.f10-draw-ready-panel span{font-size:10px;letter-spacing:.18em;color:#7cc5ff;font-weight:900}.f10-draw-ready-panel h4{font-size:30px;color:white;margin:8px 0}.f10-draw-ready-panel p{max-width:760px;color:var(--f10d-muted);line-height:1.65}.f10-draw-primary,.f10-draw-controls button{border:1px solid var(--f10d-line);border-radius:13px;padding:13px 18px;font-weight:900;color:white;background:rgba(28,40,81,.75);cursor:pointer}.f10-draw-primary{background:linear-gradient(90deg,#347fff,#a84df3)!important;border:0!important;box-shadow:0 12px 30px rgba(74,82,255,.24)}.f10-draw-controls button.danger{color:#ff95a5;border-color:rgba(255,101,123,.3)}.f10-draw-controls button:disabled{opacity:.45;cursor:wait}.f10-public-wait{color:var(--f10d-gold)}
+      .f10-draw-pots{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}.f10-draw-pots article{border:1px solid var(--f10d-line);border-radius:18px;overflow:hidden;background:rgba(7,14,37,.7)}.f10-draw-pots article>header{display:grid;grid-template-columns:1fr auto;gap:4px;padding:15px;border-bottom:1px solid var(--f10d-line)}.f10-draw-pots header span{font-size:9px;letter-spacing:.16em;color:#8492b7}.f10-draw-pots header b{font-size:27px;color:var(--f10d-gold)}.f10-draw-pots header small{grid-column:1/3;color:#7ec8ff}.f10-draw-pots article>div{padding:10px;display:grid;gap:8px}.f10-draw-pots article>div>div{display:grid;gap:4px;padding:11px;border-radius:11px;background:rgba(255,255,255,.045)}.f10-draw-pots strong{font-size:12px;color:white}.f10-draw-pots span{font-size:10px;color:#7dc7ff}.f10-draw-pots em{font-style:normal;color:#d699ff;font-size:9px;font-weight:900;letter-spacing:.12em}.f10-draw-pots p{color:#7f8caf;font-size:11px}
+      .f10-draw-stage{display:grid;grid-template-columns:310px minmax(0,1fr);gap:18px}.f10-live-reveal{grid-row:span 2;display:flex;flex-direction:column;justify-content:center;min-height:390px;padding:28px;border:1px solid rgba(117,159,255,.34);border-radius:24px;background:radial-gradient(circle at 50% 35%,rgba(88,145,255,.25),transparent 38%),linear-gradient(160deg,#0c193b,#171036);text-align:center;overflow:hidden}.f10-live-reveal>span{font-size:9px;letter-spacing:.2em;color:#83c9ff;font-weight:900}.f10-live-reveal small{margin-top:30px;color:var(--f10d-gold);letter-spacing:.15em}.f10-live-reveal h4{font-size:31px;color:white;margin:12px 0;line-height:1.05}.f10-live-reveal>div{font-size:16px;color:#aab6d7}.f10-live-reveal>div b{display:block;font-size:96px;line-height:1;color:var(--f10d-gold);text-shadow:0 0 38px rgba(229,189,99,.32)}.f10-live-reveal em{color:#70c7ff;font-style:normal}.f10-live-reveal footer{display:grid;grid-template-columns:auto 1fr;margin-top:auto;padding-top:24px;border-top:1px solid var(--f10d-line);text-align:left}.f10-live-reveal footer strong{color:white}.f10-live-reveal footer span{color:#8593b7;text-align:right}.f10-live-reveal footer code{grid-column:1/3;margin-top:9px;color:#6c7898;font-size:9px}.f10-live-reveal.has-reveal{animation:f10Reveal .55s ease both}@keyframes f10Reveal{from{transform:scale(.97);filter:brightness(1.6)}to{transform:scale(1);filter:brightness(1)}}
+      .f10-draw-controls{display:flex;flex-wrap:wrap;gap:9px}.f10-draw-group-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}.f10-draw-group-card{border:1px solid var(--f10d-line);border-radius:19px;background:rgba(8,16,40,.76);overflow:hidden}.f10-draw-group-card>header{display:flex;justify-content:space-between;align-items:center;padding:15px;border-bottom:1px solid var(--f10d-line)}.f10-draw-group-card>header div{display:flex;align-items:end;gap:8px}.f10-draw-group-card header span{font-size:9px;color:#7a8aac;letter-spacing:.14em}.f10-draw-group-card header strong{font-size:30px;color:var(--f10d-gold)}.f10-draw-group-card header b{font-size:9px;color:#76c9ff;letter-spacing:.12em}.f10-draw-group-card>div{display:grid;gap:6px;padding:10px}.f10-draw-group-card>div>div{display:flex;align-items:center;gap:9px;padding:9px;border-radius:10px;background:rgba(255,255,255,.04)}.f10-draw-group-card i{font-style:normal;width:22px;color:#7382a9}.f10-draw-group-card span strong{display:block;color:white;font-size:11px}.f10-draw-group-card span small{color:#7f8eb3;font-size:9px}.f10-draw-group-card>p{padding:22px;color:#7785aa}.f10-draw-group-card footer{padding:9px 13px;color:var(--f10d-gold);font-size:8px;font-weight:900;letter-spacing:.12em;background:rgba(229,189,99,.07)}.f10-draw-group-card.is-five{border-color:rgba(229,189,99,.48)}
+      .f10-draw-log{grid-column:1/3;border:1px solid var(--f10d-line);border-radius:18px;background:rgba(5,12,31,.65);overflow:hidden}.f10-draw-log>header{display:flex;justify-content:space-between;padding:13px 16px;border-bottom:1px solid var(--f10d-line);font-size:9px;letter-spacing:.14em;color:#8090b5}.f10-draw-log>div{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--f10d-line)}.f10-draw-log>div>div{display:flex;gap:10px;align-items:center;padding:11px;background:#09122d}.f10-draw-log i{font-style:normal;color:#647295}.f10-draw-log span{flex:1}.f10-draw-log strong{display:block;color:white;font-size:11px}.f10-draw-log small{color:#7483a8}.f10-draw-log b{color:var(--f10d-gold);font-size:9px}.f10-draw-log p{padding:20px;background:#09122d;color:#7685aa}
+      .f10-groups-full{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.f10-group-full{border:1px solid var(--f10d-line);border-radius:22px;overflow:hidden;background:rgba(7,14,36,.72)}.f10-group-full>header{display:flex;justify-content:space-between;align-items:center;padding:20px;border-bottom:1px solid var(--f10d-line)}.f10-group-full>header div{display:flex;align-items:end;gap:10px}.f10-group-full>header span{font-size:9px;color:#7d8cb1}.f10-group-full>header strong{font-size:42px;color:var(--f10d-gold)}.f10-group-full>header b{color:#79c9ff;font-size:10px}.f10-group-members{padding:12px;display:grid;gap:7px}.f10-group-members>div{padding:11px;border-radius:11px;background:rgba(255,255,255,.04)}.f10-group-members strong{display:block;color:white}.f10-group-members span{color:#7f8db0;font-size:10px}.f10-mini-table{border-top:1px solid var(--f10d-line)}.f10-mini-table>div{display:grid;grid-template-columns:26px 1fr repeat(3,38px);align-items:center;padding:9px 12px;border-bottom:1px solid rgba(125,151,255,.1);font-size:10px;color:#a6b2d0}.f10-mini-table .head{font-size:8px;letter-spacing:.12em;color:#6e7ca1}.f10-mini-table strong{color:white}.f10-mini-table b{color:var(--f10d-gold)}
+      .f10-general-standings>header,.f10-fixtures>header{display:flex;justify-content:space-between;gap:20px;align-items:end;margin-bottom:18px}.f10-general-standings>header span,.f10-fixtures>header span{font-size:9px;letter-spacing:.18em;color:#7ec8ff;font-weight:900}.f10-general-standings h4,.f10-fixtures h4{font-size:28px;color:white;margin:7px 0}.f10-general-standings p,.f10-fixtures p{max-width:850px;color:#8e9bbb;line-height:1.6}.f10-general-standings>header>div:last-child{display:grid;text-align:right}.f10-general-standings>header>div:last-child strong{font-size:30px;color:var(--f10d-gold)}.f10-general-standings>header>div:last-child small{color:#7e8daf;font-size:9px}.f10-ranking-rules{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}.f10-ranking-rules span{padding:8px 10px;border:1px solid var(--f10d-line);border-radius:8px;color:#95a5c8;font-size:8px;font-weight:900;letter-spacing:.1em}.f10-standings-scroll{overflow:auto;border:1px solid var(--f10d-line);border-radius:18px}.f10-standings-table{min-width:1130px}.f10-standings-table>div{display:grid;grid-template-columns:35px minmax(170px,1fr) 45px repeat(9,48px) 105px;align-items:center;min-height:46px;padding:0 12px;border-bottom:1px solid rgba(125,151,255,.1);color:#9ca9c8;font-size:11px}.f10-standings-table .head{position:sticky;top:0;background:#0b1433;color:#7180a4;font-size:8px;letter-spacing:.1em;z-index:2}.f10-standings-table strong{color:white}.f10-standings-table b{color:#d6ddf2}.f10-standings-table em{font-style:normal;font-size:8px;font-weight:900;color:#76c9ff;letter-spacing:.08em}.f10-standings-table .rank-1,.f10-standings-table .rank-2,.f10-standings-table .rank-3,.f10-standings-table .rank-4{background:linear-gradient(90deg,rgba(69,167,255,.09),rgba(157,103,255,.07))}.f10-standings-table .qualification-direct em{color:var(--f10d-gold)}.f10-standings-table .qualification-gate em{color:#ff9aa9}
+      .f10-qualification-path{display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:12px;margin-top:15px}.f10-qualification-path article{padding:16px;border:1px solid var(--f10d-line);border-radius:15px;background:rgba(8,16,40,.65)}.f10-qualification-path article>span{display:block;margin-bottom:10px;color:#7cc8ff;font-size:8px;font-weight:900;letter-spacing:.14em}.f10-qualification-path .direct>div{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.f10-qualification-path b{display:block;color:var(--f10d-gold);font-size:18px}.f10-qualification-path b small{display:block;color:#a5b0cc;font-size:9px;font-weight:500;margin-top:4px}.f10-qualification-path i{font-style:normal;color:#7583a7;margin:0 5px}.f10-qualification-path article>small{color:#7584a8}.path-pairs{display:grid;grid-template-columns:1fr 1fr;gap:7px}.path-pairs b{padding:8px;border-radius:9px;background:rgba(255,255,255,.04);font-size:11px;color:white}
+      .f10-fixtures>header>b{color:var(--f10d-gold)}.f10-fixture-filters{display:flex;justify-content:space-between;gap:12px;margin-bottom:13px}.f10-fixture-filters>div{display:flex;gap:6px;overflow:auto}.f10-fixture-filters button{padding:9px 12px;border:1px solid var(--f10d-line);border-radius:9px;background:transparent;color:#8795b8;font-size:9px;font-weight:900;cursor:pointer;white-space:nowrap}.f10-fixture-filters button.active{background:linear-gradient(90deg,rgba(69,167,255,.18),rgba(157,103,255,.2));color:white}.f10-fixture-list{display:grid;gap:7px}.f10-fixture-row{display:grid;grid-template-columns:115px minmax(150px,1fr) 90px minmax(150px,1fr) 170px;align-items:center;gap:12px;width:100%;padding:13px;border:1px solid var(--f10d-line);border-radius:13px;background:rgba(7,14,36,.7);color:white;text-align:left}.f10-fixture-row:not(:disabled){cursor:pointer}.f10-fixture-row:disabled{opacity:.85}.f10-fixture-row>span:first-child{display:flex;justify-content:space-between;align-items:center}.f10-fixture-row small{color:#7f8db1}.f10-fixture-row>div{display:flex;justify-content:center;gap:8px;font-size:17px}.f10-fixture-row>div b{color:var(--f10d-gold)}.f10-fixture-row em{font-style:normal;color:#7fc9ff;font-size:10px}.f10-fixture-row .teams{display:grid;gap:2px;text-align:right}.f10-fixture-row.completed{border-color:rgba(82,228,160,.22)}.f10-empty-fixtures{padding:28px;text-align:center;border:1px dashed var(--f10d-line);border-radius:15px;color:#8391b5}
+      .f10-draw-modal-backdrop{position:fixed;inset:0;z-index:10050;display:grid;place-items:center;padding:18px;background:rgba(1,5,17,.82);backdrop-filter:blur(12px)}.f10-draw-modal{width:min(720px,100%);border:1px solid var(--f10d-line);border-radius:23px;background:linear-gradient(145deg,#0a1432,#18103b);box-shadow:0 30px 90px rgba(0,0,0,.55);overflow:hidden}.f10-draw-modal>header{display:flex;justify-content:space-between;align-items:center;padding:20px 23px;border-bottom:1px solid var(--f10d-line)}.f10-draw-modal header span{font-size:9px;letter-spacing:.16em;color:#7dc8ff}.f10-draw-modal h3{color:white;font-size:25px;margin:5px 0 0}.f10-draw-modal header button{border:0;background:transparent;color:white;font-size:25px;cursor:pointer}.f10-draw-modal form{padding:22px}.f10-result-versus{display:grid;grid-template-columns:1fr 50px 1fr;gap:14px;align-items:center}.f10-result-versus label{display:grid;gap:7px}.f10-result-versus label strong{color:white;font-size:16px}.f10-result-versus label span{color:#8290b3;font-size:9px}.f10-result-versus input{width:100%;padding:12px;border:1px solid var(--f10d-line);border-radius:10px;background:#07122e;color:white}.f10-result-versus>b{text-align:center;color:var(--f10d-gold)}.f10-modal-rule{margin:18px 0;color:#8795b7;font-size:11px;line-height:1.55}.f10-draw-modal footer{display:flex;justify-content:flex-end;gap:8px}.f10-draw-modal footer button{padding:11px 15px;border:1px solid var(--f10d-line);border-radius:10px;background:transparent;color:white;font-weight:800;cursor:pointer}.f10-draw-modal footer button.primary{background:linear-gradient(90deg,#347fff,#a84df3);border:0}.f10-draw-modal footer button.danger{margin-right:auto;color:#ff8d9d;border-color:rgba(255,101,123,.3)}
+      .f10-draw-toast-stack{position:fixed;right:20px;bottom:22px;z-index:11000;display:grid;gap:8px;width:min(390px,calc(100vw - 40px))}.f10-draw-toast{display:flex;gap:10px;align-items:center;padding:13px 15px;border:1px solid var(--f10d-line);border-radius:13px;background:#0a1432;color:white;box-shadow:0 16px 40px rgba(0,0,0,.35);opacity:0;transform:translateY(12px);transition:.25s}.f10-draw-toast.show{opacity:1;transform:none}.f10-draw-toast span{display:grid;place-items:center;width:25px;height:25px;border-radius:50%;background:rgba(69,167,255,.14);color:#7dc9ff}.f10-draw-toast.success span{color:var(--f10d-green)}.f10-draw-toast.error span{color:var(--f10d-red)}
+      .f10-registration-draw-locked{position:relative}.f10-registration-draw-locked:after{content:"KURA İÇİN KİLİTLENDİ";position:absolute;top:18px;right:180px;padding:7px 10px;border:1px solid rgba(229,189,99,.3);border-radius:8px;background:rgba(229,189,99,.08);color:var(--f10d-gold);font-size:8px;font-weight:900;letter-spacing:.13em}
+      @media(max-width:1100px){.f10-draw-hero{grid-template-columns:1fr}.f10-draw-hero aside{width:100%}.f10-draw-pots{grid-template-columns:repeat(3,1fr)}.f10-draw-stage{grid-template-columns:1fr}.f10-live-reveal{grid-row:auto;min-height:310px}.f10-draw-log{grid-column:auto}.f10-groups-full{grid-template-columns:1fr}.f10-qualification-path{grid-template-columns:1fr}.f10-fixture-row{grid-template-columns:95px 1fr 70px 1fr}.f10-fixture-row .teams{grid-column:2/5;grid-template-columns:1fr 1fr;text-align:left}.f10-draw-group-grid{grid-template-columns:repeat(3,1fr)}}
+      @media(max-width:720px){.f10-draw-centre{border-radius:20px;margin:18px 0}.f10-draw-hero{padding:27px 20px}.f10-draw-hero h3{font-size:39px}.f10-draw-content{padding:18px 12px}.f10-draw-footer{display:grid;padding:15px 18px;font-size:8px}.f10-draw-ready-panel{display:grid;align-items:start}.f10-draw-pots{grid-template-columns:1fr}.f10-draw-group-grid{grid-template-columns:1fr}.f10-draw-log>div{grid-template-columns:1fr}.f10-live-reveal>div b{font-size:75px}.f10-fixture-filters{display:grid}.f10-fixture-row{grid-template-columns:80px 1fr 50px 1fr;padding:11px 8px;gap:6px}.f10-fixture-row>span:first-child{display:grid}.f10-fixture-row>strong{font-size:10px}.f10-fixture-row .teams{grid-column:1/5}.f10-result-versus{grid-template-columns:1fr}.f10-result-versus>b{padding:4px}.f10-draw-modal footer{flex-wrap:wrap}.f10-registration-draw-locked:after{position:static;display:inline-block;margin:10px 18px}.f10-draw-tabs{padding:12px}.f10-standings-table>div{font-size:10px}}
+    `;
+    document.head.appendChild(style);
+  }
+
+  async function handleClick(event) {
+    const button = event.target.closest("[data-f10draw-action]");
+    if (!button) return;
+    const action = button.dataset.f10drawAction;
+    event.preventDefault();
+    try {
+      if (action === "tab") {
+        activeTab = button.dataset.tab || "draw";
+        persistViewState();
+        scheduleRender();
+      } else if (action === "prepare-draw") await prepareDraw();
+      else if (action === "draw-next") await drawNext();
+      else if (action === "auto-draw") await startAutoDraw();
+      else if (action === "reset-draw") await resetDraw({ reopenRegistration: false });
+      else if (action === "reopen-registration") await resetDraw({ reopenRegistration: true });
+      else if (action === "fixture-group") {
+        fixtureGroupFilter = button.dataset.group || "A";
+        persistViewState(); scheduleRender();
+      } else if (action === "fixture-leg") {
+        fixtureLegFilter = Number(button.dataset.leg || 0);
+        persistViewState(); scheduleRender();
+      } else if (action === "open-result") {
+        if (!isAdmin()) return;
+        openResultModal(button.dataset.fixtureId);
+      } else if (action === "close-modal") closeModal();
+      else if (action === "clear-result") await clearResult(button.dataset.fixtureId);
+    } catch (error) {
+      notify(String(error?.message || error || "İşlem tamamlanamadı."), "error");
+    }
+  }
+
+  async function handleSubmit(event) {
+    if (event.target?.id !== "f10DrawResultForm") return;
+    event.preventDefault();
+    try { await saveResult(event.target); } catch (error) { notify(String(error?.message || error), "error"); }
+  }
+
+  async function boot() {
+    const ready = await waitForApplication();
+    if (!ready) return;
+    installStyles();
+    document.addEventListener("click", handleClick);
+    document.addEventListener("submit", handleSubmit);
+    observer = new MutationObserver(scheduleRender);
+    const view = document.getElementById("view");
+    if (view) observer.observe(view, { childList: true, subtree: true });
+    await reloadAll();
+    subscribeRealtime();
+    setInterval(() => reloadAll().catch(() => {}), REFRESH_MS);
+    window.FIFA10_DRAW_ENGINE = {
+      version: VERSION,
+      standings: () => standings(getDraw()),
+      drawState: () => deepClone(getDraw()),
+      refresh: reloadAll,
+      generateFixtures,
+      secureShuffle
+    };
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot, { once: true });
+  else boot();
+})();

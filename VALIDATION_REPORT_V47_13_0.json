@@ -1,0 +1,24 @@
+{
+  "version": "47.13.0",
+  "status": "PASS",
+  "checks": [
+    "JavaScript syntax",
+    "13 players => sequential pots 3-3-3-3-1",
+    "random fifth-player group produces 5-4-4",
+    "one player from every full pot per group",
+    "triple round-robin fixture generation",
+    "4-player group => 18 fixtures",
+    "5-player group => 30 fixtures",
+    "total group stage => 66 fixtures",
+    "every player pair meets at 4, 4.5 and 5 stars",
+    "PPG is primary overall ranking criterion",
+    "total points is first PPG tie-breaker",
+    "uncapped full goal difference",
+    "result entry and result clearing",
+    "team passport duplicate-team check",
+    "Supabase payload persistence",
+    "public realtime draw rendering",
+    "registration lock after draw preparation",
+    "mobile responsive draw centre"
+  ]
+}

@@ -1,4 +1,4 @@
-const CACHE = "oruc-reis-football-universe-v47-12-2-three-group-sequential-pots";
+const CACHE = "oruc-reis-football-universe-v47-13-0-live-draw-ppg-engine";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -14,6 +14,7 @@ const APP_SHELL = [
   "./fifa10-league-return.css",
   "./fifa10-triple-circuit-v4712.css",
   "./fifa10-registration-cloud.js",
+  "./fifa10-draw-engine-v4713.js",
   "./fifa9-experience-hub.css",
   "./fifa9-experience-hub.js",
   "./final-chapter-progression.css",

@@ -1,0 +1,14 @@
+FIFA 10 V47.13.0 — KURA SİSTEMİ
+
+1. Siteyi yönetici hesabıyla açın.
+2. FIFA 10 / Format & Kura sayfasına gidin.
+3. “Kayıtları Kilitle ve Kurayı Başlat” düğmesine basın.
+4. Oyuncuları tek tek çekin veya “Otomatik Kura” seçeneğini kullanın.
+5. Torba 5 oyuncusunun çekildiği grup otomatik olarak 5 oyunculu grup olur.
+6. Kura tamamlanınca 66 maçlık üç devreli fikstür otomatik oluşturulur.
+7. Fikstür sekmesinden maçlara dokunarak skor ve takım bilgilerini girin.
+8. Genel sıralama otomatik olarak PPG üzerinden hesaplanır.
+9. Averaj kısıtlaması yoktur; gerçek toplam gol farkı kullanılır.
+
+Sıralama:
+PPG → Toplam Puan → Genel Averaj → Atılan Gol → Galibiyet → Kura Sırası

@@ -1,0 +1,22 @@
+ORUÇ REİS FIFA WORLD V47.13.0
+FIFA 10 LIVE DRAW, FIXTURE & PPG STANDINGS ENGINE
+
+- Added an operational FIFA 10 live group-draw centre.
+- Uses the completed 13-player ELO registration list and sequential 3-player pots.
+- Pot 1–4 each send exactly one player to Groups A, B and C.
+- The Pot 5 player is drawn randomly into one eligible group; that group becomes the 5-player group.
+- The 5-player group is no longer preassigned to Group A.
+- Registration is locked when the official draw is prepared.
+- Added secure one-by-one draw, automatic draw and permanent draw audit log.
+- Added live public group display and administrator reset controls.
+- Generates the full three-leg group fixture automatically after the draw.
+- 4-player groups: 18 matches each; 5-player group: 30 matches; 66 total group matches.
+- Leg 1 uses 4-star teams, Leg 2 uses 4.5-star teams, Leg 3 uses 5-star teams.
+- Added administrator score and team-entry centre.
+- Team passport validation blocks a player from reusing the same recorded club.
+- Added Group A/B/C tables and one general cross-group standings table.
+- General ranking primary criterion is points per game (PPG).
+- Tie-break order: total points, full goal difference, goals scored, wins, locked draw-lot order.
+- Goal difference is uncapped; the actual full score difference is used.
+- Added live qualification path for Top 4 direct quarter-finals, Preliminary Gate and Best-of-3 Play-In.
+- Existing FIFA 09 results, legacy records and Supabase tournament data structure remain preserved.
