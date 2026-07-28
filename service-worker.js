@@ -1,4 +1,4 @@
-const CACHE = "oruc-reis-football-universe-v47-13-2-draw-button-hotfix";
+const CACHE = "oruc-reis-football-universe-v47-14-0-tournament-operations";
 const APP_SHELL = [
   "./",
   "./index.html",

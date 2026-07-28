@@ -1,0 +1,43 @@
+ORUÇ REİS FIFA WORLD V47.14.0
+FIFA 10 — MANUEL GRUP GİRİŞİ, FİKSTÜR VE PPG MOTORU
+
+BU PAKET NEDEN FARKLI?
+Önceki V47.13 paketleri yalnızca ek modül dosyalarını değiştiriyordu. Bu paket index.html dosyasını da içerir ve turnuva motorunu doğrudan yükler. Böylece butonun görünmesine rağmen çalışmaması / eski cache kullanılması problemi ortadan kaldırılır.
+
+KURULUM
+1. ZIP dosyasını bilgisayarınızda çıkartın.
+2. İçindeki index.html, app.js, fifa10-draw-engine-v4713.js, fifa10-registration-cloud.js ve service-worker.js dosyalarını repository ana dizinine yükleyin.
+3. Mevcut dosyaların üzerine yazılmasını onaylayın.
+4. Deploy tamamlanınca siteyi Ctrl + Shift + R ile yenileyin.
+5. Adres çubuğunda ?fifa9build=47140 görünmelidir.
+
+KURASI DAHA ÖNCE ÇEKİLEN GRUPLARI GİRME
+1. FIFA 10 > Format & Kura sayfasına girin.
+2. “Çekilen Grupları Elle Gir” butonuna basın.
+3. Her oyuncu için A, B veya C grubunu seçin.
+4. Sistem aynı torbadan iki oyuncunun aynı gruba yazılmasını engeller.
+5. 14 oyuncuda geçerli dağılım 5-5-4'tür. Hangi grubun 4 veya 5 kişilik olduğu sizin girdiğiniz gerçek kura sonucuna göre belirlenir.
+6. Bütün oyuncular yerleşince “Grupları Kaydet ve Fikstürü Oluştur” aktif olur.
+7. Sistem 3 devre için toplam 78 grup maçı üretir.
+
+SONUÇ GİRİŞİ
+- FİKSTÜR sekmesini açın.
+- Grup ve devre filtresini seçin.
+- Maça dokunup takımları ve skoru girin.
+- GENEL PUAN sekmesi anında güncellenir.
+
+SIRALAMA
+1. Puan ortalaması (PPG)
+2. Toplam puan
+3. Tam genel averaj — herhangi bir sınır uygulanmaz
+4. Atılan gol
+5. Galibiyet
+6. Kura eşitlik sırası
+
+YENİ OYUNCU BAŞLANGIÇ ELOSU: 1350
+
+MEVCUT VERİLER
+- 14 oyunculuk kayıt listesi korunur.
+- Mevcut ELO puanları korunur.
+- FIFA 09 arşivi ve şampiyonluk kayıtları etkilenmez.
+- İşlem önce cihazda kaydedilir; canlı bulut kaydı başarısız olsa bile turnuva işlemi kaybolmaz ve ekranda açık uyarı gösterilir.

@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "47.13.2";
+  const VERSION = "47.14.0";
   const STORAGE_KEY = "fifa-tournament-hub-v1";
   const GROUPS = Object.freeze(["A", "B", "C"]);
   const LEG_STARS = Object.freeze([4, 4.5, 5]);
@@ -22,6 +22,7 @@
   let lastLoadAt = 0;
   let observer = null;
   let lastRenderSignature = "";
+  let operationNotice = { type: "info", text: "Kura sonuçlarını elle girebilir veya otomatik kura başlatabilirsiniz." };
 
   const escapeHTML = value => String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -134,18 +135,33 @@
     }
   }
 
+  function drawUpdatedAt(source) {
+    const value = getDraw(source)?.updatedAt || getDraft(source)?.updatedAt || "";
+    const time = Date.parse(value);
+    return Number.isFinite(time) ? time : 0;
+  }
+
   async function fetchPayload() {
+    const local = localPayload();
     const client = cloudClient();
     if (client && cloudConfigured()) {
-      const { data, error } = await client
-        .from("tournament_state")
-        .select("payload, updated_at")
-        .eq("id", rowId())
-        .maybeSingle();
-      if (error) throw error;
-      payload = ensurePayloadShape(data?.payload || localPayload());
+      try {
+        const { data, error } = await client
+          .from("tournament_state")
+          .select("payload, updated_at")
+          .eq("id", rowId())
+          .maybeSingle();
+        if (error) throw error;
+        const remote = ensurePayloadShape(data?.payload || {});
+        // A newer local tournament operation must never be erased by a stale cloud response.
+        payload = drawUpdatedAt(local) > drawUpdatedAt(remote) ? local : remote;
+      } catch (error) {
+        console.warn("FIFA 10 cloud payload could not be loaded; local operations remain active.", error);
+        payload = local;
+        operationNotice = { type: "warning", text: `Bulut verisi okunamadı. Bu cihazdaki turnuva kaydı kullanılacak: ${error?.message || error}` };
+      }
     } else {
-      payload = localPayload();
+      payload = local;
     }
     lastLoadAt = Date.now();
     return payload;
@@ -263,13 +279,28 @@
   async function savePayload(nextPayload, message = "") {
     const next = ensurePayloadShape(nextPayload);
     payload = next;
-    if (cloudConfigured()) {
-      if (!isAdmin()) throw new Error("Bu işlem yalnızca turnuva yöneticisine açıktır.");
-      await window.FIFA_CLOUD.save(next);
-    } else {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    // Always commit locally first. The tournament can continue even if the network momentarily fails.
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    let cloudSaved = false;
+    let cloudError = null;
+    if (cloudConfigured() && isAdmin()) {
+      try {
+        await window.FIFA_CLOUD.save(next);
+        cloudSaved = true;
+      } catch (error) {
+        cloudError = error;
+        console.error("FIFA 10 cloud save failed; local operation was preserved.", error);
+      }
     }
-    if (message) notify(message, "success");
+    if (message) {
+      if (cloudError) {
+        operationNotice = { type: "warning", text: `${message} Bu cihazda kaydedildi; canlı senkronizasyon başarısız: ${cloudError?.message || cloudError}` };
+        notify("İşlem bu cihazda kaydedildi. Bulut senkronizasyonu bekliyor.", "error");
+      } else {
+        operationNotice = { type: "success", text: `${message}${cloudSaved ? " Canlı siteye kaydedildi." : " Bu cihazda kaydedildi."}` };
+        notify(message, "success");
+      }
+    }
     scheduleRender();
     return next;
   }
@@ -314,6 +345,101 @@
       draft.draw = createDrawState(rows);
       draft.updatedAt = nowISO();
     }, "Kayıtlar kilitlendi. FIFA 10 grup kurası hazır.");
+    activeTab = "draw";
+    persistViewState();
+  }
+
+  async function startManualGroupEntry() {
+    await fetchRegistrations();
+    const rows = registrationRows();
+    if (rows.length < MIN_PLAYERS || rows.length > MAX_PLAYERS) {
+      throw new Error(`Grup girişi için ${MIN_PLAYERS}–${MAX_PLAYERS} oyuncu gerekir. Mevcut kayıt: ${rows.length}.`);
+    }
+    await mutatePayload(next => {
+      const draft = getDraft(next);
+      draft.players = rows.map(item => ({ id:item.id, name:item.name, elo:item.elo, source:item.source, registeredAt:item.registeredAt }));
+      draft.settings.registrationOpen = false;
+      draft.settings.potsLocked = true;
+      draft.status = "manual-groups";
+      const draw = createDrawState(rows);
+      draw.status = "manual-entry";
+      draw.entryMode = "manual";
+      draft.draw = draw;
+      draft.updatedAt = nowISO();
+    }, "Manuel grup giriş ekranı açıldı.");
+    activeTab = "draw";
+    persistViewState();
+  }
+
+  function expectedGroupSizePattern(total) {
+    return projectedGroupSizes(total).sort((a,b)=>a-b).join("-");
+  }
+
+  function currentGroupSizePattern(draw) {
+    return GROUPS.map(group => (draw?.groups?.[group] || []).length).sort((a,b)=>a-b).join("-");
+  }
+
+  async function assignManualGroup(playerId, group) {
+    if (!GROUPS.includes(group)) throw new Error("Geçerli bir grup seçin.");
+    await mutatePayload(next => {
+      const draft = getDraft(next);
+      const draw = draft.draw;
+      if (!draw || draw.status !== "manual-entry") throw new Error("Manuel grup giriş modu açık değil.");
+      const player = snapshotPlayers(draw).find(item => item.id === playerId);
+      if (!player) throw new Error("Oyuncu bulunamadı.");
+      const occupiedSamePot = (draw.groups[group] || []).map(id => snapshotPlayers(draw).find(item => item.id === id)).find(item => item && item.id !== playerId && item.pot === player.pot);
+      if (occupiedSamePot) throw new Error(`Grup ${group} içinde Torba ${player.pot} oyuncusu zaten var: ${occupiedSamePot.name}.`);
+      GROUPS.forEach(key => { draw.groups[key] = (draw.groups[key] || []).filter(id => id !== playerId); });
+      draw.groups[group].push(playerId);
+      const old = (draw.assignments || []).filter(item => item.playerId !== playerId);
+      old.push({ sequence: old.length + 1, pot: player.pot, playerId, playerName: player.name, elo: player.elo, group, eligibleGroups: GROUPS, revealedAt: nowISO(), manual: true });
+      draw.assignments = old.map((item,index)=>({ ...item, sequence:index+1 }));
+      draw.lastReveal = draw.assignments.at(-1) || null;
+      draw.updatedAt = nowISO();
+      draft.updatedAt = nowISO();
+    }, `${playerName(playerId)} Grup ${group} olarak kaydedildi.`);
+  }
+
+  async function finalizeManualGroups() {
+    await mutatePayload(next => {
+      const draft = getDraft(next);
+      const draw = draft.draw;
+      if (!draw || draw.status !== "manual-entry") throw new Error("Manuel grup giriş modu açık değil.");
+      const players = snapshotPlayers(draw);
+      const assigned = GROUPS.flatMap(group => draw.groups[group] || []);
+      if (assigned.length !== players.length || new Set(assigned).size !== players.length) {
+        throw new Error(`Bütün oyuncuları bir gruba yerleştirin. Yerleşen: ${new Set(assigned).size}/${players.length}.`);
+      }
+      const expected = expectedGroupSizePattern(players.length);
+      const actual = currentGroupSizePattern(draw);
+      if (expected !== actual) {
+        throw new Error(`Grup büyüklükleri dengeli değil. Beklenen dağılım ${projectedGroupSizes(players.length).join("-")}; mevcut ${GROUPS.map(group => draw.groups[group].length).join("-")}.`);
+      }
+      finalizeDrawState(draw);
+      draw.entryMode = "manual";
+      draft.status = "groups-ready";
+      draft.updatedAt = nowISO();
+    }, "Gruplar kesinleştirildi ve üç devreli fikstür oluşturuldu.");
+    activeTab = "groups";
+    persistViewState();
+  }
+
+  async function switchToManualEntry() {
+    const existing = getDraw();
+    if (existing?.fixtures?.some(match => match.completed)) throw new Error("Sonuç girilmiş fikstürde grup düzenleme açılamaz.");
+    if (existing?.assignments?.length && !window.confirm("Mevcut kura taslağı silinip çekilen gruplar elle girilecek. Devam edilsin mi?")) return;
+    await mutatePayload(next => {
+      const draft = getDraft(next);
+      const rows = snapshotPlayers(draft.draw);
+      const draw = createDrawState(rows);
+      draw.status = "manual-entry";
+      draw.entryMode = "manual";
+      draft.draw = draw;
+      draft.status = "manual-groups";
+      draft.settings.registrationOpen = false;
+      draft.settings.potsLocked = true;
+      draft.updatedAt = nowISO();
+    }, "Manuel grup giriş ekranına geçildi.");
     activeTab = "draw";
     persistViewState();
   }
@@ -680,6 +806,7 @@
   function statusMeta(draw) {
     if (!draw) return { key: "registration", label: "KAYIT TAMAMLANDI", note: `${registrationRows().length} oyuncu` };
     if (draw.status === "ready") return { key: "ready", label: "KURA HAZIR", note: "Torbalar kilitli" };
+    if (draw.status === "manual-entry") return { key: "ready", label: "GRUP GİRİŞİ", note: `${new Set(GROUPS.flatMap(group => draw.groups?.[group] || [])).size}/${draw.participants.length} oyuncu` };
     if (draw.status === "drawing") return { key: "live", label: "KURA CANLI", note: `${draw.assignments.length}/${draw.participants.length} oyuncu` };
     return { key: "complete", label: "GRUPLAR KİLİTLİ", note: `${draw.participants.length} oyuncu` };
   }
@@ -694,6 +821,22 @@
     return `<article class="f10-draw-group-card group-${group} ${isFive ? "is-five" : ""}"><header><div><span>GROUP</span><strong>${group}</strong></div><b>${rows.length} OYUNCU</b></header><div>${rows.map((row, index) => `<div><i>${index + 1}</i><span><strong>${escapeHTML(row.name)}</strong><small>Torba ${row.pot} · ${row.elo} ELO</small></span></div>`).join("") || `<p>Kura bekleniyor</p>`}</div>${isFive ? `<footer>★ 5 OYUNCULU GRUP · KURA SONUCU</footer>` : ""}</article>`;
   }
 
+  function renderManualGroupEntry(draw) {
+    const players = snapshotPlayers(draw);
+    const groups = currentGroups(draw);
+    const assigned = new Set(GROUPS.flatMap(group => draw.groups?.[group] || []));
+    const canFinish = assigned.size === players.length && expectedGroupSizePattern(players.length) === currentGroupSizePattern(draw);
+    return `<section class="f10-manual-groups">
+      <header><div><span>MANUAL DRAW RESULT ENTRY</span><h4>Çekilen grupları sisteme işle.</h4><p>Her oyuncunun karşısından kura sonucundaki A, B veya C grubunu seç. Bütün oyuncular yerleşince fikstürü tek tuşla oluştur.</p></div><div><strong>${assigned.size}/${players.length}</strong><small>OYUNCU YERLEŞTİ</small></div></header>
+      <div class="f10-manual-summary">${GROUPS.map(group=>`<b>GRUP ${group}<span>${groups[group].length} oyuncu</span></b>`).join("")}<em>Beklenen: ${projectedGroupSizes(players.length).join("-")}</em></div>
+      <div class="f10-manual-player-list">${players.map(player=>{
+        const selected = GROUPS.find(group => (draw.groups?.[group] || []).includes(player.id)) || "";
+        return `<article><div><small>TORBA ${player.pot} · ${player.elo} ELO</small><strong>${escapeHTML(player.name)}</strong></div><div class="f10-group-choice">${GROUPS.map(group=>`<button type="button" class="${selected===group?"active":""}" data-f10draw-action="manual-assign" data-player-id="${escapeHTML(player.id)}" data-group="${group}">${group}</button>`).join("")}</div></article>`;
+      }).join("")}</div>
+      <footer><button type="button" data-f10draw-action="reset-draw">Grup Girişini Sıfırla</button><button type="button" class="f10-draw-primary" data-f10draw-action="finalize-manual" ${canFinish?"":"disabled"}>Grupları Kaydet ve Fikstürü Oluştur ↗</button></footer>
+    </section>`;
+  }
+
   function renderDrawArena(draw) {
     const groups = currentGroups(draw);
     const last = draw?.lastReveal;
@@ -702,11 +845,12 @@
     if (!draw) {
       const count = registrationRows().length;
       const groupCopy = groupDistributionCopy(count);
-      return `<div class="f10-draw-ready-panel"><div><span>${count} PARTICIPANTS · 5 ELO POTS</span><h4>Kura sistemi hazır.</h4><p>Her tam torbadan A, B ve C gruplarına birer oyuncu çekilir. ${groupCopy}</p></div>${canManage ? `<button type="button" class="f10-draw-primary" data-f10draw-action="prepare-draw">Kayıtları Kilitle ve Kurayı Başlat ↗</button>` : `<strong class="f10-public-wait">Yönetici kura hazırlığını başlatacak.</strong>`}</div>${renderPots(null)}`;
+      return `<div class="f10-draw-ready-panel"><div><span>${count} PARTICIPANTS · 5 ELO POTS</span><h4>Turnuvayı şimdi başlat.</h4><p>Kura dışarıda çekildiyse sonuçları elle gir. Henüz çekilmediyse sistem üzerinden otomatik kura yap. ${groupCopy}</p></div>${canManage ? `<div class="f10-start-actions"><button type="button" class="f10-draw-primary" data-f10draw-action="manual-start">Çekilen Grupları Elle Gir ↗</button><button type="button" data-f10draw-action="prepare-draw">Sistem Üzerinden Kura Başlat</button></div>` : `<strong class="f10-public-wait">Yönetici grup sonuçlarını sisteme işleyecek.</strong>`}</div>${renderPots(null)}`;
     }
+    if (draw.status === "manual-entry") return renderManualGroupEntry(draw);
     return `<div class="f10-draw-stage">
       <div class="f10-live-reveal ${last ? "has-reveal" : ""}"><span>${draw.status === "completed" ? "FINAL DRAW RESULT" : "LIVE DRAW REVEAL"}</span>${last ? `<small>TORBA ${last.pot}</small><h4>${escapeHTML(last.playerName)}</h4><div>GRUP <b>${last.group}</b></div><em>${last.elo} ELO</em>` : `<h4>Kura başlamaya hazır</h4><p>İlk oyuncu ve grubu güvenli rastgele seçimle belirlenecek.</p>`}<footer><strong>${draw.assignments.length}/${draw.participants.length}</strong><span>${remaining} oyuncu kaldı</span><code>${escapeHTML(draw.drawId)}</code></footer></div>
-      <div class="f10-draw-controls">${canManage && draw.status !== "completed" ? `<button type="button" class="f10-draw-primary" data-f10draw-action="draw-next" ${moduleBusy || autoDrawing ? "disabled" : ""}>Sıradaki Oyuncuyu Çek</button><button type="button" data-f10draw-action="auto-draw" ${moduleBusy ? "disabled" : ""}>${autoDrawing ? "Otomatik Kurayı Durdur" : "Otomatik Kura"}</button>` : ""}${canManage ? `<button type="button" data-f10draw-action="reset-draw">Kurayı Sıfırla</button><button type="button" class="danger" data-f10draw-action="reopen-registration">Kayıtlara Dön</button>` : ""}</div>
+      <div class="f10-draw-controls">${canManage && draw.status !== "completed" ? `<button type="button" class="f10-draw-primary" data-f10draw-action="draw-next" ${moduleBusy || autoDrawing ? "disabled" : ""}>Sıradaki Oyuncuyu Çek</button><button type="button" data-f10draw-action="auto-draw" ${moduleBusy ? "disabled" : ""}>${autoDrawing ? "Otomatik Kurayı Durdur" : "Otomatik Kura"}</button><button type="button" data-f10draw-action="switch-manual">Çekilen Grupları Elle Gir</button>` : ""}${canManage ? `${draw.status === "completed" && !(draw.fixtures || []).some(match => match.completed) ? `<button type="button" data-f10draw-action="switch-manual">Grupları Düzenle</button>` : ""}<button type="button" data-f10draw-action="reset-draw">Kurayı Sıfırla</button><button type="button" class="danger" data-f10draw-action="reopen-registration">Kayıtlara Dön</button>` : ""}</div>
       <div class="f10-draw-group-grid">${GROUPS.map(group => renderGroupMini(group, groups[group], draw)).join("")}</div>
       <div class="f10-draw-log"><header><span>KURA KAYDI</span><strong>${draw.assignments.length} işlem</strong></header><div>${[...(draw.assignments || [])].reverse().slice(0, draw.participants.length).map(item => `<div><i>${String(item.sequence).padStart(2, "0")}</i><span><strong>${escapeHTML(item.playerName)}</strong><small>Torba ${item.pot}</small></span><b>GRUP ${item.group}</b></div>`).join("") || `<p>Henüz çekim yapılmadı.</p>`}</div></div>
     </div>`;
@@ -803,6 +947,7 @@
     const sizeText = projectedGroupSizes(participantCount).join("-");
     const html = `<header class="f10-draw-hero"><div><span>FIFA 10 · OFFICIAL DRAW ENGINE</span><h3>Kura çekimi.<br><em>Üç grup, tek sıralama.</em></h3><p>${participantCount} katılımcı ELO torbalarından canlı kurayla A, B ve C gruplarına dağıtılır. Beklenen grup dağılımı ${sizeText}; hangi grupların büyük olacağı yalnızca kura sırasında belirlenir.</p></div><aside class="status-${status.key}"><i></i><strong>${status.label}</strong><small>${status.note}</small>${draw?.fivePlayerGroups?.length ? `<b>5 OYUNCULU GRUP${draw.fivePlayerGroups.length > 1 ? "LAR" : ""} · ${draw.fivePlayerGroups.join(" / ")}</b>` : `<b>GRUP BÜYÜKLÜKLERİ · KURADA</b>`}</aside></header>
       <nav class="f10-draw-tabs">${tabs.map(([id, label]) => `<button type="button" class="${activeTab === id ? "active" : ""}" data-f10draw-action="tab" data-tab="${id}" ${!draw && id !== "draw" ? "disabled" : ""}>${label}</button>`).join("")}</nav>
+      <div class="f10-operation-notice ${operationNotice.type || "info"}"><strong>${operationNotice.type === "success" ? "✓" : operationNotice.type === "warning" ? "!" : "i"}</strong><span>${escapeHTML(operationNotice.text || "")}</span></div>
       <div class="f10-draw-content">${activeTab === "draw" ? renderDrawArena(draw) : activeTab === "groups" ? (draw ? renderGroupTables(draw) : renderDrawArena(null)) : activeTab === "standings" ? (draw?.status === "completed" ? renderStandings(draw) : renderDrawArena(draw)) : (draw?.status === "completed" ? renderFixtures(draw) : renderDrawArena(draw))}</div>
       <footer class="f10-draw-footer"><span>GENEL SIRALAMA: PPG → TOPLAM PUAN → TAM AVERAJ → ATILAN GOL → GALİBİYET → KURA SIRASI</span><b>AVERAGE-POINT TABLE · NO GD CAP</b></footer>`;
     const renderSignature = JSON.stringify({
@@ -832,8 +977,8 @@
     const metaValue = `${VERSION}-live-draw-ppg-engine`;
     if (meta && meta.content !== metaValue) meta.content = metaValue;
     const url = new URL(location.href);
-    if (url.searchParams.get("fifa9build") !== "47132") {
-      url.searchParams.set("fifa9build", "47132");
+    if (url.searchParams.get("fifa9build") !== "47140") {
+      url.searchParams.set("fifa9build", "47140");
       history.replaceState(history.state, "", url);
     }
     document.querySelectorAll(".f10-format-spine article").forEach(article => {
@@ -956,9 +1101,12 @@
       .f10-fixtures>header>b{color:var(--f10d-gold)}.f10-fixture-filters{display:flex;justify-content:space-between;gap:12px;margin-bottom:13px}.f10-fixture-filters>div{display:flex;gap:6px;overflow:auto}.f10-fixture-filters button{padding:9px 12px;border:1px solid var(--f10d-line);border-radius:9px;background:transparent;color:#8795b8;font-size:9px;font-weight:900;cursor:pointer;white-space:nowrap}.f10-fixture-filters button.active{background:linear-gradient(90deg,rgba(69,167,255,.18),rgba(157,103,255,.2));color:white}.f10-fixture-list{display:grid;gap:7px}.f10-fixture-row{display:grid;grid-template-columns:115px minmax(150px,1fr) 90px minmax(150px,1fr) 170px;align-items:center;gap:12px;width:100%;padding:13px;border:1px solid var(--f10d-line);border-radius:13px;background:rgba(7,14,36,.7);color:white;text-align:left}.f10-fixture-row:not(:disabled){cursor:pointer}.f10-fixture-row:disabled{opacity:.85}.f10-fixture-row>span:first-child{display:flex;justify-content:space-between;align-items:center}.f10-fixture-row small{color:#7f8db1}.f10-fixture-row>div{display:flex;justify-content:center;gap:8px;font-size:17px}.f10-fixture-row>div b{color:var(--f10d-gold)}.f10-fixture-row em{font-style:normal;color:#7fc9ff;font-size:10px}.f10-fixture-row .teams{display:grid;gap:2px;text-align:right}.f10-fixture-row.completed{border-color:rgba(82,228,160,.22)}.f10-empty-fixtures{padding:28px;text-align:center;border:1px dashed var(--f10d-line);border-radius:15px;color:#8391b5}
       .f10-draw-modal-backdrop{position:fixed;inset:0;z-index:10050;display:grid;place-items:center;padding:18px;background:rgba(1,5,17,.82);backdrop-filter:blur(12px)}.f10-draw-modal{width:min(720px,100%);border:1px solid var(--f10d-line);border-radius:23px;background:linear-gradient(145deg,#0a1432,#18103b);box-shadow:0 30px 90px rgba(0,0,0,.55);overflow:hidden}.f10-draw-modal>header{display:flex;justify-content:space-between;align-items:center;padding:20px 23px;border-bottom:1px solid var(--f10d-line)}.f10-draw-modal header span{font-size:9px;letter-spacing:.16em;color:#7dc8ff}.f10-draw-modal h3{color:white;font-size:25px;margin:5px 0 0}.f10-draw-modal header button{border:0;background:transparent;color:white;font-size:25px;cursor:pointer}.f10-draw-modal form{padding:22px}.f10-result-versus{display:grid;grid-template-columns:1fr 50px 1fr;gap:14px;align-items:center}.f10-result-versus label{display:grid;gap:7px}.f10-result-versus label strong{color:white;font-size:16px}.f10-result-versus label span{color:#8290b3;font-size:9px}.f10-result-versus input{width:100%;padding:12px;border:1px solid var(--f10d-line);border-radius:10px;background:#07122e;color:white}.f10-result-versus>b{text-align:center;color:var(--f10d-gold)}.f10-modal-rule{margin:18px 0;color:#8795b7;font-size:11px;line-height:1.55}.f10-draw-modal footer{display:flex;justify-content:flex-end;gap:8px}.f10-draw-modal footer button{padding:11px 15px;border:1px solid var(--f10d-line);border-radius:10px;background:transparent;color:white;font-weight:800;cursor:pointer}.f10-draw-modal footer button.primary{background:linear-gradient(90deg,#347fff,#a84df3);border:0}.f10-draw-modal footer button.danger{margin-right:auto;color:#ff8d9d;border-color:rgba(255,101,123,.3)}
       .f10-draw-toast-stack{position:fixed;right:20px;bottom:22px;z-index:11000;display:grid;gap:8px;width:min(390px,calc(100vw - 40px))}.f10-draw-toast{display:flex;gap:10px;align-items:center;padding:13px 15px;border:1px solid var(--f10d-line);border-radius:13px;background:#0a1432;color:white;box-shadow:0 16px 40px rgba(0,0,0,.35);opacity:0;transform:translateY(12px);transition:.25s}.f10-draw-toast.show{opacity:1;transform:none}.f10-draw-toast span{display:grid;place-items:center;width:25px;height:25px;border-radius:50%;background:rgba(69,167,255,.14);color:#7dc9ff}.f10-draw-toast.success span{color:var(--f10d-green)}.f10-draw-toast.error span{color:var(--f10d-red)}
+      .f10-operation-notice{position:relative;display:flex;align-items:center;gap:10px;margin:18px 28px 0;padding:12px 14px;border:1px solid var(--f10d-line);border-radius:13px;background:rgba(7,14,36,.74);color:#b6c2df;font-size:12px}.f10-operation-notice strong{display:grid;place-items:center;width:25px;height:25px;border-radius:50%;background:rgba(69,167,255,.13);color:#78c8ff}.f10-operation-notice.success{border-color:rgba(82,228,160,.28)}.f10-operation-notice.success strong{color:var(--f10d-green)}.f10-operation-notice.warning{border-color:rgba(229,189,99,.32)}.f10-operation-notice.warning strong{color:var(--f10d-gold)}
+      .f10-start-actions{display:flex;gap:10px;flex-wrap:wrap}.f10-start-actions button{padding:14px 18px;border:1px solid var(--f10d-line);border-radius:12px;background:rgba(8,18,46,.78);color:white;font-weight:900;cursor:pointer}
+      .f10-manual-groups{display:grid;gap:18px}.f10-manual-groups>header{display:flex;justify-content:space-between;gap:20px;align-items:end;padding:24px;border:1px solid var(--f10d-line);border-radius:19px;background:rgba(7,15,39,.72)}.f10-manual-groups>header span{font-size:9px;letter-spacing:.15em;color:#7fc9ff}.f10-manual-groups>header h4{margin:7px 0;font-size:30px;color:white}.f10-manual-groups>header p{margin:0;max-width:750px;color:#93a1c2;line-height:1.6}.f10-manual-groups>header>div:last-child{text-align:right}.f10-manual-groups>header>div:last-child strong{display:block;font-size:32px;color:var(--f10d-gold)}.f10-manual-groups>header>div:last-child small{font-size:8px;color:#8290b4;letter-spacing:.13em}.f10-manual-summary{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.f10-manual-summary b{display:flex;gap:10px;padding:10px 13px;border:1px solid var(--f10d-line);border-radius:10px;color:white}.f10-manual-summary b span{color:#7fc9ff}.f10-manual-summary em{margin-left:auto;color:#a7b4d2;font-style:normal}.f10-manual-player-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.f10-manual-player-list article{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 14px;border:1px solid var(--f10d-line);border-radius:13px;background:rgba(7,14,36,.74)}.f10-manual-player-list article small{display:block;color:#7584aa;font-size:8px}.f10-manual-player-list article strong{display:block;margin-top:4px;color:white}.f10-group-choice{display:flex;gap:5px}.f10-group-choice button{width:36px;height:36px;border:1px solid var(--f10d-line);border-radius:9px;background:#08132f;color:#91a0c1;font-weight:900;cursor:pointer}.f10-group-choice button.active{background:linear-gradient(135deg,#337eff,#a34ff2);border-color:transparent;color:white;box-shadow:0 6px 18px rgba(74,95,255,.25)}.f10-manual-groups>footer{display:flex;justify-content:flex-end;gap:10px}.f10-manual-groups>footer button{padding:13px 17px;border:1px solid var(--f10d-line);border-radius:11px;background:#09142f;color:white;font-weight:900;cursor:pointer}.f10-manual-groups>footer button:disabled{opacity:.4;cursor:not-allowed}
       .f10-registration-draw-locked{position:relative}.f10-registration-draw-locked:after{content:"KURA İÇİN KİLİTLENDİ";position:absolute;top:18px;right:180px;padding:7px 10px;border:1px solid rgba(229,189,99,.3);border-radius:8px;background:rgba(229,189,99,.08);color:var(--f10d-gold);font-size:8px;font-weight:900;letter-spacing:.13em}
       @media(max-width:1100px){.f10-draw-hero{grid-template-columns:1fr}.f10-draw-hero aside{width:100%}.f10-draw-pots{grid-template-columns:repeat(3,1fr)}.f10-draw-stage{grid-template-columns:1fr}.f10-live-reveal{grid-row:auto;min-height:310px}.f10-draw-log{grid-column:auto}.f10-groups-full{grid-template-columns:1fr}.f10-qualification-path{grid-template-columns:1fr}.f10-fixture-row{grid-template-columns:95px 1fr 70px 1fr}.f10-fixture-row .teams{grid-column:2/5;grid-template-columns:1fr 1fr;text-align:left}.f10-draw-group-grid{grid-template-columns:repeat(3,1fr)}}
-      @media(max-width:720px){.f10-draw-centre{border-radius:20px;margin:18px 0}.f10-draw-hero{padding:27px 20px}.f10-draw-hero h3{font-size:39px}.f10-draw-content{padding:18px 12px}.f10-draw-footer{display:grid;padding:15px 18px;font-size:8px}.f10-draw-ready-panel{display:grid;align-items:start}.f10-draw-pots{grid-template-columns:1fr}.f10-draw-group-grid{grid-template-columns:1fr}.f10-draw-log>div{grid-template-columns:1fr}.f10-live-reveal>div b{font-size:75px}.f10-fixture-filters{display:grid}.f10-fixture-row{grid-template-columns:80px 1fr 50px 1fr;padding:11px 8px;gap:6px}.f10-fixture-row>span:first-child{display:grid}.f10-fixture-row>strong{font-size:10px}.f10-fixture-row .teams{grid-column:1/5}.f10-result-versus{grid-template-columns:1fr}.f10-result-versus>b{padding:4px}.f10-draw-modal footer{flex-wrap:wrap}.f10-registration-draw-locked:after{position:static;display:inline-block;margin:10px 18px}.f10-draw-tabs{padding:12px}.f10-standings-table>div{font-size:10px}}
+      @media(max-width:720px){.f10-manual-player-list{grid-template-columns:1fr}.f10-manual-groups>header{display:grid}.f10-manual-summary em{width:100%;margin-left:0}.f10-manual-groups>footer{display:grid}.f10-start-actions{display:grid}.f10-draw-centre{border-radius:20px;margin:18px 0}.f10-draw-hero{padding:27px 20px}.f10-draw-hero h3{font-size:39px}.f10-draw-content{padding:18px 12px}.f10-draw-footer{display:grid;padding:15px 18px;font-size:8px}.f10-draw-ready-panel{display:grid;align-items:start}.f10-draw-pots{grid-template-columns:1fr}.f10-draw-group-grid{grid-template-columns:1fr}.f10-draw-log>div{grid-template-columns:1fr}.f10-live-reveal>div b{font-size:75px}.f10-fixture-filters{display:grid}.f10-fixture-row{grid-template-columns:80px 1fr 50px 1fr;padding:11px 8px;gap:6px}.f10-fixture-row>span:first-child{display:grid}.f10-fixture-row>strong{font-size:10px}.f10-fixture-row .teams{grid-column:1/5}.f10-result-versus{grid-template-columns:1fr}.f10-result-versus>b{padding:4px}.f10-draw-modal footer{flex-wrap:wrap}.f10-registration-draw-locked:after{position:static;display:inline-block;margin:10px 18px}.f10-draw-tabs{padding:12px}.f10-standings-table>div{font-size:10px}}
     `;
     document.head.appendChild(style);
   }
@@ -980,7 +1128,11 @@
         activeTab = button.dataset.tab || "draw";
         persistViewState();
         scheduleRender();
-      } else if (action === "prepare-draw") await prepareDraw();
+      } else if (action === "manual-start") await startManualGroupEntry();
+      else if (action === "prepare-draw") await prepareDraw();
+      else if (action === "switch-manual") await switchToManualEntry();
+      else if (action === "manual-assign") await assignManualGroup(button.dataset.playerId, button.dataset.group);
+      else if (action === "finalize-manual") await finalizeManualGroups();
       else if (action === "draw-next") await drawNext();
       else if (action === "auto-draw") await startAutoDraw();
       else if (action === "reset-draw") await resetDraw({ reopenRegistration: false });
@@ -1054,7 +1206,12 @@
       drawState: () => deepClone(getDraw()),
       refresh: reloadAll,
       generateFixtures,
-      secureShuffle
+      secureShuffle,
+      startManualGroupEntry,
+      switchToManualEntry,
+      assignManualGroup,
+      finalizeManualGroups,
+      prepareDraw
     };
   }
 

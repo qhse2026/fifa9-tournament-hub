@@ -1,0 +1,9 @@
+sizes [ 5, 5, 4 ] 4-5-5 4-5-5
+fixtures 78
+[
+  { n: 'Player 2', mp: 1, pts: 3, ppg: 3, gd: 8 },
+  { n: 'Player 4', mp: 1, pts: 1, ppg: 1, gd: 0 },
+  { n: 'Player 3', mp: 1, pts: 1, ppg: 1, gd: 0 },
+  { n: 'Player 13', mp: 0, pts: 0, ppg: 0, gd: 0 }
+]
+PASS

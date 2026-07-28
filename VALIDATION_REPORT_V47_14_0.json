@@ -1,0 +1,31 @@
+{
+  "index.html": {
+    "bytes": 14499,
+    "sha256": "517bb47ce8d550b4573d64dba2bba88034f69745bbc6ab58a2f5c7102a4f6a22"
+  },
+  "app.js": {
+    "bytes": 870559,
+    "sha256": "043202a572d03e7199399040491691e5c2d0179d516673c5b3f8612d77595aae"
+  },
+  "fifa10-draw-engine-v4713.js": {
+    "bytes": 81987,
+    "sha256": "0ed8bfab6e6ddd463d46911a0e7108bd4cb196805b66d6d41525ae08c383ca91"
+  },
+  "fifa10-registration-cloud.js": {
+    "bytes": 2824,
+    "sha256": "3b6a0c326821da47b7dc35342fec97a7b703ef4aa9fb7f5db3c2ce348c370063"
+  },
+  "service-worker.js": {
+    "bytes": 2217,
+    "sha256": "296a8f1877fe27be05ddbfa577e8ab70b591b6367da7249ae12f4b5fe58ac113"
+  },
+  "engine_syntax": "PASS",
+  "app_syntax": "PASS",
+  "registration_syntax": "PASS",
+  "direct_engine_load": "PASS",
+  "manual_group_entry": "PASS",
+  "fixture_count_14": "PASS — 78 (core test)",
+  "ranking": "PPG > points > uncapped GD > GF > wins > draw order",
+  "new_player_elo": 1350,
+  "build": "47.14.0 / 47140"
+}

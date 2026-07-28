@@ -1,0 +1,15 @@
+V47.14.0 — FIFA 10 TOURNAMENT OPERATIONS
+
+- Added manual entry for already-completed group draws.
+- Added A/B/C selector for every registered player.
+- Enforced one player from each ELO pot per group.
+- Validated balanced group sizes dynamically: 12=4-4-4, 13=5-4-4, 14=5-5-4, 15=5-5-5.
+- Added one-click finalization and automatic three-leg fixture generation.
+- Generates 78 group matches for the current 14-player field.
+- Added fixture result and team entry.
+- Added live overall PPG standings.
+- Ranking uses PPG, total points, full uncapped goal difference, goals scored and wins.
+- Added local-first persistence to prevent loss when cloud saving fails.
+- Added explicit operation status and cloud-sync warning panel.
+- Added direct deterministic engine load from index.html.
+- Set new-player starting ELO to 1350 in the primary application defaults and explanatory UI.

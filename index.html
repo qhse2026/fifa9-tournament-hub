@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#050d22" />
   <meta name="description" content="FIFA Turnuva Merkezi — canlı skor, Elo gücü, Power Exchange, mental baskı analizi, Destiny Path, Live Match Pulse, Broadcast Mode, TV / projektör görünümü, canlı xT, oyuncu ısı rozetleri, AI Tournament Director ve dinamik turnuva simülasyonu." />
-  <meta name="fifa9-build" content="47.12.2-three-group-sequential-pots" />
+  <meta name="fifa9-build" content="47.14.0-tournament-operations" />
   <script>
   (()=>{
-    const BUILD="47.12.2-three-group-sequential-pots";
+    const BUILD="47.14.0-tournament-operations";
     const KEY="fifa9-active-build";
     if(localStorage.getItem(KEY)===BUILD) return;
     localStorage.setItem(KEY,BUILD);
@@ -17,7 +17,7 @@
     if("serviceWorker" in navigator) cleanup.push(navigator.serviceWorker.getRegistrations().then(regs=>Promise.all(regs.map(reg=>reg.unregister()))));
     Promise.allSettled(cleanup).finally(()=>{
       const url=new URL(location.href);
-      if(url.searchParams.get("fifa9build")!=="47122"){url.searchParams.set("fifa9build","47122");location.replace(url.toString());}
+      if(url.searchParams.get("fifa9build")!=="47140"){url.searchParams.set("fifa9build","47140");location.replace(url.toString());}
     });
   })();
   </script>
@@ -33,10 +33,10 @@
   <link rel="stylesheet" href="navigation-os-v47-1.css?v=47.4.0-sidebar-fix" />
   <link rel="stylesheet" href="final-chapter-third-place.css?v=47.5.0" />
   <link rel="stylesheet" href="champions-podium.css?v=47.5.0" />
-  <link rel="stylesheet" href="final-night-theme-v479.css?v=47.12.2" />
-  <link rel="stylesheet" href="fifa10-era-dashboard-v4711.css?v=47.12.2" />
-  <link rel="stylesheet" href="fifa10-league-return.css?v=47.12.2" />
-  <link rel="stylesheet" href="fifa10-triple-circuit-v4712.css?v=47.12.2" />
+  <link rel="stylesheet" href="final-night-theme-v479.css?v=47.14.0" />
+  <link rel="stylesheet" href="fifa10-era-dashboard-v4711.css?v=47.14.0" />
+  <link rel="stylesheet" href="fifa10-league-return.css?v=47.14.0" />
+  <link rel="stylesheet" href="fifa10-triple-circuit-v4712.css?v=47.14.0" />
 </head>
 <body>
   <div class="ambient ambient-one"></div>
@@ -136,7 +136,7 @@
 
       <div class="sidebar-footer">
         <div class="save-indicator" id="sidebarCloudStatus"><span class="status-dot"></span> Canlı bağlantı hazırlanıyor</div>
-        <div class="sidebar-version">Football Universe · V47.12.2 · Three-Group Pot Seeding</div>
+        <div class="sidebar-version">Football Universe · V47.14.0 · Tournament Operations</div>
       </div>
     </aside>
     <button class="os-sidebar-backdrop" id="sidebarBackdrop" type="button" aria-label="Komuta menüsünü kapat"></button>
@@ -224,12 +224,13 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="cloud-config.js?v=44.5.0"></script>
   <script src="cloud.js?v=44.5.0"></script>
-  <script src="fifa10-registration-cloud.js?v=47.12.2"></script>
+  <script src="fifa10-registration-cloud.js?v=47.14.0"></script>
+  <script id="fifa10DrawEngineScript" src="fifa10-draw-engine-v4713.js?v=47.14.0"></script>
   <script src="chat.js?v=44.5.0"></script>
   <script src="community.js?v=44.5.0"></script>
-  <script src="app.js?v=47.12.2-three-group-sequential-pots"></script>
-  <script src="fifa9-experience-hub.js?v=47.12.2-three-group-sequential-pots"></script>
-  <script src="horizon-os-v47.js?v=47.12.2-three-group-sequential-pots"></script>
-  <script src="navigation-os-v47-1.js?v=47.12.2-three-group-sequential-pots"></script>
+  <script src="app.js?v=47.14.0-tournament-operations"></script>
+  <script src="fifa9-experience-hub.js?v=47.14.0-tournament-operations"></script>
+  <script src="horizon-os-v47.js?v=47.14.0-tournament-operations"></script>
+  <script src="navigation-os-v47-1.js?v=47.14.0-tournament-operations"></script>
 </body>
 </html>

@@ -138,7 +138,7 @@
           potsLocked: false,
           potCount: 5,
           groupCount: 3,
-          newPlayerBaseElo: 1500,
+          newPlayerBaseElo: 1350,
           groupRounds: [
             { id: "round-1", label: "1. Devre", stars: 4 },
             { id: "round-2", label: "2. Devre", stars: 4.5 },
@@ -2593,7 +2593,7 @@
     const elo=buildEloAnalytics();
     const registered=fifa10RegisteredNameSet();
     const rows=elo.players.slice(0,limit);
-    return `<section class="f10-elo-section"><header><div><span>OFFICIAL PERFORMANCE RATING</span><h3>Gerçek güç sıralaması: ELO</h3><p>Torba ve seri başı değerlendirmesinde toplam gol değil, resmî maç sonuçlarından hesaplanan ELO kullanılır.</p></div><button type="button" data-nav="intelligence">ELO merkezini aç ↗</button></header><div class="f10-elo-layout"><div class="f10-elo-table"><div class="head"><span>#</span><span>Oyuncu</span><span>ELO</span><span>Durum</span></div>${rows.map(row=>`<div><span>${row.rank}</span><strong>${escapeHTML(row.name)}</strong><b>${row.rating}</b><small class="${registered.has(row.name.toLocaleLowerCase("tr-TR"))?"registered":""}">${registered.has(row.name.toLocaleLowerCase("tr-TR"))?"FIFA 10 KAYITLI":`${row.games} MAÇ`}</small></div>`).join("")}</div><div class="f10-elo-explainer"><article><span>1500</span><div><strong>Başlangıç puanı</strong><p>Yeni oyuncular sisteme 1500 ELO ile girer.</p></div></article><article><span>↗</span><div><strong>Güçlü rakibi yenmek daha değerlidir</strong><p>Beklenmeyen galibiyet daha fazla puan kazandırır.</p></div></article><article><span>↔</span><div><strong>Sıfır toplamlı sistem</strong><p>Kazananın aldığı puan, kaybedenin puanından düşer.</p></div></article><article><span>◆</span><div><strong>Büyük maçların ağırlığı artar</strong><p>Eleme, yarı final ve final sonuçları daha güçlü etki üretir.</p></div></article></div></div></section>`;
+    return `<section class="f10-elo-section"><header><div><span>OFFICIAL PERFORMANCE RATING</span><h3>Gerçek güç sıralaması: ELO</h3><p>Torba ve seri başı değerlendirmesinde toplam gol değil, resmî maç sonuçlarından hesaplanan ELO kullanılır.</p></div><button type="button" data-nav="intelligence">ELO merkezini aç ↗</button></header><div class="f10-elo-layout"><div class="f10-elo-table"><div class="head"><span>#</span><span>Oyuncu</span><span>ELO</span><span>Durum</span></div>${rows.map(row=>`<div><span>${row.rank}</span><strong>${escapeHTML(row.name)}</strong><b>${row.rating}</b><small class="${registered.has(row.name.toLocaleLowerCase("tr-TR"))?"registered":""}">${registered.has(row.name.toLocaleLowerCase("tr-TR"))?"FIFA 10 KAYITLI":`${row.games} MAÇ`}</small></div>`).join("")}</div><div class="f10-elo-explainer"><article><span>1350</span><div><strong>Başlangıç puanı</strong><p>Yeni oyuncular sisteme 1350 ELO ile girer.</p></div></article><article><span>↗</span><div><strong>Güçlü rakibi yenmek daha değerlidir</strong><p>Beklenmeyen galibiyet daha fazla puan kazandırır.</p></div></article><article><span>↔</span><div><strong>Sıfır toplamlı sistem</strong><p>Kazananın aldığı puan, kaybedenin puanından düşer.</p></div></article><article><span>◆</span><div><strong>Büyük maçların ağırlığı artar</strong><p>Eleme, yarı final ve final sonuçları daha güçlü etki üretir.</p></div></article></div></div></section>`;
   }
 
   function renderFifa10FormatSpine({detailed=false}={}) {
