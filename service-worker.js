@@ -1,4 +1,4 @@
-const CACHE = "oruc-reis-football-universe-v47-14-5-fifa10-team-passport";
+const CACHE = "oruc-reis-football-universe-v47-14-6-fifa10-click-recovery";
 const APP_SHELL = [
   "./",
   "./index.html",
