@@ -1,0 +1,27 @@
+ORUC REIS FIFA WORLD — V47.14.4
+FIFA 10 CONNECTED UNIVERSE
+
+Bu paket, FIFA 10 grup aşamasını sitenin mevcut veri evrenine bağlar.
+
+Kurulum:
+1. ZIP içindeki dosyaları projenin kök dizinine, klasör yapısını koruyarak yükleyin.
+2. Mevcut cloud-config.js dosyasını değiştirmeyin veya silmeyin.
+3. Vercel dağıtımı tamamlandıktan sonra şu adresi açın:
+   https://fifa9-tournament-hub.vercel.app/?fifa9build=47144
+4. İlk açılıştan sonra sayfayı bir kez sert yenileyin.
+
+Bağlanan merkezler:
+- FIFA 10 grup fikstürü ve sonuç girişi
+- Genel PPG sıralaması; toplam puan parantez içinde
+- Canlı maç ve canlı istatistikler
+- Form Merkezi
+- Maç oranları ve tahmin modeli
+- Zekâ Merkezi / ELO
+- Takım istatistikleri
+- Tüm Zamanlar ve FIFA 09 arşivi
+
+Veri güvenliği:
+- Supabase şeması değiştirilmez.
+- cloud-config.js pakete dahil değildir.
+- FIFA 09 sonuçları silinmez; tamamlanan FIFA 09 sezonu arşiv kaynağı olarak korunur.
+- V47.14.3 geçici sonuçları bulunduğunda FIFA 10 resmî fikstürüne bir kez aktarılır.

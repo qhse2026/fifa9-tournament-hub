@@ -1,0 +1,31 @@
+ORUC REIS FIFA WORLD — V47.14.5
+FIFA 10 TEAM PASSPORT
+
+Bu paket, FIFA 10 grup aşamasını sitenin mevcut veri evrenine bağlar ve sabit takım havuzu yönetimini ekler.
+
+Kurulum:
+1. ZIP içindeki dosyaları projenin kök dizinine, klasör yapısını koruyarak yükleyin.
+2. Mevcut cloud-config.js dosyasını değiştirmeyin veya silmeyin.
+3. Vercel dağıtımı tamamlandıktan sonra şu adresi açın:
+   https://fifa9-tournament-hub.vercel.app/?fifa9build=47145
+4. İlk açılıştan sonra sayfayı bir kez sert yenileyin.
+
+Bağlanan merkezler:
+- FIFA 10 grup fikstürü ve sonuç girişi
+- Fikstür içinden 4★ / 4.5★ / 5★ sabit takım havuzu dropdown seçimi
+- Oyuncu bazında kullanılan takım pasaportları
+- Kullanılan takımların otomatik kilitlenmesi
+- Genel PPG sıralaması; toplam puan parantez içinde
+- Canlı maç ve canlı istatistikler
+- Form Merkezi
+- Maç oranları ve tahmin modeli
+- Zekâ Merkezi / ELO
+- Takım istatistikleri
+- Tüm Zamanlar ve FIFA 09 arşivi
+
+Veri güvenliği:
+- Supabase şeması değiştirilmez.
+- cloud-config.js pakete dahil değildir.
+- FIFA 09 sonuçları silinmez; tamamlanan FIFA 09 sezonu arşiv kaynağı olarak korunur.
+- V47.14.3 geçici sonuçları bulunduğunda FIFA 10 resmî fikstürüne bir kez aktarılır.
+- Daha önce girilmiş FIFA 10 skorları korunur; eksik takım bilgileri fikstürde ilgili maça girilerek tamamlanabilir.

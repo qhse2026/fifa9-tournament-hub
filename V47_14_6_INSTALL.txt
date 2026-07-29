@@ -1,0 +1,26 @@
+ORUC REIS FIFA WORLD — V47.14.6
+FIFA 10 CLICK RECOVERY
+
+BU PAKET TAM SİTE PAKETİDİR.
+
+DÜZELTİLEN KRİTİK HATALAR
+1. FIFA 10 merkezinin kendisini sonsuz kez yeniden çizmesi durduruldu.
+2. PC'de tıklamaların zaman aşımına uğraması giderildi.
+3. Telefonda açılan kura/sonuç panelinin hemen kapanması giderildi.
+4. FIFA 10 kayıt modülünün ikinci bir Supabase oturumu açarak yönetici
+   yetkisini kararsız hale getirmesi engellendi.
+5. Mevcut FIFA 10 sonuçları, takım seçimleri, genel PPG tablosu ve FIFA
+   evreni entegrasyonu korunmuştur.
+
+YAYINLAMA
+1. Bu klasörün TAMAMINI Vercel projenize yükleyin.
+2. Eski dosyaların üzerine yazılmasına izin verin.
+3. Yayından sonra şu adresi bir kez açın:
+   https://fifa9-tournament-hub.vercel.app/?fifa9build=47146
+4. Yönetici girişi yapın.
+5. FIFA 10 > FİKSTÜR alanında herhangi bir maç satırına dokunun.
+
+NOT
+Skor veya takım verisi bu paketin içine gömülmez; mevcut Supabase turnuva
+kaydı kullanılmaya devam eder. Bu nedenle daha önce girdiğiniz sonuçlar
+silinmez.
