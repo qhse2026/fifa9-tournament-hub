@@ -43,6 +43,12 @@
   let fifa10RegistrationsLoading = false;
   let fifa10RegistrationsError = "";
   let fifa10RegistrationSelection = "";
+  const FIFA10_FIXED_GROUPS = Object.freeze({
+    A: Object.freeze(["Kerim Özmen", "Ercan Köseoğlu", "Emre Çınar", "Ersin Darıcı", "Şafak Denar"]),
+    B: Object.freeze(["Oğuzhan Dindar", "Aziz Sarıoğlu", "Sergei Smirnov", "Affan Volkan Akbal"]),
+    C: Object.freeze(["Çağlar Can Tatar", "Mohd Khairull Muzammil Bin Ramly", "Denar Aleksandr Shulev", "Asen Sabuncu", "Cihan Sezgin BOTAŞ"])
+  });
+  const FIFA10_LEG_STARS = Object.freeze([4, 4.5, 5]);
 
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -87,6 +93,11 @@
   let museumSelectedEdition = 9;
   let museumSelectedPlayerName = "";
   let state = loadState();
+  let fifa10TransferImport = readFifa10TransferFromLocation();
+  if (fifa10TransferImport) {
+    state.fifa10StandaloneOperations = fifa10TransferImport;
+    cacheState();
+  }
   let allTimeSelectedPlayerName = "";
   let allTimeRivalryA = "";
   let allTimeRivalryB = "";
@@ -108,7 +119,7 @@
   let intelligenceRivalA = "";
   let intelligenceRivalB = "";
   let intelligencePlayerCard = "";
-  let intelligencePlayerEdition = 9;
+  let intelligencePlayerEdition = 10;
   let intelligenceDestinyPlayer = "";
   let intelligenceSimulatorGroup = "gold";
   let directorTone = "analyst";
@@ -251,6 +262,46 @@
     }
   }
 
+  function readFifa10TransferFromLocation() {
+    const prefix = "#fifa10-transfer=";
+    if (!String(location.hash || "").startsWith(prefix)) return null;
+    try {
+      const encoded = String(location.hash).slice(prefix.length);
+      if (!encoded || encoded.length > 120000) throw new Error("Aktarım paketi geçersiz.");
+      const base64 = encoded.replace(/-/g, "+").replace(/_/g, "/");
+      const padded = base64 + "=".repeat((4 - base64.length % 4) % 4);
+      const binary = atob(padded);
+      const bytes = Uint8Array.from(binary, character => character.charCodeAt(0));
+      const payload = JSON.parse(new TextDecoder().decode(bytes));
+      const results = {};
+      Object.entries(payload?.results || {}).forEach(([key, value]) => {
+        if (!/^[ABC]-[123]-\d+-\d+$/.test(key) || !value || typeof value !== "object") return;
+        const homeScore = Number(value.homeScore);
+        const awayScore = Number(value.awayScore);
+        if (!Number.isInteger(homeScore) || !Number.isInteger(awayScore) || homeScore < 0 || awayScore < 0 || homeScore > 99 || awayScore > 99) return;
+        results[key] = {
+          homeScore,
+          awayScore,
+          homeTeam: String(value.homeTeam || "").slice(0, 80),
+          awayTeam: String(value.awayTeam || "").slice(0, 80)
+        };
+      });
+      if (!Object.keys(results).length) throw new Error("Aktarılacak sonuç bulunamadı.");
+      history.replaceState(history.state, "", `${location.pathname}${location.search}`);
+      return {
+        version: "47.14.4",
+        updatedAt: new Date().toISOString(),
+        transferredFrom: "fifa10-emergency-fixture-centre",
+        groups: Object.fromEntries(Object.entries(FIFA10_FIXED_GROUPS).map(([group, names]) => [group, [...names]])),
+        results
+      };
+    } catch (error) {
+      console.warn("FIFA 10 result transfer could not be read", error);
+      history.replaceState(history.state, "", `${location.pathname}${location.search}`);
+      return null;
+    }
+  }
+
   function canEdit() {
     return !cloudConfigured || cloudAdmin;
   }
@@ -377,7 +428,22 @@
     return state.current.participants.find(p => p.id === id) || { id, name: id || "TBD" };
   }
 
+  function fifa10IntegratedDraw() {
+    return state.seasonSystem?.fifa10Draft?.draw || null;
+  }
+
+  function fifa10IntegratedParticipants() {
+    const draw = fifa10IntegratedDraw();
+    return Array.isArray(draw?.participants) ? draw.participants : [];
+  }
+
+  function fifa10PlayerName(id) {
+    return fifa10IntegratedParticipants().find(player => player.id === id)?.name?.trim() || "";
+  }
+
   function playerName(id) {
+    const fifa10Name = fifa10PlayerName(id);
+    if (fifa10Name) return fifa10Name;
     const p = participant(id);
     return p.name?.trim() || id || "TBD";
   }
@@ -472,6 +538,11 @@
 
   function filledParticipants() {
     return state.current.participants.filter(p => p.name.trim());
+  }
+
+  function activeCompetitionPlayerNames() {
+    const fifa10 = fifa10IntegratedParticipants().map(player => player.name?.trim()).filter(Boolean);
+    return fifa10.length ? [...new Set(fifa10)] : filledParticipants().map(player => player.name.trim()).filter(Boolean);
   }
 
   function allPlayersReady() {
@@ -1895,8 +1966,9 @@
   }
 
   function findMatch(id) {
-    const pools = [...leagueMatches(), ...goldMatches(), ...silverMatches(), ...allKnockoutGames()];
-    return pools.find(match => match.id === id) || null;
+    return allCurrentMatches().find(match => match.id === id)
+      || fifa9CurrentMatches().find(match => match.id === id)
+      || null;
   }
 
   function currentStage() {
@@ -2035,11 +2107,234 @@
     return records.sort((a,b) => a.edition - b.edition || a.competition.localeCompare(b.competition));
   }
 
+  function fifa10FixtureIdentity(group, leg, homeName, awayName) {
+    const names = [normalizeAdministrativeName(homeName), normalizeAdministrativeName(awayName)].sort();
+    return `${group}|${Number(leg)}|${names.join("|")}`;
+  }
+
+  function fifa10IntegratedSignature(draw) {
+    if (!draw) return "";
+    return JSON.stringify({
+      drawId: draw.drawId,
+      status: draw.status,
+      participants: (draw.participants || []).map(player => [player.id, player.name, player.elo, player.pot]),
+      groups: draw.groups,
+      fixtures: (draw.fixtures || []).map(match => [
+        match.id, match.group, match.leg, match.homeId, match.awayId,
+        match.completed ? Number(match.homeScore) : null,
+        match.completed ? Number(match.awayScore) : null,
+        match.homeTeam || "", match.awayTeam || "", Boolean(match.completed)
+      ]),
+      importedStandaloneUpdatedAt: draw.importedStandaloneUpdatedAt || ""
+    });
+  }
+
+  function ensureFifa10IntegratedTournament() {
+    const system = seasonSystem();
+    const draft = system.fifa10Draft;
+    const existingDraw = draft.draw && typeof draft.draw === "object" ? draft.draw : null;
+    const standalone = state.fifa10StandaloneOperations && typeof state.fifa10StandaloneOperations === "object"
+      ? state.fifa10StandaloneOperations
+      : null;
+    const standaloneResults = standalone?.results && typeof standalone.results === "object" ? standalone.results : {};
+    const standaloneUpdatedAt = String(standalone?.updatedAt || "");
+    const shouldImportStandalone = Boolean(
+      standaloneUpdatedAt
+      && (!existingDraw || String(existingDraw.importedStandaloneUpdatedAt || "") !== standaloneUpdatedAt)
+    );
+    const sourcePlayers = [
+      ...(Array.isArray(existingDraw?.participants) ? existingDraw.participants : []),
+      ...(Array.isArray(draft.players) ? draft.players : [])
+    ];
+    const sourceByName = new Map(sourcePlayers.map((player, index) => {
+      const name = String(player?.name || player?.playerName || player?.player_name || "").trim();
+      return [normalizeAdministrativeName(name), { ...player, name, sourceIndex: index }];
+    }).filter(([key]) => key));
+    const participants = [];
+    const participantByName = new Map();
+    Object.entries(FIFA10_FIXED_GROUPS).forEach(([group, names]) => {
+      names.forEach((name, index) => {
+        const source = sourceByName.get(normalizeAdministrativeName(name)) || {};
+        const player = {
+          id: String(source.id || `F10-${group}-${index + 1}`),
+          name,
+          elo: Number(source.elo) || (source.source === "new" ? 1350 : 1500),
+          source: source.source || "existing",
+          registeredAt: source.registeredAt || source.registered_at || null,
+          group,
+          pot: index + 1,
+          tieBreakOrder: Number(source.tieBreakOrder) || participants.length + 1
+        };
+        participants.push(player);
+        participantByName.set(normalizeAdministrativeName(name), player);
+      });
+    });
+    const groups = Object.fromEntries(Object.entries(FIFA10_FIXED_GROUPS).map(([group, names]) => [
+      group,
+      names.map(name => participantByName.get(normalizeAdministrativeName(name))?.id).filter(Boolean)
+    ]));
+    const existingByIdentity = new Map((existingDraw?.fixtures || []).map(match => {
+      const homeName = (existingDraw?.participants || []).find(player => player.id === match.homeId)?.name || playerName(match.homeId);
+      const awayName = (existingDraw?.participants || []).find(player => player.id === match.awayId)?.name || playerName(match.awayId);
+      return [fifa10FixtureIdentity(match.group, match.leg, homeName, awayName), match];
+    }));
+    const fixtures = [];
+    let sequence = 0;
+    Object.entries(FIFA10_FIXED_GROUPS).forEach(([group, names]) => {
+      FIFA10_LEG_STARS.forEach((stars, legIndex) => {
+        let pairIndex = 0;
+        for (let first = 0; first < names.length; first += 1) {
+          for (let second = first + 1; second < names.length; second += 1) {
+            pairIndex += 1;
+            sequence += 1;
+            const reverse = legIndex === 1;
+            const homeName = reverse ? names[second] : names[first];
+            const awayName = reverse ? names[first] : names[second];
+            const identity = fifa10FixtureIdentity(group, legIndex + 1, homeName, awayName);
+            const previous = existingByIdentity.get(identity) || {};
+            const standaloneResult = standaloneResults[`${group}-${legIndex + 1}-${first}-${second}`] || null;
+            const hasStandaloneScore = shouldImportStandalone && standaloneResult
+              && standaloneResult.homeScore !== "" && standaloneResult.homeScore != null
+              && standaloneResult.awayScore !== "" && standaloneResult.awayScore != null;
+            const hasPreviousScore = Boolean(previous.completed)
+              && Number.isFinite(Number(previous.homeScore)) && Number.isFinite(Number(previous.awayScore));
+            const completed = Boolean(hasStandaloneScore || hasPreviousScore);
+            fixtures.push({
+              ...previous,
+              id: `F10-${group}-${legIndex + 1}-${first}-${second}`,
+              edition: 10,
+              phase: "fifa10-group",
+              group,
+              leg: legIndex + 1,
+              legLabel: `${legIndex + 1}. Devre`,
+              stars,
+              round: legIndex + 1,
+              matchday: pairIndex,
+              sequence,
+              homeId: participantByName.get(normalizeAdministrativeName(homeName)).id,
+              awayId: participantByName.get(normalizeAdministrativeName(awayName)).id,
+              homeScore: completed ? Number(hasStandaloneScore ? standaloneResult.homeScore : previous.homeScore) : null,
+              awayScore: completed ? Number(hasStandaloneScore ? standaloneResult.awayScore : previous.awayScore) : null,
+              homeTeam: String(hasStandaloneScore ? standaloneResult.homeTeam || "" : previous.homeTeam || ""),
+              awayTeam: String(hasStandaloneScore ? standaloneResult.awayTeam || "" : previous.awayTeam || ""),
+              tiebreakWinnerId: null,
+              allowDraw: true,
+              completed,
+              updatedAt: completed ? (standalone?.updatedAt || previous.updatedAt || new Date().toISOString()) : null
+            });
+          }
+        }
+      });
+    });
+    const assignments = participants.map((player, index) => ({
+      sequence: index + 1,
+      pot: player.pot,
+      playerId: player.id,
+      playerName: player.name,
+      elo: player.elo,
+      group: player.group,
+      revealedAt: existingDraw?.completedAt || standalone?.updatedAt || null
+    }));
+    const nextDraw = {
+      ...(existingDraw || {}),
+      version: 2,
+      drawId: existingDraw?.drawId || "F10-OFFICIAL-FIXED-GROUPS",
+      status: "completed",
+      entryMode: "official-fixed-groups",
+      createdAt: existingDraw?.createdAt || standalone?.updatedAt || new Date().toISOString(),
+      completedAt: existingDraw?.completedAt || standalone?.updatedAt || new Date().toISOString(),
+      participants,
+      groups,
+      assignments,
+      fixtures,
+      fivePlayerGroups: ["A", "C"],
+      fivePlayerGroup: "A",
+      rankingRule: {
+        primary: "PPG",
+        tieBreakers: ["Total Points", "Goal Difference", "Goals For", "Wins", "Draw Lot"],
+        goalDifferenceCap: null
+      },
+      importedStandaloneUpdatedAt: shouldImportStandalone
+        ? standaloneUpdatedAt
+        : String(existingDraw?.importedStandaloneUpdatedAt || standaloneUpdatedAt)
+    };
+    const changed = fifa10IntegratedSignature(existingDraw) !== fifa10IntegratedSignature(nextDraw);
+    if (!changed) return { changed: false, draw: existingDraw };
+    const updatedAt = standalone?.updatedAt || new Date().toISOString();
+    nextDraw.updatedAt = updatedAt;
+    draft.draw = nextDraw;
+    draft.players = participants.map(player => ({
+      id: player.id,
+      name: player.name,
+      elo: player.elo,
+      source: player.source,
+      registeredAt: player.registeredAt
+    }));
+    draft.status = fixtures.some(match => match.completed) ? "group-stage-active" : "groups-ready";
+    draft.settings.registrationOpen = false;
+    draft.settings.potsLocked = true;
+    draft.updatedAt = updatedAt;
+    system.activeEdition = 10;
+    return { changed: true, draw: nextDraw };
+  }
+
+  function syncFifa10ResultCompatibility(match, clear = false) {
+    if (match?.phase !== "fifa10-group" || Number(match.edition || 10) !== 10) return;
+    const draft = seasonSystem().fifa10Draft;
+    const now = new Date().toISOString();
+    if (draft.draw) {
+      draft.draw.updatedAt = now;
+      draft.status = (draft.draw.fixtures || []).every(item => matchComplete(item))
+        ? "group-stage-completed"
+        : "group-stage-active";
+      draft.updatedAt = now;
+    }
+    const key = String(match.id || "").replace(/^F10-/, "");
+    const previous = state.fifa10StandaloneOperations && typeof state.fifa10StandaloneOperations === "object"
+      ? state.fifa10StandaloneOperations
+      : {};
+    const results = { ...(previous.results || {}) };
+    if (clear) delete results[key];
+    else results[key] = {
+      homeScore: Number(match.homeScore),
+      awayScore: Number(match.awayScore),
+      homeTeam: String(match.homeTeam || ""),
+      awayTeam: String(match.awayTeam || "")
+    };
+    state.fifa10StandaloneOperations = {
+      ...previous,
+      version: "47.14.4",
+      updatedAt: now,
+      groups: Object.fromEntries(Object.entries(FIFA10_FIXED_GROUPS).map(([group, names]) => [group, [...names]])),
+      results
+    };
+    if (draft.draw) draft.draw.importedStandaloneUpdatedAt = now;
+  }
+
+  function validateFifa10MatchTeams(match, homeTeam, awayTeam) {
+    if (match?.phase !== "fifa10-group") return "";
+    const checks = [
+      { playerId: match.homeId, team: homeTeam },
+      { playerId: match.awayId, team: awayTeam }
+    ];
+    for (const check of checks) {
+      const key = normalizeTeamKey(check.team);
+      if (!key) continue;
+      const repeated = fifa10CurrentMatches().some(item => {
+        if (item.id === match.id || !matchComplete(item)) return false;
+        if (item.homeId === check.playerId && normalizeTeamKey(item.homeTeam) === key) return true;
+        return item.awayId === check.playerId && normalizeTeamKey(item.awayTeam) === key;
+      });
+      if (repeated) return `${playerName(check.playerId)} FIFA 10 boyunca ${check.team} takımını daha önce kullandı.`;
+    }
+    return "";
+  }
+
   function completedFifa9SeasonSnapshot() {
     if (Number(state.current?.edition || 9) !== 9) return null;
     const honour = currentFifa9Honour();
     if (!honour) return null;
-    const matches = allCurrentMatches().filter(matchComplete).map(match => ({
+    const matches = fifa9CurrentMatches().filter(matchComplete).map(match => ({
       id: match.id,
       edition: 9,
       stage: currentMatchStageLabel(match),
@@ -2835,7 +3130,7 @@
     try { item = buildMatchOdds(match, oddsBuildContext()); } catch (error) { console.warn("Odds snapshot could not be built", error); }
     const snapshot = {
       matchId: match.id,
-      edition: Number(state.current.edition || 9),
+      edition: Number(match.edition || seasonSystem().activeEdition || 10),
       phase: match.phase || "league",
       stage: currentMatchStageLabel(match),
       homeId: match.homeId,
@@ -2878,7 +3173,7 @@
     const archive = getMatchArchiveState();
     const entry = archive[match.id] || {
       matchId: match.id,
-      edition: Number(state.current.edition || 9),
+      edition: Number(match.edition || seasonSystem().activeEdition || 10),
       phase: match.phase || "league",
       stage: currentMatchStageLabel(match),
       homeId: match.homeId,
@@ -3679,13 +3974,19 @@
     if (!match.allowDraw && Number(live.homeScore) === Number(live.awayScore) && ![match.homeId, match.awayId].includes(tieWinner)) {
       toast("Eleme maçında kazanan oyuncuyu seç.", "error"); return;
     }
+    const nextHomeTeam = String(live.homeTeam || "").trim();
+    const nextAwayTeam = String(live.awayTeam || "").trim();
+    const teamError = validateFifa10MatchTeams(match, nextHomeTeam, nextAwayTeam);
+    if (teamError) { toast(teamError, "error"); return; }
     match.homeScore = Number(live.homeScore) || 0;
     match.awayScore = Number(live.awayScore) || 0;
-    match.homeTeam = String(live.homeTeam || "").trim();
-    match.awayTeam = String(live.awayTeam || "").trim();
+    match.homeTeam = nextHomeTeam;
+    match.awayTeam = nextAwayTeam;
     match.tiebreakWinnerId = match.homeScore === match.awayScore ? tieWinner : null;
     match.note = String(data.get("note") || "").trim();
     match.updatedAt = new Date().toISOString();
+    if (match.phase === "fifa10-group") match.completed = true;
+    syncFifa10ResultCompatibility(match);
     const liveState = getLiveState();
     liveState.archive[match.id] = {
       ...live,
@@ -5250,7 +5551,7 @@
       topRivalry:rivalries[0]||null
     };
 
-    return {players:playerRows,eligiblePlayers,legacyTop10,playerMap,champions:championRows,rivalries,pairMap:new Map(rivalries.map(row=>[rivalryKey(row.playerA,row.playerB),row])),biggestWins,highestScoringMatches,highestScoringDraws,records,summary:{players:playerRows.length,eligiblePlayers:eligiblePlayers.length,matches:unifiedMatches.length,goals:unifiedMatches.reduce((sum,match)=>sum+match.homeScore+match.awayScore,0),avgGoals:unifiedMatches.length?unifiedMatches.reduce((sum,match)=>sum+match.homeScore+match.awayScore,0)/unifiedMatches.length:0,rivalries:rivalries.length,editions:(historical.summary?.editions||8)+1}};
+    return {players:playerRows,eligiblePlayers,legacyTop10,playerMap,champions:championRows,rivalries,pairMap:new Map(rivalries.map(row=>[rivalryKey(row.playerA,row.playerB),row])),biggestWins,highestScoringMatches,highestScoringDraws,records,summary:{players:playerRows.length,eligiblePlayers:eligiblePlayers.length,matches:unifiedMatches.length,goals:unifiedMatches.reduce((sum,match)=>sum+match.homeScore+match.awayScore,0),avgGoals:unifiedMatches.length?unifiedMatches.reduce((sum,match)=>sum+match.homeScore+match.awayScore,0)/unifiedMatches.length:0,rivalries:rivalries.length,editions:new Set(unifiedMatches.map(match=>Number(match.edition)).filter(Boolean)).size}};
   }
 
   function buildUnifiedAllTimeMatches() {
@@ -5268,13 +5569,13 @@
       allowDraw: true,
       winnerName: Number(match.s1) === Number(match.s2) ? "" : Number(match.s1) > Number(match.s2) ? match.p1 : match.p2
     })));
-    const currentEdition = Number(state.current.edition || 9);
+    const currentEdition = Number(seasonSystem().activeEdition || 10);
     const historicalEditions = new Set((historical.editions || []).map(item => Number(item.edition)));
     const archivedMatches = archivedSeasonMatches().filter(match => Number(match.edition) !== currentEdition && !historicalEditions.has(Number(match.edition)));
     const currentMatches = allCurrentMatches().filter(matchComplete).map(match => ({
       id: match.id,
-      edition: currentEdition,
-      editionLabel: `FIFA ${currentEdition}`,
+      edition: Number(match.edition || currentEdition),
+      editionLabel: `FIFA ${Number(match.edition || currentEdition)}`,
       stage: currentMatchStageLabel(match),
       homeName: playerName(match.homeId),
       awayName: playerName(match.awayId),
@@ -5295,6 +5596,7 @@
   }
 
   function currentMatchStageLabel(match) {
+    if (match?.phase === "fifa10-group") return `FIFA 10 · Grup ${match.group || "–"} · ${match.legLabel || `${match.leg || match.round || 1}. Devre`} · ${match.stars || "–"}★`;
     const chapter = finalChapterMatchContext(match);
     if (chapter) return ["thirdPlace", "final"].includes(chapter.stage) ? `FIFA 09 Final Chapter · ${chapter.label}` : `FIFA 09 Final Chapter · ${chapter.label} · ${intelligenceCopy("Maç", "Match")} ${chapter.gameNumber}`;
     const seriesMap = { qf1: "Quarter-final 1", qf2: "Quarter-final 2", qf3: "Quarter-final 3", sf1: "Semi-final 1", sf2: "Semi-final 2" };
@@ -5307,7 +5609,7 @@
   }
 
   function renderLiveStatsScopeControls() {
-    if (!finalChapterIsEnabled()) return "";
+    if (Number(seasonSystem().activeEdition || 10) >= 10 || !finalChapterIsEnabled()) return "";
     const scopes = [
       ["all", intelligenceCopy("Tümü", "All")],
       ["final-chapter", "Final Chapter"],
@@ -5329,7 +5631,7 @@
 
   function renderLiveStatistics() {
     const analytics = buildLiveTournamentAnalytics(liveStatsScope);
-    if (!state.current.league.generated) {
+    if (Number(seasonSystem().activeEdition || 10) < 10 && !state.current.league.generated) {
       view.innerHTML = emptyState("⌁", "Canlı İstatistikler Kura Sonrası Başlar", "16 oyuncu kaydedilip League Phase fikstürü oluşturulduğunda FIFA 9 canlı istatistik merkezi otomatik devreye girecek.", canEdit() ? `<button class="btn btn-gold" data-nav="setup">Kura Sayfasına Git</button>` : "");
       return;
     }
@@ -5439,15 +5741,19 @@
   }
 
   function renderLivePlayerCard(row) {
+    const fifa10Active = Number(seasonSystem().activeEdition || 10) >= 10;
+    const primaryValue = fifa10Active ? row.ppg.toFixed(3) : row.points;
+    const primaryLabel = fifa10Active ? `PPG (${row.points})` : "PERF P";
     return `<article class="live-player-card rank-${Math.min(row.rank, 4)}">
-      <div class="live-player-head"><div><span class="live-player-rank">#${row.rank}</span><h4>${escapeHTML(row.name)}</h4><small>${escapeHTML(row.officialPosition || "FIFA 9")}</small></div><div class="live-player-points">${row.points}<span>PERF P</span></div></div>
+      <div class="live-player-head"><div><span class="live-player-rank">#${row.rank}</span><h4>${escapeHTML(row.name)}</h4><small>${escapeHTML(row.officialPosition || `FIFA ${seasonSystem().activeEdition || 10}`)}</small></div><div class="live-player-points">${primaryValue}<span>${primaryLabel}</span></div></div>
       <div class="live-player-numbers"><div><span>O</span><strong>${row.games}</strong></div><div><span>G</span><strong>${row.wins}</strong></div><div><span>AG</span><strong>${row.gf}</strong></div><div><span>AV</span><strong>${formatGD(row.gd)}</strong></div></div>
       <div class="live-player-form">${formHTML(row.form)}<span>${row.currentStreakLabel}</span></div>
     </article>`;
   }
 
   function livePerformanceTable(rows) {
-    return `<div class="table-wrap"><table><thead><tr><th>#</th><th class="player-col">Oyuncu</th><th>O</th><th>G</th><th>B</th><th>M</th><th>AG</th><th>YG</th><th>AV</th><th>Perf P</th><th>PPG</th><th>Form</th></tr></thead><tbody>${rows.map(row => `<tr><td>${row.rank}</td><td class="player-col"><span class="player-name">${escapeHTML(row.name)}</span><small class="table-subline">${escapeHTML(row.officialPosition || "")}</small></td><td>${row.games}</td><td>${row.wins}</td><td>${row.draws}</td><td>${row.losses}</td><td>${row.gf}</td><td>${row.ga}</td><td class="${row.gd > 0 ? "gd-positive" : row.gd < 0 ? "gd-negative" : ""}">${formatGD(row.gd)}</td><td class="points-cell">${row.points}</td><td>${row.ppg.toFixed(2)}</td><td>${formHTML(row.form)}</td></tr>`).join("")}</tbody></table></div>`;
+    const fifa10Active = Number(seasonSystem().activeEdition || 10) >= 10;
+    return `<div class="table-wrap"><table><thead><tr><th>#</th><th class="player-col">Oyuncu</th><th>O</th><th>G</th><th>B</th><th>M</th><th>AG</th><th>YG</th><th>AV</th><th>${fifa10Active ? "PPG (P)" : "Perf P"}</th><th>${fifa10Active ? "Grup" : "PPG"}</th><th>Form</th></tr></thead><tbody>${rows.map(row => `<tr><td>${row.rank}</td><td class="player-col"><span class="player-name">${escapeHTML(row.name)}</span><small class="table-subline">${escapeHTML(row.officialPosition || "")}</small></td><td>${row.games}</td><td>${row.wins}</td><td>${row.draws}</td><td>${row.losses}</td><td>${row.gf}</td><td>${row.ga}</td><td class="${row.gd > 0 ? "gd-positive" : row.gd < 0 ? "gd-negative" : ""}">${formatGD(row.gd)}</td><td class="points-cell">${fifa10Active ? `${row.ppg.toFixed(3)} (${row.points})` : row.points}</td><td>${fifa10Active ? escapeHTML(row.officialPosition?.replace("FIFA 10 · ", "") || "–") : row.ppg.toFixed(2)}</td><td>${formHTML(row.form)}</td></tr>`).join("")}</tbody></table></div>`;
   }
 
   function renderLiveFormRow(row) {
@@ -5475,9 +5781,11 @@
     const playerRows = new Map();
     const teamRows = new Map();
     const rivalryRows = new Map();
-    const phaseOrder = { league: 1, gold: 2, silver: 3, knockout: 4, final: 5 };
+    const fifa10Active = Number(seasonSystem().activeEdition || 10) >= 10;
+    const phaseOrder = { "fifa10-group": 1, league: 1, gold: 2, silver: 3, knockout: 4, final: 5 };
 
-    for (const p of filledParticipants()) {
+    const activePlayers = fifa10Active ? fifa10IntegratedParticipants() : filledParticipants();
+    for (const p of activePlayers) {
       playerRows.set(p.id, { id: p.id, name: p.name.trim(), games:0,wins:0,draws:0,losses:0,gf:0,ga:0,gd:0,points:0,cleanSheets:0,results:[],bestWin:null });
     }
 
@@ -5547,7 +5855,9 @@
     });
 
     const officialMap = new Map();
-    if (state.current.phase2.generated) {
+    if (fifa10Active) {
+      fifa10IntegratedParticipants().forEach(player => officialMap.set(player.id, `FIFA 10 · Grup ${player.group || "–"}`));
+    } else if (state.current.phase2.generated) {
       const replacement = phase2ReplacementRecord();
       phase2Standings("gold").forEach((row,index)=>officialMap.set(row.id, `Altın Grup #${index+1}`));
       phase2Standings("silver").forEach((row,index)=>officialMap.set(row.id, replacement?.incomingId === row.id ? `Gümüş Grup #${index+1} · İdari Yedek` : `Gümüş Grup #${index+1}`));
@@ -5574,9 +5884,12 @@
       const latest = reverse[0]?.result || "–";
       const streakCount = latest === "W" ? row.currentWinStreak : latest === "L" ? (()=>{ const i=reverse.findIndex(item=>item.result!=="L"); return i===-1?reverse.length:i; })() : (()=>{ const i=reverse.findIndex(item=>item.result!=="D"); return i===-1?reverse.length:i; })();
       row.currentStreakLabel = latest === "W" ? `${streakCount}G seri` : latest === "L" ? `${streakCount}M seri` : latest === "D" ? `${streakCount}B seri` : "Maç bekleniyor";
-      row.officialPosition = scope === "all" ? (officialMap.get(row.id) || "FIFA 9") : finalChapterPlayerStatus(row.id);
+      row.officialPosition = scope === "all" ? (officialMap.get(row.id) || `FIFA ${seasonSystem().activeEdition || 10}`) : finalChapterPlayerStatus(row.id);
       return row;
-    }).sort((a,b)=>b.points-a.points || b.gd-a.gd || b.gf-a.gf || b.wins-a.wins || a.name.localeCompare(b.name,"tr")).map((row,index)=>({ ...row, rank:index+1 }));
+    }).sort((a,b)=>fifa10Active
+      ? b.ppg-a.ppg || b.points-a.points || b.gd-a.gd || b.gf-a.gf || b.wins-a.wins || a.name.localeCompare(b.name,"tr")
+      : b.points-a.points || b.gd-a.gd || b.gf-a.gf || b.wins-a.wins || a.name.localeCompare(b.name,"tr")
+    ).map((row,index)=>({ ...row, rank:index+1 }));
 
     const teams = [...teamRows.values()].map(team => ({ ...team, gd:team.gf-team.ga, ppg:team.games?team.points/team.games:0, winRate:team.games?team.wins/team.games*100:0, playersCount:team.players.size })).sort((a,b)=>b.games-a.games || b.points-a.points || b.gd-a.gd || a.name.localeCompare(b.name,"tr"));
     const rivalries = [...rivalryRows.values()].map(row => ({ ...row, leader:row.winsA===row.winsB?"":row.winsA>row.winsB?row.playerA:row.playerB })).sort((a,b)=>b.meetings-a.meetings || Math.abs(b.winsA-b.winsB)-Math.abs(a.winsA-a.winsB));
@@ -5595,15 +5908,22 @@
     const upcomingMatches = activeFixtures.filter(item=>!matchComplete(item.match) && item.match.homeId && item.match.awayId).sort((a,b)=>a.order-b.order).slice(0,10);
     const recentMatches = completedDecorated.sort((a,b)=>b.order-a.order).slice(0,10);
 
-    const stageSource = scope === "all" ? [
-      { key:"league", label:"League Phase", matches:leagueMatches() },
-      { key:"gold", label:"Altın Grup", matches:goldMatches() },
-      { key:"silver", label:"Gümüş Grup", matches:silverMatches() },
-      ...(finalChapterIsEnabled() ? finalChapterProgressRows().map(row => ({ key:row.stage, label:row.label, matches:allFinalChapterGames().filter(match=>match.finalChapterStage===row.stage) })) : [
-        { key:"knockout", label:"Eleme Serileri", matches:allKnockoutGames().filter(m=>m.phase==="knockout") },
-        { key:"final", label:"Büyük Final", matches:allKnockoutGames().filter(m=>m.phase==="final") }
-      ])
-    ] : finalChapterProgressRows().filter(row => scope === "final-chapter" || scope === "last-ticket" && ["secondChanceSemi","secondChanceFinal"].includes(row.stage) || row.stage === scope).map(row => ({ key:row.stage, label:row.label, matches:allFinalChapterGames().filter(match=>match.finalChapterStage===row.stage) }));
+    const stageSource = scope === "all" && fifa10Active
+      ? FIFA10_LEG_STARS.map((stars, index) => ({
+          key: `fifa10-leg-${index + 1}`,
+          label: `${index + 1}. Devre · ${stars}★`,
+          matches: allMatches.filter(match => Number(match.leg) === index + 1)
+        }))
+      : scope === "all" ? [
+          { key:"league", label:"League Phase", matches:leagueMatches() },
+          { key:"gold", label:"Altın Grup", matches:goldMatches() },
+          { key:"silver", label:"Gümüş Grup", matches:silverMatches() },
+          ...(finalChapterIsEnabled() ? finalChapterProgressRows().map(row => ({ key:row.stage, label:row.label, matches:allFinalChapterGames().filter(match=>match.finalChapterStage===row.stage) })) : [
+            { key:"knockout", label:"Eleme Serileri", matches:allKnockoutGames().filter(m=>m.phase==="knockout") },
+            { key:"final", label:"Büyük Final", matches:allKnockoutGames().filter(m=>m.phase==="final") }
+          ])
+        ]
+      : finalChapterProgressRows().filter(row => scope === "final-chapter" || scope === "last-ticket" && ["secondChanceSemi","secondChanceFinal"].includes(row.stage) || row.stage === scope).map(row => ({ key:row.stage, label:row.label, matches:allFinalChapterGames().filter(match=>match.finalChapterStage===row.stage) }));
     const stages = stageSource.map(stage => {
       const valid = stage.matches.filter(match=>!seriesEndedUnused(match));
       const done = valid.filter(matchComplete);
@@ -5621,7 +5941,7 @@
     return {
       players, teams, rivalries, recentMatches, upcomingMatches, stages,
       records: {
-        pointsLeader:maxBy(players,row=>row.points,row=>row.games>0),
+        pointsLeader:fifa10Active ? players.find(row => row.games > 0) || null : maxBy(players,row=>row.points,row=>row.games>0),
         winsLeader:maxBy(players,row=>row.wins,row=>row.games>0),
         goalLeader:maxBy(players,row=>row.gf,row=>row.games>0),
         defenseLeader:[...players].filter(row=>row.games>=3).sort((a,b)=>a.gaPerGame-b.gaPerGame || b.games-a.games)[0] || null,
@@ -5824,7 +6144,7 @@
     const history = scope === "final-chapter" ? fullHistory.filter(match => match.isFinalChapter) : fullHistory;
     const allNames = new Set();
     history.forEach(match => { if (match.homeName) allNames.add(match.homeName); if (match.awayName) allNames.add(match.awayName); });
-    const currentNames = filledParticipants().map(player => player.name.trim()).filter(Boolean);
+    const currentNames = activeCompetitionPlayerNames();
     const chapterNames = finalChapterIsEnabled() ? finalChapterState().participantIds.map(playerName).filter(Boolean) : [];
     let names = scope === "current" && currentNames.length ? currentNames : scope === "final-chapter" ? chapterNames : [...allNames];
     names = [...new Set(names)].filter(name => name && !/^P\d+$/i.test(name));
@@ -5932,6 +6252,15 @@
       chapterStage:"",
       order:edition.edition * 1000000 + index + 1
     })));
+    const historicalEditions = new Set((historical.editions || []).map(item => Number(item.edition)));
+    const archivedMatches = archivedSeasonMatches()
+      .filter(match => !historicalEditions.has(Number(match.edition)) && Number(match.edition) !== Number(seasonSystem().activeEdition || 10))
+      .map((match, index) => ({
+        ...match,
+        isFinalChapter: Number(match.edition) === 9,
+        chapterStage: "",
+        order: Number(match.edition) * 1000000 + 500000 + index + 1
+      }));
     const currentCompleted = allCurrentMatches().filter(matchComplete);
     const phaseOrder = { league:1,gold:2,silver:3,knockout:4,final:5 };
     const currentMatches = currentCompleted.map((match,index) => {
@@ -5939,8 +6268,8 @@
       const structural = (phaseOrder[match.phase] || 9) * 100000 + (Number(match.round)||0) * 100 + index;
       return {
         id:match.id,
-        edition:state.current.edition || 9,
-        editionLabel:`FIFA ${state.current.edition || 9}`,
+        edition:Number(match.edition || seasonSystem().activeEdition || 10),
+        editionLabel:`FIFA ${Number(match.edition || seasonSystem().activeEdition || 10)}`,
         stage:currentMatchStageLabel(match),
         homeName:playerName(match.homeId), awayName:playerName(match.awayId),
         homeTeam:match.homeTeam || "", awayTeam:match.awayTeam || "",
@@ -5951,19 +6280,19 @@
         order:9000000 + (time ? time / 10000000000000 : structural)
       };
     }).sort((a,b)=>a.order-b.order).map((match,index)=>({ ...match, order:9000000+index+1 }));
-    return [...historicalMatches, ...currentMatches];
+    return [...historicalMatches, ...archivedMatches, ...currentMatches];
   }
 
   async function shareFormStatistics() {
     const analytics = buildFormAnalytics(formWindowSize, formScope);
     const top = analytics.players.slice(0,5);
     const lines = [
-      `FIFA 9 · SON ${formWindowSize} MAÇ FORM DURUMU`,
+      `FIFA ${seasonSystem().activeEdition || 10} · SON ${formWindowSize} MAÇ FORM DURUMU`,
       ...top.map(row=>`#${row.rank} ${row.name} · ${row.points} puan · ${row.ppg.toFixed(2)} PPG · Form ${row.formIndex}/100 · ${row.last5Label}`),
       analytics.records.unbeaten ? `Yenilmezlik lideri: ${analytics.records.unbeaten.name} (${analytics.records.unbeaten.currentUnbeatenStreak} maç)` : "",
       window.location.href
     ].filter(Boolean);
-    const shareData = { title:`FIFA 9 Son ${formWindowSize} Form`, text:lines.join("\n"), url:window.location.href };
+    const shareData = { title:`FIFA ${seasonSystem().activeEdition || 10} Son ${formWindowSize} Form`, text:lines.join("\n"), url:window.location.href };
     if (navigator.share) {
       try { await navigator.share(shareData); return; } catch (error) { if (error?.name === "AbortError") return; }
     }
@@ -5980,11 +6309,13 @@
   }
 
   function oddsStageKey(match) {
+    if (match.phase === "fifa10-group") return "league";
     if (match.phase === "final" || match.phase === "knockout") return "knockout";
     return match.phase || "league";
   }
 
   function oddsStageLabel(match) {
+    if (match.phase === "fifa10-group") return `FIFA 10 · Grup ${match.group || "–"} · ${match.leg || match.round || 1}. Devre · ${match.stars || "–"}★`;
     if (match.phase === "league") return `League Phase · Tur ${match.round}`;
     if (match.phase === "gold") return `Altın Grup · Tur ${match.round}`;
     if (match.phase === "silver") return `Gümüş Grup · Tur ${match.round}`;
@@ -6658,7 +6989,7 @@
   }
 
   function intelligenceNames() {
-    const roster = filledParticipants().map(player => player.name.trim()).filter(Boolean);
+    const roster = activeCompetitionPlayerNames();
     if (roster.length) return [...new Set(roster)];
     return combinedAllTime().map(row => row.name);
   }
@@ -6707,7 +7038,7 @@
       const scoreHome = !winner ? 0.5 : winner === home ? 1 : 0;
       const stage = String(match.stage || "").toLowerCase();
       const stageMultiplier = stage.includes("final") ? 1.35 : stage.includes("semi") ? 1.22 : stage.includes("quarter") || stage.includes("knockout") ? 1.14 : 1;
-      const editionMultiplier = Number(match.edition) === Number(state.current.edition || 9) ? 1.08 : 1;
+      const editionMultiplier = Number(match.edition) === Number(seasonSystem().activeEdition || 10) ? 1.08 : 1;
       const margin = Math.abs(Number(match.homeScore) - Number(match.awayScore));
       const marginMultiplier = margin <= 1 ? 1 : Math.min(1.65, 1 + Math.log1p(margin - 1) * 0.24);
       const k = 24 * stageMultiplier * editionMultiplier;
@@ -7505,8 +7836,8 @@
       match.tiebreakWinnerId || ""
     ]);
     return JSON.stringify({
-      edition: state.current.edition,
-      players: state.current.participants.map(player => [player.id, player.name]),
+      edition: seasonSystem().activeEdition || 10,
+      players: activeCompetitionPlayerNames(),
       leagueGenerated: state.current.league.generated,
       phase2Generated: state.current.phase2.generated,
       goldIds: state.current.phase2.goldIds,
@@ -8255,7 +8586,7 @@
     const powerMap = new Map((power.players||[]).map(row=>[row.name,row]));
     const teamMap = new Map((teamAnalytics.players||[]).map(row=>[row.name,row]));
     const teamModel = buildPlayerCardTeamPowerModel(matches,elo);
-    const currentEdition = Number(state.current.edition || 9);
+    const currentEdition = Number(seasonSystem().activeEdition || 10);
     const historicalEditionMap = new Map((historical.editions||[]).map(row=>[Number(row.edition),row]));
     const contexts = new Map(names.map(name=>[name,[]]));
     const strengths = [];
@@ -8988,7 +9319,8 @@
     intelligencePlayerCard=selected?.name||"";
     if(!selected)return `<div class="info-box">${intelligenceCopy("Oyuncu verisi bulunmuyor.","No player data is available.")}</div>`;
     const playedEditions=selected.editionProfiles.map(profile=>profile.edition);
-    if(!playedEditions.includes(Number(intelligencePlayerEdition))) intelligencePlayerEdition=playedEditions.includes(Number(state.current.edition||9))?Number(state.current.edition||9):(playedEditions[playedEditions.length-1]||Number(state.current.edition||9));
+    const activeEdition = Number(seasonSystem().activeEdition || 10);
+    if(!playedEditions.includes(Number(intelligencePlayerEdition))) intelligencePlayerEdition=playedEditions.includes(activeEdition)?activeEdition:(playedEditions[playedEditions.length-1]||activeEdition);
     const editionProfile=selected.editionProfiles.find(profile=>profile.edition===Number(intelligencePlayerEdition))||selected.editionProfiles[selected.editionProfiles.length-1];
     const displayMetricValue=value=>value==null?'N/A':Math.round(Number(value)||0);
     const metricCard=category=>`<article class="fm30-metric-card group-${category.key}"><header><h4>${escapeHTML(category.label)}</h4><strong>${Math.round(Number(category.score)||0)}</strong><span>${escapeHTML(playerCardReferenceLabel(category.score))}</span></header><div>${category.attributes.map((item,index)=>`<div class="fm30-metric-row ${item.value==null?'is-na':''}"><em>${index+1}</em><label>${escapeHTML(item.label)}</label><i><b style="width:${item.value==null?0:item.value}%"></b></i><strong>${displayMetricValue(item.value)}</strong></div>`).join("")}</div></article>`;
@@ -9004,8 +9336,8 @@
     const contextCategory=editionProfile?.categories.find(category=>category.key==="competition");
     const contextMap=Object.fromEntries((contextCategory?.attributes||[]).map(attribute=>[attribute.key,attribute.value]));
     return `<div class="fm30-page fm32-page">
-      <section class="fm30-toolbar"><div><div class="eyebrow">FIFA TOURNAMENT INTELLIGENCE · V35</div><h2>${intelligenceCopy("Turnuva İçi Gerçek Performans Merkezi","Tournament-Native Performance Centre")}</h2></div><div class="fm32-toolbar-controls"><select id="intelPlayerCardSelect">${cards.map(row=>`<option value="${escapeHTML(row.name)}" ${row.name===selected.name?"selected":""}>${escapeHTML(row.name)} · CA ${row.currentAbility} · F${Number(state.current.edition||9)} ${row.fifa9Performance}</option>`).join("")}</select><select id="intelPlayerEditionSelect">${selected.editionProfiles.map(profile=>`<option value="${profile.edition}" ${profile.edition===Number(intelligencePlayerEdition)?"selected":""}>FIFA ${profile.edition} · ${profile.performance}/100</option>`).join("")}</select></div></section>
-      <section class="fm32-edition-atlas"><header><div><span>${intelligenceCopy("TURNUVA PERFORMANS ATLASI","TOURNAMENT PERFORMANCE ATLAS")}</span><h3>${intelligenceCopy("FIFA 1’den FIFA 9’a edisyon bazlı performans","Edition-by-edition performance from FIFA 1 to FIFA 9")}</h3></div><small>${intelligenceCopy("Her turnuva kendi gol, puan, oyuncu ve aşama dağılımı içinde değerlendirilir.","Each tournament is evaluated within its own scoring, points, player and stage distribution.")}</small></header><div class="fm32-edition-cards">${Array.from({length:Math.max(9,Number(state.current.edition||9))},(_,index)=>index+1).map(edition=>{const profile=selected.editionProfiles.find(item=>item.edition===edition);return `<button class="fm32-edition-card ${edition===Number(intelligencePlayerEdition)?'active':''} ${profile?'':'empty'}" data-action="set-player-edition" data-player-edition="${edition}" ${profile?'':'disabled'}><span>FIFA ${edition}</span><strong>${profile?profile.performance:'—'}</strong><small>${profile?`${profile.stats.matches} ${intelligenceCopy('maç','matches')} · ${profile.stats.winRate.toFixed(0)}%` : intelligenceCopy('Katılmadı','No appearance')}</small></button>`;}).join("")}</div></section>
+      <section class="fm30-toolbar"><div><div class="eyebrow">FIFA TOURNAMENT INTELLIGENCE · V35</div><h2>${intelligenceCopy("Turnuva İçi Gerçek Performans Merkezi","Tournament-Native Performance Centre")}</h2></div><div class="fm32-toolbar-controls"><select id="intelPlayerCardSelect">${cards.map(row=>`<option value="${escapeHTML(row.name)}" ${row.name===selected.name?"selected":""}>${escapeHTML(row.name)} · CA ${row.currentAbility} · F${activeEdition} ${row.fifa9Performance}</option>`).join("")}</select><select id="intelPlayerEditionSelect">${selected.editionProfiles.map(profile=>`<option value="${profile.edition}" ${profile.edition===Number(intelligencePlayerEdition)?"selected":""}>FIFA ${profile.edition} · ${profile.performance}/100</option>`).join("")}</select></div></section>
+      <section class="fm32-edition-atlas"><header><div><span>${intelligenceCopy("TURNUVA PERFORMANS ATLASI","TOURNAMENT PERFORMANCE ATLAS")}</span><h3>${intelligenceCopy(`FIFA 1’den FIFA ${activeEdition}’a edisyon bazlı performans`,`Edition-by-edition performance from FIFA 1 to FIFA ${activeEdition}`)}</h3></div><small>${intelligenceCopy("Her turnuva kendi gol, puan, oyuncu ve aşama dağılımı içinde değerlendirilir.","Each tournament is evaluated within its own scoring, points, player and stage distribution.")}</small></header><div class="fm32-edition-cards">${Array.from({length:Math.max(10,activeEdition)},(_,index)=>index+1).map(edition=>{const profile=selected.editionProfiles.find(item=>item.edition===edition);return `<button class="fm32-edition-card ${edition===Number(intelligencePlayerEdition)?'active':''} ${profile?'':'empty'}" data-action="set-player-edition" data-player-edition="${edition}" ${profile?'':'disabled'}><span>FIFA ${edition}</span><strong>${profile?profile.performance:'—'}</strong><small>${profile?`${profile.stats.matches} ${intelligenceCopy('maç','matches')} · ${profile.stats.winRate.toFixed(0)}%` : intelligenceCopy('Katılmadı','No appearance')}</small></button>`;}).join("")}</div></section>
       <div class="fm30-layout">
         <aside class="fm30-left-column">
           <article class="fm30-identity-card prestige-${selected.modelKey}"><header><strong>${selected.currentAbility}</strong><span>#${cards.findIndex(row=>row.name===selected.name)+1}</span></header><div class="fm30-avatar">${escapeHTML(selected.initials)}</div><h3>${escapeHTML(selected.name)}</h3><p>${escapeHTML(selected.activeTitle)}</p><div class="fm30-identity-meta"><div><span>${intelligenceCopy("OYUN TARZI","PLAY STYLE")}</span><b>${escapeHTML(selected.role)}</b></div><div><span>${intelligenceCopy("FAVORİ TAKIM","FAVOURITE TEAM")}</span><b>${escapeHTML(selected.favoriteTeam)}</b></div><div><span>ELO</span><b>${selected.elo}</b></div><div><span>${intelligenceCopy("PRESTIGE","PRESTIGE")}</span><b>${escapeHTML(selected.prestige.name)}</b></div></div><footer><div><span>${intelligenceCopy("MAÇ","MATCHES")}</span><strong>${selected.career.games||0}</strong></div><div><span>${intelligenceCopy("GALİBİYET","WINS")}</span><strong>${selected.career.wins||0}</strong></div><div><span>${intelligenceCopy("KUPA","TITLES")}</span><strong>${selected.career.titles||0}</strong></div></footer></article>
@@ -9053,7 +9385,10 @@
   }
 
   function intelligencePlayerId(name) {
-    return state.current.participants.find(player => player.name.trim() === String(name || "").trim())?.id || "";
+    const target = String(name || "").trim();
+    return fifa10IntegratedParticipants().find(player => player.name.trim() === target)?.id
+      || state.current.participants.find(player => player.name.trim() === target)?.id
+      || "";
   }
 
   function intelligenceStageWeight(stage) {
@@ -9108,7 +9443,7 @@
         const stageWeight = intelligenceStageWeight(record.match.stage);
         const closeWeight = margin <= 1 ? .4 : margin === 2 ? .18 : 0;
         const underdogWeight = expected < .42 ? .35 : 0;
-        const currentWeight = Number(record.match.edition) === Number(state.current.edition || 9) ? .18 : 0;
+        const currentWeight = Number(record.match.edition) === Number(seasonSystem().activeEdition || 10) ? .18 : 0;
         const weight = stageWeight + closeWeight + underdogWeight + currentWeight;
         weightedResult += actual * weight;
         weightedTotal += weight;
@@ -10216,6 +10551,8 @@
     const nextAwayTeam = String(data.get("awayTeam") || "").trim();
     const teamError = validateFinalChapterTeams(match, nextHomeTeam, nextAwayTeam);
     if (teamError) { toast(teamError, "error"); return; }
+    const fifa10TeamError = validateFifa10MatchTeams(match, nextHomeTeam, nextAwayTeam);
+    if (fifa10TeamError) { toast(fifa10TeamError, "error"); return; }
     match.homeScore = homeScore;
     match.awayScore = awayScore;
     match.homeTeam = nextHomeTeam;
@@ -10223,6 +10560,8 @@
     match.tiebreakWinnerId = homeScore === awayScore ? tieWinner : null;
     match.note = String(data.get("note") || "").trim();
     match.updatedAt = new Date().toISOString();
+    if (match.phase === "fifa10-group") match.completed = true;
+    syncFifa10ResultCompatibility(match);
     finalizeMatchArchive(match);
     const warning = reconcileAfterStageEdit(match.phase);
     refreshKnockout();
@@ -10239,6 +10578,10 @@
     const lockReason = finalChapterEditLockReason(match);
     if (lockReason) { toast(lockReason, "error"); return; }
     match.homeScore = null; match.awayScore = null; match.tiebreakWinnerId = null; match.note = ""; match.updatedAt = null;
+    if (match.phase === "fifa10-group") {
+      match.completed = false;
+      syncFifa10ResultCompatibility(match, true);
+    }
     clearMatchArchiveResult(matchId);
     const warning = reconcileAfterStageEdit(match.phase);
     refreshKnockout();
@@ -10247,9 +10590,10 @@
   }
 
   async function shareSite() {
+    const activeEdition = seasonSystem().activeEdition || 10;
     const shareData = {
-      title: "FIFA 9 Tournament Hub",
-      text: "FIFA 9 canlı fikstür, sonuçlar ve puan durumları",
+      title: `FIFA ${activeEdition} Tournament Hub`,
+      text: `FIFA ${activeEdition} canlı fikstür, sonuçlar ve genel PPG sıralaması`,
       url: window.location.href
     };
     if (navigator.share) {
@@ -10270,12 +10614,26 @@ ${shareData.url}`)}`;
 
   function exportJSON() {
     const payload = { app: "FIFA Tournament Hub", exportedAt: new Date().toISOString(), state };
-    download(`FIFA_9_Backup_${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(payload, null, 2), "application/json;charset=utf-8");
-    toast("FIFA 9 yedeği indirildi.", "success");
+    download(`FIFA_Universe_Backup_${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(payload, null, 2), "application/json;charset=utf-8");
+    toast("FIFA Universe yedeği indirildi.", "success");
+  }
+
+  function fifa9CurrentMatches() {
+    return [...leagueMatches(), ...goldMatches(), ...silverMatches(), ...allKnockoutGames()];
+  }
+
+  function fifa10CurrentMatches() {
+    const integration = ensureFifa10IntegratedTournament();
+    return (integration.draw?.fixtures || []).map(match => {
+      match.edition = 10;
+      match.phase = "fifa10-group";
+      match.allowDraw = true;
+      return match;
+    });
   }
 
   function allCurrentMatches() {
-    return [...leagueMatches(), ...goldMatches(), ...silverMatches(), ...allKnockoutGames()];
+    return Number(seasonSystem().activeEdition || 10) >= 10 ? fifa10CurrentMatches() : fifa9CurrentMatches();
   }
 
   function combinedAllTime() {
@@ -10287,7 +10645,7 @@ ${shareData.url}`)}`;
       });
     }
 
-    const currentEdition = Number(state.current.edition || 9);
+    const currentEdition = Number(seasonSystem().activeEdition || 10);
     const historicalEditions = new Set((historical.editions || []).map(item => Number(item.edition)));
     const extraArchived = archivedSeasonMatches().filter(match => Number(match.edition) !== currentEdition && !historicalEditions.has(Number(match.edition)));
     const liveCurrent = allCurrentMatches().filter(matchComplete).map(match => ({
@@ -11259,7 +11617,13 @@ ${shareData.url}`)}`;
     escapeHTML,
     refreshView: () => render(),
     navigate: target => navTo(target),
-    buildTournamentBenchmarkAnalytics: () => buildTournamentBenchmarkAnalytics()
+    buildTournamentBenchmarkAnalytics: () => buildTournamentBenchmarkAnalytics(),
+    getCurrentMatches: () => allCurrentMatches(),
+    getFifa10Draw: () => ensureFifa10IntegratedTournament().draw,
+    buildUnifiedAllTimeMatches: () => buildUnifiedAllTimeMatches(),
+    buildFormAnalytics: (windowSize = 20, scope = "current") => buildFormAnalytics(windowSize, scope),
+    buildOddsAnalytics: () => buildOddsAnalytics(),
+    buildLiveTournamentAnalytics: (scope = "all") => buildLiveTournamentAnalytics(scope)
   };
 
   window.FIFA_FINAL_CHAPTER = {
@@ -11289,7 +11653,8 @@ ${shareData.url}`)}`;
       setCloudState(cloudConfigured ? "error" : "not-configured");
       const replacementResult = applyConfiguredPhase2Replacement({ silent: true });
       const legacyResult = syncCompletedFifa9Legacy();
-      if (replacementResult.changed || legacyResult.changed) cacheState();
+      const fifa10Result = ensureFifa10IntegratedTournament();
+      if (replacementResult.changed || legacyResult.changed || fifa10Result.changed) cacheState();
       render();
       return;
     }
@@ -11297,11 +11662,18 @@ ${shareData.url}`)}`;
       await cloud.init({
         onState: (remoteState, meta = {}) => {
           state = mergeState(remoteState);
+          const transferWasApplied = Boolean(fifa10TransferImport);
+          if (transferWasApplied) state.fifa10StandaloneOperations = fifa10TransferImport;
           const replacementResult = applyConfiguredPhase2Replacement({ silent: true });
           const legacyResult = syncCompletedFifa9Legacy();
+          const fifa10Result = ensureFifa10IntegratedTournament();
           cloudUpdatedAt = meta.updatedAt || cloudUpdatedAt;
           cacheState();
-          if ((replacementResult.changed || legacyResult.changed) && cloudAdmin) saveState(false, true);
+          if ((replacementResult.changed || legacyResult.changed || fifa10Result.changed || transferWasApplied) && cloudAdmin) {
+            Promise.resolve(saveState(false, true)).then(() => {
+              if (transferWasApplied) fifa10TransferImport = null;
+            });
+          }
           // Realtime is a background synchronization mechanism. Rendering the
           // fresh state is sufficient; a toast for every database echo creates
           // an endless notification loop on active tournament devices.
@@ -11315,13 +11687,20 @@ ${shareData.url}`)}`;
           cloudUser = user || null;
           cloudAdmin = Boolean(isAdmin);
           cloudPlayerProfile = playerProfile || null;
+          const transferWasApplied = Boolean(fifa10TransferImport);
+          if (transferWasApplied) state.fifa10StandaloneOperations = fifa10TransferImport;
           registrationPlayersLoadedAt = 0;
           finalPollLoadedAt = 0;
           finalPollMyVote = null;
           const replacementResult = applyConfiguredPhase2Replacement({ silent: true });
           const legacyResult = syncCompletedFifa9Legacy();
+          const fifa10Result = ensureFifa10IntegratedTournament();
           updateAuthUI();
-          if ((replacementResult.changed || legacyResult.changed) && cloudAdmin) saveState(false, true);
+          if ((replacementResult.changed || legacyResult.changed || fifa10Result.changed || transferWasApplied) && cloudAdmin) {
+            Promise.resolve(saveState(false, true)).then(() => {
+              if (transferWasApplied) fifa10TransferImport = null;
+            });
+          }
           if (preserveAdminScreen) {
             restoreAdminReturnContext(true);
           } else {
@@ -11336,11 +11715,15 @@ ${shareData.url}`)}`;
       toast("Canlı veriye bağlanılamadı. Son kayıtlı görünüm gösteriliyor.", "error");
     }
     const legacyResult = syncCompletedFifa9Legacy();
-    if (legacyResult.changed) { cacheState(); if (cloudAdmin) saveState(false, true); }
+    const fifa10Result = ensureFifa10IntegratedTournament();
+    if (legacyResult.changed || fifa10Result.changed) { cacheState(); if (cloudAdmin) saveState(false, true); }
     updateAuthUI();
     render();
     window.FIFA_CHAT_UI?.onCloudReady?.();
     window.dispatchEvent(new Event("fifa-cloud-ready"));
+    if (state.fifa10StandaloneOperations?.transferredFrom) {
+      toast("Acil sonuç ekranındaki FIFA 10 skorları ana turnuva sistemine aktarıldı.", "success");
+    }
   }
 
   initializeCloud();

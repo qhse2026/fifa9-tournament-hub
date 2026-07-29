@@ -1,4 +1,4 @@
-const CACHE = "oruc-reis-football-universe-v47-14-3-standalone-fixture-center";
+const CACHE = "oruc-reis-football-universe-v47-14-4-fifa10-connected-universe";
 const APP_SHELL = [
   "./",
   "./index.html",
