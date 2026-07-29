@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "47.14.7";
+  const VERSION = "47.14.8";
   const STORAGE_KEY = "fifa-tournament-hub-v1";
   const GROUPS = Object.freeze(["A", "B", "C"]);
   const LEG_STARS = Object.freeze([4, 4.5, 5]);
@@ -1175,7 +1175,7 @@
     const fixedGroups = draw?.entryMode === "official-fixed-groups";
     const completedCount = draw?.fixtures?.filter(match => match.completed).length || 0;
     const html = `<header class="f10-draw-hero"><div><span>FIFA 10 · TOURNAMENT OPERATIONS</span><h3>${fixedGroups ? "Resmî fikstür." : "Kura çekimi."}<br><em>Üç grup, tek sıralama.</em></h3><p>${fixedGroups ? `A, B ve C grupları kesinleşti. ${draw.fixtures?.length || 78} maçlık 4★, 4.5★ ve 5★ devreleri bu merkezden yönetilir; her sonuç bütün FIFA evrenine aynı anda işlenir.` : `${participantCount} katılımcı ELO torbalarından canlı kurayla A, B ve C gruplarına dağıtılır. Beklenen grup dağılımı ${sizeText}; hangi grupların büyük olacağı yalnızca kura sırasında belirlenir.`}</p></div><aside class="status-${status.key}"><i></i><strong>${status.label}</strong><small>${fixedGroups ? `${completedCount}/${draw.fixtures?.length || 78} sonuç işlendi` : status.note}</small>${draw?.fivePlayerGroups?.length ? `<b>5 OYUNCULU GRUP${draw.fivePlayerGroups.length > 1 ? "LAR" : ""} · ${draw.fivePlayerGroups.join(" / ")}</b>` : `<b>GRUP BÜYÜKLÜKLERİ · KURADA</b>`}</aside></header>
-      <nav class="f10-draw-tabs">${tabs.map(([id, label]) => `<button type="button" class="${activeTab === id ? "active" : ""}" data-f10draw-action="tab" data-tab="${id}" ${!draw && id !== "draw" ? "disabled" : ""}>${label}</button>`).join("")}</nav>
+      <nav class="f10-draw-tabs">${tabs.map(([id, label]) => `<button type="button" class="${activeTab === id ? "active" : ""}" data-f10draw-action="tab" data-tab="${id}" ${!draw && id !== "draw" ? "disabled" : ""}>${label}</button>`).join("")}${draw?.status === "completed" ? `<button type="button" class="f10-print-launch" data-f10draw-action="print-centre">YAZDIRMA MERKEZİ ↗</button>` : ""}</nav>
       <div class="f10-operation-notice ${operationNotice.type || "info"}"><strong>${operationNotice.type === "success" ? "✓" : operationNotice.type === "warning" ? "!" : "i"}</strong><span>${escapeHTML(operationNotice.text || "")}</span></div>
       ${draw?.status === "completed" ? `<section class="f10-connected-universe"><div><span>ONE SOURCE · CONNECTED UNIVERSE</span><strong>Bir sonucu gir; bütün merkezler birlikte güncellensin.</strong><small>Form, oran, Zekâ, canlı maç, takımlar ve tüm zamanlar aynı resmî FIFA 10 maç kaydını okur.</small></div><nav><button type="button" data-f10draw-action="universe-nav" data-target="livestats">Canlı İstatistik</button><button type="button" data-f10draw-action="universe-nav" data-target="form">Form</button><button type="button" data-f10draw-action="universe-nav" data-target="odds">Oranlar</button><button type="button" data-f10draw-action="universe-nav" data-target="intelligence">Zekâ</button><button type="button" data-f10draw-action="universe-nav" data-target="teams">Takımlar</button><button type="button" data-f10draw-action="universe-nav" data-target="alltime">Tüm Zamanlar</button></nav></section>` : ""}
       <div class="f10-draw-content">${activeTab === "draw" ? renderDrawArena(draw) : activeTab === "groups" ? (draw ? renderGroupTables(draw) : renderDrawArena(null)) : activeTab === "standings" ? (draw?.status === "completed" ? renderStandings(draw) : renderDrawArena(draw)) : activeTab === "teams" ? (draw?.status === "completed" ? renderTeamPassports(draw) : renderDrawArena(draw)) : (draw?.status === "completed" ? renderFixtures(draw) : renderDrawArena(draw))}</div>
@@ -1214,8 +1214,8 @@
     const metaValue = `${VERSION}-live-draw-ppg-engine`;
     if (meta && meta.content !== metaValue) meta.content = metaValue;
     const url = new URL(location.href);
-    if (url.searchParams.get("fifa9build") !== "47147") {
-      url.searchParams.set("fifa9build", "47147");
+    if (url.searchParams.get("fifa9build") !== "47148") {
+      url.searchParams.set("fifa9build", "47148");
       history.replaceState(history.state, "", url);
     }
     document.querySelectorAll(".f10-format-spine article").forEach(article => {
@@ -1329,7 +1329,7 @@
       .f10-draw-hero>div>span,.f10-draw-hero aside b,.f10-draw-footer,.f10-draw-tabs button{font-size:10px;letter-spacing:.17em;font-weight:900;text-transform:uppercase}
       .f10-draw-hero>div>span{color:#82bfff}.f10-draw-hero h3{margin:12px 0 14px;font-size:clamp(34px,5vw,68px);line-height:.94;color:var(--f10d-ice);letter-spacing:-.05em}.f10-draw-hero h3 em{font-style:normal;background:linear-gradient(90deg,#77c7ff,#b78cff,#ef77db);-webkit-background-clip:text;color:transparent}.f10-draw-hero p{max-width:790px;margin:0;color:var(--f10d-muted);font-size:15px;line-height:1.75}
       .f10-draw-hero aside{align-self:start;display:grid;gap:8px;padding:19px 20px;border:1px solid var(--f10d-line);border-radius:18px;background:rgba(10,18,46,.78)}.f10-draw-hero aside i{width:9px;height:9px;border-radius:50%;background:var(--f10d-blue);box-shadow:0 0 15px currentColor}.f10-draw-hero aside strong{color:var(--f10d-ice);font-size:13px}.f10-draw-hero aside small{color:var(--f10d-muted)}.f10-draw-hero aside b{color:var(--f10d-gold);margin-top:6px}.f10-draw-hero aside.status-live i{background:var(--f10d-green)}.f10-draw-hero aside.status-complete i{background:var(--f10d-gold)}
-      .f10-draw-tabs{position:relative;display:flex;gap:8px;padding:15px 28px;border-bottom:1px solid var(--f10d-line);background:rgba(3,8,24,.48);overflow:auto}.f10-draw-tabs button{border:1px solid transparent;border-radius:12px;padding:12px 18px;color:#8e9abd;background:transparent;cursor:pointer;white-space:nowrap}.f10-draw-tabs button.active{color:white;border-color:rgba(116,153,255,.4);background:linear-gradient(90deg,rgba(69,167,255,.18),rgba(157,103,255,.2))}.f10-draw-tabs button:disabled{opacity:.35;cursor:not-allowed}
+      .f10-draw-tabs{position:relative;display:flex;gap:8px;padding:15px 28px;border-bottom:1px solid var(--f10d-line);background:rgba(3,8,24,.48);overflow:auto}.f10-draw-tabs button{border:1px solid transparent;border-radius:12px;padding:12px 18px;color:#8e9abd;background:transparent;cursor:pointer;white-space:nowrap}.f10-draw-tabs button.active{color:white;border-color:rgba(116,153,255,.4);background:linear-gradient(90deg,rgba(69,167,255,.18),rgba(157,103,255,.2))}.f10-draw-tabs button:disabled{opacity:.35;cursor:not-allowed}.f10-draw-tabs .f10-print-launch{margin-left:auto;border-color:rgba(229,189,99,.34);color:var(--f10d-gold);background:rgba(229,189,99,.08)}
       .f10-draw-content{position:relative;padding:30px}.f10-draw-footer{position:relative;display:flex;justify-content:space-between;gap:20px;padding:17px 30px;border-top:1px solid var(--f10d-line);color:#94a4c8}.f10-draw-footer b{color:#78c8ff}
       .f10-draw-ready-panel{display:flex;align-items:end;justify-content:space-between;gap:24px;padding:26px;border:1px solid var(--f10d-line);border-radius:22px;background:linear-gradient(120deg,rgba(30,53,103,.38),rgba(80,36,107,.2));margin-bottom:22px}.f10-draw-ready-panel span{font-size:10px;letter-spacing:.18em;color:#7cc5ff;font-weight:900}.f10-draw-ready-panel h4{font-size:30px;color:white;margin:8px 0}.f10-draw-ready-panel p{max-width:760px;color:var(--f10d-muted);line-height:1.65}.f10-draw-primary,.f10-draw-controls button{border:1px solid var(--f10d-line);border-radius:13px;padding:13px 18px;font-weight:900;color:white;background:rgba(28,40,81,.75);cursor:pointer}.f10-draw-primary{background:linear-gradient(90deg,#347fff,#a84df3)!important;border:0!important;box-shadow:0 12px 30px rgba(74,82,255,.24)}.f10-draw-controls button.danger{color:#ff95a5;border-color:rgba(255,101,123,.3)}.f10-draw-controls button:disabled{opacity:.45;cursor:wait}.f10-public-wait{color:var(--f10d-gold)}
       .f10-draw-pots{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}.f10-draw-pots article{border:1px solid var(--f10d-line);border-radius:18px;overflow:hidden;background:rgba(7,14,37,.7)}.f10-draw-pots article>header{display:grid;grid-template-columns:1fr auto;gap:4px;padding:15px;border-bottom:1px solid var(--f10d-line)}.f10-draw-pots header span{font-size:9px;letter-spacing:.16em;color:#8492b7}.f10-draw-pots header b{font-size:27px;color:var(--f10d-gold)}.f10-draw-pots header small{grid-column:1/3;color:#7ec8ff}.f10-draw-pots article>div{padding:10px;display:grid;gap:8px}.f10-draw-pots article>div>div{display:grid;gap:4px;padding:11px;border-radius:11px;background:rgba(255,255,255,.045)}.f10-draw-pots strong{font-size:12px;color:white}.f10-draw-pots span{font-size:10px;color:#7dc7ff}.f10-draw-pots em{font-style:normal;color:#d699ff;font-size:9px;font-weight:900;letter-spacing:.12em}.f10-draw-pots p{color:#7f8caf;font-size:11px}
@@ -1383,6 +1383,8 @@
         activeTab = button.dataset.tab || "draw";
         persistViewState();
         scheduleRender();
+      } else if (action === "print-centre") {
+        window.open("fifa10-print-centre.html?fifa9build=47148", "_blank", "noopener,noreferrer");
       } else if (action === "universe-nav") {
         window.FIFA_APP_CONTEXT?.navigate?.(button.dataset.target || "seasonhub");
       } else if (action === "manual-start") await startManualGroupEntry();
@@ -1478,7 +1480,8 @@
       switchToManualEntry,
       assignManualGroup,
       finalizeManualGroups,
-      prepareDraw
+      prepareDraw,
+      openPrintCentre: () => window.open("fifa10-print-centre.html?fifa9build=47148", "_blank", "noopener,noreferrer")
     };
   }
 
