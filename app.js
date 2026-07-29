@@ -304,7 +304,7 @@
       if (!Object.keys(results).length) throw new Error("Aktarılacak sonuç bulunamadı.");
       history.replaceState(history.state, "", `${location.pathname}${location.search}`);
       return {
-        version: "47.14.6",
+        version: "47.14.5",
         updatedAt: new Date().toISOString(),
         transferredFrom: "fifa10-emergency-fixture-centre",
         groups: Object.fromEntries(Object.entries(FIFA10_FIXED_GROUPS).map(([group, names]) => [group, [...names]])),
@@ -2318,7 +2318,7 @@
     };
     state.fifa10StandaloneOperations = {
       ...previous,
-      version: "47.14.6",
+      version: "47.14.5",
       updatedAt: now,
       groups: Object.fromEntries(Object.entries(FIFA10_FIXED_GROUPS).map(([group, names]) => [group, [...names]])),
       results

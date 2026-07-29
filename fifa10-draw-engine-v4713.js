@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "47.14.6";
+  const VERSION = "47.14.5";
   const STORAGE_KEY = "fifa-tournament-hub-v1";
   const GROUPS = Object.freeze(["A", "B", "C"]);
   const LEG_STARS = Object.freeze([4, 4.5, 5]);
@@ -1187,17 +1187,11 @@
       admin: isAdmin(),
       busy: moduleBusy,
       auto: autoDrawing,
-      notice: `${operationNotice.type || "info"}:${operationNotice.text || ""}`,
       registrations: registrationRows().map(row => `${row.id}:${row.elo}`).join("|"),
       draw: draw ? `${draw.drawId}:${draw.status}:${draw.updatedAt}:${draw.assignments?.length || 0}:${draw.fixtures?.filter(item => item.completed).length || 0}` : "none"
     });
-    // Keep the signature on the actual centre node. Comparing serialized
-    // innerHTML is unstable because browsers normalize the markup; the old
-    // comparison fed this module's own MutationObserver forever, blocking
-    // clicks on desktop and destroying newly opened sheets on mobile.
-    if (section.dataset.f10RenderSignature !== renderSignature) {
+    if (lastRenderSignature !== renderSignature || section.innerHTML !== html) {
       section.innerHTML = html;
-      section.dataset.f10RenderSignature = renderSignature;
       lastRenderSignature = renderSignature;
     }
     patchRegistrationLock(draw);
@@ -1214,8 +1208,8 @@
     const metaValue = `${VERSION}-live-draw-ppg-engine`;
     if (meta && meta.content !== metaValue) meta.content = metaValue;
     const url = new URL(location.href);
-    if (url.searchParams.get("fifa9build") !== "47146") {
-      url.searchParams.set("fifa9build", "47146");
+    if (url.searchParams.get("fifa9build") !== "47145") {
+      url.searchParams.set("fifa9build", "47145");
       history.replaceState(history.state, "", url);
     }
     document.querySelectorAll(".f10-format-spine article").forEach(article => {
