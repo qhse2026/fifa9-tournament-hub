@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "47.14.4";
+  const VERSION = "47.14.5";
   const STORAGE_KEY = "fifa-tournament-hub-v1";
   const GROUPS = Object.freeze(["A", "B", "C"]);
   const LEG_STARS = Object.freeze([4, 4.5, 5]);
@@ -41,6 +41,16 @@
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
+
+  const teamPoolKey = stars => String(Number(stars));
+  const teamPool = stars => {
+    const source = window.FIFA10_TEAM_POOLS?.[teamPoolKey(stars)];
+    return Array.isArray(source) ? [...source] : [];
+  };
+  const allowedTeamName = (stars, team) => {
+    const target = normalize(team);
+    return Boolean(target) && teamPool(stars).some(name => normalize(name) === target);
+  };
 
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   const nowISO = () => new Date().toISOString();
@@ -119,6 +129,9 @@
       { id: "round-2", label: "2. Devre", stars: 4.5 },
       { id: "round-3", label: "3. Devre", stars: 5 }
     ];
+    draft.settings.teamPoolVersion = window.FIFA10_TEAM_POOL_VERSION || "FC25-42.1";
+    draft.settings.fixedTeamPools = true;
+    draft.settings.preventTeamRepeat = true;
     return next;
   }
 
@@ -747,6 +760,32 @@
     });
   }
 
+  function usedTeamsForPlayer(draw, playerId, stars = null, excludeMatchId = "") {
+    const used = new Set();
+    (draw?.fixtures || []).forEach(match => {
+      if (match.id === excludeMatchId || !match.completed) return;
+      if (stars !== null && Number(match.stars) !== Number(stars)) return;
+      if (match.homeId === playerId && match.homeTeam) used.add(normalize(match.homeTeam));
+      if (match.awayId === playerId && match.awayTeam) used.add(normalize(match.awayTeam));
+    });
+    return used;
+  }
+
+  function teamSelectOptions(draw, fixture, playerId, selectedTeam) {
+    const selectedKey = normalize(selectedTeam);
+    const used = usedTeamsForPlayer(draw, playerId, fixture.stars, fixture.id);
+    const options = teamPool(fixture.stars).map(team => {
+      const key = normalize(team);
+      const selected = key === selectedKey;
+      const blocked = used.has(key) && !selected;
+      return `<option value="${escapeHTML(team)}" ${selected ? "selected" : ""} ${blocked ? "disabled data-player-blocked=\"1\"" : ""}>${escapeHTML(team)}${blocked ? " · KULLANILDI" : ""}</option>`;
+    });
+    if (selectedTeam && !allowedTeamName(fixture.stars, selectedTeam)) {
+      options.unshift(`<option value="${escapeHTML(selectedTeam)}" selected>${escapeHTML(selectedTeam)} · HAVUZ DIŞI ESKİ KAYIT</option>`);
+    }
+    return `<option value="">${fixture.stars}★ takım seçin</option>${options.join("")}`;
+  }
+
   async function saveResult(form) {
     const data = new FormData(form);
     const fixtureId = String(data.get("fixtureId") || "");
@@ -763,6 +802,11 @@
       if (!draw?.fixtures) throw new Error("Fikstür bulunamadı.");
       const fixture = draw.fixtures.find(item => item.id === fixtureId);
       if (!fixture) throw new Error("Maç bulunamadı.");
+      if (!homeTeam || !awayTeam) throw new Error("İki oyuncunun takımı da sabit havuzdan seçilmelidir.");
+      if (!allowedTeamName(fixture.stars, homeTeam) || !allowedTeamName(fixture.stars, awayTeam)) {
+        throw new Error(`Bu maçta yalnızca ${fixture.stars}★ takım havuzundaki kulüpler kullanılabilir.`);
+      }
+      if (normalize(homeTeam) === normalize(awayTeam)) throw new Error("Aynı maçta iki oyuncu aynı kulübü kullanamaz.");
       if (homeTeam && teamUsedBy(draw, fixture.homeId, homeTeam, fixture.id)) throw new Error("Ev sahibi bu takımı turnuvada daha önce kullandı.");
       if (awayTeam && teamUsedBy(draw, fixture.awayId, awayTeam, fixture.id)) throw new Error("Deplasman oyuncusu bu takımı turnuvada daha önce kullandı.");
       fixture.homeScore = homeScore;
@@ -818,11 +862,11 @@
       <form id="f10DrawResultForm">
         <input type="hidden" name="fixtureId" value="${escapeHTML(fixture.id)}">
         <div class="f10-result-versus">
-          <label><strong>${escapeHTML(homeName)}</strong><span>Takım</span><input name="homeTeam" value="${escapeHTML(fixture.homeTeam || "")}" placeholder="Kullanılan takım"><span>Skor</span><input name="homeScore" type="number" min="0" max="99" inputmode="numeric" value="${fixture.completed ? fixture.homeScore : ""}" required></label>
+          <label><strong>${escapeHTML(homeName)}</strong><span>${fixture.stars}★ Takım Havuzu</span><select name="homeTeam" required>${teamSelectOptions(draw, fixture, fixture.homeId, fixture.homeTeam || "")}</select><span>Skor</span><input name="homeScore" type="number" min="0" max="99" inputmode="numeric" value="${fixture.completed ? fixture.homeScore : ""}" required></label>
           <b>VS</b>
-          <label><strong>${escapeHTML(awayName)}</strong><span>Takım</span><input name="awayTeam" value="${escapeHTML(fixture.awayTeam || "")}" placeholder="Kullanılan takım"><span>Skor</span><input name="awayScore" type="number" min="0" max="99" inputmode="numeric" value="${fixture.completed ? fixture.awayScore : ""}" required></label>
+          <label><strong>${escapeHTML(awayName)}</strong><span>${fixture.stars}★ Takım Havuzu</span><select name="awayTeam" required>${teamSelectOptions(draw, fixture, fixture.awayId, fixture.awayTeam || "")}</select><span>Skor</span><input name="awayScore" type="number" min="0" max="99" inputmode="numeric" value="${fixture.completed ? fixture.awayScore : ""}" required></label>
         </div>
-        <p class="f10-modal-rule">Takım pasaportu aktiftir: Aynı oyuncu aynı takımı FIFA 10 boyunca ikinci kez kullanamaz. Grup aşamasında beraberlik geçerlidir.</p>
+        <p class="f10-modal-rule"><strong>Takım pasaportu:</strong> Yalnızca bu devrenin ${fixture.stars}★ havuzu seçilebilir. Aynı oyuncu aynı takımı FIFA 10 boyunca ikinci kez, iki rakip ise aynı maçta aynı kulübü kullanamaz. Grup aşamasında beraberlik geçerlidir.</p>
         <footer>${fixture.completed ? `<button type="button" class="danger" data-f10draw-action="clear-result" data-fixture-id="${escapeHTML(fixture.id)}">Sonucu Sil</button>` : ""}<button type="button" data-f10draw-action="close-modal">Vazgeç</button><button type="submit" class="primary">Sonucu Kaydet</button></footer>
       </form>
     </section>`;
@@ -830,6 +874,22 @@
     overlay.addEventListener("click", event => {
       if (event.target === overlay) closeModal();
     });
+    const homeSelect = overlay.querySelector("select[name='homeTeam']");
+    const awaySelect = overlay.querySelector("select[name='awayTeam']");
+    const syncOpponentOptions = (changed, other) => {
+      if (!changed || !other) return;
+      const selected = normalize(changed.value);
+      [...other.options].forEach(option => {
+        if (!option.value) return;
+        const playerBlocked = option.dataset.playerBlocked === "1";
+        option.disabled = playerBlocked || Boolean(selected && normalize(option.value) === selected);
+      });
+      if (selected && normalize(other.value) === selected) other.value = "";
+    };
+    homeSelect?.addEventListener("change", () => syncOpponentOptions(homeSelect, awaySelect));
+    awaySelect?.addEventListener("change", () => syncOpponentOptions(awaySelect, homeSelect));
+    syncOpponentOptions(homeSelect, awaySelect);
+    syncOpponentOptions(awaySelect, homeSelect);
     overlay.querySelector("input[name='homeScore']")?.focus();
   }
 
@@ -1027,6 +1087,53 @@
     </section>`;
   }
 
+  function playerTeamPassport(draw, player) {
+    const selections = [];
+    let missing = 0;
+    (draw.fixtures || [])
+      .filter(match => match.completed && (match.homeId === player.id || match.awayId === player.id))
+      .sort((a, b) => a.leg - b.leg || a.matchday - b.matchday || a.sequence - b.sequence)
+      .forEach(match => {
+        const isHome = match.homeId === player.id;
+        const team = String(isHome ? match.homeTeam || "" : match.awayTeam || "").trim();
+        if (!team) {
+          missing += 1;
+          return;
+        }
+        selections.push({
+          team,
+          stars: Number(match.stars),
+          opponent: playerName(isHome ? match.awayId : match.homeId, draw)
+        });
+      });
+    return { ...player, selections, missing };
+  }
+
+  function renderTeamPassports(draw) {
+    const players = [...playerMap(draw).values()]
+      .map(player => playerTeamPassport(draw, {
+        ...player,
+        group: GROUPS.find(group => (draw.groups?.[group] || []).includes(player.id)) || ""
+      }))
+      .sort((a, b) => a.group.localeCompare(b.group) || a.tieBreakOrder - b.tieBreakOrder);
+    const poolCards = LEG_STARS.map(stars => {
+      const pool = teamPool(stars);
+      return `<article class="f10-pool-card pool-${String(stars).replace(".", "-")}"><header><div><span>${stars}★ OFFICIAL POOL</span><strong>${stars}★ Takım Havuzu</strong></div><b>${pool.length} TAKIM</b></header><div>${pool.map(team => `<span>${escapeHTML(team)}</span>`).join("")}</div></article>`;
+    }).join("");
+    const passportCards = players.map(player => {
+      const byStars = LEG_STARS.map(stars => {
+        const entries = player.selections.filter(item => item.stars === stars);
+        return `<section><header><b>${stars}★</b><small>${entries.length} kullanıldı · ${Math.max(0, teamPool(stars).length - entries.length)} uygun takım kaldı</small></header><div>${entries.length ? entries.map(item => `<span title="${escapeHTML(item.opponent)}">${escapeHTML(item.team)}</span>`).join("") : `<em>Henüz takım kullanılmadı</em>`}</div></section>`;
+      }).join("");
+      return `<article class="f10-passport-card"><header><div><span>GRUP ${escapeHTML(player.group || "–")}</span><strong>${escapeHTML(player.name)}</strong></div><b>${player.selections.length} TAKIM</b></header>${byStars}${player.missing ? `<p>${player.missing} sonuçta takım bilgisi eksik; fikstürden maçı açıp tamamlayabilirsiniz.</p>` : ""}</article>`;
+    }).join("");
+    return `<section class="f10-team-centre"><header><div><span>FIFA 10 TEAM PASSPORT</span><h4>Oyuncu Takım Listeleri</h4><p>Her oyuncunun kullandığı takım burada devre bazında izlenir. Kullanılmış takım aynı oyuncunun açılır listesinde otomatik kilitlenir.</p></div><b>${players.reduce((sum, player) => sum + player.selections.length, 0)} SEÇİM</b></header>
+      <div class="f10-passport-grid">${passportCards}</div>
+      <header class="pool-heading"><div><span>LOCKED CLUB CATALOGUE</span><h4>Sabit Takım Havuzu</h4><p>Fikstür sonucu girerken sadece maçın yıldız seviyesine ait bu kulüpler seçilebilir; havuz dışı serbest takım girişi kapatılmıştır.</p></div><b>${LEG_STARS.reduce((sum, stars) => sum + teamPool(stars).length, 0)} TAKIM</b></header>
+      <div class="f10-pool-grid">${poolCards}</div>
+    </section>`;
+  }
+
   function renderModule() {
     const view = document.getElementById("view");
     if (!view) return;
@@ -1060,7 +1167,8 @@
       ["draw", "KURA"],
       ["groups", "GRUPLAR"],
       ["standings", "GENEL PUAN"],
-      ["fixtures", "FİKSTÜR"]
+      ["fixtures", "FİKSTÜR"],
+      ["teams", "TAKIMLAR"]
     ];
     const participantCount = draw?.participants?.length || registrationRows().length;
     const sizeText = projectedGroupSizes(participantCount).join("-");
@@ -1070,7 +1178,7 @@
       <nav class="f10-draw-tabs">${tabs.map(([id, label]) => `<button type="button" class="${activeTab === id ? "active" : ""}" data-f10draw-action="tab" data-tab="${id}" ${!draw && id !== "draw" ? "disabled" : ""}>${label}</button>`).join("")}</nav>
       <div class="f10-operation-notice ${operationNotice.type || "info"}"><strong>${operationNotice.type === "success" ? "✓" : operationNotice.type === "warning" ? "!" : "i"}</strong><span>${escapeHTML(operationNotice.text || "")}</span></div>
       ${draw?.status === "completed" ? `<section class="f10-connected-universe"><div><span>ONE SOURCE · CONNECTED UNIVERSE</span><strong>Bir sonucu gir; bütün merkezler birlikte güncellensin.</strong><small>Form, oran, Zekâ, canlı maç, takımlar ve tüm zamanlar aynı resmî FIFA 10 maç kaydını okur.</small></div><nav><button type="button" data-f10draw-action="universe-nav" data-target="livestats">Canlı İstatistik</button><button type="button" data-f10draw-action="universe-nav" data-target="form">Form</button><button type="button" data-f10draw-action="universe-nav" data-target="odds">Oranlar</button><button type="button" data-f10draw-action="universe-nav" data-target="intelligence">Zekâ</button><button type="button" data-f10draw-action="universe-nav" data-target="teams">Takımlar</button><button type="button" data-f10draw-action="universe-nav" data-target="alltime">Tüm Zamanlar</button></nav></section>` : ""}
-      <div class="f10-draw-content">${activeTab === "draw" ? renderDrawArena(draw) : activeTab === "groups" ? (draw ? renderGroupTables(draw) : renderDrawArena(null)) : activeTab === "standings" ? (draw?.status === "completed" ? renderStandings(draw) : renderDrawArena(draw)) : (draw?.status === "completed" ? renderFixtures(draw) : renderDrawArena(draw))}</div>
+      <div class="f10-draw-content">${activeTab === "draw" ? renderDrawArena(draw) : activeTab === "groups" ? (draw ? renderGroupTables(draw) : renderDrawArena(null)) : activeTab === "standings" ? (draw?.status === "completed" ? renderStandings(draw) : renderDrawArena(draw)) : activeTab === "teams" ? (draw?.status === "completed" ? renderTeamPassports(draw) : renderDrawArena(draw)) : (draw?.status === "completed" ? renderFixtures(draw) : renderDrawArena(draw))}</div>
       <footer class="f10-draw-footer"><span>GENEL SIRALAMA: PPG → TOPLAM PUAN → TAM AVERAJ → ATILAN GOL → GALİBİYET → KURA SIRASI</span><b>AVERAGE-POINT TABLE · NO GD CAP</b></footer>`;
     const renderSignature = JSON.stringify({
       tab: activeTab,
@@ -1100,8 +1208,8 @@
     const metaValue = `${VERSION}-live-draw-ppg-engine`;
     if (meta && meta.content !== metaValue) meta.content = metaValue;
     const url = new URL(location.href);
-    if (url.searchParams.get("fifa9build") !== "47144") {
-      url.searchParams.set("fifa9build", "47144");
+    if (url.searchParams.get("fifa9build") !== "47145") {
+      url.searchParams.set("fifa9build", "47145");
       history.replaceState(history.state, "", url);
     }
     document.querySelectorAll(".f10-format-spine article").forEach(article => {
@@ -1226,7 +1334,10 @@
       .f10-general-standings>header,.f10-fixtures>header{display:flex;justify-content:space-between;gap:20px;align-items:end;margin-bottom:18px}.f10-general-standings>header span,.f10-fixtures>header span{font-size:9px;letter-spacing:.18em;color:#7ec8ff;font-weight:900}.f10-general-standings h4,.f10-fixtures h4{font-size:28px;color:white;margin:7px 0}.f10-general-standings p,.f10-fixtures p{max-width:850px;color:#8e9bbb;line-height:1.6}.f10-general-standings>header>div:last-child{display:grid;text-align:right}.f10-general-standings>header>div:last-child strong{font-size:30px;color:var(--f10d-gold)}.f10-general-standings>header>div:last-child small{color:#7e8daf;font-size:9px}.f10-ranking-rules{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}.f10-ranking-rules span{padding:8px 10px;border:1px solid var(--f10d-line);border-radius:8px;color:#95a5c8;font-size:8px;font-weight:900;letter-spacing:.1em}.f10-standings-scroll{overflow:auto;border:1px solid var(--f10d-line);border-radius:18px}.f10-standings-table{min-width:1130px}.f10-standings-table>div{display:grid;grid-template-columns:35px minmax(170px,1fr) 45px repeat(9,48px) 105px;align-items:center;min-height:46px;padding:0 12px;border-bottom:1px solid rgba(125,151,255,.1);color:#9ca9c8;font-size:11px}.f10-standings-table .head{position:sticky;top:0;background:#0b1433;color:#7180a4;font-size:8px;letter-spacing:.1em;z-index:2}.f10-standings-table strong{color:white}.f10-standings-table b{color:#d6ddf2}.f10-standings-table em{font-style:normal;font-size:8px;font-weight:900;color:#76c9ff;letter-spacing:.08em}.f10-standings-table .rank-1,.f10-standings-table .rank-2,.f10-standings-table .rank-3,.f10-standings-table .rank-4{background:linear-gradient(90deg,rgba(69,167,255,.09),rgba(157,103,255,.07))}.f10-standings-table .qualification-direct em{color:var(--f10d-gold)}.f10-standings-table .qualification-gate em{color:#ff9aa9}
       .f10-qualification-path{display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:12px;margin-top:15px}.f10-qualification-path article{padding:16px;border:1px solid var(--f10d-line);border-radius:15px;background:rgba(8,16,40,.65)}.f10-qualification-path article>span{display:block;margin-bottom:10px;color:#7cc8ff;font-size:8px;font-weight:900;letter-spacing:.14em}.f10-qualification-path .direct>div{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.f10-qualification-path b{display:block;color:var(--f10d-gold);font-size:18px}.f10-qualification-path b small{display:block;color:#a5b0cc;font-size:9px;font-weight:500;margin-top:4px}.f10-qualification-path i{font-style:normal;color:#7583a7;margin:0 5px}.f10-qualification-path article>small{color:#7584a8}.preliminary-pairs{display:grid;gap:7px;margin-bottom:8px}.preliminary-pairs strong{padding:8px;border-radius:9px;background:rgba(255,255,255,.04);font-size:10px;color:white}.f10-draw-primary:disabled{opacity:.72;cursor:wait}.path-pairs{display:grid;grid-template-columns:1fr 1fr;gap:7px}.path-pairs b{padding:8px;border-radius:9px;background:rgba(255,255,255,.04);font-size:11px;color:white}
       .f10-fixtures>header>b{color:var(--f10d-gold)}.f10-fixture-filters{display:flex;justify-content:space-between;gap:12px;margin-bottom:13px}.f10-fixture-filters>div{display:flex;gap:6px;overflow:auto}.f10-fixture-filters button{padding:9px 12px;border:1px solid var(--f10d-line);border-radius:9px;background:transparent;color:#8795b8;font-size:9px;font-weight:900;cursor:pointer;white-space:nowrap}.f10-fixture-filters button.active{background:linear-gradient(90deg,rgba(69,167,255,.18),rgba(157,103,255,.2));color:white}.f10-fixture-list{display:grid;gap:7px}.f10-fixture-row{display:grid;grid-template-columns:115px minmax(150px,1fr) 90px minmax(150px,1fr) 170px;align-items:center;gap:12px;width:100%;padding:13px;border:1px solid var(--f10d-line);border-radius:13px;background:rgba(7,14,36,.7);color:white;text-align:left}.f10-fixture-row:not(:disabled){cursor:pointer}.f10-fixture-row:disabled{opacity:.85}.f10-fixture-row>span:first-child{display:flex;justify-content:space-between;align-items:center}.f10-fixture-row small{color:#7f8db1}.f10-fixture-row>div{display:flex;justify-content:center;gap:8px;font-size:17px}.f10-fixture-row>div b{color:var(--f10d-gold)}.f10-fixture-row em{font-style:normal;color:#7fc9ff;font-size:10px}.f10-fixture-row .teams{display:grid;gap:2px;text-align:right}.f10-fixture-row.completed{border-color:rgba(82,228,160,.22)}.f10-empty-fixtures{padding:28px;text-align:center;border:1px dashed var(--f10d-line);border-radius:15px;color:#8391b5}
+      .f10-team-centre>header{display:flex;justify-content:space-between;gap:20px;align-items:end;margin-bottom:16px}.f10-team-centre>header span{color:#7ec8ff;font-size:8px;font-weight:900;letter-spacing:.16em}.f10-team-centre>header h4{margin:6px 0;color:white;font-size:28px}.f10-team-centre>header p{max-width:820px;margin:0;color:#8e9bbb;line-height:1.55}.f10-team-centre>header>b{color:var(--f10d-gold)}.f10-passport-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.f10-passport-card{padding:16px;border:1px solid var(--f10d-line);border-radius:16px;background:rgba(7,14,36,.72)}.f10-passport-card>header,.f10-pool-card>header{display:flex;justify-content:space-between;gap:12px;align-items:start}.f10-passport-card>header span,.f10-pool-card>header span{display:block;color:#75c8ff;font-size:8px;font-weight:900;letter-spacing:.13em}.f10-passport-card>header strong,.f10-pool-card>header strong{display:block;margin-top:5px;color:#fff;font-size:16px}.f10-passport-card>header>b,.f10-pool-card>header>b{color:var(--f10d-gold);font-size:9px}.f10-passport-card section{margin-top:12px;padding-top:10px;border-top:1px solid rgba(125,151,255,.13)}.f10-passport-card section header{display:flex;justify-content:space-between;gap:8px;align-items:center}.f10-passport-card section header b{color:var(--f10d-gold)}.f10-passport-card section header small{color:#7e8cae;font-size:8px}.f10-passport-card section>div,.f10-pool-card>div{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.f10-passport-card section span,.f10-pool-card>div span{padding:6px 8px;border:1px solid rgba(125,151,255,.17);border-radius:8px;background:rgba(255,255,255,.035);color:#dce6ff;font-size:9px}.f10-passport-card section em{color:#6f7d9f;font-size:9px}.f10-passport-card>p{margin:12px 0 0;padding:9px;border-radius:9px;background:rgba(229,189,99,.08);color:#d6ba7d;font-size:9px}.f10-team-centre .pool-heading{margin-top:30px}.f10-pool-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.f10-pool-card{padding:16px;border:1px solid var(--f10d-line);border-radius:16px;background:rgba(8,16,40,.68)}.f10-pool-card.pool-4-5{border-color:rgba(157,103,255,.3)}.f10-pool-card.pool-5{border-color:rgba(229,189,99,.3)}
       .f10-draw-modal-backdrop{position:fixed;inset:0;z-index:10050;display:grid;place-items:center;padding:18px;background:rgba(1,5,17,.82);backdrop-filter:blur(12px)}.f10-draw-modal{width:min(720px,100%);border:1px solid var(--f10d-line);border-radius:23px;background:linear-gradient(145deg,#0a1432,#18103b);box-shadow:0 30px 90px rgba(0,0,0,.55);overflow:hidden}.f10-draw-modal>header{display:flex;justify-content:space-between;align-items:center;padding:20px 23px;border-bottom:1px solid var(--f10d-line)}.f10-draw-modal header span{font-size:9px;letter-spacing:.16em;color:#7dc8ff}.f10-draw-modal h3{color:white;font-size:25px;margin:5px 0 0}.f10-draw-modal header button{border:0;background:transparent;color:white;font-size:25px;cursor:pointer}.f10-draw-modal form{padding:22px}.f10-result-versus{display:grid;grid-template-columns:1fr 50px 1fr;gap:14px;align-items:center}.f10-result-versus label{display:grid;gap:7px}.f10-result-versus label strong{color:white;font-size:16px}.f10-result-versus label span{color:#8290b3;font-size:9px}.f10-result-versus input{width:100%;padding:12px;border:1px solid var(--f10d-line);border-radius:10px;background:#07122e;color:white}.f10-result-versus>b{text-align:center;color:var(--f10d-gold)}.f10-modal-rule{margin:18px 0;color:#8795b7;font-size:11px;line-height:1.55}.f10-draw-modal footer{display:flex;justify-content:flex-end;gap:8px}.f10-draw-modal footer button{padding:11px 15px;border:1px solid var(--f10d-line);border-radius:10px;background:transparent;color:white;font-weight:800;cursor:pointer}.f10-draw-modal footer button.primary{background:linear-gradient(90deg,#347fff,#a84df3);border:0}.f10-draw-modal footer button.danger{margin-right:auto;color:#ff8d9d;border-color:rgba(255,101,123,.3)}
+      .f10-result-versus select{width:100%;min-width:0;padding:12px;border:1px solid var(--f10d-line);border-radius:10px;background:#07122e;color:white}.f10-result-versus option:disabled{color:#7884a3}.f10-modal-rule strong{color:var(--f10d-gold)}
+      .master-player-control select[data-fifa10-live-team-select]{width:100%;min-width:0;padding:10px 11px;border:1px solid rgba(125,151,255,.28);border-radius:9px;background:#07122e;color:#fff;font:inherit}.master-player-control select[data-fifa10-live-team-select] option:disabled{color:#7783a2}
       .f10-draw-toast-stack{position:fixed;right:20px;bottom:22px;z-index:11000;display:grid;gap:8px;width:min(390px,calc(100vw - 40px))}.f10-draw-toast{display:flex;gap:10px;align-items:center;padding:13px 15px;border:1px solid var(--f10d-line);border-radius:13px;background:#0a1432;color:white;box-shadow:0 16px 40px rgba(0,0,0,.35);opacity:0;transform:translateY(12px);transition:.25s}.f10-draw-toast.show{opacity:1;transform:none}.f10-draw-toast span{display:grid;place-items:center;width:25px;height:25px;border-radius:50%;background:rgba(69,167,255,.14);color:#7dc9ff}.f10-draw-toast.success span{color:var(--f10d-green)}.f10-draw-toast.error span{color:var(--f10d-red)}
       .f10-operation-notice{position:relative;display:flex;align-items:center;gap:10px;margin:18px 28px 0;padding:12px 14px;border:1px solid var(--f10d-line);border-radius:13px;background:rgba(7,14,36,.74);color:#b6c2df;font-size:12px}.f10-operation-notice strong{display:grid;place-items:center;width:25px;height:25px;border-radius:50%;background:rgba(69,167,255,.13);color:#78c8ff}.f10-operation-notice.success{border-color:rgba(82,228,160,.28)}.f10-operation-notice.success strong{color:var(--f10d-green)}.f10-operation-notice.warning{border-color:rgba(229,189,99,.32)}.f10-operation-notice.warning strong{color:var(--f10d-gold)}
       .f10-connected-universe{position:relative;display:grid;grid-template-columns:minmax(260px,.9fr) minmax(420px,1.4fr);gap:18px;align-items:center;margin:14px 28px 0;padding:17px 18px;border:1px solid rgba(82,228,160,.24);border-radius:16px;background:linear-gradient(110deg,rgba(82,228,160,.08),rgba(69,167,255,.07),rgba(157,103,255,.07))}.f10-connected-universe>div{display:grid;gap:4px}.f10-connected-universe>div span{color:var(--f10d-green);font-size:8px;font-weight:900;letter-spacing:.16em}.f10-connected-universe>div strong{color:white;font-size:15px}.f10-connected-universe>div small{color:#8f9fc1;line-height:1.45}.f10-connected-universe nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}.f10-connected-universe button{padding:10px 8px;border:1px solid var(--f10d-line);border-radius:9px;background:rgba(6,14,35,.72);color:#dbe7ff;font-size:9px;font-weight:900;cursor:pointer}.f10-connected-universe button:hover{border-color:rgba(82,228,160,.45);color:white}
@@ -1234,7 +1345,7 @@
       .f10-start-actions{display:flex;gap:10px;flex-wrap:wrap}.f10-start-actions button{padding:14px 18px;border:1px solid var(--f10d-line);border-radius:12px;background:rgba(8,18,46,.78);color:white;font-weight:900;cursor:pointer}
       .f10-manual-groups{display:grid;gap:18px}.f10-manual-groups>header{display:flex;justify-content:space-between;gap:20px;align-items:end;padding:24px;border:1px solid var(--f10d-line);border-radius:19px;background:rgba(7,15,39,.72)}.f10-manual-groups>header span{font-size:9px;letter-spacing:.15em;color:#7fc9ff}.f10-manual-groups>header h4{margin:7px 0;font-size:30px;color:white}.f10-manual-groups>header p{margin:0;max-width:750px;color:#93a1c2;line-height:1.6}.f10-manual-groups>header>div:last-child{text-align:right}.f10-manual-groups>header>div:last-child strong{display:block;font-size:32px;color:var(--f10d-gold)}.f10-manual-groups>header>div:last-child small{font-size:8px;color:#8290b4;letter-spacing:.13em}.f10-manual-summary{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.f10-manual-summary b{display:flex;gap:10px;padding:10px 13px;border:1px solid var(--f10d-line);border-radius:10px;color:white}.f10-manual-summary b span{color:#7fc9ff}.f10-manual-summary em{margin-left:auto;color:#a7b4d2;font-style:normal}.f10-manual-player-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.f10-manual-player-list article{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 14px;border:1px solid var(--f10d-line);border-radius:13px;background:rgba(7,14,36,.74)}.f10-manual-player-list article small{display:block;color:#7584aa;font-size:8px}.f10-manual-player-list article strong{display:block;margin-top:4px;color:white}.f10-group-choice{display:flex;gap:5px}.f10-group-choice button{width:36px;height:36px;border:1px solid var(--f10d-line);border-radius:9px;background:#08132f;color:#91a0c1;font-weight:900;cursor:pointer}.f10-group-choice button.active{background:linear-gradient(135deg,#337eff,#a34ff2);border-color:transparent;color:white;box-shadow:0 6px 18px rgba(74,95,255,.25)}.f10-manual-groups>footer{display:flex;justify-content:flex-end;gap:10px}.f10-manual-groups>footer button{padding:13px 17px;border:1px solid var(--f10d-line);border-radius:11px;background:#09142f;color:white;font-weight:900;cursor:pointer}.f10-manual-groups>footer button:disabled{opacity:.4;cursor:not-allowed}
       .f10-registration-draw-locked{position:relative}.f10-registration-draw-locked:after{content:"KURA İÇİN KİLİTLENDİ";position:absolute;top:18px;right:180px;padding:7px 10px;border:1px solid rgba(229,189,99,.3);border-radius:8px;background:rgba(229,189,99,.08);color:var(--f10d-gold);font-size:8px;font-weight:900;letter-spacing:.13em}
-      @media(max-width:1100px){.f10-draw-hero{grid-template-columns:1fr}.f10-draw-hero aside{width:100%}.f10-draw-pots{grid-template-columns:repeat(3,1fr)}.f10-draw-stage{grid-template-columns:1fr}.f10-live-reveal{grid-row:auto;min-height:310px}.f10-draw-log{grid-column:auto}.f10-groups-full{grid-template-columns:1fr}.f10-qualification-path{grid-template-columns:1fr}.f10-fixture-row{grid-template-columns:95px 1fr 70px 1fr}.f10-fixture-row .teams{grid-column:2/5;grid-template-columns:1fr 1fr;text-align:left}.f10-draw-group-grid{grid-template-columns:repeat(3,1fr)}}
+      @media(max-width:1100px){.f10-draw-hero{grid-template-columns:1fr}.f10-draw-hero aside{width:100%}.f10-draw-pots{grid-template-columns:repeat(3,1fr)}.f10-draw-stage{grid-template-columns:1fr}.f10-live-reveal{grid-row:auto;min-height:310px}.f10-draw-log{grid-column:auto}.f10-groups-full{grid-template-columns:1fr}.f10-qualification-path{grid-template-columns:1fr}.f10-fixture-row{grid-template-columns:95px 1fr 70px 1fr}.f10-fixture-row .teams{grid-column:2/5;grid-template-columns:1fr 1fr;text-align:left}.f10-draw-group-grid{grid-template-columns:repeat(3,1fr)}.f10-pool-grid{grid-template-columns:1fr}.f10-passport-grid{grid-template-columns:1fr}}
       @media(max-width:720px){.f10-manual-overlay{place-items:end center;padding:0}.f10-manual-sheet{width:100%;height:96dvh;border-radius:24px 24px 0 0}.f10-manual-sheet>header{padding:14px 15px}.f10-manual-sheet>header button{width:42px;height:42px}.f10-manual-sheet-body{padding:13px 11px max(18px,env(safe-area-inset-bottom))}.f10-manual-resume{display:grid;padding:20px}.f10-manual-resume button{width:100%}.f10-manual-player-list{grid-template-columns:1fr}.f10-manual-groups>header{display:grid;padding:18px 16px}.f10-manual-groups>header h4{font-size:25px}.f10-manual-summary em{width:100%;margin-left:0}.f10-manual-groups>footer{display:grid;position:sticky;bottom:-13px;z-index:2;padding:12px 0;background:linear-gradient(180deg,transparent,#0b1230 24%)}.f10-manual-groups>footer button{min-height:48px}.f10-group-choice button{width:42px;height:42px}.f10-start-actions{display:grid}.f10-draw-centre{border-radius:20px;margin:18px 0}.f10-draw-hero{padding:27px 20px}.f10-draw-hero h3{font-size:39px}.f10-connected-universe{grid-template-columns:1fr;margin:12px}.f10-connected-universe nav{grid-template-columns:repeat(2,minmax(0,1fr))}.f10-draw-content{padding:18px 12px}.f10-draw-footer{display:grid;padding:15px 18px;font-size:8px}.f10-draw-ready-panel{display:grid;align-items:start}.f10-draw-pots{grid-template-columns:1fr}.f10-draw-group-grid{grid-template-columns:1fr}.f10-draw-log>div{grid-template-columns:1fr}.f10-live-reveal>div b{font-size:75px}.f10-fixture-filters{display:grid}.f10-fixture-row{grid-template-columns:80px 1fr 50px 1fr;padding:11px 8px;gap:6px}.f10-fixture-row>span:first-child{display:grid}.f10-fixture-row>strong{font-size:10px}.f10-fixture-row .teams{grid-column:1/5}.f10-result-versus{grid-template-columns:1fr}.f10-result-versus>b{padding:4px}.f10-draw-modal footer{flex-wrap:wrap}.f10-registration-draw-locked:after{position:static;display:inline-block;margin:10px 18px}.f10-draw-tabs{padding:12px}.f10-standings-table>div{font-size:10px}}
     `;
     style.textContent += `

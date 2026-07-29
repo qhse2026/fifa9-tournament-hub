@@ -49,6 +49,21 @@
     C: Object.freeze(["Çağlar Can Tatar", "Mohd Khairull Muzammil Bin Ramly", "Denar Aleksandr Shulev", "Asen Sabuncu", "Cihan Sezgin BOTAŞ"])
   });
   const FIFA10_LEG_STARS = Object.freeze([4, 4.5, 5]);
+  const FIFA10_TEAM_POOLS = window.FIFA10_TEAM_POOLS || Object.freeze({ "4": [], "4.5": [], "5": [] });
+  const fifa10TeamKey = value => String(value || "")
+    .trim()
+    .toLocaleLowerCase("tr-TR")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "");
+  const fifa10TeamPool = stars => {
+    const pool = FIFA10_TEAM_POOLS[String(Number(stars))];
+    return Array.isArray(pool) ? [...pool] : [];
+  };
+  const fifa10AllowedTeam = (stars, team) => {
+    const key = fifa10TeamKey(team);
+    return Boolean(key) && fifa10TeamPool(stars).some(name => fifa10TeamKey(name) === key);
+  };
 
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -289,7 +304,7 @@
       if (!Object.keys(results).length) throw new Error("Aktarılacak sonuç bulunamadı.");
       history.replaceState(history.state, "", `${location.pathname}${location.search}`);
       return {
-        version: "47.14.4",
+        version: "47.14.5",
         updatedAt: new Date().toISOString(),
         transferredFrom: "fifa10-emergency-fixture-centre",
         groups: Object.fromEntries(Object.entries(FIFA10_FIXED_GROUPS).map(([group, names]) => [group, [...names]])),
@@ -2303,7 +2318,7 @@
     };
     state.fifa10StandaloneOperations = {
       ...previous,
-      version: "47.14.4",
+      version: "47.14.5",
       updatedAt: now,
       groups: Object.fromEntries(Object.entries(FIFA10_FIXED_GROUPS).map(([group, names]) => [group, [...names]])),
       results
@@ -2313,6 +2328,11 @@
 
   function validateFifa10MatchTeams(match, homeTeam, awayTeam) {
     if (match?.phase !== "fifa10-group") return "";
+    if (!homeTeam || !awayTeam) return "İki oyuncunun takımı da sabit havuzdan seçilmelidir.";
+    if (!fifa10AllowedTeam(match.stars, homeTeam) || !fifa10AllowedTeam(match.stars, awayTeam)) {
+      return `Bu maçta yalnızca ${match.stars}★ takım havuzundaki kulüpler kullanılabilir.`;
+    }
+    if (fifa10TeamKey(homeTeam) === fifa10TeamKey(awayTeam)) return "Aynı maçta iki oyuncu aynı kulübü kullanamaz.";
     const checks = [
       { playerId: match.homeId, team: homeTeam },
       { playerId: match.awayId, team: awayTeam }
@@ -3730,7 +3750,7 @@
         <div class="panel-header master-live-control-head"><div><div class="eyebrow">LIVE COMMAND CENTRE · V35</div><h3 class="panel-title">${intelligenceCopy("Canlı Kontrol Masası","Live Control Desk")}</h3><div class="panel-subtitle">${intelligenceCopy("Dropdown olmadan tüm maç olaylarını, skoru, dakika akışını ve maç durumunu tek merkezden yönet.","Manage every match event, score, clock and match state from one desk without dropdowns.")}</div></div><span class="badge badge-red">${intelligenceCopy("YÖNETİCİ","ADMIN")}</span></div>
         <div class="master-live-control-grid">
           <article class="master-player-control second-player away-control">
-            <header><span>${intelligenceCopy("İKİNCİ OYUNCU","SECOND PLAYER")}</span><h4>${displayName(match.awayId)}</h4><label><small>${intelligenceCopy("Takım","Team")}</small><input type="text" value="${escapeHTML(live.awayTeam || '')}" data-live-field="awayTeam" placeholder="${intelligenceCopy('Takım adı','Team name')}"></label></header>
+            <header><span>${intelligenceCopy("İKİNCİ OYUNCU","SECOND PLAYER")}</span><h4>${displayName(match.awayId)}</h4><label><small>${intelligenceCopy("Takım","Team")}${match.phase === "fifa10-group" ? ` · ${match.stars}★` : ""}</small>${liveMatchTeamControl(match, "away", live.awayTeam || match.awayTeam || "")}</label></header>
             <div class="master-side-score"><span>${intelligenceCopy("CANLI SKOR","LIVE SCORE")}</span><strong>${live.awayScore}</strong><button type="button" data-action="live-score-minus" data-side="away" title="${intelligenceCopy('Skor düzelt: -1','Correct score: -1')}">−1</button></div>
             <div class="master-event-grid">${renderLiveControlEventButtons('away')}</div>
           </article>
@@ -3747,7 +3767,7 @@
           </section>
 
           <article class="master-player-control first-player home-control">
-            <header><span>${intelligenceCopy("İLK OYUNCU","FIRST PLAYER")}</span><h4>${displayName(match.homeId)}</h4><label><small>${intelligenceCopy("Takım","Team")}</small><input type="text" value="${escapeHTML(live.homeTeam || '')}" data-live-field="homeTeam" placeholder="${intelligenceCopy('Takım adı','Team name')}"></label></header>
+            <header><span>${intelligenceCopy("İLK OYUNCU","FIRST PLAYER")}</span><h4>${displayName(match.homeId)}</h4><label><small>${intelligenceCopy("Takım","Team")}${match.phase === "fifa10-group" ? ` · ${match.stars}★` : ""}</small>${liveMatchTeamControl(match, "home", live.homeTeam || match.homeTeam || "")}</label></header>
             <div class="master-side-score"><span>${intelligenceCopy("CANLI SKOR","LIVE SCORE")}</span><strong>${live.homeScore}</strong><button type="button" data-action="live-score-minus" data-side="home" title="${intelligenceCopy('Skor düzelt: -1','Correct score: -1')}">−1</button></div>
             <div class="master-event-grid">${renderLiveControlEventButtons('home')}</div>
           </article>
@@ -10382,6 +10402,49 @@
     modalBody.innerHTML = "";
   }
 
+  function fifa10TeamAlreadyUsed(match, playerId, team) {
+    const key = fifa10TeamKey(team);
+    if (!key) return false;
+    return fifa10CurrentMatches().some(item => {
+      if (item.id === match.id || !matchComplete(item)) return false;
+      if (item.homeId === playerId && fifa10TeamKey(item.homeTeam) === key) return true;
+      return item.awayId === playerId && fifa10TeamKey(item.awayTeam) === key;
+    });
+  }
+
+  function fifa10TeamSelectOptions(match, playerId, selectedTeam) {
+    const selectedKey = fifa10TeamKey(selectedTeam);
+    const options = fifa10TeamPool(match.stars).map(team => {
+      const selected = fifa10TeamKey(team) === selectedKey;
+      const blocked = !selected && fifa10TeamAlreadyUsed(match, playerId, team);
+      return `<option value="${escapeHTML(team)}" ${selected ? "selected" : ""} ${blocked ? "disabled data-player-blocked=\"1\"" : ""}>${escapeHTML(team)}${blocked ? " · KULLANILDI" : ""}</option>`;
+    });
+    if (selectedTeam && !fifa10AllowedTeam(match.stars, selectedTeam)) {
+      options.unshift(`<option value="${escapeHTML(selectedTeam)}" selected>${escapeHTML(selectedTeam)} · HAVUZ DIŞI ESKİ KAYIT</option>`);
+    }
+    return `<option value="">${match.stars}★ takım seçin</option>${options.join("")}`;
+  }
+
+  function matchTeamControl(match, side) {
+    const isHome = side === "home";
+    const playerId = isHome ? match.homeId : match.awayId;
+    const value = isHome ? match.homeTeam : match.awayTeam;
+    const name = isHome ? "homeTeam" : "awayTeam";
+    if (match.phase !== "fifa10-group") {
+      return `<input name="${name}" type="text" value="${escapeHTML(value)}" placeholder="${isHome ? "Örn. Real Madrid" : "Örn. Manchester City"}">`;
+    }
+    return `<select name="${name}" required data-fifa10-team-select="${side}">${fifa10TeamSelectOptions(match, playerId, value || "")}</select>`;
+  }
+
+  function liveMatchTeamControl(match, side, value) {
+    const playerId = side === "home" ? match.homeId : match.awayId;
+    const field = side === "home" ? "homeTeam" : "awayTeam";
+    if (match.phase !== "fifa10-group") {
+      return `<input type="text" value="${escapeHTML(value || "")}" data-live-field="${field}" placeholder="${intelligenceCopy("Takım adı", "Team name")}">`;
+    }
+    return `<select data-live-field="${field}" data-fifa10-live-team-select="${side}">${fifa10TeamSelectOptions(match, playerId, value || "")}</select>`;
+  }
+
   function openMatchEditor(matchId) {
     if (!canEdit()) { toast("Sonuç girişi yalnızca turnuva yöneticisine açıktır.", "error"); return; }
     const match = findMatch(matchId);
@@ -10397,9 +10460,10 @@
           <div class="score-side"><div class="score-side-name">${displayName(match.awayId)}</div></div>
         </div>
         <div class="modal-form-grid">
-          <div class="field"><label>${displayName(match.homeId)} Takımı</label><input name="homeTeam" type="text" value="${escapeHTML(match.homeTeam)}" placeholder="Örn. Real Madrid"></div>
-          <div class="field"><label>${displayName(match.awayId)} Takımı</label><input name="awayTeam" type="text" value="${escapeHTML(match.awayTeam)}" placeholder="Örn. Manchester City"></div>
+          <div class="field"><label>${displayName(match.homeId)} Takımı${match.phase === "fifa10-group" ? ` · ${match.stars}★ HAVUZ` : ""}</label>${matchTeamControl(match, "home")}</div>
+          <div class="field"><label>${displayName(match.awayId)} Takımı${match.phase === "fifa10-group" ? ` · ${match.stars}★ HAVUZ` : ""}</label>${matchTeamControl(match, "away")}</div>
         </div>
+        ${match.phase === "fifa10-group" ? `<div class="info-box mt-16">Sabit takım havuzu aktiftir. Kullanılmış kulüpler oyuncu bazında kilitlenir; iki rakip aynı maçta aynı takımı seçemez.</div>` : ""}
         ${!match.allowDraw ? `<div class="field mt-16"><label>Eşitlik durumunda kazanan</label><select name="tiebreakWinnerId"><option value="">Skor eşit değil / seçilmedi</option><option value="${match.homeId}" ${match.tiebreakWinnerId === match.homeId ? "selected" : ""}>${displayName(match.homeId)} (Uzatma/Penaltı)</option><option value="${match.awayId}" ${match.tiebreakWinnerId === match.awayId ? "selected" : ""}>${displayName(match.awayId)} (Uzatma/Penaltı)</option></select></div>` : ""}
         <div class="field mt-16"><label>Maç Notu</label><input name="note" type="text" value="${escapeHTML(match.note || "")}" placeholder="Opsiyonel not"></div>
         <div class="modal-actions"><button type="button" class="btn btn-danger" data-action="clear-match" data-match-id="${match.id}">Sonucu Temizle</button><button type="button" class="btn btn-ghost" data-action="close-modal">İptal</button><button type="submit" class="btn btn-gold">Sonucu Kaydet</button></div>
@@ -11525,6 +11589,37 @@ ${shareData.url}`)}`;
   });
 
   document.addEventListener("change", event => {
+    if (event.target.dataset.fifa10LiveTeamSelect) {
+      const opposite = event.target.dataset.fifa10LiveTeamSelect === "home" ? "away" : "home";
+      const other = view.querySelector(`[data-fifa10-live-team-select="${opposite}"]`);
+      if (other) {
+        const selectedKey = fifa10TeamKey(event.target.value);
+        [...other.options].forEach(option => {
+          if (!option.value) return;
+          option.disabled = option.dataset.playerBlocked === "1"
+            || Boolean(selectedKey && fifa10TeamKey(option.value) === selectedKey);
+        });
+        if (selectedKey && fifa10TeamKey(other.value) === selectedKey) {
+          other.value = "";
+          const active = getLiveState().active;
+          if (active) active[other.dataset.liveField] = "";
+        }
+      }
+    }
+    if (event.target.dataset.fifa10TeamSelect) {
+      const opposite = event.target.dataset.fifa10TeamSelect === "home" ? "away" : "home";
+      const other = modalBody.querySelector(`[data-fifa10-team-select="${opposite}"]`);
+      if (other) {
+        const selectedKey = fifa10TeamKey(event.target.value);
+        [...other.options].forEach(option => {
+          if (!option.value) return;
+          option.disabled = option.dataset.playerBlocked === "1"
+            || Boolean(selectedKey && fifa10TeamKey(option.value) === selectedKey);
+        });
+        if (selectedKey && fifa10TeamKey(other.value) === selectedKey) other.value = "";
+      }
+      return;
+    }
     if (event.target.dataset.fifa10League && canEdit()) {
       const player=seasonSystem().fifa10Draft.players.find(item=>item.id===event.target.dataset.fifa10League);
       if (player) { player.league=event.target.value==="premier"?"premier":"championship"; seasonSystem().fifa10Draft.updatedAt=new Date().toISOString(); saveState(); renderSeasonWorkspace(); }
@@ -11620,6 +11715,7 @@ ${shareData.url}`)}`;
     buildTournamentBenchmarkAnalytics: () => buildTournamentBenchmarkAnalytics(),
     getCurrentMatches: () => allCurrentMatches(),
     getFifa10Draw: () => ensureFifa10IntegratedTournament().draw,
+    getFifa10TeamPools: () => Object.fromEntries(FIFA10_LEG_STARS.map(stars => [String(stars), fifa10TeamPool(stars)])),
     buildUnifiedAllTimeMatches: () => buildUnifiedAllTimeMatches(),
     buildFormAnalytics: (windowSize = 20, scope = "current") => buildFormAnalytics(windowSize, scope),
     buildOddsAnalytics: () => buildOddsAnalytics(),
