@@ -1,0 +1,44 @@
+ORUÇ REİS FIFA WORLD — V47.14.9 VALIDATION
+Date: 2026-07-29
+
+PASS — PRINT LAYOUT REGRESSION
+- Fixture sequence-number (#) column removed.
+- Fixture tables use two columns: wide match/team area and compact score area.
+- A/B/C group pages retain three star-tier panels in print mode.
+- Mobile responsive rules are limited to screen media and no longer collapse print columns.
+- Print pages use natural height and explicit page breaks; blank overflow pages are not generated.
+
+PASS — PLAYER TEAM BOARDS
+- 14 players rendered as 14 prominent player boards.
+- Two players are placed on each A4 landscape page.
+- Total player pages reduced from 14 to 7.
+- Every player retains three side-by-side tables: 4★, 4.5★ and 5★.
+- Every star table retains 10 editable team rows.
+- Total editable team cells: 420.
+- Opponent and score information removed.
+- Existing result-linked teams are auto-filled.
+- Existing manual entries retain their original local-storage keys.
+
+PASS — PRINT USABILITY
+- Player names are large and group-colour coded.
+- Browser header/footer deactivation instruction is displayed before printing.
+- Empty print cells remain visually blank for handwriting.
+- Cards and tier tables are protected from page splitting.
+
+PASS — CONNECTED FIFA 10 UNIVERSE
+- 78 fixtures retained.
+- Existing and newly entered results reach Form, Live Analytics, Odds and All-Time.
+- FIFA 09 archive remains intact.
+- Official men's pools remain 48 + 19 + 9 = 76 teams.
+- Women teams remain excluded.
+- Cloud save serialization and statement-timeout retry remain active.
+
+PASS — JAVASCRIPT / DOM TESTS
+- Core JavaScript syntax
+- Cloud save queue
+- Print Centre
+- FIFA 10 connected universe
+- Manual groups/mobile overlay
+- Shared Supabase authentication client
+- Official team pools
+- General PPG fixture centre

@@ -1,0 +1,28 @@
+ORUÇ REİS FIFA WORLD — V47.14.9
+FIFA 10 Print Layout
+
+KURULUM
+1. ZIP içeriğini Vercel projesinin kök dizinine eksiksiz yükleyin.
+2. Mevcut dosyaların üzerine yazın; cloud-config.js ayarlarınızı koruyun.
+3. Dağıtım bittikten sonra şu adresi açın:
+   https://fifa9-tournament-hub.vercel.app/?fifa9build=47149
+
+YENİ YAZDIRMA DÜZENİ
+- Fikstürlerde gereksiz sıra numarası (#) kolonu kaldırıldı.
+- Eşleşme ve kullanılan takım alanı genişletildi; skor alanı kompakt hale getirildi.
+- A, B ve C grupları ayrı A4 yatay sayfalarda kalır.
+- Her yıldız seviyesinin maç sayısı grup başlığında görünür.
+- Oyuncu pasaportlarında rakip ve skor kaldırıldı; yalnızca kullanılan takım bulunur.
+- Bir A4 yatay sayfada iki oyuncu yer alır.
+- Oyuncu adları büyük, belirgin ve grup renkleriyle ayrılmıştır.
+- 14 oyuncu çizelgesi 7 sayfada tamamlanır.
+- Her oyuncuda yan yana 4★, 4.5★ ve 5★ tabloları ile 10'ar satır korunur.
+- Girilmiş takım kayıtları otomatik gelir; mevcut manuel yazılar korunur.
+- Yazdırma sırasında tabloların tek kolona düşmesi ve boş devam sayfası üretmesi düzeltildi.
+
+DOĞRU YAZDIRMA AYARI
+- Kağıt: A4
+- Yön: Yatay
+- Ölçek: %100
+- Daha fazla ayar > Üstbilgiler ve altbilgiler: KAPALI
+- Arka plan grafikleri: AÇIK
