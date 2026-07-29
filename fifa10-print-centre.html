@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#071228">
+  <title>FIFA 10 Yazdırma Merkezi</title>
+  <style>
+    :root{--navy:#071228;--blue:#245cca;--gold:#b98213;--line:#b9c2cf;--soft:#edf2f8;--ink:#101827}
+    *{box-sizing:border-box}
+    body{margin:0;background:#dce3ec;color:var(--ink);font:12px/1.35 Arial,Helvetica,sans-serif}
+    .toolbar{position:sticky;top:0;z-index:10;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 18px;background:#071228;color:#fff;box-shadow:0 8px 24px #07122840}
+    .toolbar strong{display:block;font-size:17px}.toolbar small{color:#93a8ca}
+    .toolbar div:last-child{display:flex;flex-wrap:wrap;gap:7px;justify-content:flex-end}
+    button{border:1px solid #49638d;border-radius:8px;padding:9px 12px;background:#101f3f;color:#fff;font-weight:800;cursor:pointer}
+    button.primary{border-color:#d8a83b;background:linear-gradient(90deg,#245cca,#8b42bf)}
+    .screen-note{max-width:297mm;margin:14px auto 0;padding:10px 13px;border:1px solid #aab6c6;border-radius:10px;background:#f8fafc;color:#46556d}
+    #printRoot{padding:14px}
+    .page{width:297mm;min-height:210mm;margin:0 auto 14px;padding:9mm;background:#fff;box-shadow:0 8px 32px #07122825;page-break-after:always;break-after:page;overflow:hidden}
+    .page:last-child{page-break-after:auto}
+    .page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:15px;padding-bottom:6px;border-bottom:3px solid var(--navy)}
+    .page-head small{display:block;color:var(--blue);font-weight:900;letter-spacing:.12em}
+    .page-head h1{margin:3px 0 0;font-size:24px;line-height:1;color:var(--navy)}
+    .page-head aside{text-align:right}.page-head aside strong{display:block;color:var(--gold);font-size:16px}.page-head aside span{color:#657187;font-size:10px}
+    .group-meta{display:grid;grid-template-columns:1fr repeat(3,auto);gap:8px;align-items:center;margin:7px 0}
+    .group-meta>strong{font-size:14px}.group-meta span{padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:var(--soft);font-size:10px;font-weight:800}
+    .fixture-cols,.tracker-cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+    .fixture-card,.tracker-card,.rule-card,.pool-card{border:1px solid var(--line);border-radius:8px;overflow:hidden}
+    .fixture-card>header,.tracker-card>header,.rule-card>header,.pool-card>header{display:flex;align-items:center;justify-content:space-between;padding:7px 8px;background:var(--navy);color:#fff}
+    .fixture-card>header strong,.tracker-card>header strong{font-size:13px}.fixture-card>header span,.tracker-card>header span{color:#f5ca62;font-weight:900}
+    table{width:100%;border-collapse:collapse;table-layout:fixed}
+    th,td{border:1px solid #cbd2dc;padding:4px 5px;vertical-align:middle}
+    th{background:#e8edf4;color:#273550;font-size:9px;text-transform:uppercase;letter-spacing:.04em}
+    td{height:22px;font-size:9px}
+    td.num{width:25px;text-align:center;color:#667289}td.score{width:44px;text-align:center;font-weight:900;color:#9a6900}
+    td.match strong{display:block;font-size:9px}td.match small{display:block;color:#6c7788;font-size:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .rule-intro{margin:8px 0;padding:8px 10px;border-left:4px solid var(--blue);background:var(--soft)}
+    .rules-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+    .rule-card{padding-bottom:7px}.rule-card>header strong{font-size:17px}.rule-card>div{padding:7px 9px}.rule-card ul{margin:0;padding-left:17px}.rule-card li{margin:5px 0}
+    .global-rules{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:9px}
+    .global-rules div{padding:8px;border:1px solid var(--line);border-radius:7px;background:#f7f9fc}.global-rules b{display:block;color:var(--blue);font-size:10px}.global-rules span{display:block;margin-top:3px;font-size:9px}
+    .pool-grid{display:grid;grid-template-columns:1.55fr 1fr .8fr;gap:8px;margin-top:8px}
+    .pool-card>header small{color:#f5ca62}.club-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px;padding:6px}.pool-card.pool-4 .club-list{grid-template-columns:repeat(3,minmax(0,1fr))}
+    .club-list span{padding:3px 4px;border-bottom:1px dotted #c7ced8;font-size:7.5px}
+    .player-title{display:flex;align-items:center;justify-content:space-between;margin:7px 0}.player-title h2{margin:0;color:var(--navy);font-size:19px}.player-title span{padding:5px 8px;border-radius:99px;background:var(--soft);font-weight:800}
+    .tracker-card table th:first-child,.tracker-card table td:first-child{width:24px;text-align:center}
+    .tracker-card table th:last-child,.tracker-card table td:last-child{width:45%;font-size:8px;color:#657187}
+    .team-cell{min-height:17px;font-weight:800;outline:none}.team-cell:focus{background:#fff5c7;box-shadow:inset 0 0 0 1px #d9a31a}
+    .team-cell:empty:before{content:"";display:block;height:13px}
+    .auto-mark{color:#138152;font-weight:900}.manual-hint{margin-top:7px;color:#69758a;font-size:9px}
+    .footer-line{display:flex;justify-content:space-between;margin-top:6px;padding-top:5px;border-top:1px solid #ccd3dd;color:#788397;font-size:8px}
+    body[data-print-scope="fixtures"] .page:not([data-section="fixtures"]),
+    body[data-print-scope="rules"] .page:not([data-section="rules"]),
+    body[data-print-scope="players"] .page:not([data-section="players"]){display:none}
+    @media(max-width:1100px){.page{width:calc(100vw - 20px);min-height:auto}.fixture-cols,.tracker-cols,.rules-grid,.pool-grid{grid-template-columns:1fr}.pool-card.pool-4 .club-list{grid-template-columns:repeat(2,1fr)}}
+    @media print{
+      @page{size:A4 landscape;margin:7mm}
+      body{background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+      .toolbar,.screen-note{display:none!important}
+      #printRoot{padding:0}
+      .page{width:100%;height:196mm;min-height:196mm;margin:0;padding:0;box-shadow:none}
+      .page-head h1{font-size:21px}
+      button{display:none}
+      .team-cell:focus{background:transparent;box-shadow:none}
+    }
+  </style>
+</head>
+<body>
+  <header class="toolbar">
+    <div><strong>FIFA 10 Yazdırma Merkezi</strong><small>Fikstür · takım kuralları · oyuncu takım çizelgeleri</small></div>
+    <div>
+      <button data-print-scope="fixtures">Grup Fikstürleri</button>
+      <button data-print-scope="rules">Takım Kuralları</button>
+      <button data-print-scope="players">Oyuncu Çizelgeleri</button>
+      <button class="primary" data-print-scope="all">Tümünü Yazdır</button>
+    </div>
+  </header>
+  <div class="screen-note">Sarı odakla açılan boş takım hücrelerine bilgisayardan veya telefondan yazabilirsiniz. Manuel girişler bu cihazda korunur. Yazdırırken A4 yatay düzenini seçin.</div>
+  <main id="printRoot"></main>
+  <script src="fifa10-team-pools.js?v=47.14.8"></script>
+  <script>
+  (() => {
+    "use strict";
+    const STORAGE_KEY = "fifa-tournament-hub-v1";
+    const MANUAL_KEY = "fifa10-print-team-notes-v1";
+    const STARS = [4, 4.5, 5];
+    const FIXED_GROUPS = {
+      A:["Kerim Özmen","Ercan Köseoğlu","Emre Çınar","Ersin Darıcı","Şafak Denar"],
+      B:["Oğuzhan Dindar","Aziz Sarıoğlu","Sergei Smirnov","Affan Volkan Akbal"],
+      C:["Çağlar Can Tatar","Mohd Khairull Muzammil Bin Ramly","Denar Aleksandr Shulev","Asen Sabuncu","Cihan Sezgin BOTAŞ"]
+    };
+    const esc = value => String(value ?? "").replace(/[&<>"']/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[char]));
+    const readJSON = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key) || "") || fallback; } catch (_) { return fallback; } };
+    const state = readJSON(STORAGE_KEY, {});
+    const manual = readJSON(MANUAL_KEY, {});
+    const draw = state?.seasonSystem?.fifa10Draft?.draw || null;
+    const participants = Array.isArray(draw?.participants) ? draw.participants : [];
+    const playerById = new Map(participants.map(player => [String(player.id), String(player.name || "")]));
+    const nameOf = id => playerById.get(String(id || "")) || String(id || "–");
+    const groups = {};
+    for (const group of ["A","B","C"]) {
+      const ids = Array.isArray(draw?.groups?.[group]) ? draw.groups[group] : [];
+      groups[group] = ids.length ? ids.map(nameOf).filter(Boolean) : [...FIXED_GROUPS[group]];
+    }
+    function fallbackFixtures() {
+      const rows = [];
+      Object.entries(groups).forEach(([group, names]) => {
+        STARS.forEach((stars, legIndex) => {
+          let matchday = 0;
+          for (let first = 0; first < names.length; first += 1) for (let second = first + 1; second < names.length; second += 1) {
+            matchday += 1;
+            const reverse = legIndex === 1;
+            rows.push({
+              id:`PRINT-${group}-${legIndex + 1}-${first}-${second}`,group,leg:legIndex + 1,stars,matchday,
+              homeName:reverse ? names[second] : names[first],
+              awayName:reverse ? names[first] : names[second],
+              completed:false,homeScore:null,awayScore:null,homeTeam:"",awayTeam:""
+            });
+          }
+        });
+      });
+      return rows;
+    }
+    const fixtures = (Array.isArray(draw?.fixtures) && draw.fixtures.length ? draw.fixtures : fallbackFixtures()).map(match => ({
+      ...match,
+      homeName:match.homeName || nameOf(match.homeId),
+      awayName:match.awayName || nameOf(match.awayId),
+      stars:Number(match.stars),
+      leg:Number(match.leg) || STARS.indexOf(Number(match.stars)) + 1
+    }));
+    const complete = match => Boolean(match.completed) && Number.isFinite(Number(match.homeScore)) && Number.isFinite(Number(match.awayScore));
+    const score = match => complete(match) ? `${Number(match.homeScore)}–${Number(match.awayScore)}` : "___–___";
+    const groupPlayerCount = group => groups[group].length;
+    const footer = () => `<div class="footer-line"><span>ORUÇ REİS FOOTBALL UNIVERSE · FIFA 10</span><span>V47.14.8 · ${new Date().toLocaleDateString("tr-TR")}</span></div>`;
+    function fixturePage(group) {
+      const rows = fixtures.filter(match => match.group === group);
+      const counts = Object.fromEntries(STARS.map(stars => [String(stars), rows.filter(match => match.stars === stars).length]));
+      return `<section class="page" data-section="fixtures">
+        <header class="page-head"><div><small>RESMÎ GRUP FİKSTÜRÜ</small><h1>GRUP ${group}</h1></div><aside><strong>${groupPlayerCount(group)} OYUNCU · ${rows.length} MAÇ</strong><span>${groups[group].map(esc).join(" · ")}</span></aside></header>
+        <div class="group-meta"><strong>Üç devre · Her rakiplik üç kez</strong><span>4★ ${counts["4"]} MAÇ</span><span>4.5★ ${counts["4.5"]} MAÇ</span><span>5★ ${counts["5"]} MAÇ</span></div>
+        <div class="fixture-cols">${STARS.map(stars => {
+          const tierRows = rows.filter(match => match.stars === stars).sort((a,b) => Number(a.matchday) - Number(b.matchday));
+          return `<article class="fixture-card"><header><strong>${stars}★ FİKSTÜR</strong><span>${tierRows.length} MAÇ</span></header><table><thead><tr><th>#</th><th>Eşleşme / Takımlar</th><th>Skor</th></tr></thead><tbody>${tierRows.map((match,index) => `<tr><td class="num">${index + 1}</td><td class="match"><strong>${esc(match.homeName)} — ${esc(match.awayName)}</strong><small>${esc(match.homeTeam || "Takım: __________")} / ${esc(match.awayTeam || "Takım: __________")}</small></td><td class="score">${score(match)}</td></tr>`).join("")}</tbody></table></article>`;
+        }).join("")}</div>${footer()}</section>`;
+    }
+    function rulesPage() {
+      return `<section class="page" data-section="rules"><header class="page-head"><div><small>RESMÎ TAKIM KULLANIM TALİMATI</small><h1>4★ · 4.5★ · 5★ TAKIM KURALLARI</h1></div><aside><strong>76 ERKEK TAKIMI</strong><span>Sabit dropdown · tekrar kullanımı yasak</span></aside></header>
+        <div class="rule-intro"><strong>Temel format:</strong> 1. Devre 4★, 2. Devre 4.5★, 3. Devre 5★ takımlarla oynanır. Takım seçimi yalnızca ilgili yıldız havuzundan yapılır.</div>
+        <div class="rules-grid">${[
+          [4,"1. DEVRE","48 takım","Her grup içi eşleşmenin ilk maçı. Yalnızca 4★ havuzu kullanılır."],
+          [4.5,"2. DEVRE","19 takım","Aynı rakipliğin ters saha eşleşmesi. Yalnızca 4.5★ havuzu kullanılır."],
+          [5,"3. DEVRE","9 takım","Grup aşamasının son devresi. Yalnızca 5★ havuzu kullanılır."]
+        ].map(([stars,leg,count,text]) => `<article class="rule-card"><header><strong>${stars}★</strong><span>${leg}</span></header><div><b>${count}</b><p>${text}</p><ul><li>Havuz dışı takım seçilemez.</li><li>Kullanılan takım oyuncu bazında kilitlenir.</li><li>Aynı maçta iki rakip aynı kulübü seçemez.</li></ul></div></article>`).join("")}</div>
+        <div class="global-rules"><div><b>TEK KULLANIM</b><span>Bir oyuncu aynı kulübü FIFA 10 boyunca ikinci kez kullanamaz.</span></div><div><b>ERKEK TAKIMLARI</b><span>W işaretli kadın takımları resmî havuzlara dahil değildir.</span></div><div><b>SONUÇ KAYDI</b><span>Skor ve iki takım birlikte girilmeden maç tamamlanmış sayılmaz.</span></div><div><b>GENEL SIRALAMA</b><span>PPG → toplam puan → averaj → atılan gol → galibiyet.</span></div></div>${footer()}</section>`;
+    }
+    function poolsPage() {
+      const pools = window.FIFA10_TEAM_POOLS || {};
+      return `<section class="page" data-section="rules"><header class="page-head"><div><small>SABİT ERKEK TAKIM KATALOĞU</small><h1>RESMÎ TAKIM HAVUZLARI</h1></div><aside><strong>48 + 19 + 9</strong><span>Toplam 76 kulüp</span></aside></header>
+        <div class="pool-grid">${STARS.map(stars => {
+          const teams = Array.from(pools[String(stars)] || []);
+          return `<article class="pool-card pool-${String(stars).replace(".","-")}"><header><strong>${stars}★ HAVUZU</strong><small>${teams.length} TAKIM</small></header><div class="club-list">${teams.map((team,index) => `<span>${index + 1}. ${esc(team)}</span>`).join("")}</div></article>`;
+        }).join("")}</div>${footer()}</section>`;
+    }
+    function autoEntries(playerName, stars) {
+      return fixtures.filter(match => complete(match) && match.stars === stars && (match.homeName === playerName || match.awayName === playerName)).map(match => {
+        const home = match.homeName === playerName;
+        return {
+          team:home ? match.homeTeam : match.awayTeam,
+          opponent:home ? match.awayName : match.homeName,
+          result:home ? `${match.homeScore}–${match.awayScore}` : `${match.awayScore}–${match.homeScore}`
+        };
+      });
+    }
+    function trackerPage(playerName, group) {
+      return `<section class="page" data-section="players"><header class="page-head"><div><small>OYUNCU TAKIM KULLANIM ÇİZELGESİ</small><h1>${esc(playerName)}</h1></div><aside><strong>GRUP ${group}</strong><span>Her yıldız seviyesi için 10 satır</span></aside></header>
+        <div class="player-title"><h2>FIFA 10 · Takım Pasaportu</h2><span>Dolu satırlar sonuçlardan otomatik alınmıştır</span></div>
+        <div class="tracker-cols">${STARS.map(stars => {
+          const entries = autoEntries(playerName, stars);
+          return `<article class="tracker-card"><header><strong>${stars}★ TAKIMLAR</strong><span>${entries.length}/10</span></header><table><thead><tr><th>#</th><th>Kullanılan Takım</th><th>Rakip / Skor</th></tr></thead><tbody>${Array.from({length:10},(_,index) => {
+            const entry = entries[index] || null;
+            const key = `${playerName}|${stars}|${index}`;
+            const value = Object.prototype.hasOwnProperty.call(manual,key) ? manual[key] : (entry?.team || "");
+            return `<tr><td>${index + 1}</td><td class="team-cell" contenteditable="true" spellcheck="false" data-manual-key="${esc(key)}">${esc(value)}</td><td>${entry ? `<span class="auto-mark">✓</span> ${esc(entry.opponent)} · ${esc(entry.result)}` : "________________"}</td></tr>`;
+          }).join("")}</tbody></table></article>`;
+        }).join("")}</div><p class="manual-hint">Boş hücrelere takım adını elle yazabilirsiniz. Yazılan bilgiler yalnızca bu cihazdaki yazdırma çizelgesinde saklanır; resmî maç sonucunu değiştirmez.</p>${footer()}</section>`;
+    }
+    const players = Object.entries(groups).flatMap(([group,names]) => names.map(name => ({name,group})));
+    document.getElementById("printRoot").innerHTML = [
+      ...["A","B","C"].map(fixturePage),
+      rulesPage(),
+      poolsPage(),
+      ...players.map(player => trackerPage(player.name,player.group))
+    ].join("");
+    document.addEventListener("input", event => {
+      const cell = event.target.closest("[data-manual-key]");
+      if (!cell) return;
+      manual[cell.dataset.manualKey] = cell.textContent.replace(/\s+/g," ").trim();
+      localStorage.setItem(MANUAL_KEY,JSON.stringify(manual));
+    });
+    document.addEventListener("click", event => {
+      const button = event.target.closest("[data-print-scope]");
+      if (!button) return;
+      const scope = button.dataset.printScope || "all";
+      document.body.dataset.printScope = scope;
+      setTimeout(() => window.print(), 30);
+    });
+    window.addEventListener("afterprint", () => { delete document.body.dataset.printScope; });
+  })();
+  </script>
+</body>
+</html>

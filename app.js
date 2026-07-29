@@ -21,6 +21,7 @@
   let cloudState = cloudConfigured ? "connecting" : "local";
   let cloudUpdatedAt = null;
   let cloudSaveTimer = null;
+  let cloudInitialStateLoaded = false;
   const FINAL_POLL_SLUG = "fifa09-final-chapter-groups-v4";
   // Must be initialized before loadState(), because defaultState() builds Final Chapter state.
   const FINAL_CHAPTER_DIRECT_NAMES = Object.freeze(["Oğuzhan Dindar", "Aziz Sarıoğlu", "Ercan Köseoğlu"]);
@@ -304,7 +305,7 @@
       if (!Object.keys(results).length) throw new Error("Aktarılacak sonuç bulunamadı.");
       history.replaceState(history.state, "", `${location.pathname}${location.search}`);
       return {
-        version: "47.14.7",
+        version: "47.14.8",
         updatedAt: new Date().toISOString(),
         transferredFrom: "fifa10-emergency-fixture-centre",
         groups: Object.fromEntries(Object.entries(FIFA10_FIXED_GROUPS).map(([group, names]) => [group, [...names]])),
@@ -343,7 +344,12 @@
       } catch (error) {
         console.error("Cloud save failed", error);
         setCloudState("error", error.message);
-        toast("Bulut kaydı başarısız. İnternet bağlantısını ve yetkini kontrol et.", "error");
+        if (showIndicator) {
+          const detail = /statement timeout|canceling statement/i.test(String(error?.message || error || ""))
+            ? "Bulut veritabanı zaman aşımına uğradı. Kayıt cihazda korundu; sistem otomatik olarak yeniden denedi."
+            : `Bulut kaydı başarısız: ${error?.message || "Bağlantı veya yönetici yetkisi doğrulanamadı."}`;
+          toast(detail, "error");
+        }
       }
     };
     if (immediate || showIndicator) return commit();
@@ -2318,7 +2324,7 @@
     };
     state.fifa10StandaloneOperations = {
       ...previous,
-      version: "47.14.7",
+      version: "47.14.8",
       updatedAt: now,
       groups: Object.fromEntries(Object.entries(FIFA10_FIXED_GROUPS).map(([group, names]) => [group, [...names]])),
       results
@@ -11758,6 +11764,7 @@ ${shareData.url}`)}`;
       await cloud.init({
         onState: (remoteState, meta = {}) => {
           state = mergeState(remoteState);
+          cloudInitialStateLoaded = true;
           const transferWasApplied = Boolean(fifa10TransferImport);
           if (transferWasApplied) state.fifa10StandaloneOperations = fifa10TransferImport;
           const replacementResult = applyConfiguredPhase2Replacement({ silent: true });
@@ -11792,7 +11799,7 @@ ${shareData.url}`)}`;
           const legacyResult = syncCompletedFifa9Legacy();
           const fifa10Result = ensureFifa10IntegratedTournament();
           updateAuthUI();
-          if ((replacementResult.changed || legacyResult.changed || fifa10Result.changed || transferWasApplied) && cloudAdmin) {
+          if (cloudInitialStateLoaded && (replacementResult.changed || legacyResult.changed || fifa10Result.changed || transferWasApplied) && cloudAdmin) {
             Promise.resolve(saveState(false, true)).then(() => {
               if (transferWasApplied) fifa10TransferImport = null;
             });

@@ -1,0 +1,58 @@
+ORUÇ REİS FIFA WORLD — V47.14.8 VALIDATION
+Date: 2026-07-29
+
+PASS — JavaScript syntax
+- cloud.js
+- app.js
+- fifa10-draw-engine-v4713.js
+- fifa10-team-pools.js
+- service-worker.js
+
+PASS — Cloud save queue
+- Two simultaneous save requests produced max 1 concurrent database update.
+- PostgreSQL 57014 / statement timeout triggered exactly one automatic retry.
+- Save response requested updated_at only; the complete payload was not returned.
+- Payload snapshots and save order were preserved.
+
+PASS — FIFA 10 connected universe
+- 78 fixtures
+- Group sizes 5 / 4 / 5
+- Existing results migrated
+- New result propagated immediately
+- Form Centre, live analytics, odds and all-time history remained integrated
+- FIFA 09 archive remained intact
+- Print Centre button opened build 47148
+- No self-render loop
+
+PASS — Print Centre
+- 3 group fixture pages
+- Group A: 30 matches; 10 per star tier
+- Group B: 18 matches; 6 per star tier
+- Group C: 30 matches; 10 per star tier
+- Separate rules and official pool pages
+- 14 player sheets
+- 3 star tables per player
+- 10 editable rows per table
+- 420 editable team cells total
+- Existing home/away team and result values auto-filled
+- Manual cells persisted in local storage
+
+PASS — Official men's team pools
+- 4★: 48 teams
+- 4.5★: 19 teams
+- 5★: 9 teams
+- Total: 76
+- Women teams: 0
+- Duplicates: 0
+
+PASS — Manual groups and mobile-safe overlay
+- Manual overlay survives application re-render
+- 78 fixtures created
+- Results preserved
+- Realtime notification loop removed
+- Mobile overlay rules present
+
+ENVIRONMENT NOTE
+The legacy Playwright screenshot script could not launch because its Chromium
+binary is not installed in this execution environment. The same click, modal,
+render, result-entry and mobile overlay logic passed the JSDOM integration suite.

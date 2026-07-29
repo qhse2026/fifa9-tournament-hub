@@ -9,6 +9,19 @@
   let channel = null;
   let callbacks = { onState: () => {}, onAuth: () => {}, onStatus: () => {} };
   let lastRemoteUpdatedAt = null;
+  let saveTail = Promise.resolve();
+
+  const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+  function clonePayload(value) {
+    if (typeof structuredClone === "function") return structuredClone(value);
+    return JSON.parse(JSON.stringify(value));
+  }
+
+  function isStatementTimeout(error) {
+    const message = String(error?.message || error || "");
+    return error?.code === "57014" || /statement timeout|canceling statement/i.test(message);
+  }
 
   function isConfigured() {
     return Boolean(
@@ -135,30 +148,52 @@
     return { configured: true, isAdmin: admin, playerProfile, user: session?.user || null };
   }
 
-  async function save(payload) {
+  async function performSave(payload) {
     if (!client || !isConfigured()) throw new Error("Cloud connection is not configured.");
     if (!admin) throw new Error("Only the tournament administrator can save changes.");
     emitStatus("syncing");
-    const updatedAt = new Date().toISOString();
-    const { data, error } = await client
-      .from("tournament_state")
-      .update({
-        payload,
-        edition: Number(config.edition || 9),
-        updated_at: updatedAt,
-        updated_by: session?.user?.id || null
-      })
-      .eq("id", config.tournamentRowId || "fifa-9")
-      .select("payload, updated_at")
-      .single();
-    if (error) {
-      emitStatus("error", error.message);
-      throw error;
+    let finalError = null;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const updatedAt = new Date().toISOString();
+      const { data, error } = await client
+        .from("tournament_state")
+        .update({
+          payload,
+          edition: Number(config.edition || 9),
+          updated_at: updatedAt,
+          updated_by: session?.user?.id || null
+        })
+        .eq("id", config.tournamentRowId || "fifa-9")
+        // Returning the complete JSON payload doubled the database work and
+        // made large tournament saves much more likely to exceed Supabase's
+        // statement limit. Only the commit timestamp is needed here.
+        .select("updated_at")
+        .single();
+      if (!error) {
+        lastRemoteUpdatedAt = data?.updated_at || updatedAt;
+        emitStatus("saved", data?.updated_at || updatedAt);
+        setTimeout(() => emitStatus("admin-online"), 900);
+        return data;
+      }
+      finalError = error;
+      if (!isStatementTimeout(error) || attempt > 0) break;
+      await wait(350);
     }
-    lastRemoteUpdatedAt = data?.updated_at || updatedAt;
-    emitStatus("saved", data?.updated_at || updatedAt);
-    setTimeout(() => emitStatus("admin-online"), 900);
-    return data;
+    emitStatus("error", finalError?.message || "Cloud save failed.");
+    throw finalError;
+  }
+
+  function save(payload) {
+    // All modules share one authenticated client. Queue writes so the main
+    // application, FIFA 10 engine and startup migrations cannot update the
+    // same JSON row concurrently and block each other until statement timeout.
+    const snapshot = clonePayload(payload);
+    const job = saveTail.then(
+      () => performSave(snapshot),
+      () => performSave(snapshot)
+    );
+    saveTail = job.catch(() => {});
+    return job;
   }
 
   async function signIn(email, password) {

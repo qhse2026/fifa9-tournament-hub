@@ -1,0 +1,33 @@
+ORUÇ REİS FIFA WORLD — V47.14.8
+Cloud Save + Print Centre
+
+KURULUM
+1. Bu ZIP içeriğini Vercel projesinin kök dizinine eksiksiz yükleyin.
+2. Mevcut dosyaların üzerine yazın; cloud-config.js dosyanızdaki Supabase ayarlarını koruyun.
+3. Dağıtım bittikten sonra şu adresi açın:
+   https://fifa9-tournament-hub.vercel.app/?fifa9build=47148
+
+BULUT KAYDI DÜZELTMESİ
+- Aynı tournament_state satırına paralel kayıtlar artık tek sıraya alınır.
+- Statement timeout oluşursa kayıt bir kez otomatik yeniden denenir.
+- Veritabanı artık kayıttan sonra büyük payload verisini tekrar döndürmez; yalnızca updated_at döner.
+- İlk bulut verisi gelmeden başlangıç migrasyonu ikinci bir kayıt başlatmaz.
+- Arka plan kayıt hataları tekrar tekrar yanlış "internet/yetki" bildirimi göstermez.
+- Sonuç her zaman önce cihazda saklanır; bulut geçici olarak gecikse bile veri kaybolmaz.
+
+YAZDIRMA MERKEZİ
+- FIFA 10 Format & Kura ekranında kura tamamlandıktan sonra YAZDIRMA MERKEZİ düğmesi görünür.
+- Grup A, B ve C fikstürleri ayrı A4 yatay sayfalardır.
+- Her grubun yanında 4★, 4.5★ ve 5★ maç sayıları yazılıdır.
+- Takım kuralları ve resmi erkek takım havuzları ayrı yazdırılabilir.
+- Her oyuncu için yan yana üç tablo bulunur: 4★, 4.5★ ve 5★.
+- Her tabloda 10 elle doldurulabilir satır vardır.
+- Girilmiş maçlardaki takım, rakip ve skorlar otomatik olarak oyuncu sayfasına taşınır.
+- Elle yazılan notlar cihazda saklanır ve resmi maç sonuçlarını değiştirmez.
+
+YAZDIRMA
+Tarayıcı yazdırma ekranında:
+- Kağıt: A4
+- Yön: Yatay
+- Kenar boşluğu: Varsayılan veya Minimum
+- Arka plan grafikleri: Açık
