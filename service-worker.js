@@ -1,4 +1,4 @@
-const CACHE = "oruc-reis-football-universe-v47-14-6-fifa10-click-recovery";
+const CACHE = "oruc-reis-football-universe-v47-14-7-fifa10-men-team-pools";
 const APP_SHELL = [
   "./",
   "./index.html",

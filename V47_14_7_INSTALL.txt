@@ -1,0 +1,34 @@
+ORUC REIS FIFA WORLD — V47.14.7
+FIFA 10 MEN TEAM POOLS
+
+BU PAKET TAM SİTE PAKETİDİR.
+
+GÜNCELLENEN TAKIM HAVUZLARI
+- 5★: 9 erkek takımı
+- 4.5★: 19 erkek takımı
+- 4★: 48 erkek takımı
+- Toplam: 76 erkek takımı
+
+W İŞARETLİ KADIN TAKIMLARI HAVUZLARA DAHİL EDİLMEMİŞTİR.
+
+ÖNEMLİ DEĞİŞİKLİKLER
+1. Atlético de Madrid 5★ havuzundan 4.5★ havuzuna taşındı.
+2. Girona FC–Real Betis Balompié aralığındaki erkek takımları 4★ havuzuna
+   alındı.
+3. Al Hilal, River Plate, Al Nassr ve Flamengo 4★ havuzuna eklendi.
+4. Wolverhampton, Sevilla, Leicester City, RC Lens, Celtic, Getafe,
+   Trabzonspor, Las Palmas ve Hoffenheim 4★ havuzuna eklendi.
+5. Önceki V47.14.6 tıklama, mobil panel ve yönetici oturumu düzeltmeleri
+   korunmuştur.
+
+YAYINLAMA
+1. Bu klasörün TAMAMINI mevcut Vercel projesine yükleyin.
+2. Eski dosyaların üzerine yazılmasına izin verin.
+3. Yayından sonra şu adresi bir kez açın:
+   https://fifa9-tournament-hub.vercel.app/?fifa9build=47147
+4. Yönetici girişi yapın.
+5. FIFA 10 > FİKSTÜR alanında bir maçı açıp takım dropdownlarını kontrol edin.
+
+NOT
+Mevcut sonuçlar ve geçmişte kaydedilen takım adları korunur. Yeni veya
+düzenlenen sonuçlarda V47.14.7 erkek takım havuzları uygulanır.

@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "47.14.6";
+  const VERSION = "47.14.7";
   const STORAGE_KEY = "fifa-tournament-hub-v1";
   const GROUPS = Object.freeze(["A", "B", "C"]);
   const LEG_STARS = Object.freeze([4, 4.5, 5]);
@@ -129,7 +129,7 @@
       { id: "round-2", label: "2. Devre", stars: 4.5 },
       { id: "round-3", label: "3. Devre", stars: 5 }
     ];
-    draft.settings.teamPoolVersion = window.FIFA10_TEAM_POOL_VERSION || "FC25-42.1";
+    draft.settings.teamPoolVersion = window.FIFA10_TEAM_POOL_VERSION || "FC26-2026.07-MEN-ONLY";
     draft.settings.fixedTeamPools = true;
     draft.settings.preventTeamRepeat = true;
     return next;
@@ -1214,8 +1214,8 @@
     const metaValue = `${VERSION}-live-draw-ppg-engine`;
     if (meta && meta.content !== metaValue) meta.content = metaValue;
     const url = new URL(location.href);
-    if (url.searchParams.get("fifa9build") !== "47146") {
-      url.searchParams.set("fifa9build", "47146");
+    if (url.searchParams.get("fifa9build") !== "47147") {
+      url.searchParams.set("fifa9build", "47147");
       history.replaceState(history.state, "", url);
     }
     document.querySelectorAll(".f10-format-spine article").forEach(article => {
