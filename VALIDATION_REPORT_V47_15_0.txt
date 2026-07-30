@@ -1,0 +1,81 @@
+ORUÇ REİS FIFA WORLD — V47.15.0 VALIDATION
+Date: 30.07.2026
+
+STATUS: PASS
+
+PASSED AUTOMATED SUITES
+1. Cloud save queue
+   - Serialized save
+   - Timeout retry
+   - updated_at-only cloud response compatibility
+
+2. Single authentication client
+   - No duplicate Supabase client
+   - Shared client reuse
+
+3. Official FIFA 10 team pools
+   - 4★: 48
+   - 4.5★: 19
+   - 5★: 9
+   - Total: 76 men’s teams
+   - Women’s teams excluded
+   - No duplicates
+
+4. Standalone fixture centre
+   - 78 fixtures
+   - PPG and average goal difference display
+   - Total goals-for rule
+   - Group tables removed
+
+5. Manual groups and mobile modal
+   - Overlay survives application rerender
+   - 78 fixtures generated
+   - Existing completed matches preserved
+   - Realtime duplicate toast removed
+   - Mobile overlay rules present
+
+6. Print Centre
+   - Numberless compact fixture tables
+   - 3 group pages and correct 30/18/30 match totals
+   - 7 pages with two player boards per page
+   - 420 editable team cells
+   - 14 locally generated player QR codes
+   - QR deep links target build 471500 Player Match Centre
+
+7. Connected FIFA 10 universe
+   - Fixed 5-4-5 groups and 78 fixtures
+   - Existing results migrate and remain editable
+   - Result reaches Form, Live Statistics, Odds and All-Time records
+   - FIFA 09 archive remains present
+   - Stable render loop: 0 self-render mutations
+   - PPG tie resolved by average goal difference
+   - Qualification path: 1-4 direct QF, 5-12 Play-in, 13-14 eliminated
+   - Player Match Centre
+   - Admin Quick Result Entry
+   - Read-only standings scenarios
+   - Visible sync history
+   - TV / wall mode
+
+8. Complete English package
+   - Dashboard
+   - Season hub
+   - Groups, standings, fixtures, teams and Player Match Centre
+   - Result modal
+   - Scenario modal
+   - Sync History
+   - TV / wall mode
+   - Print Centre
+   - Standalone fixture centre
+
+STATIC VALIDATION
+- app.js: syntax PASS
+- language.js: syntax PASS
+- fifa10-draw-engine-v4713.js: syntax PASS
+- service-worker.js: syntax PASS
+- qrcode-generator-2.0.4.js: syntax PASS
+
+ENVIRONMENT NOTE
+The legacy Playwright-only manual-groups-hotfix suite could not launch because
+the container does not include a Chromium binary. Its interaction, preservation
+and mobile-modal assertions are covered by the passing jsdom manual-groups and
+connected-universe suites above.

@@ -52,7 +52,8 @@
     .player-board[data-group="A"]{border-top:5px solid #245cca}.player-board[data-group="B"]{border-top:5px solid #7640b7}.player-board[data-group="C"]{border-top:5px solid #b98213}
     .player-board-title{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 9px;background:#edf2f8;border-bottom:1px solid var(--line)}
     .player-board-title h2{margin:0;color:var(--navy);font-size:18px;line-height:1}.player-board-title h2 span{display:inline-block;margin-left:7px;color:#60708a;font-size:8px;letter-spacing:.1em;vertical-align:middle}
-    .player-board-title>span{padding:4px 8px;border-radius:99px;background:#fff;border:1px solid #c7d0dc;color:#43526b;font-size:8px;font-weight:900}
+    .player-board-access{display:flex;align-items:center;gap:7px}.player-board-access>span{padding:4px 8px;border-radius:99px;background:#fff;border:1px solid #c7d0dc;color:#43526b;font-size:8px;font-weight:900}
+    .player-qr{display:grid;grid-template-columns:16mm auto;gap:5px;align-items:center}.player-qr svg{display:block;width:16mm;height:16mm;padding:1mm;background:#fff;border:1px solid #b9c2cf}.player-qr small{max-width:22mm;color:#43526b;font-size:6.5px;font-weight:900;line-height:1.15;text-transform:uppercase}
     .tracker-cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;padding:5px}
     .tier-table table th{padding:3px 5px;font-size:8px}.tier-table table td{height:4.4mm;padding:2px 6px}
     .team-cell{font-weight:800;outline:none;font-size:9px}.team-cell:focus{background:#fff5c7;box-shadow:inset 0 0 0 1px #d9a31a}
@@ -92,8 +93,9 @@
   </header>
   <div class="screen-note"><strong>Doğru çıktı ayarı:</strong> A4 · Yatay · Ölçek %100. Tarayıcının “Daha fazla ayar” bölümünde <strong>Üstbilgiler ve altbilgiler</strong> seçeneğini kapatın. Takım hücrelerine bilgisayardan veya telefondan yazabilirsiniz; manuel girişler bu cihazda korunur.</div>
   <main id="printRoot"></main>
-  <script src="fifa10-team-pools.js?v=47.14.13"></script>
-  <script src="language.js?v=47.14.13"></script>
+  <script src="fifa10-team-pools.js?v=47.15.0"></script>
+  <script src="language.js?v=47.15.0"></script>
+  <script src="qrcode-generator-2.0.4.js?v=47.15.0"></script>
   <script>
   (() => {
     "use strict";
@@ -147,7 +149,7 @@
     const complete = match => Boolean(match.completed) && Number.isFinite(Number(match.homeScore)) && Number.isFinite(Number(match.awayScore));
     const score = match => complete(match) ? `${Number(match.homeScore)}–${Number(match.awayScore)}` : "___–___";
     const groupPlayerCount = group => groups[group].length;
-    const footer = () => `<div class="footer-line"><span>ORUÇ REİS FOOTBALL UNIVERSE · FIFA 10</span><span>V47.14.13 · ${new Date().toLocaleDateString(window.FIFA_I18N?.language === "en" ? "en-GB" : "tr-TR")}</span></div>`;
+    const footer = () => `<div class="footer-line"><span>ORUÇ REİS FOOTBALL UNIVERSE · FIFA 10</span><span>V47.15.0 · ${new Date().toLocaleDateString(window.FIFA_I18N?.language === "en" ? "en-GB" : "tr-TR")}</span></div>`;
     function fixturePage(group) {
       const rows = fixtures.filter(match => match.group === group);
       const counts = Object.fromEntries(STARS.map(stars => [String(stars), rows.filter(match => match.stars === stars).length]));
@@ -186,7 +188,7 @@
     }
     function playerBoard(playerName, group) {
       return `<article class="player-board" data-group="${esc(group)}">
-        <header class="player-board-title"><h2>${esc(playerName)} <span>TAKIM PASAPORTU</span></h2><span>GRUP ${esc(group)}</span></header>
+        <header class="player-board-title"><h2>${esc(playerName)} <span>TAKIM PASAPORTU</span></h2><div class="player-board-access"><div class="player-qr" data-player-qr="${esc(playerName)}"></div><span>GRUP ${esc(group)}</span></div></header>
         <div class="tracker-cols">${STARS.map(stars => {
           const teams = autoEntries(playerName, stars);
           return `<section class="tier-table"><header><strong>${stars}★ TAKIMLAR</strong><span>${teams.length}/10</span></header><table><thead><tr><th>Kullanılan Takım</th></tr></thead><tbody>${Array.from({length:10},(_,index) => {
@@ -212,6 +214,29 @@
       poolsPage(),
       ...playerPages.map((page,index) => trackerPage(page,index,playerPages.length))
     ].join("");
+    function playerCentreUrl(playerName) {
+      const url = new URL("index.html", location.href);
+      url.search = "";
+      url.hash = "";
+      url.searchParams.set("fifa9build", "471500");
+      url.searchParams.set("fifa10player", playerName);
+      return url.href;
+    }
+    function renderPlayerQRCodes() {
+      document.querySelectorAll("[data-player-qr]").forEach(node => {
+        const playerName = node.dataset.playerQr || "";
+        node.dataset.playerUrl = playerCentreUrl(playerName);
+        if (typeof window.qrcode !== "function") {
+          node.innerHTML = `<small>${esc(playerName)} · ${window.FIFA_I18N?.language === "en" ? "Player Centre" : "Oyuncu Merkezi"}</small>`;
+          return;
+        }
+        const qr = window.qrcode(0, "M");
+        qr.addData(node.dataset.playerUrl);
+        qr.make();
+        node.innerHTML = `${qr.createSvgTag({cellSize:2,margin:2,scalable:true,title:`${playerName} · FIFA 10 Player Centre`})}<small>${window.FIFA_I18N?.language === "en" ? "Scan for Player Centre" : "Oyuncu Merkezi için okut"}</small>`;
+      });
+    }
+    renderPlayerQRCodes();
     document.addEventListener("input", event => {
       const cell = event.target.closest("[data-manual-key]");
       if (!cell) return;

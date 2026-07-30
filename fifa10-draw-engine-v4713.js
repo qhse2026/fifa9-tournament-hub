@@ -1,8 +1,9 @@
 (() => {
   "use strict";
 
-  const VERSION = "47.14.13";
+  const VERSION = "47.15.0";
   const STORAGE_KEY = "fifa-tournament-hub-v1";
+  const SYNC_HISTORY_KEY = "fifa10-sync-history-v1";
   const GROUPS = Object.freeze(["A", "B", "C"]);
   const LEG_STARS = Object.freeze([4, 4.5, 5]);
   const MIN_PLAYERS = 12;
@@ -26,6 +27,10 @@
   let manualEntryOverlayOpen = false;
   let manualEntryLoading = false;
   let manualEntryOverlayError = "";
+  let selectedPlayerRef = new URL(location.href).searchParams.get("fifa10player") || sessionStorage.getItem("fifa10-selected-player") || "";
+  let quickPlayerFilter = sessionStorage.getItem("fifa10-quick-player") || "";
+  let tvModeOpen = false;
+  let tvClockTimer = null;
 
   const escapeHTML = value => String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -60,6 +65,50 @@
   const cloudConfigured = () => Boolean(window.FIFA_CLOUD?.isConfigured?.());
   const isAdmin = () => !cloudConfigured() || Boolean(window.FIFA_CLOUD?.isAdmin?.());
   const cloudClient = () => window.FIFA_CLOUD?.getClient?.() || null;
+
+  function readSyncHistory() {
+    try {
+      const rows = JSON.parse(localStorage.getItem(SYNC_HISTORY_KEY) || "[]");
+      return Array.isArray(rows) ? rows.slice(0, 30) : [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function recordSyncEvent(status, message = "", messageEn = "") {
+    const rows = readSyncHistory();
+    rows.unshift({
+      id: `F10-SYNC-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      status,
+      message,
+      messageEn,
+      at: nowISO()
+    });
+    localStorage.setItem(SYNC_HISTORY_KEY, JSON.stringify(rows.slice(0, 30)));
+  }
+
+  function syncStatusMeta(event = readSyncHistory()[0]) {
+    if (!event) return {
+      key: "idle",
+      label: uiCopy("CİHAZ HAZIR", "DEVICE READY"),
+      detail: uiCopy("Henüz bu cihazda yeni kayıt yapılmadı.", "No new save has been made on this device yet.")
+    };
+    if (event.status === "cloud") return {
+      key: "cloud",
+      label: uiCopy("BULUT GÜNCEL", "CLOUD UP TO DATE"),
+      detail: uiCopy(event.message || "Canlı siteye kaydedildi.", event.messageEn || "Saved to the live site.")
+    };
+    if (event.status === "error") return {
+      key: "error",
+      label: uiCopy("BULUT BEKLİYOR", "CLOUD PENDING"),
+      detail: uiCopy(event.message || "Cihaz kaydı güvende; bulut yeniden denenebilir.", event.messageEn || "The device save is safe; cloud sync can be retried.")
+    };
+    return {
+      key: "local",
+      label: uiCopy("CİHAZDA KAYITLI", "SAVED ON DEVICE"),
+      detail: uiCopy(event.message || "Cihaz kaydı tamamlandı.", event.messageEn || "Device save completed.")
+    };
+  }
 
   function secureRandomInt(max) {
     const size = Number(max) || 0;
@@ -310,6 +359,11 @@
     payload = next;
     // Always commit locally first. The tournament can continue even if the network momentarily fails.
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    recordSyncEvent(
+      "local",
+      message ? `${message} Cihaz kaydı tamamlandı.` : "Cihaz kaydı tamamlandı.",
+      message ? "The operation was saved on this device." : "Device save completed."
+    );
     const applicationState = window.FIFA_APP_CONTEXT?.getState?.();
     if (applicationState && typeof applicationState === "object" && applicationState !== next) {
       Object.keys(applicationState).forEach(key => delete applicationState[key]);
@@ -327,8 +381,18 @@
       try {
         await window.FIFA_CLOUD.save(next);
         cloudSaved = true;
+        recordSyncEvent(
+          "cloud",
+          message ? `${message} Canlı siteye kaydedildi.` : "Canlı siteye kaydedildi.",
+          message ? "The operation was saved to the live site." : "Saved to the live site."
+        );
       } catch (error) {
         cloudError = error;
+        recordSyncEvent(
+          "error",
+          `Cihaz kaydı güvende; bulut bekliyor: ${error?.message || error}`,
+          `The device save is safe; cloud sync is pending: ${error?.message || error}`
+        );
         console.error("FIFA 10 cloud save failed; local operation was preserved.", error);
       }
     }
@@ -1045,6 +1109,104 @@
     return `<section><div class="f10-groups-rule"><span>OFFICIAL DRAW RESULT</span><strong>Grup içi puan tablosu kullanılmaz.</strong><p>Bütün oyuncular maç başına puan ortalamasıyla tek Genel Puan tablosunda sıralanır.</p></div><div class="f10-groups-full">${GROUPS.map(group => `<article class="f10-group-full group-${group}"><header><div><span>GROUP</span><strong>${group}</strong></div><b>${groups[group].length} OYUNCU</b></header><div class="f10-group-members">${groups[group].map(row => `<div><strong>${escapeHTML(row.name)}</strong><span>Torba ${row.pot} · ${row.elo} ELO</span></div>`).join("")}</div></article>`).join("")}</div></section>`;
   }
 
+  function resolvePlayer(draw, reference = selectedPlayerRef) {
+    const players = snapshotPlayers(draw);
+    const target = normalize(reference);
+    return players.find(player => player.id === reference || normalize(player.name) === target) || players[0] || null;
+  }
+
+  function playerFixtures(draw, playerId) {
+    return (draw?.fixtures || [])
+      .filter(match => match.homeId === playerId || match.awayId === playerId)
+      .sort((a, b) => a.leg - b.leg || a.matchday - b.matchday || a.sequence - b.sequence);
+  }
+
+  function fixtureOpponent(draw, fixture, playerId) {
+    return playerName(fixture.homeId === playerId ? fixture.awayId : fixture.homeId, draw);
+  }
+
+  function localizedLegLabel(fixture) {
+    return uiCopy(fixture?.legLabel || `${fixture?.leg || ""}. Devre`, `Circuit ${fixture?.leg || ""}`);
+  }
+
+  function renderPlayerMatchCentre(draw) {
+    const players = snapshotPlayers(draw);
+    const selected = resolvePlayer(draw);
+    if (!selected) return `<p class="f10-empty-fixtures">${uiCopy("Oyuncu bulunamadı.", "No player was found.")}</p>`;
+    selectedPlayerRef = selected.id;
+    const tableRow = standings(draw).find(row => row.id === selected.id);
+    const qualification = qualificationLabel(tableRow?.rank || players.length);
+    const matches = playerFixtures(draw, selected.id);
+    const pending = matches.filter(match => !match.completed);
+    const completed = matches.filter(match => match.completed);
+    const next = pending[0] || null;
+    const group = GROUPS.find(item => (draw.groups?.[item] || []).includes(selected.id)) || "–";
+    const tierCards = LEG_STARS.map(stars => {
+      const usedKeys = usedTeamsForPlayer(draw, selected.id, stars);
+      const usedNames = completed
+        .filter(match => Number(match.stars) === Number(stars))
+        .map(match => match.homeId === selected.id ? match.homeTeam : match.awayTeam)
+        .filter(Boolean);
+      return `<article><header><b>${stars}★</b><strong>${usedNames.length}/${matches.filter(match => Number(match.stars) === Number(stars)).length}</strong></header><p>${uiCopy("Kullanılan", "Used")}: ${usedNames.length ? usedNames.map(escapeHTML).join(" · ") : uiCopy("Henüz yok", "None yet")}</p><small>${Math.max(0, teamPool(stars).length - usedKeys.size)} ${uiCopy("uygun takım kaldı", "eligible teams remaining")}</small></article>`;
+    }).join("");
+    const matchCard = match => {
+      const isHome = match.homeId === selected.id;
+      const selectedScore = isHome ? match.homeScore : match.awayScore;
+      const opponentScore = isHome ? match.awayScore : match.homeScore;
+      const selectedTeam = isHome ? match.homeTeam : match.awayTeam;
+      const opponentTeam = isHome ? match.awayTeam : match.homeTeam;
+      return `<button type="button" class="f10-player-match ${match.completed ? "completed" : "pending"}" data-f10draw-action="open-result" data-fixture-id="${escapeHTML(match.id)}" ${isAdmin() ? "" : "disabled"}><span><b>${match.stars}★</b><small>${escapeHTML(localizedLegLabel(match))} · MD ${match.matchday}</small></span><div><strong>${escapeHTML(selected.name)}</strong><i>${match.completed ? `${selectedScore} – ${opponentScore}` : "VS"}</i><strong>${escapeHTML(fixtureOpponent(draw, match, selected.id))}</strong></div><small>${escapeHTML(selectedTeam || uiCopy("Takım bekleniyor", "Team pending"))} · ${escapeHTML(opponentTeam || uiCopy("Takım bekleniyor", "Team pending"))}</small></button>`;
+    };
+    return `<section class="f10-player-centre">
+      <header><div><span>PLAYER MATCH CENTRE</span><h4>${uiCopy("Oyuncu Maç Merkezi", "Player Match Centre")}</h4><p>${uiCopy("Kişisel fikstür, kullanılan takımlar ve genel sıralamadaki yol tek ekranda.", "Personal fixtures, used teams and the overall-table path in one screen.")}</p></div><b>${completed.length}/${matches.length} ${uiCopy("MAÇ", "MATCHES")}</b></header>
+      <nav class="f10-player-selector">${players.map(player => `<button type="button" class="${player.id === selected.id ? "active" : ""}" data-f10draw-action="select-player" data-player-id="${escapeHTML(player.id)}">${escapeHTML(player.name)}</button>`).join("")}</nav>
+      <div class="f10-player-identity"><div><span>${uiCopy("GRUP", "GROUP")} ${group}</span><h5>${escapeHTML(selected.name)}</h5><small>${selected.elo} ELO</small></div><dl><div><dt>${uiCopy("Sıra", "Rank")}</dt><dd>#${tableRow?.rank || "–"}</dd></div><div><dt>PPG</dt><dd>${(tableRow?.ppg || 0).toFixed(3)}</dd></div><div><dt>${uiCopy("AV/M", "GD/M")}</dt><dd>${(tableRow?.gdPerMatch || 0) > 0 ? "+" : ""}${(tableRow?.gdPerMatch || 0).toFixed(3)}</dd></div><div><dt>${uiCopy("Yol", "Path")}</dt><dd class="path-${qualification.key}">${uiCopy(qualification.label, qualification.key === "direct" ? "DIRECT QF" : qualification.key === "playin" ? "CHAMPIONSHIP PLAY-IN" : "ELIMINATED")}</dd></div></dl></div>
+      ${next ? `<section class="f10-next-match"><div><span>${uiCopy("SIRADAKİ MAÇ", "NEXT MATCH")}</span><strong>${next.stars}★ · ${escapeHTML(localizedLegLabel(next))} · MD ${next.matchday}</strong><h5>${escapeHTML(selected.name)} <i>VS</i> ${escapeHTML(fixtureOpponent(draw, next, selected.id))}</h5></div>${isAdmin() ? `<button type="button" data-f10draw-action="open-result" data-fixture-id="${escapeHTML(next.id)}">${uiCopy("SONUÇ GİR ↗", "ENTER RESULT ↗")}</button>` : ""}</section>` : `<section class="f10-next-match complete"><strong>${uiCopy("Bütün grup maçları tamamlandı.", "All group matches are complete.")}</strong></section>`}
+      <div class="f10-player-tier-grid">${tierCards}</div>
+      <div class="f10-player-match-columns"><section><header><strong>${uiCopy("Kalan Maçlar", "Remaining Matches")}</strong><span>${pending.length}</span></header><div>${pending.map(matchCard).join("") || `<p>${uiCopy("Kalan maç yok.", "No matches remaining.")}</p>`}</div></section><section><header><strong>${uiCopy("Tamamlanan Maçlar", "Completed Matches")}</strong><span>${completed.length}</span></header><div>${[...completed].reverse().map(matchCard).join("") || `<p>${uiCopy("Henüz tamamlanan maç yok.", "No completed matches yet.")}</p>`}</div></section></div>
+    </section>`;
+  }
+
+  function renderQuickResultEntry(draw) {
+    if (!isAdmin()) return "";
+    const players = snapshotPlayers(draw);
+    const pending = (draw.fixtures || [])
+      .filter(match => !match.completed && (!quickPlayerFilter || match.homeId === quickPlayerFilter || match.awayId === quickPlayerFilter))
+      .sort((a, b) => a.leg - b.leg || a.group.localeCompare(b.group) || a.matchday - b.matchday)
+      .slice(0, 6);
+    return `<section class="f10-quick-entry"><header><div><span>ADMIN QUICK ENTRY</span><strong>${uiCopy("Hızlı Sonuç Girişi", "Quick Result Entry")}</strong><small>${uiCopy("Oyuncuyu seç; sıradaki bekleyen maçı tek dokunuşla aç.", "Choose a player and open the next pending match with one tap.")}</small></div><select id="f10QuickPlayerFilter" aria-label="${uiCopy("Hızlı giriş oyuncu filtresi", "Quick-entry player filter")}"><option value="">${uiCopy("Tüm oyuncular", "All players")}</option>${players.map(player => `<option value="${escapeHTML(player.id)}" ${player.id === quickPlayerFilter ? "selected" : ""}>${escapeHTML(player.name)}</option>`).join("")}</select></header><div>${pending.map(match => `<button type="button" data-f10draw-action="open-result" data-fixture-id="${escapeHTML(match.id)}"><span>${uiCopy("GRUP", "GROUP")} ${match.group} · ${match.stars}★</span><strong>${escapeHTML(playerName(match.homeId, draw))} <i>VS</i> ${escapeHTML(playerName(match.awayId, draw))}</strong><small>${escapeHTML(localizedLegLabel(match))} · MD ${match.matchday}</small></button>`).join("") || `<p>${uiCopy("Bu filtrede bekleyen maç yok.", "No pending match for this filter.")}</p>`}</div></section>`;
+  }
+
+  function projectedStanding(draw, fixture, playerId, outcome) {
+    const clone = deepClone(draw);
+    const target = clone.fixtures.find(match => match.id === fixture.id);
+    const isHome = target.homeId === playerId;
+    const scores = outcome === "draw" ? [1, 1] : outcome === "win" ? (isHome ? [1, 0] : [0, 1]) : (isHome ? [0, 1] : [1, 0]);
+    target.homeScore = scores[0];
+    target.awayScore = scores[1];
+    target.completed = true;
+    return standings(clone).find(row => row.id === playerId);
+  }
+
+  function openScenarioModal(playerId) {
+    const draw = getDraw();
+    const player = snapshotPlayers(draw).find(item => item.id === playerId);
+    if (!player) return;
+    const current = standings(draw).find(row => row.id === playerId);
+    const fixture = playerFixtures(draw, playerId).find(match => !match.completed);
+    const overlay = document.createElement("div");
+    overlay.id = "f10DrawModal";
+    overlay.className = "f10-draw-modal-backdrop";
+    const outcomes = fixture ? [
+      ["win", uiCopy("Galibiyet", "Win")],
+      ["draw", uiCopy("Beraberlik", "Draw")],
+      ["loss", uiCopy("Mağlubiyet", "Loss")]
+    ].map(([key, label]) => [key, label, projectedStanding(draw, fixture, playerId, key)]) : [];
+    overlay.innerHTML = `<section class="f10-draw-modal f10-scenario-modal" role="dialog" aria-modal="true"><header><div><span>PPG · ${uiCopy("MAÇ BAŞINA AVERAJ", "GOAL DIFFERENCE PER MATCH")}</span><h3>${uiCopy("Sıralama Senaryosu", "Standings Scenario")}</h3></div><button type="button" data-f10draw-action="close-modal" aria-label="${uiCopy("Kapat", "Close")}">×</button></header><div class="f10-scenario-body"><h4>${escapeHTML(player.name)}</h4>${fixture ? `<p>${uiCopy("Yalnızca sıradaki maç simüle edilir; diğer sonuçlar değişmeden kalır.", "Only the next match is simulated; every other result remains unchanged.")}</p><div class="f10-scenario-fixture"><b>${fixture.stars}★ · ${escapeHTML(localizedLegLabel(fixture))}</b><strong>${escapeHTML(player.name)} <i>VS</i> ${escapeHTML(fixtureOpponent(draw, fixture, playerId))}</strong></div><div class="f10-scenario-grid"><article><span>${uiCopy("Şimdi", "Current")}</span><b>#${current.rank}</b><small>PPG ${current.ppg.toFixed(3)} · ${uiCopy("AV/M", "GD/M")} ${current.gdPerMatch > 0 ? "+" : ""}${current.gdPerMatch.toFixed(3)}</small><em>${uiCopy(qualificationLabel(current.rank).label, qualificationLabel(current.rank).key === "direct" ? "DIRECT QF" : qualificationLabel(current.rank).key === "playin" ? "CHAMPIONSHIP PLAY-IN" : "ELIMINATED")}</em></article>${outcomes.map(([key, label, row]) => { const path = qualificationLabel(row.rank); return `<article class="${key}"><span>${label}</span><b>#${row.rank}</b><small>PPG ${row.ppg.toFixed(3)} · ${uiCopy("AV/M", "GD/M")} ${row.gdPerMatch > 0 ? "+" : ""}${row.gdPerMatch.toFixed(3)}</small><em>${uiCopy(path.label, path.key === "direct" ? "DIRECT QF" : path.key === "playin" ? "CHAMPIONSHIP PLAY-IN" : "ELIMINATED")}</em></article>`; }).join("")}</div>` : `<p>${uiCopy("Bu oyuncunun bekleyen grup maçı yok.", "This player has no pending group match.")}</p>`}</div></section>`;
+    document.body.appendChild(overlay);
+    overlay.addEventListener("click", event => { if (event.target === overlay) closeModal(); });
+  }
+
   function renderStandings(draw) {
     const rows = standings(draw);
     const played = completedFixtures(draw).length;
@@ -1053,7 +1215,7 @@
       <div class="f10-ranking-rules"><span>1 · PPG</span><span>2 · AV/M</span><span>3 · TOPLAM AG</span><span>4 · GALİBİYET ORANI</span><span>5 · KURA SIRASI</span></div>
       <div class="f10-standings-scroll"><div class="f10-standings-table"><div class="head"><span>#</span><span>${uiCopy("Oyuncu", "Player")}</span><span>${uiCopy("Grup", "Group")}</span><span>${uiCopy("O", "MP")}</span><span>${uiCopy("G", "W")}</span><span>${uiCopy("B", "D")}</span><span>${uiCopy("M", "L")}</span><span>${uiCopy("AG", "GF")}</span><span>${uiCopy("YG", "GA")}</span><span>${uiCopy("AV/M (AV)", "GD/M (GD)")}</span><span>${uiCopy("PPG (P)", "PPG (Pts)")}</span><span>${uiCopy("Yol", "Path")}</span></div>${rows.map(row => {
         const qualification = qualificationLabel(row.rank);
-        return `<div class="rank-${row.rank} qualification-${qualification.key}"><span>${row.rank}</span><strong>${escapeHTML(row.name)}</strong><span>${row.group}</span><span>${row.mp}</span><span>${row.w}</span><span>${row.d}</span><span>${row.l}</span><span>${row.gf}</span><span>${row.ga}</span><b>${row.gdPerMatch > 0 ? "+" : ""}${row.gdPerMatch.toFixed(3)} <small>(${row.gd > 0 ? "+" : ""}${row.gd})</small></b><strong>${row.ppg.toFixed(3)} <small>(${row.pts})</small></strong><em>${qualification.label}</em></div>`;
+        return `<div class="rank-${row.rank} qualification-${qualification.key}"><span>${row.rank}</span><button type="button" class="f10-scenario-player" data-f10draw-action="open-scenario" data-player-id="${escapeHTML(row.id)}" title="${uiCopy("Sıralama senaryosunu aç", "Open standings scenario")}">${escapeHTML(row.name)}</button><span>${row.group}</span><span>${row.mp}</span><span>${row.w}</span><span>${row.d}</span><span>${row.l}</span><span>${row.gf}</span><span>${row.ga}</span><b>${row.gdPerMatch > 0 ? "+" : ""}${row.gdPerMatch.toFixed(3)} <small>(${row.gd > 0 ? "+" : ""}${row.gd})</small></b><strong>${row.ppg.toFixed(3)} <small>(${row.pts})</small></strong><em>${qualification.label}</em></div>`;
       }).join("")}</div></div>
       ${renderQualificationPath(rows)}
     </section>`;
@@ -1073,6 +1235,7 @@
       .filter(match => match.group === group && (!leg || match.leg === leg))
       .sort((a, b) => a.leg - b.leg || a.matchday - b.matchday || a.sequence - b.sequence);
     return `<section class="f10-fixtures"><header><div><span>TRIPLE CIRCUIT FIXTURES</span><h4>Grup Fikstürü ve Sonuç Merkezi</h4><p>Her rakiplik üç kez oynanır: 4★, 4.5★ ve 5★. Sonuçlar kaydedildiği anda genel PPG tablosu güncellenir.</p></div><b>${draw.fixtures.length} MAÇ</b></header>
+      ${renderQuickResultEntry(draw)}
       <div class="f10-fixture-filters"><div>${GROUPS.map(item => `<button type="button" class="${group === item ? "active" : ""}" data-f10draw-action="fixture-group" data-group="${item}">GRUP ${item}</button>`).join("")}</div><div>${[0, 1, 2, 3].map(item => `<button type="button" class="${leg === item ? "active" : ""}" data-f10draw-action="fixture-leg" data-leg="${item}">${item ? `${item}. DEVRE` : "TÜMÜ"}</button>`).join("")}</div></div>
       <div class="f10-fixture-list">${fixtures.map(match => `<button type="button" class="f10-fixture-row ${match.completed ? "completed" : "pending"}" data-f10draw-action="open-result" data-fixture-id="${escapeHTML(match.id)}" ${isAdmin() ? "" : "disabled"}><span><small>${match.legLabel} · MD ${match.matchday}</small><b>${match.stars}★</b></span><strong>${escapeHTML(players.get(match.homeId)?.name || "–")}</strong><div>${match.completed ? `<b>${match.homeScore}</b><i>–</i><b>${match.awayScore}</b>` : `<em>VS</em>`}</div><strong>${escapeHTML(players.get(match.awayId)?.name || "–")}</strong><span class="teams"><small>${escapeHTML(match.homeTeam || "Takım bekleniyor")}</small><small>${escapeHTML(match.awayTeam || "Takım bekleniyor")}</small></span></button>`).join("") || `<p class="f10-empty-fixtures">Bu filtrede maç bulunamadı.</p>`}</div>
     </section>`;
@@ -1125,6 +1288,81 @@
     </section>`;
   }
 
+  function formatSyncTime(value) {
+    const date = new Date(value);
+    if (!Number.isFinite(date.getTime())) return "–";
+    return date.toLocaleString(window.FIFA_I18N?.language === "en" ? "en-GB" : "tr-TR", {
+      day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit"
+    });
+  }
+
+  function renderSyncStatus() {
+    const history = readSyncHistory();
+    const latest = history[0];
+    const status = syncStatusMeta(latest);
+    const pending = latest?.status === "error" ? 1 : 0;
+    return `<section class="f10-sync-strip status-${status.key}"><i></i><div><span>${status.label}</span><strong>${escapeHTML(status.detail)}</strong><small>${latest ? formatSyncTime(latest.at) : uiCopy("Kayıt bekleniyor", "Waiting for a save")}${pending ? ` · ${pending} ${uiCopy("bekleyen kayıt", "pending save")}` : ""}</small></div><button type="button" data-f10draw-action="sync-history">${uiCopy("SENKRON GEÇMİŞİ", "SYNC HISTORY")} ↗</button></section>`;
+  }
+
+  function openSyncHistoryModal() {
+    const history = readSyncHistory();
+    const overlay = document.createElement("div");
+    overlay.id = "f10DrawModal";
+    overlay.className = "f10-draw-modal-backdrop";
+    overlay.innerHTML = `<section class="f10-draw-modal f10-sync-modal" role="dialog" aria-modal="true"><header><div><span>DEVICE · CLOUD · LIVE SITE</span><h3>${uiCopy("Senkron Geçmişi", "Sync History")}</h3></div><button type="button" data-f10draw-action="close-modal" aria-label="${uiCopy("Kapat", "Close")}">×</button></header><div class="f10-sync-history">${history.length ? history.map(item => {
+      const status = syncStatusMeta(item);
+      return `<article class="status-${status.key}"><i></i><div><strong>${status.label}</strong><span>${escapeHTML(status.detail)}</span><small>${formatSyncTime(item.at)}</small></div></article>`;
+    }).join("") : `<p>${uiCopy("Henüz kayıt geçmişi yok. İlk sonuç kaydından sonra cihaz ve bulut adımları burada görünecek.", "There is no save history yet. Device and cloud steps will appear here after the first result is saved.")}</p>`}</div>${history[0]?.status === "error" && isAdmin() ? `<footer><button type="button" class="primary" data-f10draw-action="retry-sync">${uiCopy("BULUT SENKRONUNU YENİDEN DENE", "RETRY CLOUD SYNC")}</button></footer>` : ""}</section>`;
+    document.body.appendChild(overlay);
+    overlay.addEventListener("click", event => { if (event.target === overlay) closeModal(); });
+  }
+
+  function renderTvOverlay(draw) {
+    if (!tvModeOpen || !draw) return;
+    let overlay = document.getElementById("f10TvOverlay");
+    if (!overlay) {
+      overlay = document.createElement("div");
+      overlay.id = "f10TvOverlay";
+      overlay.className = "f10-tv-overlay";
+      document.body.appendChild(overlay);
+    }
+    const players = playerMap(draw);
+    const rows = standings(draw);
+    const completed = completedFixtures(draw)
+      .sort((a, b) => Date.parse(b.updatedAt || "") - Date.parse(a.updatedAt || "") || b.sequence - a.sequence)
+      .slice(0, 5);
+    const pending = (draw.fixtures || [])
+      .filter(match => !match.completed)
+      .sort((a, b) => a.leg - b.leg || a.group.localeCompare(b.group) || a.matchday - b.matchday)
+      .slice(0, 6);
+    const played = completedFixtures(draw).length;
+    overlay.innerHTML = `<header><div><span>ORUÇ REİS FOOTBALL UNIVERSE · FIFA 10</span><h2>${uiCopy("CANLI TURNUVA DUVARI", "LIVE TOURNAMENT WALL")}</h2></div><div><strong>${played}/${draw.fixtures.length}</strong><small>${uiCopy("GRUP MAÇI", "GROUP MATCHES")}</small></div><time id="f10TvClock">${new Date().toLocaleTimeString(window.FIFA_I18N?.language === "en" ? "en-GB" : "tr-TR", { hour:"2-digit", minute:"2-digit" })}</time><button type="button" data-f10draw-action="close-tv" aria-label="${uiCopy("TV modunu kapat", "Close TV mode")}">×</button></header><main><section class="f10-tv-table"><header><strong>${uiCopy("GENEL PUAN", "OVERALL TABLE")}</strong><span>PPG · ${uiCopy("AV/M", "GD/M")}</span></header><div>${rows.map(row => { const path = qualificationLabel(row.rank); return `<article class="path-${path.key}"><b>${row.rank}</b><strong>${escapeHTML(row.name)}</strong><span>${row.group}</span><em>${row.ppg.toFixed(3)}</em><small>${row.gdPerMatch > 0 ? "+" : ""}${row.gdPerMatch.toFixed(3)}</small></article>`; }).join("")}</div></section><div class="f10-tv-side"><section><header><strong>${uiCopy("SON SONUÇLAR", "LATEST RESULTS")}</strong></header><div>${completed.map(match => `<article><span>${match.group} · ${match.stars}★</span><strong>${escapeHTML(players.get(match.homeId)?.name || "–")} <b>${match.homeScore}–${match.awayScore}</b> ${escapeHTML(players.get(match.awayId)?.name || "–")}</strong></article>`).join("") || `<p>${uiCopy("Henüz sonuç yok.", "No results yet.")}</p>`}</div></section><section><header><strong>${uiCopy("SIRADAKİ MAÇLAR", "UP NEXT")}</strong></header><div>${pending.map(match => `<article><span>${match.group} · ${match.stars}★ · MD ${match.matchday}</span><strong>${escapeHTML(players.get(match.homeId)?.name || "–")} <b>VS</b> ${escapeHTML(players.get(match.awayId)?.name || "–")}</strong></article>`).join("") || `<p>${uiCopy("Bütün maçlar tamamlandı.", "All matches are complete.")}</p>`}</div></section></div></main><footer><span>${uiCopy("1–4 DOĞRUDAN QF", "1–4 DIRECT QF")}</span><span>5–12 CHAMPIONSHIP PLAY-IN · BEST OF 3</span><span>${uiCopy("13–14 DOĞRUDAN ELENDİ", "13–14 ELIMINATED")}</span></footer>`;
+  }
+
+  function openTvMode() {
+    const draw = getDraw();
+    if (!draw) return;
+    tvModeOpen = true;
+    document.body.classList.add("f10-tv-open");
+    renderTvOverlay(draw);
+    const overlay = document.getElementById("f10TvOverlay");
+    if (overlay?.requestFullscreen) overlay.requestFullscreen().catch(() => {});
+    clearInterval(tvClockTimer);
+    tvClockTimer = setInterval(() => {
+      const clock = document.getElementById("f10TvClock");
+      if (clock) clock.textContent = new Date().toLocaleTimeString(window.FIFA_I18N?.language === "en" ? "en-GB" : "tr-TR", { hour:"2-digit", minute:"2-digit" });
+    }, 1000);
+  }
+
+  function closeTvMode() {
+    tvModeOpen = false;
+    clearInterval(tvClockTimer);
+    tvClockTimer = null;
+    document.body.classList.remove("f10-tv-open");
+    document.getElementById("f10TvOverlay")?.remove();
+    if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {});
+  }
+
   function renderModule() {
     const view = document.getElementById("view");
     if (!view) return;
@@ -1163,17 +1401,19 @@
       ["groups", "GRUPLAR"],
       ["standings", "GENEL PUAN"],
       ["fixtures", "FİKSTÜR"],
-      ["teams", "TAKIMLAR"]
+      ["teams", "TAKIMLAR"],
+      ["players", uiCopy("OYUNCU MERKEZİ", "PLAYER CENTRE")]
     ];
     const participantCount = draw?.participants?.length || registrationRows().length;
     const sizeText = projectedGroupSizes(participantCount).join("-");
     const fixedGroups = draw?.entryMode === "official-fixed-groups";
     const completedCount = draw?.fixtures?.filter(match => match.completed).length || 0;
     const html = `<header class="f10-draw-hero"><div><span>FIFA 10 · TOURNAMENT OPERATIONS</span><h3>${fixedGroups ? "Resmî fikstür." : "Kura çekimi."}<br><em>Üç grup, tek sıralama.</em></h3><p>${fixedGroups ? `A, B ve C grupları kesinleşti. ${draw.fixtures?.length || 78} maçlık 4★, 4.5★ ve 5★ devreleri bu merkezden yönetilir; her sonuç bütün FIFA evrenine aynı anda işlenir.` : `${participantCount} katılımcı ELO torbalarından canlı kurayla A, B ve C gruplarına dağıtılır. Beklenen grup dağılımı ${sizeText}; hangi grupların büyük olacağı yalnızca kura sırasında belirlenir.`}</p></div><aside class="status-${status.key}"><i></i><strong>${status.label}</strong><small>${fixedGroups ? `${completedCount}/${draw.fixtures?.length || 78} sonuç işlendi` : status.note}</small>${draw?.fivePlayerGroups?.length ? `<b>5 OYUNCULU GRUP${draw.fivePlayerGroups.length > 1 ? "LAR" : ""} · ${draw.fivePlayerGroups.join(" / ")}</b>` : `<b>GRUP BÜYÜKLÜKLERİ · KURADA</b>`}</aside></header>
-      <nav class="f10-draw-tabs">${tabs.map(([id, label]) => `<button type="button" class="${activeTab === id ? "active" : ""}" data-f10draw-action="tab" data-tab="${id}" ${!draw && id !== "draw" ? "disabled" : ""}>${label}</button>`).join("")}${draw?.status === "completed" ? `<button type="button" class="f10-print-launch" data-f10draw-action="print-centre">YAZDIRMA MERKEZİ ↗</button>` : ""}</nav>
+      <nav class="f10-draw-tabs">${tabs.map(([id, label]) => `<button type="button" class="${activeTab === id ? "active" : ""}" data-f10draw-action="tab" data-tab="${id}" ${!draw && id !== "draw" ? "disabled" : ""}>${label}</button>`).join("")}${draw?.status === "completed" ? `<button type="button" class="f10-tv-launch" data-f10draw-action="open-tv">${uiCopy("TV MODU", "TV MODE")} ↗</button><button type="button" class="f10-print-launch" data-f10draw-action="print-centre">${uiCopy("YAZDIRMA MERKEZİ", "PRINT CENTRE")} ↗</button>` : ""}</nav>
       <div class="f10-operation-notice ${operationNotice.type || "info"}"><strong>${operationNotice.type === "success" ? "✓" : operationNotice.type === "warning" ? "!" : "i"}</strong><span>${escapeHTML(operationNotice.text || "")}</span></div>
+      ${draw?.status === "completed" ? renderSyncStatus() : ""}
       ${draw?.status === "completed" ? `<section class="f10-connected-universe"><div><span>ONE SOURCE · CONNECTED UNIVERSE</span><strong>Bir sonucu gir; bütün merkezler birlikte güncellensin.</strong><small>Form, oran, Zekâ, canlı maç, takımlar ve tüm zamanlar aynı resmî FIFA 10 maç kaydını okur.</small></div><nav><button type="button" data-f10draw-action="universe-nav" data-target="livestats">Canlı İstatistik</button><button type="button" data-f10draw-action="universe-nav" data-target="form">Form</button><button type="button" data-f10draw-action="universe-nav" data-target="odds">Oranlar</button><button type="button" data-f10draw-action="universe-nav" data-target="intelligence">Zekâ</button><button type="button" data-f10draw-action="universe-nav" data-target="teams">Takımlar</button><button type="button" data-f10draw-action="universe-nav" data-target="alltime">Tüm Zamanlar</button></nav></section>` : ""}
-      <div class="f10-draw-content">${activeTab === "draw" ? renderDrawArena(draw) : activeTab === "groups" ? (draw ? renderGroupTables(draw) : renderDrawArena(null)) : activeTab === "standings" ? (draw?.status === "completed" ? renderStandings(draw) : renderDrawArena(draw)) : activeTab === "teams" ? (draw?.status === "completed" ? renderTeamPassports(draw) : renderDrawArena(draw)) : (draw?.status === "completed" ? renderFixtures(draw) : renderDrawArena(draw))}</div>
+      <div class="f10-draw-content">${activeTab === "draw" ? renderDrawArena(draw) : activeTab === "groups" ? (draw ? renderGroupTables(draw) : renderDrawArena(null)) : activeTab === "standings" ? (draw?.status === "completed" ? renderStandings(draw) : renderDrawArena(draw)) : activeTab === "teams" ? (draw?.status === "completed" ? renderTeamPassports(draw) : renderDrawArena(draw)) : activeTab === "players" ? (draw?.status === "completed" ? renderPlayerMatchCentre(draw) : renderDrawArena(draw)) : (draw?.status === "completed" ? renderFixtures(draw) : renderDrawArena(draw))}</div>
       <footer class="f10-draw-footer"><span>GENEL SIRALAMA: PPG → MAÇ BAŞINA AVERAJ → TOPLAM ATILAN GOL → GALİBİYET ORANI → KURA SIRASI</span><b>RATE-BASED FAIR TABLE · NO VOLUME ADVANTAGE</b></footer>`;
     const renderSignature = JSON.stringify({
       tab: activeTab,
@@ -1183,6 +1423,9 @@
       busy: moduleBusy,
       auto: autoDrawing,
       notice: `${operationNotice.type || "info"}:${operationNotice.text || ""}`,
+      selectedPlayer: selectedPlayerRef,
+      quickPlayer: quickPlayerFilter,
+      sync: readSyncHistory()[0]?.id || "",
       registrations: registrationRows().map(row => `${row.id}:${row.elo}`).join("|"),
       draw: draw ? `${draw.drawId}:${draw.status}:${draw.updatedAt}:${draw.assignments?.length || 0}:${draw.fixtures?.filter(item => item.completed).length || 0}` : "none"
     });
@@ -1197,6 +1440,7 @@
     }
     patchRegistrationLock(draw);
     syncManualGroupOverlay();
+    renderTvOverlay(draw);
   }
 
   function patchExistingInterface() {
@@ -1206,11 +1450,11 @@
     const versionText = `Football Universe · V${VERSION} · Championship Play-in`;
     if (version && version.textContent !== versionText) version.textContent = versionText;
     const meta = document.querySelector('meta[name="fifa9-build"]');
-    const metaValue = `${VERSION}-fifa10-complete-english`;
+    const metaValue = `${VERSION}-fifa10-tournament-experience-suite`;
     if (meta && meta.content !== metaValue) meta.content = metaValue;
     const url = new URL(location.href);
-    if (url.searchParams.get("fifa9build") !== "471413") {
-      url.searchParams.set("fifa9build", "471413");
+    if (url.searchParams.get("fifa9build") !== "471500") {
+      url.searchParams.set("fifa9build", "471500");
       history.replaceState(history.state, "", url);
     }
     document.querySelectorAll(".f10-format-spine article").forEach(article => {
@@ -1261,6 +1505,8 @@
     sessionStorage.setItem("fifa10-draw-active-tab", activeTab);
     sessionStorage.setItem("fifa10-fixture-group", fixtureGroupFilter);
     sessionStorage.setItem("fifa10-fixture-leg", String(fixtureLegFilter));
+    sessionStorage.setItem("fifa10-selected-player", selectedPlayerRef);
+    sessionStorage.setItem("fifa10-quick-player", quickPlayerFilter);
   }
 
   function scheduleRender() {
@@ -1360,11 +1606,19 @@
       .f10-standings-table>div>*{min-width:0}
       .f10-standings-table>div>*:not(:nth-child(2)){justify-self:center;text-align:center}
       .f10-standings-table>div>:nth-child(2){justify-self:stretch;text-align:left}
-      .f10-standings-table>div>strong:nth-child(2){white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px;letter-spacing:-.015em}
+      .f10-standings-table>div>strong:nth-child(2),.f10-scenario-player{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px;letter-spacing:-.015em}
       .f10-standings-table .head{font-size:9px}
       .f10-standings-table em{font-size:9px;line-height:1.25}
       .f10-standings-table strong small,.f10-standings-table b small{color:var(--f10d-gold);font-size:10px}
-      @media(max-width:720px){.f10-standings-table>div{font-size:12px}}
+      .f10-scenario-player{width:100%;padding:0;border:0;background:transparent;color:#fff;text-align:left;font-weight:800;cursor:pointer}.f10-scenario-player:hover{color:#7fc9ff;text-decoration:underline}
+      .f10-draw-tabs .f10-tv-launch{margin-left:auto;border-color:rgba(82,228,160,.34);color:var(--f10d-green);background:rgba(82,228,160,.08)}.f10-draw-tabs .f10-tv-launch+.f10-print-launch{margin-left:0}
+      .f10-sync-strip{position:relative;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;margin:12px 28px 0;padding:12px 14px;border:1px solid var(--f10d-line);border-radius:13px;background:rgba(7,14,36,.74)}.f10-sync-strip>i,.f10-sync-history article>i{width:10px;height:10px;border-radius:50%;background:#7dc9ff;box-shadow:0 0 14px currentColor}.f10-sync-strip>div{display:grid;gap:2px}.f10-sync-strip span{color:#7dc9ff;font-size:8px;font-weight:900;letter-spacing:.14em}.f10-sync-strip strong{color:#e8efff;font-size:11px}.f10-sync-strip small{color:#7888ad;font-size:8px}.f10-sync-strip button{padding:9px 11px;border:1px solid var(--f10d-line);border-radius:9px;background:#091633;color:#fff;font-size:8px;font-weight:900}.f10-sync-strip.status-cloud>i,.f10-sync-history .status-cloud>i{background:var(--f10d-green)}.f10-sync-strip.status-error>i,.f10-sync-history .status-error>i{background:var(--f10d-red)}.f10-sync-history{display:grid;gap:7px;max-height:58vh;overflow:auto;padding:18px}.f10-sync-history article{display:grid;grid-template-columns:auto 1fr;gap:11px;align-items:start;padding:12px;border:1px solid var(--f10d-line);border-radius:12px;background:rgba(5,12,31,.65)}.f10-sync-history article>div{display:grid;gap:4px}.f10-sync-history strong{color:#fff}.f10-sync-history span{color:#aab7d4;font-size:10px}.f10-sync-history small{color:#7786a8;font-size:8px}.f10-sync-modal>footer{padding:0 18px 18px}
+      .f10-quick-entry{margin-bottom:17px;padding:15px;border:1px solid rgba(82,228,160,.24);border-radius:16px;background:linear-gradient(110deg,rgba(82,228,160,.07),rgba(69,167,255,.06))}.f10-quick-entry>header{display:flex;align-items:end;justify-content:space-between;gap:15px;margin-bottom:11px}.f10-quick-entry>header>div{display:grid;gap:3px}.f10-quick-entry>header span{color:var(--f10d-green);font-size:8px;font-weight:900;letter-spacing:.14em}.f10-quick-entry>header strong{color:#fff;font-size:18px}.f10-quick-entry>header small{color:#8e9fc0}.f10-quick-entry select{min-width:230px;padding:10px;border:1px solid var(--f10d-line);border-radius:9px;background:#07122e;color:#fff}.f10-quick-entry>div{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}.f10-quick-entry>div>button{display:grid;gap:4px;padding:11px;border:1px solid var(--f10d-line);border-radius:11px;background:rgba(7,14,36,.72);color:#fff;text-align:left;cursor:pointer}.f10-quick-entry button span{color:#7dc9ff;font-size:8px;font-weight:900}.f10-quick-entry button strong{font-size:10px}.f10-quick-entry button i{color:var(--f10d-gold);font-style:normal}.f10-quick-entry button small{color:#7e8db0}
+      .f10-player-centre>header{display:flex;justify-content:space-between;align-items:end;gap:20px}.f10-player-centre>header span{color:#7ec8ff;font-size:8px;font-weight:900;letter-spacing:.16em}.f10-player-centre>header h4{margin:6px 0;color:#fff;font-size:28px}.f10-player-centre>header p{margin:0;color:#8e9bbb}.f10-player-centre>header>b{color:var(--f10d-gold)}.f10-player-selector{display:flex;gap:6px;margin:15px 0;overflow:auto;padding-bottom:4px}.f10-player-selector button{flex:0 0 auto;padding:9px 11px;border:1px solid var(--f10d-line);border-radius:9px;background:#08132f;color:#92a1c2;font-size:9px;font-weight:800;cursor:pointer}.f10-player-selector button.active{border-color:transparent;background:linear-gradient(90deg,#347fff,#8d55e6);color:#fff}.f10-player-identity{display:grid;grid-template-columns:minmax(240px,.85fr) 1.6fr;gap:16px;padding:18px;border:1px solid var(--f10d-line);border-radius:17px;background:rgba(7,14,36,.72)}.f10-player-identity>div span{color:#78c9ff;font-size:8px;font-weight:900;letter-spacing:.14em}.f10-player-identity h5{margin:7px 0;color:#fff;font-size:24px}.f10-player-identity>div small{color:#7e8eb1}.f10-player-identity dl{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin:0}.f10-player-identity dl>div{padding:10px;border-radius:10px;background:rgba(255,255,255,.04)}.f10-player-identity dt{color:#7f8eb2;font-size:8px}.f10-player-identity dd{margin:5px 0 0;color:#fff;font-size:16px;font-weight:900}.f10-player-identity dd.path-direct{color:var(--f10d-gold)}.f10-player-identity dd.path-playin{color:#7dc9ff}.f10-player-identity dd.path-eliminated{color:#ff93a4}.f10-next-match{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:10px;padding:17px;border:1px solid rgba(229,189,99,.28);border-radius:16px;background:linear-gradient(100deg,rgba(229,189,99,.08),rgba(157,103,255,.07))}.f10-next-match span{color:var(--f10d-gold);font-size:8px;font-weight:900;letter-spacing:.15em}.f10-next-match strong{display:block;margin-top:5px;color:#9baaca}.f10-next-match h5{margin:5px 0 0;color:#fff;font-size:19px}.f10-next-match h5 i{margin:0 8px;color:#7dc9ff;font-style:normal}.f10-next-match button{padding:12px 15px;border:0;border-radius:10px;background:linear-gradient(90deg,#347fff,#a84df3);color:#fff;font-weight:900;cursor:pointer}.f10-player-tier-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0}.f10-player-tier-grid article{padding:13px;border:1px solid var(--f10d-line);border-radius:13px;background:rgba(8,16,40,.65)}.f10-player-tier-grid header{display:flex;justify-content:space-between}.f10-player-tier-grid b{color:var(--f10d-gold)}.f10-player-tier-grid strong{color:#fff}.f10-player-tier-grid p{min-height:30px;margin:8px 0;color:#a3b0ce;font-size:9px;line-height:1.5}.f10-player-tier-grid small{color:#75c8ff}.f10-player-match-columns{display:grid;grid-template-columns:1fr 1fr;gap:10px}.f10-player-match-columns>section{border:1px solid var(--f10d-line);border-radius:15px;overflow:hidden}.f10-player-match-columns>section>header{display:flex;justify-content:space-between;padding:12px 14px;background:rgba(8,16,40,.82);color:#fff}.f10-player-match-columns>section>header span{color:var(--f10d-gold)}.f10-player-match-columns>section>div{display:grid;gap:6px;max-height:500px;overflow:auto;padding:8px}.f10-player-match-columns p{padding:15px;color:#8190b3}.f10-player-match{display:grid;grid-template-columns:75px 1fr;gap:7px;padding:10px;border:1px solid var(--f10d-line);border-radius:10px;background:rgba(7,14,36,.72);color:#fff;text-align:left}.f10-player-match:not(:disabled){cursor:pointer}.f10-player-match>span{display:grid}.f10-player-match>span b{color:var(--f10d-gold)}.f10-player-match>span small,.f10-player-match>small{color:#7d8cb0;font-size:8px}.f10-player-match>div{display:grid;grid-template-columns:1fr auto 1fr;gap:7px;align-items:center}.f10-player-match>div strong:last-child{text-align:right}.f10-player-match>div i{color:#7dc9ff;font-style:normal}.f10-player-match>small{grid-column:2}.f10-player-match.completed{border-color:rgba(82,228,160,.2)}
+      .f10-scenario-body{padding:20px}.f10-scenario-body>h4{margin:0;color:#fff;font-size:22px}.f10-scenario-body>p{color:#91a0c1}.f10-scenario-fixture{display:flex;justify-content:space-between;gap:12px;padding:12px;border:1px solid var(--f10d-line);border-radius:11px;background:rgba(7,14,36,.72)}.f10-scenario-fixture b{color:var(--f10d-gold)}.f10-scenario-fixture strong{color:#fff}.f10-scenario-fixture i{color:#7dc9ff;font-style:normal}.f10-scenario-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin-top:9px}.f10-scenario-grid article{display:grid;gap:5px;padding:12px;border:1px solid var(--f10d-line);border-radius:11px;background:rgba(255,255,255,.035)}.f10-scenario-grid article span{color:#7ec9ff;font-size:8px;font-weight:900;letter-spacing:.1em}.f10-scenario-grid article b{color:#fff;font-size:25px}.f10-scenario-grid article small{color:#a0adca}.f10-scenario-grid article em{color:var(--f10d-gold);font-size:8px;font-style:normal;font-weight:900}
+      body.f10-tv-open{overflow:hidden!important}.f10-tv-overlay{position:fixed;inset:0;z-index:13000;display:grid;grid-template-rows:auto minmax(0,1fr) auto;background:radial-gradient(circle at 10% 0%,#17356c 0,transparent 30%),radial-gradient(circle at 95% 10%,#401b66 0,transparent 30%),#030817;color:#fff}.f10-tv-overlay>header{display:grid;grid-template-columns:1fr auto auto auto;gap:25px;align-items:center;padding:22px 28px;border-bottom:1px solid rgba(125,151,255,.3)}.f10-tv-overlay>header span{color:#7fc9ff;font-size:10px;font-weight:900;letter-spacing:.18em}.f10-tv-overlay h2{margin:5px 0 0;font-size:28px}.f10-tv-overlay>header>div:nth-child(2){display:grid;text-align:right}.f10-tv-overlay>header>div:nth-child(2) strong{color:var(--f10d-gold);font-size:26px}.f10-tv-overlay>header small{color:#8292b6}.f10-tv-overlay time{font-size:27px;font-weight:900}.f10-tv-overlay>header button{width:46px;height:46px;border:1px solid var(--f10d-line);border-radius:12px;background:#0a1533;color:#fff;font-size:25px}.f10-tv-overlay>main{display:grid;grid-template-columns:1.2fr .8fr;gap:15px;min-height:0;padding:16px 22px}.f10-tv-table,.f10-tv-side>section{display:grid;grid-template-rows:auto minmax(0,1fr);min-height:0;border:1px solid var(--f10d-line);border-radius:17px;overflow:hidden;background:rgba(7,14,36,.76)}.f10-tv-table>header,.f10-tv-side section>header{display:flex;justify-content:space-between;padding:12px 15px;background:rgba(11,23,55,.95)}.f10-tv-table>header span{color:#7ec9ff}.f10-tv-table>div{display:grid;min-height:0}.f10-tv-table article{display:grid;grid-template-columns:34px minmax(0,1fr) 45px 90px 85px;align-items:center;padding:7px 14px;border-top:1px solid rgba(125,151,255,.12)}.f10-tv-table article>b{color:#7f8eb2}.f10-tv-table article>strong{font-size:13px}.f10-tv-table article>span{text-align:center;color:#7ec9ff}.f10-tv-table article>em{color:#fff;font-size:14px;font-style:normal;font-weight:900;text-align:right}.f10-tv-table article>small{color:#c7d2ea;text-align:right}.f10-tv-table article.path-direct{background:linear-gradient(90deg,rgba(69,167,255,.1),rgba(157,103,255,.07))}.f10-tv-table article.path-direct>em{color:var(--f10d-gold)}.f10-tv-table article.path-eliminated{opacity:.72}.f10-tv-side{display:grid;grid-template-rows:1fr 1fr;gap:15px;min-height:0}.f10-tv-side section>div{display:grid;align-content:start;overflow:hidden}.f10-tv-side article{display:grid;gap:4px;padding:10px 13px;border-top:1px solid rgba(125,151,255,.12)}.f10-tv-side article span{color:#7dc9ff;font-size:9px}.f10-tv-side article strong{font-size:12px}.f10-tv-side article b{margin:0 6px;color:var(--f10d-gold)}.f10-tv-side p{padding:15px;color:#8190b3}.f10-tv-overlay>footer{display:flex;justify-content:space-around;gap:15px;padding:13px;border-top:1px solid rgba(125,151,255,.3);color:#9fadd0;font-size:10px;font-weight:900;letter-spacing:.1em}.f10-tv-overlay>footer span:first-child{color:var(--f10d-gold)}.f10-tv-overlay>footer span:last-child{color:#ff91a3}
+      @media(max-width:1000px){.f10-quick-entry>div{grid-template-columns:repeat(2,minmax(0,1fr))}.f10-player-identity{grid-template-columns:1fr}.f10-player-match-columns{grid-template-columns:1fr}.f10-tv-overlay>main{grid-template-columns:1fr}.f10-tv-side{grid-template-columns:1fr 1fr;grid-template-rows:1fr}.f10-tv-table article{padding:5px 10px}}
+      @media(max-width:720px){.f10-standings-table>div{font-size:12px}.f10-sync-strip{grid-template-columns:auto 1fr;margin:10px 12px}.f10-sync-strip button{grid-column:1/3;width:100%}.f10-quick-entry>header{display:grid}.f10-quick-entry select{width:100%;min-width:0}.f10-quick-entry>div{grid-template-columns:1fr}.f10-player-identity dl{grid-template-columns:1fr 1fr}.f10-next-match{display:grid}.f10-next-match button{width:100%}.f10-player-tier-grid{grid-template-columns:1fr}.f10-player-match{grid-template-columns:62px 1fr}.f10-scenario-grid{grid-template-columns:1fr 1fr}.f10-scenario-fixture{display:grid}.f10-tv-overlay>header{grid-template-columns:1fr auto auto;gap:10px;padding:12px}.f10-tv-overlay>header>div:nth-child(2){display:none}.f10-tv-overlay h2{font-size:18px}.f10-tv-overlay>header span{font-size:7px}.f10-tv-overlay time{font-size:18px}.f10-tv-overlay>main{padding:8px}.f10-tv-side{display:none}.f10-tv-table article{grid-template-columns:25px minmax(0,1fr) 28px 65px 60px;padding:5px 7px}.f10-tv-table article>strong{font-size:10px}.f10-tv-overlay>footer{display:none}}
       html[data-language="en"] .f10-registration-draw-locked:after{content:"LOCKED FOR THE DRAW"}
     `;
     document.head.appendChild(style);
@@ -1388,7 +1642,27 @@
         persistViewState();
         scheduleRender();
       } else if (action === "print-centre") {
-        window.open("fifa10-print-centre.html?fifa9build=471413", "_blank", "noopener,noreferrer");
+        window.open("fifa10-print-centre.html?fifa9build=471500", "_blank", "noopener,noreferrer");
+      } else if (action === "open-tv") {
+        openTvMode();
+      } else if (action === "close-tv") {
+        closeTvMode();
+      } else if (action === "sync-history") {
+        openSyncHistoryModal();
+      } else if (action === "retry-sync") {
+        closeModal();
+        await savePayload(deepClone(payload), "Bulut senkronizasyonu yeniden denendi.");
+      } else if (action === "select-player") {
+        selectedPlayerRef = button.dataset.playerId || "";
+        activeTab = "players";
+        const url = new URL(location.href);
+        const selected = resolvePlayer(getDraw(), selectedPlayerRef);
+        if (selected) url.searchParams.set("fifa10player", selected.name);
+        history.replaceState(history.state, "", url);
+        persistViewState();
+        scheduleRender();
+      } else if (action === "open-scenario") {
+        openScenarioModal(button.dataset.playerId);
       } else if (action === "universe-nav") {
         window.FIFA_APP_CONTEXT?.navigate?.(button.dataset.target || "seasonhub");
       } else if (action === "manual-start") await startManualGroupEntry();
@@ -1423,6 +1697,13 @@
     }
   }
 
+  function handleChange(event) {
+    if (event.target?.id !== "f10QuickPlayerFilter") return;
+    quickPlayerFilter = String(event.target.value || "");
+    persistViewState();
+    scheduleRender();
+  }
+
   function handleLocalNewPlayerRegistration(event) {
     if (event.target?.id !== "fifa10RegistrationForm" || cloudConfigured()) return;
     const form = event.target;
@@ -1452,6 +1733,16 @@
   }
 
   function handleKeydown(event) {
+    if (event.key === "Escape" && tvModeOpen) {
+      event.preventDefault();
+      closeTvMode();
+      return;
+    }
+    if (event.key === "Escape" && document.getElementById("f10DrawModal")) {
+      event.preventDefault();
+      closeModal();
+      return;
+    }
     if (event.key === "Escape" && manualEntryOverlayOpen) {
       event.preventDefault();
       closeManualGroupOverlay();
@@ -1461,8 +1752,10 @@
   async function boot() {
     const ready = await waitForApplication();
     if (!ready) return;
+    if (new URL(location.href).searchParams.get("fifa10player")) activeTab = "players";
     installStyles();
     document.addEventListener("click", handleClick, true);
+    document.addEventListener("change", handleChange, true);
     document.addEventListener("keydown", handleKeydown, true);
     document.addEventListener("submit", handleLocalNewPlayerRegistration, true);
     document.addEventListener("submit", handleSubmit);
@@ -1485,7 +1778,14 @@
       assignManualGroup,
       finalizeManualGroups,
       prepareDraw,
-      openPrintCentre: () => window.open("fifa10-print-centre.html?fifa9build=471413", "_blank", "noopener,noreferrer")
+      openPlayerCentre: player => {
+        selectedPlayerRef = String(player || "");
+        activeTab = "players";
+        persistViewState();
+        scheduleRender();
+      },
+      openTvMode,
+      openPrintCentre: () => window.open("fifa10-print-centre.html?fifa9build=471500", "_blank", "noopener,noreferrer")
     };
   }
 

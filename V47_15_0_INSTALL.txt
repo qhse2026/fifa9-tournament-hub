@@ -1,0 +1,32 @@
+ORUÇ REİS FIFA WORLD — V47.15.0
+TOURNAMENT EXPERIENCE SUITE
+
+1. Bu klasörün içeriğini mevcut Vercel proje köküne eksiksiz yükleyin.
+2. cloud-config.js dosyanızı ve mevcut Supabase bilgilerinizi değiştirmeyin.
+3. Dağıtım tamamlandıktan sonra şu adresi açın:
+   https://fifa9-tournament-hub.vercel.app/?fifa9build=471500
+4. Tarayıcı eski sürümü gösterirse sayfayı bir kez yenileyin. V47.15.0 açılışı
+   eski service worker/cache paketlerini otomatik temizler.
+
+BU SÜRÜMDE
+- Oyuncu Maç Merkezi: kişisel fikstür, sıradaki maç, kullanılan takımlar ve yol.
+- Yönetici Hızlı Sonuç Girişi: bekleyen maçlara tek dokunuş erişimi.
+- Sıralama Senaryosu: sıradaki maç için galibiyet/beraberlik/mağlubiyet
+  durumlarında PPG, AV/M ve yol projeksiyonu. Resmî veriyi değiştirmez.
+- Görünür Senkron Geçmişi: cihaz ve bulut kayıt adımları, saat ve yeniden deneme.
+- TV / Duvar Modu: 14 oyunculu canlı tablo, son sonuçlar ve sıradaki maçlar.
+- Oyuncu çıktı QR'ları: her oyuncuyu kendi Maç Merkezi bağlantısına götürür.
+
+KORUNAN RESMÎ KURALLAR
+- 78 maç ve 5-4-5 sabit gruplar.
+- PPG → AV/M → toplam AG → galibiyet oranı → kura sırası.
+- 1-4 doğrudan çeyrek final.
+- 5-12, 6-11, 7-10, 8-9 Championship Play-in · Best of 3.
+- 13-14 doğrudan elenir; Preliminary yoktur.
+- 48 + 19 + 9 = 76 erkek takımından oluşan sabit havuz.
+- FIFA 09 arşivi, FIFA 10 girilmiş sonuçları ve takım pasaportları korunur.
+
+NOT
+Bulut erişimi kesilirse sonuç önce bu cihazda güvenli biçimde kaydedilir.
+Senkron Geçmişi paneli bulut durumunu gösterir ve yöneticiye yeniden deneme
+düğmesi sunar.
