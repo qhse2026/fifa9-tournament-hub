@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "47.14.12";
+  const VERSION = "47.14.13";
   const STORAGE_KEY = "fifa-tournament-hub-v1";
   const GROUPS = Object.freeze(["A", "B", "C"]);
   const LEG_STARS = Object.freeze([4, 4.5, 5]);
@@ -41,6 +41,8 @@
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
+
+  const uiCopy = (tr, en) => window.FIFA_I18N?.language === "en" ? en : tr;
 
   const teamPoolKey = stars => String(Number(stars));
   const teamPool = stars => {
@@ -1049,7 +1051,7 @@
     const total = draw.fixtures?.length || 0;
     return `<section class="f10-general-standings"><header><div><span>ONE TABLE · RATE-BASED RANKING</span><h4>FIFA 10 Genel Puan Sıralaması</h4><p>Farklı maç sayıları PPG ve maç başına averaj ile eşitlenir. Toplam puan yalnızca parantez içinde bilgi amaçlı gösterilir; sıralamayı etkilemez.</p></div><div><strong>${played}/${total}</strong><small>GRUP MAÇI</small></div></header>
       <div class="f10-ranking-rules"><span>1 · PPG</span><span>2 · AV/M</span><span>3 · TOPLAM AG</span><span>4 · GALİBİYET ORANI</span><span>5 · KURA SIRASI</span></div>
-      <div class="f10-standings-scroll"><div class="f10-standings-table"><div class="head"><span>#</span><span>Oyuncu</span><span>Grup</span><span>O</span><span>G</span><span>B</span><span>M</span><span>AG</span><span>YG</span><span>AV/M (AV)</span><span>PPG (P)</span><span>Yol</span></div>${rows.map(row => {
+      <div class="f10-standings-scroll"><div class="f10-standings-table"><div class="head"><span>#</span><span>${uiCopy("Oyuncu", "Player")}</span><span>${uiCopy("Grup", "Group")}</span><span>${uiCopy("O", "MP")}</span><span>${uiCopy("G", "W")}</span><span>${uiCopy("B", "D")}</span><span>${uiCopy("M", "L")}</span><span>${uiCopy("AG", "GF")}</span><span>${uiCopy("YG", "GA")}</span><span>${uiCopy("AV/M (AV)", "GD/M (GD)")}</span><span>${uiCopy("PPG (P)", "PPG (Pts)")}</span><span>${uiCopy("Yol", "Path")}</span></div>${rows.map(row => {
         const qualification = qualificationLabel(row.rank);
         return `<div class="rank-${row.rank} qualification-${qualification.key}"><span>${row.rank}</span><strong>${escapeHTML(row.name)}</strong><span>${row.group}</span><span>${row.mp}</span><span>${row.w}</span><span>${row.d}</span><span>${row.l}</span><span>${row.gf}</span><span>${row.ga}</span><b>${row.gdPerMatch > 0 ? "+" : ""}${row.gdPerMatch.toFixed(3)} <small>(${row.gd > 0 ? "+" : ""}${row.gd})</small></b><strong>${row.ppg.toFixed(3)} <small>(${row.pts})</small></strong><em>${qualification.label}</em></div>`;
       }).join("")}</div></div>
@@ -1204,11 +1206,11 @@
     const versionText = `Football Universe · V${VERSION} · Championship Play-in`;
     if (version && version.textContent !== versionText) version.textContent = versionText;
     const meta = document.querySelector('meta[name="fifa9-build"]');
-    const metaValue = `${VERSION}-fifa10-live-first-layout`;
+    const metaValue = `${VERSION}-fifa10-complete-english`;
     if (meta && meta.content !== metaValue) meta.content = metaValue;
     const url = new URL(location.href);
-    if (url.searchParams.get("fifa9build") !== "471412") {
-      url.searchParams.set("fifa9build", "471412");
+    if (url.searchParams.get("fifa9build") !== "471413") {
+      url.searchParams.set("fifa9build", "471413");
       history.replaceState(history.state, "", url);
     }
     document.querySelectorAll(".f10-format-spine article").forEach(article => {
@@ -1363,6 +1365,7 @@
       .f10-standings-table em{font-size:9px;line-height:1.25}
       .f10-standings-table strong small,.f10-standings-table b small{color:var(--f10d-gold);font-size:10px}
       @media(max-width:720px){.f10-standings-table>div{font-size:12px}}
+      html[data-language="en"] .f10-registration-draw-locked:after{content:"LOCKED FOR THE DRAW"}
     `;
     document.head.appendChild(style);
   }
@@ -1385,7 +1388,7 @@
         persistViewState();
         scheduleRender();
       } else if (action === "print-centre") {
-        window.open("fifa10-print-centre.html?fifa9build=471412", "_blank", "noopener,noreferrer");
+        window.open("fifa10-print-centre.html?fifa9build=471413", "_blank", "noopener,noreferrer");
       } else if (action === "universe-nav") {
         window.FIFA_APP_CONTEXT?.navigate?.(button.dataset.target || "seasonhub");
       } else if (action === "manual-start") await startManualGroupEntry();
@@ -1482,7 +1485,7 @@
       assignManualGroup,
       finalizeManualGroups,
       prepareDraw,
-      openPrintCentre: () => window.open("fifa10-print-centre.html?fifa9build=471412", "_blank", "noopener,noreferrer")
+      openPrintCentre: () => window.open("fifa10-print-centre.html?fifa9build=471413", "_blank", "noopener,noreferrer")
     };
   }
 

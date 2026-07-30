@@ -1,0 +1,39 @@
+ORUÇ REİS FIFA WORLD — V47.14.13
+COMPLETE ENGLISH LANGUAGE PACK
+
+KURULUM
+1. ZIP içindeki bütün dosyaları mevcut Vercel/GitHub proje köküne yükleyin.
+2. Mevcut dosyaların üzerine yazılmasına izin verin.
+3. Dağıtım tamamlandıktan sonra şu adresi açın:
+   https://fifa9-tournament-hub.vercel.app/?fifa9build=471413
+
+DİL KULLANIMI
+- Üst menüden EN seçildiğinde tercih aynı cihazda korunur.
+- Ana sayfa ve sonradan açılan dinamik FIFA 10 modülleri İngilizce görüntülenir.
+- Yazdırma Merkezi ve ayrı Fikstür/Sonuç sekmesi aynı dil tercihini otomatik kullanır.
+- TR seçildiğinde site Türkçe çalışmaya devam eder.
+
+İNGİLİZCE PAKET KAPSAMI
+- Ana navigasyon, mobil navigasyon ve komuta menüsü
+- FIFA 10 ana sayfası ve Turnuva Operasyonları
+- Kayıt, oyuncu seçimi, ELO sıralaması ve torbalar
+- Format omurgası ve takım kullanım protokolü
+- Kura, manuel grup girişi ve grup ekranları
+- Genel puan tablosu ve İngilizce MP/W/D/L/GF/GA/GD/M/PPG başlıkları
+- Fikstür filtreleri, takım seçimleri ve sonuç giriş penceresi
+- Takım pasaportları ve sabit takım havuzları
+- Uyarılar, hata mesajları, kayıt bildirimleri ve bulut durumları
+- Yazdırma Merkezi: grup fikstürleri, takım kuralları ve oyuncu çizelgeleri
+- Ayrı Fikstür ve Sonuç Merkezi
+
+KORUNAN TURNUVA KURALLARI
+1. PPG
+2. PPG eşitliğinde maç başına averaj — İngilizce: GD/M
+3. Toplam atılan gol — İngilizce: total GF
+4. Galibiyet oranı
+5. Kura sırası
+
+VERİ GÜVENLİĞİ
+- Mevcut FIFA 10 sonuçları ve 78 maçlık fikstür korunur.
+- 5–4–5 grup yapısı, oyuncu takım kayıtları ve takım havuzları korunur.
+- FIFA 09 arşivi ile Form, Oranlar, Zekâ ve Tüm Zamanlar entegrasyonu değişmez.
