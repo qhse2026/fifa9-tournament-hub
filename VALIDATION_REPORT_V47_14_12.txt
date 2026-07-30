@@ -1,0 +1,46 @@
+ORUÇ REİS FIFA WORLD — V47.14.12 VALIDATION
+
+STATUS: PASS
+
+LIVE-FIRST HOMEPAGE
+- Dashboard operations centre renders before ELO, format and registration.
+- Season operations centre renders before ELO, format and registration.
+- Format spine and registration are the final dashboard blocks.
+- Season page bottom order is ELO → format spine → registration.
+
+STANDINGS LAYOUT
+- Desktop row typography increased from 11 px to 13 px.
+- Mobile row typography increased to 12 px.
+- Player column is bounded between 250–270 px.
+- “Mohd Khairull Muzammil Bin Ramly” is protected as a single-line player name.
+- Remaining width is distributed across all statistics and qualification-path columns.
+
+RANKING & QUALIFICATION REGRESSION
+- PPG remains the primary ranking metric.
+- Equal PPG is resolved by average goal difference (AV/M).
+- AG and YG remain total goals; total AV and points remain visual values in parentheses.
+- Ranks 1–4: direct quarter-final.
+- Ranks 5–12: Best of 3 Championship Play-in (5–12, 6–11, 7–10, 8–9).
+- Ranks 13–14: direct elimination.
+
+CONNECTED UNIVERSE
+- 78 FIFA 10 fixtures preserved.
+- Fixed 5–4–5 groups preserved.
+- Existing results migrate without reset.
+- Form, Live Statistics, Odds, Intelligence, Teams and All-Time remain connected.
+- FIFA 09 archive remains present.
+
+AUTOMATED REGRESSION
+- JavaScript syntax: PASS
+- FIFA 10 dashboard and season section order: PASS
+- FIFA 10 connected universe: PASS
+- Emergency fixture centre: PASS
+- Print centre: PASS
+- Manual groups/mobile overlay (JSDOM): PASS
+- Single authentication client: PASS
+- Cloud save queue and timeout retry: PASS
+- Official 76-team men's pools: PASS
+
+ENVIRONMENT NOTE
+- Optional Playwright visual smoke script was not executed because the local Chromium binary is not installed.
+- Layout, mobile rules and section order were verified structurally in JSDOM.

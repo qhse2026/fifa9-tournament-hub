@@ -305,7 +305,7 @@
       if (!Object.keys(results).length) throw new Error("Aktarılacak sonuç bulunamadı.");
       history.replaceState(history.state, "", `${location.pathname}${location.search}`);
       return {
-        version: "47.14.11",
+        version: "47.14.12",
         updatedAt: new Date().toISOString(),
         transferredFrom: "fifa10-emergency-fixture-centre",
         groups: Object.fromEntries(Object.entries(FIFA10_FIXED_GROUPS).map(([group, names]) => [group, [...names]])),
@@ -2324,7 +2324,7 @@
     };
     state.fifa10StandaloneOperations = {
       ...previous,
-      version: "47.14.11",
+      version: "47.14.12",
       updatedAt: now,
       groups: Object.fromEntries(Object.entries(FIFA10_FIXED_GROUPS).map(([group, names]) => [group, [...names]])),
       results
@@ -2948,9 +2948,10 @@
     const honour=allMuseumHonours().find(item=>Number(item.edition)===9&&item.competition==="oruc")||currentFifa9Honour();
     view.innerHTML=`<div class="f10-page f10-triple-page">
       <section class="f10-triple-hero"><div><span>FIFA 10 · TRIPLE CIRCUIT</span><h2>Three circuits.<br><em>One table.</em><br>One champion.</h2><p>FIFA 10'un resmî omurgası; ELO torbaları, üç gruplu üç devre, genel sıralama ve Best of 3 şampiyonluk yolu üzerine kuruludur.</p><div><button class="btn btn-blue" data-nav="dashboard">Ana dashboard</button><a class="btn btn-gold" href="#fifa10Registration">Kayıt merkezine git</a></div></div><aside><small>FIFA 09 LEGACY CHAMPION</small><strong>${escapeHTML(honour?.winner||"Çağlar Can Tatar")}</strong><span>Yeni çağın ilk ELO referansı hazır.</span><div><b>${assignment.rows.length}</b><em>Kayıtlı oyuncu</em></div><div><b>5</b><em>ELO torbası</em></div></aside></section>
+      <div class="f10-operations-mount" id="fifa10OperationsMount"></div>
+      ${renderFifa10EloBlock({limit:20})}
       ${renderFifa10FormatSpine({detailed:true})}
       ${renderFifa10RegistrationBlock()}
-      ${renderFifa10EloBlock({limit:20})}
     </div>`;
   }
 
@@ -3128,11 +3129,12 @@
         <div class="f10-era-console-wrap"><article class="f10-era-console f10-triple-console" data-nav="seasonhub"><div class="f10-console-grid"></div><header><span><i></i>CHAMPIONSHIP ROUTE</span><b>FIFA 10</b></header><div class="f10-route-mini"><div><span>GROUPS</span><b>3 × 3 ROUNDS</b></div><i></i><div><span>TOP 4</span><b>DIRECT QF</b></div><i></i><div><span>5–12</span><b>BEST OF 3</b></div><i></i><div><span>FINAL</span><b>5★</b></div></div><footer><span>ONE TABLE · ELO SEEDING</span><b>FULL FORMAT ↗</b></footer></article><div class="f10-era-metrics"><article><small>FIFA 09 CHAMPION</small><strong>${escapeHTML(champion)}</strong><span>Legacy podium preserved</span></article><article><small>REGISTRATION</small><strong>${registeredCount} Players</strong><span>Automatic ELO pot assignment</span></article></div></div></div><div class="os-scroll-signal"><span>REGISTER · COMPETE · TAKE THE CROWN</span><i></i></div>
       </section>
       <section class="os-ticker f10-era-ticker"><div><span>ACTIVE ERA</span><b>FIFA 10</b></div><div><span>FORMAT</span><b>TRIPLE CIRCUIT</b></div><div><span>SEEDING</span><b>5 ELO POTS</b></div><div><span>DIRECT QF</span><b>TOP 4</b></div><div><span>FINAL</span><b>5★ · ONE MATCH</b></div></section>
-      ${renderFifa10RegistrationBlock({compact:true})}
-      ${renderFifa10FormatSpine()}
+      <div class="f10-operations-mount" id="fifa10OperationsMount"></div>
       ${renderFifa10EloBlock({limit:10})}
       ${renderDashboardChampionsPodium()}
       <section class="os-operations-section f10-records-section"><div class="os-section-heading compact"><div><span>05 / FOOTBALL INTELLIGENCE</span><h3>The new era remembers<br>everything before it.</h3></div><p>ELO, turnuva karneleri ve Tüm Zamanlar kayıtları FIFA 10 torbalarının veri temelidir.</p></div><div class="os-operation-rail"><button data-nav="intelligence"><span class="os-op-icon">↗</span><div><small>RATING</small><strong>ELO Merkezi</strong><p>Gerçek performans puanı ve hareketler</p></div><b>↗</b></button><button data-nav="benchmark"><span class="os-op-icon">∑</span><div><small>COMPARE</small><strong>Turnuva Karnesi</strong><p>FIFA I–IX dönem ve performans kıyası</p></div><b>↗</b></button><button data-nav="alltime"><span class="os-op-icon">♛</span><div><small>LEGACY</small><strong>Tüm Zamanlar</strong><p>Şampiyonluklar, rekorlar ve oyuncu kartları</p></div><b>↗</b></button><button data-nav="archive"><span class="os-op-icon">◇</span><div><small>HISTORY</small><strong>Turnuva Arşivi</strong><p>Dokuz edisyonun kalıcı kayıtları</p></div><b>↗</b></button></div></section>
+      ${renderFifa10FormatSpine()}
+      ${renderFifa10RegistrationBlock({compact:true})}
     </div>`;
   }
 

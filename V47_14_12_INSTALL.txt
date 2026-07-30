@@ -1,0 +1,32 @@
+ORUÇ REİS FIFA WORLD — V47.14.12
+LIVE OPERATIONS & BALANCED STANDINGS
+
+KURULUM
+1. ZIP içindeki bütün dosyaları mevcut Vercel/GitHub proje köküne yükleyin.
+2. Mevcut dosyaların üzerine yazılmasına izin verin.
+3. Dağıtım tamamlandıktan sonra şu adresi açın:
+   https://fifa9-tournament-hub.vercel.app/?fifa9build=471412
+
+ANA SAYFA SIRASI
+- Canlı FIFA 10 Turnuva Operasyonları, fikstür, genel puan ve takımlar alanı üst bölüme taşındı.
+- ELO görünümü canlı operasyonların hemen ardından gelir.
+- “Finale giden ana omurga” ve “Kaydını yap. Torbanı ELO belirlesin.” alanları sayfanın altındadır.
+- Turnuva verileri, geçmiş sonuçlar ve kayıt yapısı değiştirilmez.
+
+GENEL PUAN TABLOSU
+- Masaüstü ve mobil yazı boyutları büyütüldü.
+- Oyuncu sütunu en uzun oyuncu adı tek satırda kalacak şekilde dengelendi.
+- Kazanılan yatay alan Grup, O/G/B/M, AG/YG, AV/M, PPG ve Yol sütunlarına dağıtıldı.
+- Mobilde bütün sütunlara yatay kaydırmayla erişilir.
+
+SIRALAMA KURALI — DEĞİŞMEDİ
+1. Maç başına puan ortalaması (PPG)
+2. PPG eşitliğinde maç başına averaj (AV/M)
+3. Toplam atılan gol (AG)
+4. Galibiyet oranı
+5. Kura sırası
+
+VERİ GÜVENLİĞİ
+- Mevcut FIFA 10 skorları, takım kayıtları ve oyuncu pasaportları silinmez.
+- FIFA 09 arşivi ve Tüm Zamanlar kayıtları korunur.
+- Form, Canlı İstatistikler, Oranlar, Zekâ, Takımlar ve Tüm Zamanlar bağlantıları devam eder.

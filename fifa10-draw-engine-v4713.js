@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "47.14.11";
+  const VERSION = "47.14.12";
   const STORAGE_KEY = "fifa-tournament-hub-v1";
   const GROUPS = Object.freeze(["A", "B", "C"]);
   const LEG_STARS = Object.freeze([4, 4.5, 5]);
@@ -1144,13 +1144,17 @@
       persistViewState();
     }
     let section = existing;
+    const operationsMount = view.querySelector("#fifa10OperationsMount");
     if (!section) {
       section = document.createElement("section");
       section.id = "fifa10DrawCentre";
       section.className = "f10-draw-centre";
       const registration = view.querySelector("#fifa10Registration");
-      if (registration) registration.insertAdjacentElement("afterend", section);
+      if (operationsMount) operationsMount.append(section);
+      else if (registration) registration.insertAdjacentElement("afterend", section);
       else view.insertAdjacentElement("afterbegin", section);
+    } else if (operationsMount && section.parentElement !== operationsMount) {
+      operationsMount.append(section);
     }
     const tabs = [
       ["draw", "KURA"],
@@ -1168,7 +1172,7 @@
       <div class="f10-operation-notice ${operationNotice.type || "info"}"><strong>${operationNotice.type === "success" ? "✓" : operationNotice.type === "warning" ? "!" : "i"}</strong><span>${escapeHTML(operationNotice.text || "")}</span></div>
       ${draw?.status === "completed" ? `<section class="f10-connected-universe"><div><span>ONE SOURCE · CONNECTED UNIVERSE</span><strong>Bir sonucu gir; bütün merkezler birlikte güncellensin.</strong><small>Form, oran, Zekâ, canlı maç, takımlar ve tüm zamanlar aynı resmî FIFA 10 maç kaydını okur.</small></div><nav><button type="button" data-f10draw-action="universe-nav" data-target="livestats">Canlı İstatistik</button><button type="button" data-f10draw-action="universe-nav" data-target="form">Form</button><button type="button" data-f10draw-action="universe-nav" data-target="odds">Oranlar</button><button type="button" data-f10draw-action="universe-nav" data-target="intelligence">Zekâ</button><button type="button" data-f10draw-action="universe-nav" data-target="teams">Takımlar</button><button type="button" data-f10draw-action="universe-nav" data-target="alltime">Tüm Zamanlar</button></nav></section>` : ""}
       <div class="f10-draw-content">${activeTab === "draw" ? renderDrawArena(draw) : activeTab === "groups" ? (draw ? renderGroupTables(draw) : renderDrawArena(null)) : activeTab === "standings" ? (draw?.status === "completed" ? renderStandings(draw) : renderDrawArena(draw)) : activeTab === "teams" ? (draw?.status === "completed" ? renderTeamPassports(draw) : renderDrawArena(draw)) : (draw?.status === "completed" ? renderFixtures(draw) : renderDrawArena(draw))}</div>
-      <footer class="f10-draw-footer"><span>GENEL SIRALAMA: PPG → MAÇ BAŞINA AVERAJ → MAÇ BAŞINA ATILAN GOL → GALİBİYET ORANI → KURA SIRASI</span><b>RATE-BASED FAIR TABLE · NO VOLUME ADVANTAGE</b></footer>`;
+      <footer class="f10-draw-footer"><span>GENEL SIRALAMA: PPG → MAÇ BAŞINA AVERAJ → TOPLAM ATILAN GOL → GALİBİYET ORANI → KURA SIRASI</span><b>RATE-BASED FAIR TABLE · NO VOLUME ADVANTAGE</b></footer>`;
     const renderSignature = JSON.stringify({
       tab: activeTab,
       groupFilter: fixtureGroupFilter,
@@ -1200,11 +1204,11 @@
     const versionText = `Football Universe · V${VERSION} · Championship Play-in`;
     if (version && version.textContent !== versionText) version.textContent = versionText;
     const meta = document.querySelector('meta[name="fifa9-build"]');
-    const metaValue = `${VERSION}-fifa10-playin-final`;
+    const metaValue = `${VERSION}-fifa10-live-first-layout`;
     if (meta && meta.content !== metaValue) meta.content = metaValue;
     const url = new URL(location.href);
-    if (url.searchParams.get("fifa9build") !== "471411") {
-      url.searchParams.set("fifa9build", "471411");
+    if (url.searchParams.get("fifa9build") !== "471412") {
+      url.searchParams.set("fifa9build", "471412");
       history.replaceState(history.state, "", url);
     }
     document.querySelectorAll(".f10-format-spine article").forEach(article => {
@@ -1348,9 +1352,17 @@
       .f10-groups-rule span{display:block;color:var(--f10d-green);font-size:8px;font-weight:900;letter-spacing:.15em}
       .f10-groups-rule strong{display:block;margin-top:6px;color:white;font-size:18px}
       .f10-groups-rule p{margin:5px 0 0;color:#92a1c3}
-      .f10-standings-table{min-width:1200px}
-      .f10-standings-table>div{grid-template-columns:35px minmax(170px,1fr) 45px repeat(4,44px) repeat(2,58px) 90px 78px 105px}
-      .f10-standings-table strong small,.f10-standings-table b small{color:var(--f10d-gold);font-size:9px}
+      .f10-operations-mount{position:relative}
+      .f10-standings-table{width:100%;min-width:1240px}
+      .f10-standings-table>div{grid-template-columns:48px minmax(250px,270px) minmax(62px,.65fr) repeat(4,minmax(58px,.62fr)) repeat(2,minmax(62px,.68fr)) minmax(118px,1.16fr) minmax(104px,1fr) minmax(165px,1.48fr);min-height:52px;padding:0 14px;font-size:13px}
+      .f10-standings-table>div>*{min-width:0}
+      .f10-standings-table>div>*:not(:nth-child(2)){justify-self:center;text-align:center}
+      .f10-standings-table>div>:nth-child(2){justify-self:stretch;text-align:left}
+      .f10-standings-table>div>strong:nth-child(2){white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px;letter-spacing:-.015em}
+      .f10-standings-table .head{font-size:9px}
+      .f10-standings-table em{font-size:9px;line-height:1.25}
+      .f10-standings-table strong small,.f10-standings-table b small{color:var(--f10d-gold);font-size:10px}
+      @media(max-width:720px){.f10-standings-table>div{font-size:12px}}
     `;
     document.head.appendChild(style);
   }
@@ -1373,7 +1385,7 @@
         persistViewState();
         scheduleRender();
       } else if (action === "print-centre") {
-        window.open("fifa10-print-centre.html?fifa9build=471411", "_blank", "noopener,noreferrer");
+        window.open("fifa10-print-centre.html?fifa9build=471412", "_blank", "noopener,noreferrer");
       } else if (action === "universe-nav") {
         window.FIFA_APP_CONTEXT?.navigate?.(button.dataset.target || "seasonhub");
       } else if (action === "manual-start") await startManualGroupEntry();
@@ -1470,7 +1482,7 @@
       assignManualGroup,
       finalizeManualGroups,
       prepareDraw,
-      openPrintCentre: () => window.open("fifa10-print-centre.html?fifa9build=471411", "_blank", "noopener,noreferrer")
+      openPrintCentre: () => window.open("fifa10-print-centre.html?fifa9build=471412", "_blank", "noopener,noreferrer")
     };
   }
 
