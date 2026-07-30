@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "47.16.0";
+  const VERSION = "47.17.0";
   const STORAGE_KEY = "fifa-tournament-hub-v1";
   const SYNC_HISTORY_KEY = "fifa10-sync-history-v1";
   const GROUPS = Object.freeze(["A", "B", "C"]);
@@ -1837,17 +1837,18 @@
       ["players", uiCopy("OYUNCU MERKEZİ", "PLAYER CENTRE")],
       ["dna", "DNA & H2H"],
       ["broadcast", uiCopy("YAYIN", "BROADCAST")],
-      ["awards", uiCopy("ÖDÜLLER & EVREN", "AWARDS & UNIVERSE")]
+      ["awards", uiCopy("ÖDÜLLER & EVREN", "AWARDS & UNIVERSE")],
+      ["universe", uiCopy("EVREN ZEKÂSI", "UNIVERSE INTELLIGENCE")]
     ];
     const participantCount = draw?.participants?.length || registrationRows().length;
     const sizeText = projectedGroupSizes(participantCount).join("-");
     const fixedGroups = draw?.entryMode === "official-fixed-groups";
     const completedCount = draw?.fixtures?.filter(match => match.completed).length || 0;
-    const html = `<header class="f10-draw-hero"><div><span>FIFA 10 · TOURNAMENT OPERATIONS</span><h3>${fixedGroups ? "Resmî fikstür." : "Kura çekimi."}<br><em>Üç grup, tek sıralama.</em></h3><p>${fixedGroups ? `A, B ve C grupları kesinleşti. ${draw.fixtures?.length || 78} maçlık 4★, 4.5★ ve 5★ devreleri bu merkezden yönetilir; her sonuç bütün FIFA evrenine aynı anda işlenir.` : `${participantCount} katılımcı ELO torbalarından canlı kurayla A, B ve C gruplarına dağıtılır. Beklenen grup dağılımı ${sizeText}; hangi grupların büyük olacağı yalnızca kura sırasında belirlenir.`}</p></div><aside class="status-${status.key}"><i></i><strong>${status.label}</strong><small>${fixedGroups ? `${completedCount}/${draw.fixtures?.length || 78} sonuç işlendi` : status.note}</small>${draw?.fivePlayerGroups?.length ? `<b>5 OYUNCULU GRUP${draw.fivePlayerGroups.length > 1 ? "LAR" : ""} · ${draw.fivePlayerGroups.join(" / ")}</b>` : `<b>GRUP BÜYÜKLÜKLERİ · KURADA</b>`}</aside></header>
+    const html = `<header class="f10-draw-hero"><div><span>FIFA 10 · TOURNAMENT OPERATIONS</span><h3>${fixedGroups ? uiCopy("Resmî fikstür.", "Official fixtures.") : uiCopy("Kura çekimi.", "Group draw.")}<br><em>${uiCopy("Üç grup, tek sıralama.", "Three groups, one table.")}</em></h3><p>${fixedGroups ? uiCopy(`A, B ve C grupları kesinleşti. ${draw.fixtures?.length || 78} maçlık 4★, 4.5★ ve 5★ devreleri bu merkezden yönetilir; her sonuç bütün FIFA evrenine aynı anda işlenir.`, `Groups A, B and C are confirmed. The ${draw.fixtures?.length || 78}-match 4★, 4.5★ and 5★ circuits are managed here; every result updates the entire FIFA universe at once.`) : uiCopy(`${participantCount} katılımcı ELO torbalarından canlı kurayla A, B ve C gruplarına dağıtılır. Beklenen grup dağılımı ${sizeText}; hangi grupların büyük olacağı yalnızca kura sırasında belirlenir.`, `${participantCount} participants are assigned from ELO pots to Groups A, B and C in the live draw. The projected group distribution is ${sizeText}; the larger groups are determined only by the draw.`)}</p></div><aside class="status-${status.key}"><i></i><strong>${status.label}</strong><small>${fixedGroups ? uiCopy(`${completedCount}/${draw.fixtures?.length || 78} sonuç işlendi`, `${completedCount}/${draw.fixtures?.length || 78} results recorded`) : status.note}</small>${draw?.fivePlayerGroups?.length ? `<b>${uiCopy(`5 OYUNCULU GRUP${draw.fivePlayerGroups.length > 1 ? "LAR" : ""}`, `5-PLAYER GROUP${draw.fivePlayerGroups.length > 1 ? "S" : ""}`)} · ${draw.fivePlayerGroups.join(" / ")}</b>` : `<b>${uiCopy("GRUP BÜYÜKLÜKLERİ · KURADA", "GROUP SIZES · DECIDED IN DRAW")}</b>`}</aside></header>
       <nav class="f10-draw-tabs">${tabs.map(([id, label]) => `<button type="button" class="${activeTab === id ? "active" : ""}" data-f10draw-action="tab" data-tab="${id}" ${!draw && id !== "draw" ? "disabled" : ""}>${label}</button>`).join("")}${draw?.status === "completed" ? `<button type="button" class="f10-tv-launch" data-f10draw-action="open-tv">${uiCopy("TV MODU", "TV MODE")} ↗</button><button type="button" class="f10-print-launch" data-f10draw-action="print-centre">${uiCopy("YAZDIRMA MERKEZİ", "PRINT CENTRE")} ↗</button>` : ""}</nav>
       <div class="f10-operation-notice ${operationNotice.type || "info"}"><strong>${operationNotice.type === "success" ? "✓" : operationNotice.type === "warning" ? "!" : "i"}</strong><span>${escapeHTML(operationNotice.text || "")}</span></div>
       ${draw?.status === "completed" ? renderSyncStatus() : ""}
-      ${draw?.status === "completed" ? `<section class="f10-connected-universe"><div><span>ONE SOURCE · CONNECTED UNIVERSE</span><strong>Bir sonucu gir; bütün merkezler birlikte güncellensin.</strong><small>Form, oran, Zekâ, canlı maç, takımlar ve tüm zamanlar aynı resmî FIFA 10 maç kaydını okur.</small></div><nav><button type="button" data-f10draw-action="universe-nav" data-target="livestats">Canlı İstatistik</button><button type="button" data-f10draw-action="universe-nav" data-target="form">Form</button><button type="button" data-f10draw-action="universe-nav" data-target="odds">Oranlar</button><button type="button" data-f10draw-action="universe-nav" data-target="intelligence">Zekâ</button><button type="button" data-f10draw-action="universe-nav" data-target="teams">Takımlar</button><button type="button" data-f10draw-action="universe-nav" data-target="alltime">Tüm Zamanlar</button></nav></section>` : ""}
+      ${draw?.status === "completed" ? `<section class="f10-connected-universe"><div><span>ONE SOURCE · CONNECTED UNIVERSE</span><strong>${uiCopy("Bir sonucu gir; bütün merkezler birlikte güncellensin.", "Enter one result; update every centre together.")}</strong><small>${uiCopy("Form, oran, Zekâ, canlı maç, takımlar ve tüm zamanlar aynı resmî FIFA 10 maç kaydını okur.", "Form, odds, Intelligence, live matches, teams and all-time records read the same official FIFA 10 match record.")}</small></div><nav><button type="button" data-f10draw-action="universe-nav" data-target="livestats">${uiCopy("Canlı İstatistik", "Live Stats")}</button><button type="button" data-f10draw-action="universe-nav" data-target="form">${uiCopy("Form", "Form")}</button><button type="button" data-f10draw-action="universe-nav" data-target="odds">${uiCopy("Oranlar", "Odds")}</button><button type="button" data-f10draw-action="universe-nav" data-target="intelligence">${uiCopy("Zekâ", "Intelligence")}</button><button type="button" data-f10draw-action="universe-nav" data-target="teams">${uiCopy("Takımlar", "Teams")}</button><button type="button" data-f10draw-action="universe-nav" data-target="alltime">${uiCopy("Tüm Zamanlar", "All-Time")}</button></nav></section>` : ""}
       <div class="f10-draw-content">${
         activeTab === "draw" ? renderDrawArena(draw)
           : activeTab === "groups" ? (draw ? renderGroupTables(draw) : renderDrawArena(null))
@@ -1860,9 +1861,10 @@
                         : activeTab === "dna" ? (draw?.status === "completed" ? renderPlayerDnaCentre(draw) : renderDrawArena(draw))
                           : activeTab === "broadcast" ? (draw?.status === "completed" ? renderBroadcastHub(draw) : renderDrawArena(draw))
                             : activeTab === "awards" ? (draw?.status === "completed" ? renderAwardsUniverse(draw) : renderDrawArena(draw))
-                              : renderDrawArena(draw)
+                              : activeTab === "universe" ? (draw?.status === "completed" ? `<div id="f10UniverseIntelligenceRoot"></div>` : renderDrawArena(draw))
+                                : renderDrawArena(draw)
       }</div>
-      <footer class="f10-draw-footer"><span>GENEL SIRALAMA: PPG → MAÇ BAŞINA AVERAJ → TOPLAM ATILAN GOL → GALİBİYET ORANI → KURA SIRASI</span><b>RATE-BASED FAIR TABLE · NO VOLUME ADVANTAGE</b></footer>`;
+      <footer class="f10-draw-footer"><span>${uiCopy("GENEL SIRALAMA: PPG → MAÇ BAŞINA AVERAJ → TOPLAM ATILAN GOL → GALİBİYET ORANI → KURA SIRASI", "OVERALL RANKING: PPG → GOAL DIFFERENCE PER MATCH → TOTAL GOALS FOR → WIN RATE → DRAW ORDER")}</span><b>RATE-BASED FAIR TABLE · NO VOLUME ADVANTAGE</b></footer>`;
     const renderSignature = JSON.stringify({
       tab: activeTab,
       groupFilter: fixtureGroupFilter,
@@ -1883,10 +1885,23 @@
     // innerHTML is unstable because browsers normalize the markup; the old
     // comparison fed this module's own MutationObserver forever, blocking
     // clicks on desktop and destroying newly opened sheets on mobile.
+    let replaced = false;
     if (section.dataset.f10RenderSignature !== renderSignature) {
       section.innerHTML = html;
       section.dataset.f10RenderSignature = renderSignature;
       lastRenderSignature = renderSignature;
+      replaced = true;
+    }
+    const universeMount = section.querySelector("#f10UniverseIntelligenceRoot");
+    if (activeTab === "universe" && draw?.status === "completed" && universeMount && (replaced || !universeMount.dataset.fuiReady)) {
+      try {
+        window.FIFA_UNIVERSE_INTELLIGENCE?.render(payload, draw, { mount: universeMount });
+        universeMount.dataset.fuiReady = "true";
+      } catch (error) {
+        console.error("Universe Intelligence render failed", error);
+        universeMount.innerHTML = `<div class="f10-empty">${uiCopy("Evren Zekâsı geçici olarak yüklenemedi. Resmî sonuç girişi etkilenmedi.", "Universe Intelligence could not load temporarily. Official result entry remains unaffected.")}</div>`;
+        universeMount.dataset.fuiReady = "error";
+      }
     }
     patchRegistrationLock(draw);
     syncManualGroupOverlay();
@@ -1900,11 +1915,11 @@
     const versionText = `Football Universe · V${VERSION} · Tournament Intelligence`;
     if (version && version.textContent !== versionText) version.textContent = versionText;
     const meta = document.querySelector('meta[name="fifa9-build"]');
-    const metaValue = `${VERSION}-autonomous-tournament-intelligence`;
+    const metaValue = `${VERSION}-football-universe-intelligence`;
     if (meta && meta.content !== metaValue) meta.content = metaValue;
     const url = new URL(location.href);
-    if (url.searchParams.get("fifa9build") !== "471600") {
-      url.searchParams.set("fifa9build", "471600");
+    if (url.searchParams.get("fifa9build") !== "471700") {
+      url.searchParams.set("fifa9build", "471700");
       history.replaceState(history.state, "", url);
     }
     document.querySelectorAll(".f10-format-spine article").forEach(article => {
@@ -2118,10 +2133,10 @@
         persistViewState();
         scheduleRender();
       } else if (action === "print-centre") {
-        window.open("fifa10-print-centre.html?fifa9build=471600", "_blank", "noopener,noreferrer");
+        window.open("fifa10-print-centre.html?fifa9build=471700", "_blank", "noopener,noreferrer");
       } else if (action === "open-broadcast") {
         const mode = ["standings", "latest", "next", "qualification", "lowerthird"].includes(button.dataset.mode) ? button.dataset.mode : "standings";
-        window.open(`fifa10-broadcast.html?fifa9build=471600&mode=${encodeURIComponent(mode)}`, "_blank", "noopener,noreferrer");
+        window.open(`fifa10-broadcast.html?fifa9build=471700&mode=${encodeURIComponent(mode)}`, "_blank", "noopener,noreferrer");
       } else if (action === "open-tv") {
         openTvMode();
       } else if (action === "close-tv") {
@@ -2287,8 +2302,9 @@
       playerDna: (playerId, drawOverride) => playerDna(drawOverride || getDraw(), playerId),
       headToHead: (playerId, rivalId, drawOverride) => headToHead(drawOverride || getDraw(), playerId, rivalId),
       officialAwardCandidates: drawOverride => officialAwardCandidates(drawOverride || getDraw()),
-      openPrintCentre: () => window.open("fifa10-print-centre.html?fifa9build=471600", "_blank", "noopener,noreferrer"),
-      openBroadcast: mode => window.open(`fifa10-broadcast.html?fifa9build=471600&mode=${encodeURIComponent(mode || "standings")}`, "_blank", "noopener,noreferrer")
+      universeIntelligence: () => window.FIFA_UNIVERSE_INTELLIGENCE || null,
+      openPrintCentre: () => window.open("fifa10-print-centre.html?fifa9build=471700", "_blank", "noopener,noreferrer"),
+      openBroadcast: mode => window.open(`fifa10-broadcast.html?fifa9build=471700&mode=${encodeURIComponent(mode || "standings")}`, "_blank", "noopener,noreferrer")
     };
   }
 

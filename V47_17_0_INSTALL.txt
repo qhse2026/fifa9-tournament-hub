@@ -1,0 +1,21 @@
+ORUÇ REİS FIFA WORLD — V47.17.0
+FOOTBALL UNIVERSE INTELLIGENCE
+
+1. Upload the complete extracted folder to the existing site/repository.
+2. Keep the existing cloud-config.js values. This release does not replace them.
+3. Deploy the complete build.
+4. Open:
+   https://fifa9-tournament-hub.vercel.app/?fifa9build=471700
+5. Open Format & Draw, then select UNIVERSE INTELLIGENCE / EVREN ZEKÂSI.
+6. On a device that still shows an older build, perform one hard refresh. The
+   build bootstrap and service worker automatically remove the previous cache.
+
+DO NOT upload only index.html. The following two new files are required:
+- fifa-universe-intelligence-v4717.js
+- fifa-universe-intelligence-v4717.css
+
+SAFE DATA CONTRACT
+- Official score and cloud-save flows are unchanged.
+- Existing FIFA 09 and FIFA 10 data remain in their current local/cloud state.
+- Analytics and simulations are read-only and cannot mutate official draw data.
+
