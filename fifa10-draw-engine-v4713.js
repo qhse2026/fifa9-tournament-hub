@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "47.14.10";
+  const VERSION = "47.14.11";
   const STORAGE_KEY = "fifa-tournament-hub-v1";
   const GROUPS = Object.freeze(["A", "B", "C"]);
   const LEG_STARS = Object.freeze([4, 4.5, 5]);
@@ -121,7 +121,7 @@
     draft.settings.groupCount = 3;
     draft.settings.newPlayerBaseElo = NEW_PLAYER_ELO;
     draft.settings.rankingPrimary = "ppg";
-    draft.settings.rankingTieBreakers = ["goalDifferencePerMatch", "goalsForPerMatch", "winRate", "drawLot"];
+    draft.settings.rankingTieBreakers = ["goalDifferencePerMatch", "goalsForTotal", "winRate", "drawLot"];
     draft.settings.goalDifferenceCap = null;
     draft.settings.goalDifferenceMode = "per-match-uncapped";
     draft.settings.groupRounds = [
@@ -729,7 +729,7 @@
   }
 
   function compareStandingsRows(a, b) {
-    for (const metric of ["ppg", "gdPerMatch", "gfPerMatch", "winRate"]) {
+    for (const metric of ["ppg", "gdPerMatch", "gf", "winRate"]) {
       const difference = Number(b?.[metric] || 0) - Number(a?.[metric] || 0);
       if (Math.abs(difference) > 1e-9) return difference;
     }
@@ -744,16 +744,10 @@
       .map((row, index) => ({ ...row, groupRank: index + 1 }));
   }
 
-  function preliminaryPairs(total) {
-    const count = Math.max(0, Math.min(3, total - 12));
-    return Array.from({ length: count }, (_, index) => [12 - count + index, total - index]);
-  }
-
-  function qualificationLabel(rank, total) {
+  function qualificationLabel(rank) {
     if (rank <= 4) return { key: "direct", label: "DOĞRUDAN QF" };
-    const prelimRanks = new Set(preliminaryPairs(total).flat());
-    if (prelimRanks.has(rank)) return { key: "gate", label: "PRELIMINARY" };
-    return { key: "playin", label: "PLAY-IN" };
+    if (rank <= 12) return { key: "playin", label: "CHAMPIONSHIP PLAY-IN" };
+    return { key: "eliminated", label: "DOĞRUDAN ELENDİ" };
   }
 
   function teamUsedBy(draw, playerId, team, excludeMatchId = "") {
@@ -1054,10 +1048,10 @@
     const played = completedFixtures(draw).length;
     const total = draw.fixtures?.length || 0;
     return `<section class="f10-general-standings"><header><div><span>ONE TABLE · RATE-BASED RANKING</span><h4>FIFA 10 Genel Puan Sıralaması</h4><p>Farklı maç sayıları PPG ve maç başına averaj ile eşitlenir. Toplam puan yalnızca parantez içinde bilgi amaçlı gösterilir; sıralamayı etkilemez.</p></div><div><strong>${played}/${total}</strong><small>GRUP MAÇI</small></div></header>
-      <div class="f10-ranking-rules"><span>1 · PPG</span><span>2 · AV/M</span><span>3 · AG/M</span><span>4 · GALİBİYET ORANI</span><span>5 · KURA SIRASI</span></div>
-      <div class="f10-standings-scroll"><div class="f10-standings-table"><div class="head"><span>#</span><span>Oyuncu</span><span>Grup</span><span>O</span><span>G</span><span>B</span><span>M</span><span>AG/M</span><span>YG/M</span><span>AV/M (AV)</span><span>PPG (P)</span><span>Yol</span></div>${rows.map(row => {
-        const qualification = qualificationLabel(row.rank, rows.length);
-        return `<div class="rank-${row.rank} qualification-${qualification.key}"><span>${row.rank}</span><strong>${escapeHTML(row.name)}</strong><span>${row.group}</span><span>${row.mp}</span><span>${row.w}</span><span>${row.d}</span><span>${row.l}</span><span>${row.gfPerMatch.toFixed(3)}</span><span>${row.gaPerMatch.toFixed(3)}</span><b>${row.gdPerMatch > 0 ? "+" : ""}${row.gdPerMatch.toFixed(3)} <small>(${row.gd > 0 ? "+" : ""}${row.gd})</small></b><strong>${row.ppg.toFixed(3)} <small>(${row.pts})</small></strong><em>${qualification.label}</em></div>`;
+      <div class="f10-ranking-rules"><span>1 · PPG</span><span>2 · AV/M</span><span>3 · TOPLAM AG</span><span>4 · GALİBİYET ORANI</span><span>5 · KURA SIRASI</span></div>
+      <div class="f10-standings-scroll"><div class="f10-standings-table"><div class="head"><span>#</span><span>Oyuncu</span><span>Grup</span><span>O</span><span>G</span><span>B</span><span>M</span><span>AG</span><span>YG</span><span>AV/M (AV)</span><span>PPG (P)</span><span>Yol</span></div>${rows.map(row => {
+        const qualification = qualificationLabel(row.rank);
+        return `<div class="rank-${row.rank} qualification-${qualification.key}"><span>${row.rank}</span><strong>${escapeHTML(row.name)}</strong><span>${row.group}</span><span>${row.mp}</span><span>${row.w}</span><span>${row.d}</span><span>${row.l}</span><span>${row.gf}</span><span>${row.ga}</span><b>${row.gdPerMatch > 0 ? "+" : ""}${row.gdPerMatch.toFixed(3)} <small>(${row.gd > 0 ? "+" : ""}${row.gd})</small></b><strong>${row.ppg.toFixed(3)} <small>(${row.pts})</small></strong><em>${qualification.label}</em></div>`;
       }).join("")}</div></div>
       ${renderQualificationPath(rows)}
     </section>`;
@@ -1065,20 +1059,8 @@
 
   function renderQualificationPath(rows) {
     if (!rows.length) return "";
-    const total = rows.length;
     const name = rank => escapeHTML(rows.find(row => row.rank === rank)?.name || `${rank}. Sıra`);
-    const gates = preliminaryPairs(total);
-    const gateHtml = gates.length
-      ? gates.map(([high, low]) => `<strong>${high} · ${name(high)} <i>VS</i> ${low} · ${name(low)}</strong>`).join("")
-      : `<strong>Preliminary turu yok</strong>`;
-    const gateNote = gates.length
-      ? `Best of 3 · ${gates.length} kazanan, ${13 - gates.length}–12 seri numaralarına yerleşir`
-      : `5–12 doğrudan Play-In serilerine geçer`;
-    const opponent = seed => {
-      const pair = gates.find(([high]) => high === seed);
-      return pair ? `Gate ${pair[0]}–${pair[1]} Winner` : `${seed} <small>${name(seed)}</small>`;
-    };
-    return `<div class="f10-qualification-path"><article class="direct"><span>DIRECT QUARTER-FINALISTS</span><div>${[1, 2, 3, 4].map(rank => `<b>${rank}<small>${name(rank)}</small></b>`).join("")}</div></article><article><span>PRELIMINARY GATE</span><div class="preliminary-pairs">${gateHtml}</div><small>${gateNote}</small></article><article><span>CHAMPIONSHIP PLAY-IN</span><div class="path-pairs"><b>5 <small>${name(5)}</small><i>VS</i> ${opponent(12)}</b><b>6 <small>${name(6)}</small><i>VS</i> ${opponent(11)}</b><b>7 <small>${name(7)}</small><i>VS</i> ${opponent(10)}</b><b>8 <small>${name(8)}</small><i>VS</i> 9 <small>${name(9)}</small></b></div></article></div>`;
+    return `<div class="f10-qualification-path"><article class="direct"><span>DIRECT QUARTER-FINALISTS</span><div>${[1, 2, 3, 4].map(rank => `<b>${rank}<small>${name(rank)}</small></b>`).join("")}</div><small>İlk dört oyuncu doğrudan çeyrek finalde.</small></article><article class="playin"><span>CHAMPIONSHIP PLAY-IN · BEST OF 3</span><div class="path-pairs"><b>5 <small>${name(5)}</small><i>VS</i> 12 <small>${name(12)}</small></b><b>6 <small>${name(6)}</small><i>VS</i> 11 <small>${name(11)}</small></b><b>7 <small>${name(7)}</small><i>VS</i> 10 <small>${name(10)}</small></b><b>8 <small>${name(8)}</small><i>VS</i> 9 <small>${name(9)}</small></b></div><small>Her seride iki galibiyet alan çeyrek finale çıkar.</small></article><article class="eliminated"><span>DOĞRUDAN ELENENLER</span><div>${[13, 14].map(rank => `<b>${rank}<small>${name(rank)}</small></b>`).join("")}</div><small>13. ve 14. sırada turnuva sona erer.</small></article></div>`;
   }
 
   function renderFixtures(draw) {
@@ -1215,14 +1197,14 @@
     const navLabel = document.querySelector('.os-primary-nav [data-nav="seasonhub"] span');
     if (navLabel && navLabel.textContent !== "Format & Kura") navLabel.textContent = "Format & Kura";
     const version = document.querySelector(".sidebar-version");
-    const versionText = `Football Universe · V${VERSION} · Live Draw & PPG Engine`;
+    const versionText = `Football Universe · V${VERSION} · Championship Play-in`;
     if (version && version.textContent !== versionText) version.textContent = versionText;
     const meta = document.querySelector('meta[name="fifa9-build"]');
-    const metaValue = `${VERSION}-live-draw-ppg-engine`;
+    const metaValue = `${VERSION}-fifa10-playin-final`;
     if (meta && meta.content !== metaValue) meta.content = metaValue;
     const url = new URL(location.href);
-    if (url.searchParams.get("fifa9build") !== "471410") {
-      url.searchParams.set("fifa9build", "471410");
+    if (url.searchParams.get("fifa9build") !== "471411") {
+      url.searchParams.set("fifa9build", "471411");
       history.replaceState(history.state, "", url);
     }
     document.querySelectorAll(".f10-format-spine article").forEach(article => {
@@ -1238,7 +1220,7 @@
         const desc = article.querySelector("p");
         const metaNode = article.querySelector("strong");
         if (desc && desc.textContent !== "Bütün oyuncular tek tabloda PPG ve maç başına averajla adil biçimde sıralanır.") desc.textContent = "Bütün oyuncular tek tabloda PPG ve maç başına averajla adil biçimde sıralanır.";
-        if (metaNode && metaNode.textContent !== "PPG · AV/M · AG/M · galibiyet oranı") metaNode.textContent = "PPG · AV/M · AG/M · galibiyet oranı";
+        if (metaNode && metaNode.textContent !== "PPG · AV/M · toplam AG · galibiyet oranı") metaNode.textContent = "PPG · AV/M · toplam AG · galibiyet oranı";
       }
     });
     const footer = document.querySelector("#fifa10Registration > footer span");
@@ -1344,8 +1326,8 @@
       .f10-draw-controls{display:flex;flex-wrap:wrap;gap:9px}.f10-draw-group-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}.f10-draw-group-card{border:1px solid var(--f10d-line);border-radius:19px;background:rgba(8,16,40,.76);overflow:hidden}.f10-draw-group-card>header{display:flex;justify-content:space-between;align-items:center;padding:15px;border-bottom:1px solid var(--f10d-line)}.f10-draw-group-card>header div{display:flex;align-items:end;gap:8px}.f10-draw-group-card header span{font-size:9px;color:#7a8aac;letter-spacing:.14em}.f10-draw-group-card header strong{font-size:30px;color:var(--f10d-gold)}.f10-draw-group-card header b{font-size:9px;color:#76c9ff;letter-spacing:.12em}.f10-draw-group-card>div{display:grid;gap:6px;padding:10px}.f10-draw-group-card>div>div{display:flex;align-items:center;gap:9px;padding:9px;border-radius:10px;background:rgba(255,255,255,.04)}.f10-draw-group-card i{font-style:normal;width:22px;color:#7382a9}.f10-draw-group-card span strong{display:block;color:white;font-size:11px}.f10-draw-group-card span small{color:#7f8eb3;font-size:9px}.f10-draw-group-card>p{padding:22px;color:#7785aa}.f10-draw-group-card footer{padding:9px 13px;color:var(--f10d-gold);font-size:8px;font-weight:900;letter-spacing:.12em;background:rgba(229,189,99,.07)}.f10-draw-group-card.is-five{border-color:rgba(229,189,99,.48)}
       .f10-draw-log{grid-column:1/3;border:1px solid var(--f10d-line);border-radius:18px;background:rgba(5,12,31,.65);overflow:hidden}.f10-draw-log>header{display:flex;justify-content:space-between;padding:13px 16px;border-bottom:1px solid var(--f10d-line);font-size:9px;letter-spacing:.14em;color:#8090b5}.f10-draw-log>div{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--f10d-line)}.f10-draw-log>div>div{display:flex;gap:10px;align-items:center;padding:11px;background:#09122d}.f10-draw-log i{font-style:normal;color:#647295}.f10-draw-log span{flex:1}.f10-draw-log strong{display:block;color:white;font-size:11px}.f10-draw-log small{color:#7483a8}.f10-draw-log b{color:var(--f10d-gold);font-size:9px}.f10-draw-log p{padding:20px;background:#09122d;color:#7685aa}
       .f10-groups-full{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.f10-group-full{border:1px solid var(--f10d-line);border-radius:22px;overflow:hidden;background:rgba(7,14,36,.72)}.f10-group-full>header{display:flex;justify-content:space-between;align-items:center;padding:20px;border-bottom:1px solid var(--f10d-line)}.f10-group-full>header div{display:flex;align-items:end;gap:10px}.f10-group-full>header span{font-size:9px;color:#7d8cb1}.f10-group-full>header strong{font-size:42px;color:var(--f10d-gold)}.f10-group-full>header b{color:#79c9ff;font-size:10px}.f10-group-members{padding:12px;display:grid;gap:7px}.f10-group-members>div{padding:11px;border-radius:11px;background:rgba(255,255,255,.04)}.f10-group-members strong{display:block;color:white}.f10-group-members span{color:#7f8db0;font-size:10px}.f10-mini-table{border-top:1px solid var(--f10d-line)}.f10-mini-table>div{display:grid;grid-template-columns:26px 1fr repeat(3,38px);align-items:center;padding:9px 12px;border-bottom:1px solid rgba(125,151,255,.1);font-size:10px;color:#a6b2d0}.f10-mini-table .head{font-size:8px;letter-spacing:.12em;color:#6e7ca1}.f10-mini-table strong{color:white}.f10-mini-table b{color:var(--f10d-gold)}
-      .f10-general-standings>header,.f10-fixtures>header{display:flex;justify-content:space-between;gap:20px;align-items:end;margin-bottom:18px}.f10-general-standings>header span,.f10-fixtures>header span{font-size:9px;letter-spacing:.18em;color:#7ec8ff;font-weight:900}.f10-general-standings h4,.f10-fixtures h4{font-size:28px;color:white;margin:7px 0}.f10-general-standings p,.f10-fixtures p{max-width:850px;color:#8e9bbb;line-height:1.6}.f10-general-standings>header>div:last-child{display:grid;text-align:right}.f10-general-standings>header>div:last-child strong{font-size:30px;color:var(--f10d-gold)}.f10-general-standings>header>div:last-child small{color:#7e8daf;font-size:9px}.f10-ranking-rules{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}.f10-ranking-rules span{padding:8px 10px;border:1px solid var(--f10d-line);border-radius:8px;color:#95a5c8;font-size:8px;font-weight:900;letter-spacing:.1em}.f10-standings-scroll{overflow:auto;border:1px solid var(--f10d-line);border-radius:18px}.f10-standings-table{min-width:1130px}.f10-standings-table>div{display:grid;grid-template-columns:35px minmax(170px,1fr) 45px repeat(9,48px) 105px;align-items:center;min-height:46px;padding:0 12px;border-bottom:1px solid rgba(125,151,255,.1);color:#9ca9c8;font-size:11px}.f10-standings-table .head{position:sticky;top:0;background:#0b1433;color:#7180a4;font-size:8px;letter-spacing:.1em;z-index:2}.f10-standings-table strong{color:white}.f10-standings-table b{color:#d6ddf2}.f10-standings-table em{font-style:normal;font-size:8px;font-weight:900;color:#76c9ff;letter-spacing:.08em}.f10-standings-table .rank-1,.f10-standings-table .rank-2,.f10-standings-table .rank-3,.f10-standings-table .rank-4{background:linear-gradient(90deg,rgba(69,167,255,.09),rgba(157,103,255,.07))}.f10-standings-table .qualification-direct em{color:var(--f10d-gold)}.f10-standings-table .qualification-gate em{color:#ff9aa9}
-      .f10-qualification-path{display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:12px;margin-top:15px}.f10-qualification-path article{padding:16px;border:1px solid var(--f10d-line);border-radius:15px;background:rgba(8,16,40,.65)}.f10-qualification-path article>span{display:block;margin-bottom:10px;color:#7cc8ff;font-size:8px;font-weight:900;letter-spacing:.14em}.f10-qualification-path .direct>div{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.f10-qualification-path b{display:block;color:var(--f10d-gold);font-size:18px}.f10-qualification-path b small{display:block;color:#a5b0cc;font-size:9px;font-weight:500;margin-top:4px}.f10-qualification-path i{font-style:normal;color:#7583a7;margin:0 5px}.f10-qualification-path article>small{color:#7584a8}.preliminary-pairs{display:grid;gap:7px;margin-bottom:8px}.preliminary-pairs strong{padding:8px;border-radius:9px;background:rgba(255,255,255,.04);font-size:10px;color:white}.f10-draw-primary:disabled{opacity:.72;cursor:wait}.path-pairs{display:grid;grid-template-columns:1fr 1fr;gap:7px}.path-pairs b{padding:8px;border-radius:9px;background:rgba(255,255,255,.04);font-size:11px;color:white}
+      .f10-general-standings>header,.f10-fixtures>header{display:flex;justify-content:space-between;gap:20px;align-items:end;margin-bottom:18px}.f10-general-standings>header span,.f10-fixtures>header span{font-size:9px;letter-spacing:.18em;color:#7ec8ff;font-weight:900}.f10-general-standings h4,.f10-fixtures h4{font-size:28px;color:white;margin:7px 0}.f10-general-standings p,.f10-fixtures p{max-width:850px;color:#8e9bbb;line-height:1.6}.f10-general-standings>header>div:last-child{display:grid;text-align:right}.f10-general-standings>header>div:last-child strong{font-size:30px;color:var(--f10d-gold)}.f10-general-standings>header>div:last-child small{color:#7e8daf;font-size:9px}.f10-ranking-rules{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}.f10-ranking-rules span{padding:8px 10px;border:1px solid var(--f10d-line);border-radius:8px;color:#95a5c8;font-size:8px;font-weight:900;letter-spacing:.1em}.f10-standings-scroll{overflow:auto;border:1px solid var(--f10d-line);border-radius:18px}.f10-standings-table{min-width:1130px}.f10-standings-table>div{display:grid;grid-template-columns:35px minmax(170px,1fr) 45px repeat(9,48px) 105px;align-items:center;min-height:46px;padding:0 12px;border-bottom:1px solid rgba(125,151,255,.1);color:#9ca9c8;font-size:11px}.f10-standings-table .head{position:sticky;top:0;background:#0b1433;color:#7180a4;font-size:8px;letter-spacing:.1em;z-index:2}.f10-standings-table strong{color:white}.f10-standings-table b{color:#d6ddf2}.f10-standings-table em{font-style:normal;font-size:8px;font-weight:900;color:#76c9ff;letter-spacing:.08em}.f10-standings-table .rank-1,.f10-standings-table .rank-2,.f10-standings-table .rank-3,.f10-standings-table .rank-4{background:linear-gradient(90deg,rgba(69,167,255,.09),rgba(157,103,255,.07))}.f10-standings-table .qualification-direct em{color:var(--f10d-gold)}.f10-standings-table .qualification-eliminated em{color:#ff9aa9}
+      .f10-qualification-path{display:grid;grid-template-columns:1fr 1.45fr .72fr;gap:12px;margin-top:15px}.f10-qualification-path article{padding:16px;border:1px solid var(--f10d-line);border-radius:15px;background:rgba(8,16,40,.65)}.f10-qualification-path article>span{display:block;margin-bottom:10px;color:#7cc8ff;font-size:8px;font-weight:900;letter-spacing:.14em}.f10-qualification-path .direct>div{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.f10-qualification-path .eliminated>div{display:grid;grid-template-columns:1fr 1fr;gap:7px}.f10-qualification-path .eliminated{border-color:rgba(255,126,145,.25)}.f10-qualification-path .eliminated>span,.f10-qualification-path .eliminated b{color:#ff9aa9}.f10-qualification-path b{display:block;color:var(--f10d-gold);font-size:18px}.f10-qualification-path b small{display:block;color:#a5b0cc;font-size:9px;font-weight:500;margin-top:4px}.f10-qualification-path i{font-style:normal;color:#7583a7;margin:0 5px}.f10-qualification-path article>small{display:block;margin-top:10px;color:#7584a8}.f10-draw-primary:disabled{opacity:.72;cursor:wait}.path-pairs{display:grid;grid-template-columns:1fr 1fr;gap:7px}.path-pairs b{padding:8px;border-radius:9px;background:rgba(255,255,255,.04);font-size:11px;color:white}
       .f10-fixtures>header>b{color:var(--f10d-gold)}.f10-fixture-filters{display:flex;justify-content:space-between;gap:12px;margin-bottom:13px}.f10-fixture-filters>div{display:flex;gap:6px;overflow:auto}.f10-fixture-filters button{padding:9px 12px;border:1px solid var(--f10d-line);border-radius:9px;background:transparent;color:#8795b8;font-size:9px;font-weight:900;cursor:pointer;white-space:nowrap}.f10-fixture-filters button.active{background:linear-gradient(90deg,rgba(69,167,255,.18),rgba(157,103,255,.2));color:white}.f10-fixture-list{display:grid;gap:7px}.f10-fixture-row{display:grid;grid-template-columns:115px minmax(150px,1fr) 90px minmax(150px,1fr) 170px;align-items:center;gap:12px;width:100%;padding:13px;border:1px solid var(--f10d-line);border-radius:13px;background:rgba(7,14,36,.7);color:white;text-align:left}.f10-fixture-row:not(:disabled){cursor:pointer}.f10-fixture-row:disabled{opacity:.85}.f10-fixture-row>span:first-child{display:flex;justify-content:space-between;align-items:center}.f10-fixture-row small{color:#7f8db1}.f10-fixture-row>div{display:flex;justify-content:center;gap:8px;font-size:17px}.f10-fixture-row>div b{color:var(--f10d-gold)}.f10-fixture-row em{font-style:normal;color:#7fc9ff;font-size:10px}.f10-fixture-row .teams{display:grid;gap:2px;text-align:right}.f10-fixture-row.completed{border-color:rgba(82,228,160,.22)}.f10-empty-fixtures{padding:28px;text-align:center;border:1px dashed var(--f10d-line);border-radius:15px;color:#8391b5}
       .f10-team-centre>header{display:flex;justify-content:space-between;gap:20px;align-items:end;margin-bottom:16px}.f10-team-centre>header span{color:#7ec8ff;font-size:8px;font-weight:900;letter-spacing:.16em}.f10-team-centre>header h4{margin:6px 0;color:white;font-size:28px}.f10-team-centre>header p{max-width:820px;margin:0;color:#8e9bbb;line-height:1.55}.f10-team-centre>header>b{color:var(--f10d-gold)}.f10-passport-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.f10-passport-card{padding:16px;border:1px solid var(--f10d-line);border-radius:16px;background:rgba(7,14,36,.72)}.f10-passport-card>header,.f10-pool-card>header{display:flex;justify-content:space-between;gap:12px;align-items:start}.f10-passport-card>header span,.f10-pool-card>header span{display:block;color:#75c8ff;font-size:8px;font-weight:900;letter-spacing:.13em}.f10-passport-card>header strong,.f10-pool-card>header strong{display:block;margin-top:5px;color:#fff;font-size:16px}.f10-passport-card>header>b,.f10-pool-card>header>b{color:var(--f10d-gold);font-size:9px}.f10-passport-card section{margin-top:12px;padding-top:10px;border-top:1px solid rgba(125,151,255,.13)}.f10-passport-card section header{display:flex;justify-content:space-between;gap:8px;align-items:center}.f10-passport-card section header b{color:var(--f10d-gold)}.f10-passport-card section header small{color:#7e8cae;font-size:8px}.f10-passport-card section>div,.f10-pool-card>div{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.f10-passport-card section span,.f10-pool-card>div span{padding:6px 8px;border:1px solid rgba(125,151,255,.17);border-radius:8px;background:rgba(255,255,255,.035);color:#dce6ff;font-size:9px}.f10-passport-card section em{color:#6f7d9f;font-size:9px}.f10-passport-card>p{margin:12px 0 0;padding:9px;border-radius:9px;background:rgba(229,189,99,.08);color:#d6ba7d;font-size:9px}.f10-team-centre .pool-heading{margin-top:30px}.f10-pool-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.f10-pool-card{padding:16px;border:1px solid var(--f10d-line);border-radius:16px;background:rgba(8,16,40,.68)}.f10-pool-card.pool-4-5{border-color:rgba(157,103,255,.3)}.f10-pool-card.pool-5{border-color:rgba(229,189,99,.3)}
       .f10-draw-modal-backdrop{position:fixed;inset:0;z-index:10050;display:grid;place-items:center;padding:18px;background:rgba(1,5,17,.82);backdrop-filter:blur(12px)}.f10-draw-modal{width:min(720px,100%);border:1px solid var(--f10d-line);border-radius:23px;background:linear-gradient(145deg,#0a1432,#18103b);box-shadow:0 30px 90px rgba(0,0,0,.55);overflow:hidden}.f10-draw-modal>header{display:flex;justify-content:space-between;align-items:center;padding:20px 23px;border-bottom:1px solid var(--f10d-line)}.f10-draw-modal header span{font-size:9px;letter-spacing:.16em;color:#7dc8ff}.f10-draw-modal h3{color:white;font-size:25px;margin:5px 0 0}.f10-draw-modal header button{border:0;background:transparent;color:white;font-size:25px;cursor:pointer}.f10-draw-modal form{padding:22px}.f10-result-versus{display:grid;grid-template-columns:1fr 50px 1fr;gap:14px;align-items:center}.f10-result-versus label{display:grid;gap:7px}.f10-result-versus label strong{color:white;font-size:16px}.f10-result-versus label span{color:#8290b3;font-size:9px}.f10-result-versus input{width:100%;padding:12px;border:1px solid var(--f10d-line);border-radius:10px;background:#07122e;color:white}.f10-result-versus>b{text-align:center;color:var(--f10d-gold)}.f10-modal-rule{margin:18px 0;color:#8795b7;font-size:11px;line-height:1.55}.f10-draw-modal footer{display:flex;justify-content:flex-end;gap:8px}.f10-draw-modal footer button{padding:11px 15px;border:1px solid var(--f10d-line);border-radius:10px;background:transparent;color:white;font-weight:800;cursor:pointer}.f10-draw-modal footer button.primary{background:linear-gradient(90deg,#347fff,#a84df3);border:0}.f10-draw-modal footer button.danger{margin-right:auto;color:#ff8d9d;border-color:rgba(255,101,123,.3)}
@@ -1391,7 +1373,7 @@
         persistViewState();
         scheduleRender();
       } else if (action === "print-centre") {
-        window.open("fifa10-print-centre.html?fifa9build=471410", "_blank", "noopener,noreferrer");
+        window.open("fifa10-print-centre.html?fifa9build=471411", "_blank", "noopener,noreferrer");
       } else if (action === "universe-nav") {
         window.FIFA_APP_CONTEXT?.navigate?.(button.dataset.target || "seasonhub");
       } else if (action === "manual-start") await startManualGroupEntry();
@@ -1488,7 +1470,7 @@
       assignManualGroup,
       finalizeManualGroups,
       prepareDraw,
-      openPrintCentre: () => window.open("fifa10-print-centre.html?fifa9build=471410", "_blank", "noopener,noreferrer")
+      openPrintCentre: () => window.open("fifa10-print-centre.html?fifa9build=471411", "_blank", "noopener,noreferrer")
     };
   }
 

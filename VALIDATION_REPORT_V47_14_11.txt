@@ -1,0 +1,40 @@
+ORUÇ REİS FIFA WORLD — V47.14.11 VALIDATION
+
+STATUS: PASS
+
+RANKING FAIRNESS
+- Player A: 2 matches, 3 total points, 1.500 PPG, +1.000 AV/M
+- Player B: 4 matches, 6 total points, 1.500 PPG, +0.500 AV/M
+- Player A ranks above Player B.
+- Total points do not override equal-PPG average goal difference.
+
+GOAL DISPLAY
+- Main FIFA 10 standings show AG and YG as totals.
+- Connected Live Statistics show AG and YG as totals.
+- AV/M remains the official average goal-difference tiebreaker.
+- Total AV remains visible in parentheses.
+
+QUALIFICATION PATH
+- Exactly 4 direct quarter-finalists: ranks 1–4.
+- Exactly 8 Championship Play-in players: ranks 5–12.
+- Pairings: 5–12, 6–11, 7–10, 8–9.
+- All four Play-in series are Best of 3.
+- Exactly 2 direct eliminations: ranks 13–14.
+- No Preliminary stage is rendered or assigned.
+
+CONNECTED UNIVERSE
+- 78 FIFA 10 fixtures preserved.
+- Fixed 5–4–5 groups preserved.
+- Existing results migrate without reset.
+- Form, Live Statistics, Odds, Intelligence, Teams and All-Time remain connected.
+- FIFA 09 archive remains present.
+
+REGRESSION
+- JavaScript syntax: PASS
+- FIFA 10 connected universe: PASS
+- Emergency fixture centre: PASS
+- Print centre: PASS
+- Manual groups/mobile overlay: PASS
+- Single authentication client: PASS
+- Cloud save queue and timeout retry: PASS
+- Official 76-team men's pools: PASS

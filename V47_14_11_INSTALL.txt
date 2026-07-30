@@ -1,0 +1,35 @@
+ORUÇ REİS FIFA WORLD — V47.14.11
+CHAMPIONSHIP PLAY-IN FINAL RULES
+
+KURULUM
+1. ZIP içindeki bütün dosyaları mevcut Vercel/GitHub proje köküne yükleyin.
+2. Mevcut dosyaların üzerine yazılmasına izin verin.
+3. Dağıtım tamamlandıktan sonra şu adresi açın:
+   https://fifa9-tournament-hub.vercel.app/?fifa9build=471411
+
+GENEL SIRALAMA
+1. Maç başına puan ortalaması (PPG)
+2. PPG eşitliğinde maç başına averaj (AV/M)
+3. Toplam atılan gol (AG)
+4. Galibiyet oranı
+5. Kura sırası
+
+GÖRÜNÜM
+- AG ve YG toplam gol sayısı olarak gösterilir.
+- Yalnızca averaj maç başına hesaplanır.
+- AV/M yanında toplam averaj parantez içinde bilgi amaçlı görünür.
+- PPG yanında toplam puan parantez içinde bilgi amaçlı görünür.
+
+CHAMPIONSHIP YOLU
+- 1–4: Doğrudan çeyrek final
+- 5–12: Best of 3 Championship Play-in
+- 6–11: Best of 3 Championship Play-in
+- 7–10: Best of 3 Championship Play-in
+- 8–9: Best of 3 Championship Play-in
+- 13–14: Doğrudan elenir
+- Ek ön eleme turu yoktur.
+
+VERİ GÜVENLİĞİ
+- Mevcut FIFA 10 skorları, takım kayıtları ve oyuncu pasaportları silinmez.
+- FIFA 09 arşivi ve Tüm Zamanlar kayıtları korunur.
+- Sonuçların Form, Canlı İstatistikler, Oranlar, Zekâ, Takımlar ve Tüm Zamanlar bağlantısı devam eder.

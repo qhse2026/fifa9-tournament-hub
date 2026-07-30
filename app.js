@@ -305,7 +305,7 @@
       if (!Object.keys(results).length) throw new Error("Aktarılacak sonuç bulunamadı.");
       history.replaceState(history.state, "", `${location.pathname}${location.search}`);
       return {
-        version: "47.14.10",
+        version: "47.14.11",
         updatedAt: new Date().toISOString(),
         transferredFrom: "fifa10-emergency-fixture-centre",
         groups: Object.fromEntries(Object.entries(FIFA10_FIXED_GROUPS).map(([group, names]) => [group, [...names]])),
@@ -2324,7 +2324,7 @@
     };
     state.fifa10StandaloneOperations = {
       ...previous,
-      version: "47.14.10",
+      version: "47.14.11",
       updatedAt: now,
       groups: Object.fromEntries(Object.entries(FIFA10_FIXED_GROUPS).map(([group, names]) => [group, [...names]])),
       results
@@ -2921,9 +2921,9 @@
     const stages=[
       {no:"01",tag:"GROUP DRAW",title:"3 dengeli grup",desc:"5 torba · ELO seri başları · oyuncular yalnızca kendi grubunda oynar.",meta:"12 → 4-4-4 · 13 → 5-4-4 · 15 → 5-5-5"},
       {no:"02",tag:"TRIPLE CIRCUIT",title:"3 devreli grup aşaması",desc:"Aynı rakiplerle üç farklı takım seviyesinde mücadele.",meta:"1. Devre 4★ · 2. Devre 4.5★ · 3. Devre 5★"},
-      {no:"03",tag:"ONE TABLE",title:"Tek ve adil genel sıralama",desc:"Farklı maç sayıları PPG ve maç başına averajla eşitlenir; toplamlar sıralama avantajı sağlamaz.",meta:"PPG · AV/M · AG/M · galibiyet oranı"},
+      {no:"03",tag:"ONE TABLE",title:"Tek ve adil genel sıralama",desc:"Puan ortalaması eşitliğinde maç başına averaj sıralamayı belirler. Gol sayıları toplam olarak gösterilir.",meta:"PPG · AV/M · toplam AG · galibiyet oranı"},
       {no:"04",tag:"DIRECT ACCESS",title:"İlk 4 doğrudan çeyrek final",desc:"Genel sıralamanın ilk dört oyuncusu hem seri başı hem doğrudan çeyrek finalist.",meta:"1 · 2 · 3 · 4"},
-      {no:"05",tag:"CHAMPIONSHIP PLAY-IN",title:"Son dört bilet",desc:"5–12 arasındaki oyuncular Best of 3 serileriyle çeyrek final bileti arar. 13 oyuncuda önce 12–13 Preliminary Gate oynanır; kazanan 12. seri olur.",meta:"12–13 Gate · 5–12 · 6–11 · 7–10 · 8–9"},
+      {no:"05",tag:"CHAMPIONSHIP PLAY-IN",title:"Son dört bilet",desc:"5–12 arasındaki oyuncular dört Best of 3 seride çeyrek final bileti arar. 13. ve 14. doğrudan elenir; ek ön eleme oynanmaz.",meta:"5–12 · 6–11 · 7–10 · 8–9 · Best of 3"},
       {no:"06",tag:"KNOCKOUT",title:"Çeyrek final ve yarı final",desc:"Her tur üç takım seviyesini test eden Best of 3 formatında.",meta:"Maç 1: 4★ · Maç 2: 4.5★ · Maç 3: 5★"},
       {no:"07",tag:"FINAL NIGHT",title:"Podyum ve Büyük Final",desc:"Yarı final kaybedenleri üçüncülük; kazananları tek maçlık büyük final oynar.",meta:"Üçüncülük 4.5★ · Final 5★"}
     ];
@@ -5773,16 +5773,16 @@
     const goalDifferenceValue = fifa10Active ? Number(row.gdPerGame || 0) : Number(row.gd || 0);
     return `<article class="live-player-card rank-${Math.min(row.rank, 4)}">
       <div class="live-player-head"><div><span class="live-player-rank">#${row.rank}</span><h4>${escapeHTML(row.name)}</h4><small>${escapeHTML(row.officialPosition || `FIFA ${seasonSystem().activeEdition || 10}`)}</small></div><div class="live-player-points">${primaryValue}<span>${primaryLabel}</span></div></div>
-      <div class="live-player-numbers"><div><span>O</span><strong>${row.games}</strong></div><div><span>G</span><strong>${row.wins}</strong></div><div><span>${fifa10Active ? "AG/M" : "AG"}</span><strong>${fifa10Active ? row.avgGoals.toFixed(3) : row.gf}</strong></div><div><span>${fifa10Active ? "AV/M" : "AV"}</span><strong>${fifa10Active ? `${goalDifferenceValue > 0 ? "+" : ""}${goalDifferenceValue.toFixed(3)}` : formatGD(row.gd)}</strong></div></div>
+      <div class="live-player-numbers"><div><span>O</span><strong>${row.games}</strong></div><div><span>G</span><strong>${row.wins}</strong></div><div><span>AG</span><strong>${row.gf}</strong></div><div><span>${fifa10Active ? "AV/M" : "AV"}</span><strong>${fifa10Active ? `${goalDifferenceValue > 0 ? "+" : ""}${goalDifferenceValue.toFixed(3)}` : formatGD(row.gd)}</strong></div></div>
       <div class="live-player-form">${formHTML(row.form)}<span>${row.currentStreakLabel}</span></div>
     </article>`;
   }
 
   function livePerformanceTable(rows) {
     const fifa10Active = Number(seasonSystem().activeEdition || 10) >= 10;
-    return `<div class="table-wrap"><table><thead><tr><th>#</th><th class="player-col">Oyuncu</th><th>O</th><th>G</th><th>B</th><th>M</th><th>${fifa10Active ? "AG/M" : "AG"}</th><th>${fifa10Active ? "YG/M" : "YG"}</th><th>${fifa10Active ? "AV/M (AV)" : "AV"}</th><th>${fifa10Active ? "PPG (P)" : "Perf P"}</th><th>${fifa10Active ? "Grup" : "PPG"}</th><th>Form</th></tr></thead><tbody>${rows.map(row => {
+    return `<div class="table-wrap"><table><thead><tr><th>#</th><th class="player-col">Oyuncu</th><th>O</th><th>G</th><th>B</th><th>M</th><th>AG</th><th>YG</th><th>${fifa10Active ? "AV/M (AV)" : "AV"}</th><th>${fifa10Active ? "PPG (P)" : "Perf P"}</th><th>${fifa10Active ? "Grup" : "PPG"}</th><th>Form</th></tr></thead><tbody>${rows.map(row => {
       const goalDifferenceValue = Number(row.gdPerGame || 0);
-      return `<tr><td>${row.rank}</td><td class="player-col"><span class="player-name">${escapeHTML(row.name)}</span><small class="table-subline">${escapeHTML(row.officialPosition || "")}</small></td><td>${row.games}</td><td>${row.wins}</td><td>${row.draws}</td><td>${row.losses}</td><td>${fifa10Active ? row.avgGoals.toFixed(3) : row.gf}</td><td>${fifa10Active ? row.gaPerGame.toFixed(3) : row.ga}</td><td class="${goalDifferenceValue > 0 ? "gd-positive" : goalDifferenceValue < 0 ? "gd-negative" : ""}">${fifa10Active ? `${goalDifferenceValue > 0 ? "+" : ""}${goalDifferenceValue.toFixed(3)} (${formatGD(row.gd)})` : formatGD(row.gd)}</td><td class="points-cell">${fifa10Active ? `${row.ppg.toFixed(3)} (${row.points})` : row.points}</td><td>${fifa10Active ? escapeHTML(row.officialPosition?.replace("FIFA 10 · ", "") || "–") : row.ppg.toFixed(2)}</td><td>${formHTML(row.form)}</td></tr>`;
+      return `<tr><td>${row.rank}</td><td class="player-col"><span class="player-name">${escapeHTML(row.name)}</span><small class="table-subline">${escapeHTML(row.officialPosition || "")}</small></td><td>${row.games}</td><td>${row.wins}</td><td>${row.draws}</td><td>${row.losses}</td><td>${row.gf}</td><td>${row.ga}</td><td class="${goalDifferenceValue > 0 ? "gd-positive" : goalDifferenceValue < 0 ? "gd-negative" : ""}">${fifa10Active ? `${goalDifferenceValue > 0 ? "+" : ""}${goalDifferenceValue.toFixed(3)} (${formatGD(row.gd)})` : formatGD(row.gd)}</td><td class="points-cell">${fifa10Active ? `${row.ppg.toFixed(3)} (${row.points})` : row.points}</td><td>${fifa10Active ? escapeHTML(row.officialPosition?.replace("FIFA 10 · ", "") || "–") : row.ppg.toFixed(2)}</td><td>${formHTML(row.form)}</td></tr>`;
     }).join("")}</tbody></table></div>`;
   }
 
@@ -5897,6 +5897,9 @@
       leagueStandings().forEach((row,index)=>officialMap.set(row.id, `League Phase #${index+1}`));
     }
 
+    const fifa10TieBreakOrder = new Map(
+      fifa10IntegratedParticipants().map((player, index) => [player.id, Number(player.tieBreakOrder) || index + 1])
+    );
     const players = [...playerRows.values()].map(row => {
       row.gd = row.gf - row.ga;
       row.ppg = row.games ? row.points / row.games : 0;
@@ -5918,7 +5921,7 @@
       row.officialPosition = scope === "all" ? (officialMap.get(row.id) || `FIFA ${seasonSystem().activeEdition || 10}`) : finalChapterPlayerStatus(row.id);
       return row;
     }).sort((a,b)=>fifa10Active
-      ? b.ppg-a.ppg || b.gdPerGame-a.gdPerGame || b.avgGoals-a.avgGoals || b.winRate-a.winRate || a.name.localeCompare(b.name,"tr")
+      ? b.ppg-a.ppg || b.gdPerGame-a.gdPerGame || b.gf-a.gf || b.winRate-a.winRate || (fifa10TieBreakOrder.get(a.id) || 999)-(fifa10TieBreakOrder.get(b.id) || 999)
       : b.points-a.points || b.gd-a.gd || b.gf-a.gf || b.wins-a.wins || a.name.localeCompare(b.name,"tr")
     ).map((row,index)=>({ ...row, rank:index+1 }));
 

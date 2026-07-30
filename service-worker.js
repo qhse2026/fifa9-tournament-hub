@@ -1,4 +1,4 @@
-const CACHE = "oruc-reis-football-universe-v47-14-10-fifa10-rate-ranking";
+const CACHE = "oruc-reis-football-universe-v47-14-11-fifa10-playin-final";
 const APP_SHELL = [
   "./",
   "./index.html",
