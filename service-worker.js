@@ -1,4 +1,4 @@
-const CACHE = "oruc-reis-football-universe-v47-15-0-fifa10-tournament-experience-suite";
+const CACHE = "oruc-reis-football-universe-v47-16-0-autonomous-tournament-intelligence";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -18,6 +18,7 @@ const APP_SHELL = [
   "./fifa10-draw-engine-v4713.js",
   "./fifa10-fixture-center.html",
   "./fifa10-print-centre.html",
+  "./fifa10-broadcast.html",
   "./qrcode-generator-2.0.4.js",
   "./fifa9-experience-hub.css",
   "./fifa9-experience-hub.js",

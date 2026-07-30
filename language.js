@@ -976,7 +976,7 @@
     "Maç duraklatıldı ve buluta kaydedildi. Diğer cihazdan devam edebilirsin.": "The match was paused and saved to the cloud. You can continue on another device."
   });
 
-  // FIFA 10 · V47.15.0 comprehensive international crew language pack.
+  // FIFA 10 · V47.16.0 comprehensive international crew language pack.
   // These strings cover the live operations centre, registration and seeding,
   // standings, fixtures, team passports, result entry and print centre.
   Object.assign(dictionary, {

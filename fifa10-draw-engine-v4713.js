@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "47.15.0";
+  const VERSION = "47.16.0";
   const STORAGE_KEY = "fifa-tournament-hub-v1";
   const SYNC_HISTORY_KEY = "fifa10-sync-history-v1";
   const GROUPS = Object.freeze(["A", "B", "C"]);
@@ -28,7 +28,9 @@
   let manualEntryLoading = false;
   let manualEntryOverlayError = "";
   let selectedPlayerRef = new URL(location.href).searchParams.get("fifa10player") || sessionStorage.getItem("fifa10-selected-player") || "";
+  let rivalPlayerRef = sessionStorage.getItem("fifa10-rival-player") || "";
   let quickPlayerFilter = sessionStorage.getItem("fifa10-quick-player") || "";
+  let scheduleMatchMinutes = Math.max(8, Math.min(30, Number(localStorage.getItem("fifa10-schedule-minutes") || 15)));
   let tvModeOpen = false;
   let tvClockTimer = null;
 
@@ -1207,6 +1209,119 @@
     overlay.addEventListener("click", event => { if (event.target === overlay) closeModal(); });
   }
 
+  function qualificationOutlook(draw) {
+    const rows = standings(draw);
+    const totalByPlayer = new Map(snapshotPlayers(draw).map(player => [player.id, playerFixtures(draw, player.id).length]));
+    const bounds = rows.map(row => {
+      const total = totalByPlayer.get(row.id) || row.mp;
+      const remaining = Math.max(0, total - row.mp);
+      const finalMatches = Math.max(1, row.mp + remaining);
+      return {
+        ...row,
+        remaining,
+        minPpg: row.pts / finalMatches,
+        maxPpg: (row.pts + remaining * 3) / finalMatches
+      };
+    });
+    const byId = new Map(bounds.map(row => [row.id, row]));
+    return bounds.map(row => {
+      const others = bounds.filter(item => item.id !== row.id);
+      const bestRank = Math.min(bounds.length, 1 + others.filter(item => item.minPpg > row.maxPpg + 1e-9).length);
+      const worstRank = Math.min(bounds.length, 1 + others.filter(item => item.maxPpg >= row.minPpg - 1e-9).length);
+      let state = "open";
+      let label = uiCopy("YOL AÇIK", "PATH OPEN");
+      if (!row.remaining) {
+        const path = qualificationLabel(row.rank);
+        state = path.key;
+        label = uiCopy(path.label, path.key === "direct" ? "DIRECT QF" : path.key === "playin" ? "CHAMPIONSHIP PLAY-IN" : "ELIMINATED");
+      } else if (worstRank <= 4) {
+        state = "direct";
+        label = uiCopy("DOĞRUDAN QF GARANTİ", "DIRECT QF CLINCHED");
+      } else if (bestRank > 4 && worstRank <= 12) {
+        state = "playin";
+        label = uiCopy("PLAY-IN GARANTİ", "PLAY-IN CLINCHED");
+      } else if (bestRank > 12) {
+        state = "eliminated";
+        label = uiCopy("İLK 12 MATEMATİKSEL OLARAK İMKÂNSIZ", "TOP 12 MATHEMATICALLY IMPOSSIBLE");
+      } else if (bestRank <= 4) {
+        label = uiCopy("DOĞRUDAN QF ŞANSI VAR", "DIRECT QF STILL POSSIBLE");
+      } else if (bestRank <= 12) {
+        label = uiCopy("PLAY-IN ŞANSI VAR", "PLAY-IN STILL POSSIBLE");
+      }
+      return { ...byId.get(row.id), bestRank, worstRank, outlookState: state, outlookLabel: label };
+    });
+  }
+
+  function pointsToBeatBenchmark(row, benchmark) {
+    if (!row.remaining) return null;
+    const required = Math.ceil(((benchmark + 0.0005) * (row.mp + row.remaining)) - row.pts);
+    return Math.max(0, required);
+  }
+
+  function renderQualificationCentre(draw) {
+    const rows = qualificationOutlook(draw);
+    const fourth = standings(draw)[3]?.ppg || 0;
+    const twelfth = standings(draw)[11]?.ppg || 0;
+    const clinched = rows.filter(row => row.outlookState === "direct").length;
+    const completed = completedFixtures(draw).length;
+    return `<section class="f10-qualification-centre"><header><div><span>MATHEMATICAL QUALIFICATION CENTRE</span><h4>${uiCopy("Matematiksel Qualification Centre", "Mathematical Qualification Centre")}</h4><p>${uiCopy("Olası en düşük ve en yüksek final PPG değerlerinden güvenli sıra aralığı hesaplanır. Eşitliklerde AV/M nedeniyle ihtiyatlı sınır kullanılır.", "A safe rank range is calculated from minimum and maximum possible final PPG. Ties use a conservative boundary because GD/M can decide them.")}</p></div><b>${completed}/${draw.fixtures.length} ${uiCopy("MAÇ", "MATCHES")}</b></header>
+      <div class="f10-qualification-kpis"><article><span>${uiCopy("Güncel QF Kesimi", "Current QF Cutoff")}</span><b>${fourth.toFixed(3)}</b><small>PPG · #4</small></article><article><span>${uiCopy("Güncel Play-in Kesimi", "Current Play-in Cutoff")}</span><b>${twelfth.toFixed(3)}</b><small>PPG · #12</small></article><article><span>${uiCopy("Garantilenen Doğrudan QF", "Direct QF Clinched")}</span><b>${clinched}/4</b><small>${uiCopy("matematiksel", "mathematical")}</small></article><article><span>${uiCopy("Kalan Maç", "Matches Remaining")}</span><b>${draw.fixtures.length - completed}</b><small>${uiCopy("grup aşaması", "group stage")}</small></article></div>
+      <div class="f10-qualification-scroll"><div class="f10-qualification-table"><div class="head"><span>#</span><span>${uiCopy("Oyuncu", "Player")}</span><span>PPG</span><span>${uiCopy("Kalan", "Left")}</span><span>${uiCopy("Final PPG Aralığı", "Final PPG Range")}</span><span>${uiCopy("Olası Sıra", "Possible Rank")}</span><span>${uiCopy("Güncel #4 Hedefi", "Current #4 Target")}</span><span>${uiCopy("Matematiksel Durum", "Mathematical Status")}</span></div>${rows.map(row => {
+        const target = pointsToBeatBenchmark(row, fourth);
+        return `<div class="status-${row.outlookState}"><b>${row.rank}</b><strong>${escapeHTML(row.name)}</strong><span>${row.ppg.toFixed(3)}</span><span>${row.remaining}</span><span>${row.minPpg.toFixed(3)}–${row.maxPpg.toFixed(3)}</span><b>#${row.bestRank}–#${row.worstRank}</b><span>${target === null ? "—" : target > row.remaining * 3 ? uiCopy("Ulaşılamaz", "Unreachable") : `${target}/${row.remaining * 3} ${uiCopy("puan", "pts")}`}</span><em>${row.outlookLabel}</em></div>`;
+      }).join("")}</div></div>
+      <p class="f10-math-note">${uiCopy("Bu merkez tahmindir; resmî sıralama yalnızca oynanmış maçlardan PPG → AV/M → toplam AG → galibiyet oranı → kura sırası ile oluşur.", "This centre is a projection; the official table is based only on completed matches using PPG → GD/M → total GF → win rate → draw order.")}</p>
+    </section>`;
+  }
+
+  function buildDynamicSchedule(draw) {
+    const pending = (draw.fixtures || []).filter(match => !match.completed);
+    const completed = completedFixtures(draw).sort((a, b) => Date.parse(b.updatedAt || "") - Date.parse(a.updatedAt || "") || b.sequence - a.sequence);
+    let lastPlayers = new Set(completed[0] ? [completed[0].homeId, completed[0].awayId] : []);
+    const groupLoads = new Map(GROUPS.map(group => [group, completed.filter(match => match.group === group).length]));
+    const playerLoads = new Map();
+    const remaining = [...pending];
+    const ordered = [];
+    while (remaining.length) {
+      remaining.sort((a, b) => {
+        const score = match => (groupLoads.get(match.group) || 0) * 12
+          + (playerLoads.get(match.homeId) || 0) * 6
+          + (playerLoads.get(match.awayId) || 0) * 6
+          + (lastPlayers.has(match.homeId) || lastPlayers.has(match.awayId) ? 45 : 0)
+          + (Number(match.leg) || 0) * 2
+          + (Number(match.matchday) || 0) / 100;
+        return score(a) - score(b) || a.group.localeCompare(b.group) || a.leg - b.leg || a.matchday - b.matchday;
+      });
+      const next = remaining.shift();
+      ordered.push(next);
+      groupLoads.set(next.group, (groupLoads.get(next.group) || 0) + 1);
+      playerLoads.set(next.homeId, (playerLoads.get(next.homeId) || 0) + 1);
+      playerLoads.set(next.awayId, (playerLoads.get(next.awayId) || 0) + 1);
+      lastPlayers = new Set([next.homeId, next.awayId]);
+    }
+    return ordered;
+  }
+
+  function renderDynamicSchedule(draw) {
+    const schedule = buildDynamicSchedule(draw);
+    const now = Date.now();
+    const players = playerMap(draw);
+    const progress = GROUPS.map(group => {
+      const all = (draw.fixtures || []).filter(match => match.group === group);
+      const done = all.filter(match => match.completed).length;
+      return { group, done, total: all.length, pct: all.length ? Math.round(done / all.length * 100) : 0 };
+    });
+    const finish = new Date(now + schedule.length * scheduleMatchMinutes * 60000);
+    return `<section class="f10-schedule-centre"><header><div><span>DYNAMIC TOURNAMENT SCHEDULER</span><h4>${uiCopy("Dinamik Turnuva Takvimi", "Dynamic Tournament Schedule")}</h4><p>${uiCopy("Sistem grupları dengeler, aynı oyuncuya art arda maç vermemeye çalışır ve bekleyen fikstürlerden canlı operasyon sırası üretir.", "The system balances groups, avoids consecutive matches for the same player and builds a live operating order from pending fixtures.")}</p></div><b>${schedule.length} ${uiCopy("BEKLEYEN", "PENDING")}</b></header>
+      <div class="f10-schedule-toolbar"><label>${uiCopy("Ortalama maç süresi", "Average match duration")}<select id="f10ScheduleDuration">${[10,12,15,18,20,25].map(minutes => `<option value="${minutes}" ${minutes === scheduleMatchMinutes ? "selected" : ""}>${minutes} ${uiCopy("dk", "min")}</option>`).join("")}</select></label><div><span>${uiCopy("Tahmini tamamlanma", "Estimated completion")}</span><strong>${finish.toLocaleTimeString(window.FIFA_I18N?.language === "en" ? "en-GB" : "tr-TR", {hour:"2-digit",minute:"2-digit"})}</strong></div><small>${uiCopy("Tek oyun istasyonu varsayımı", "Assumes one gaming station")}</small></div>
+      <div class="f10-schedule-progress">${progress.map(item => `<article><header><strong>${uiCopy("GRUP", "GROUP")} ${item.group}</strong><span>${item.done}/${item.total}</span></header><div><i style="width:${item.pct}%"></i></div><small>%${item.pct}</small></article>`).join("")}</div>
+      <div class="f10-schedule-list">${schedule.slice(0, 18).map((match, index) => {
+        const start = new Date(now + index * scheduleMatchMinutes * 60000);
+        return `<button type="button" data-f10draw-action="open-result" data-fixture-id="${escapeHTML(match.id)}" ${isAdmin() ? "" : "disabled"}><b>${String(index + 1).padStart(2, "0")}</b><time>${start.toLocaleTimeString(window.FIFA_I18N?.language === "en" ? "en-GB" : "tr-TR", {hour:"2-digit",minute:"2-digit"})}</time><span>${uiCopy("GRUP", "GROUP")} ${match.group} · ${match.stars}★ · MD ${match.matchday}</span><strong>${escapeHTML(players.get(match.homeId)?.name || "–")} <i>VS</i> ${escapeHTML(players.get(match.awayId)?.name || "–")}</strong><em>${index === 0 ? uiCopy("SIRADAKİ", "NEXT") : uiCopy("DİNLENME DENGELİ", "REST-BALANCED")}</em></button>`;
+      }).join("") || `<p>${uiCopy("Bütün grup maçları tamamlandı.", "All group matches are complete.")}</p>`}</div>
+    </section>`;
+  }
+
   function renderStandings(draw) {
     const rows = standings(draw);
     const played = completedFixtures(draw).length;
@@ -1263,6 +1378,159 @@
     return { ...player, selections, missing };
   }
 
+  function teamPoolIntelligence(draw) {
+    const records = new Map();
+    const ensure = (stars, team) => {
+      const key = `${Number(stars)}:${normalize(team)}`;
+      if (!records.has(key)) records.set(key, {
+        key, stars: Number(stars), team, mp: 0, w: 0, d: 0, l: 0,
+        gf: 0, ga: 0, pts: 0, gd: 0, ppg: 0, gdPerMatch: 0, players: new Set()
+      });
+      return records.get(key);
+    };
+    completedFixtures(draw).forEach(match => {
+      const homeTeam = String(match.homeTeam || "").trim();
+      const awayTeam = String(match.awayTeam || "").trim();
+      if (!homeTeam || !awayTeam) return;
+      const home = ensure(match.stars, homeTeam);
+      const away = ensure(match.stars, awayTeam);
+      const hs = Number(match.homeScore);
+      const as = Number(match.awayScore);
+      home.mp += 1; away.mp += 1;
+      home.gf += hs; home.ga += as;
+      away.gf += as; away.ga += hs;
+      home.players.add(match.homeId); away.players.add(match.awayId);
+      if (hs > as) { home.w += 1; away.l += 1; home.pts += 3; }
+      else if (hs < as) { away.w += 1; home.l += 1; away.pts += 3; }
+      else { home.d += 1; away.d += 1; home.pts += 1; away.pts += 1; }
+    });
+    return [...records.values()].map(record => ({
+      ...record,
+      playerCount: record.players.size,
+      gd: record.gf - record.ga,
+      ppg: record.mp ? record.pts / record.mp : 0,
+      gdPerMatch: record.mp ? (record.gf - record.ga) / record.mp : 0
+    })).sort((a, b) => b.ppg - a.ppg || b.gdPerMatch - a.gdPerMatch || b.mp - a.mp || a.team.localeCompare(b.team, "tr"));
+  }
+
+  function playerTierStats(draw, playerId, stars = null) {
+    const fixtures = completedFixtures(draw).filter(match =>
+      (match.homeId === playerId || match.awayId === playerId)
+      && (stars === null || Number(match.stars) === Number(stars))
+    );
+    const stats = { mp: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0, gd: 0, ppg: 0, gdPerMatch: 0, gfPerMatch: 0, gaPerMatch: 0, closeMatches: 0, closeWins: 0 };
+    fixtures.forEach(match => {
+      const home = match.homeId === playerId;
+      const gf = Number(home ? match.homeScore : match.awayScore);
+      const ga = Number(home ? match.awayScore : match.homeScore);
+      stats.mp += 1; stats.gf += gf; stats.ga += ga;
+      if (Math.abs(gf - ga) <= 1) stats.closeMatches += 1;
+      if (gf > ga) {
+        stats.w += 1; stats.pts += 3;
+        if (gf - ga === 1) stats.closeWins += 1;
+      } else if (gf < ga) stats.l += 1;
+      else { stats.d += 1; stats.pts += 1; }
+    });
+    stats.gd = stats.gf - stats.ga;
+    stats.ppg = stats.mp ? stats.pts / stats.mp : 0;
+    stats.gdPerMatch = stats.mp ? stats.gd / stats.mp : 0;
+    stats.gfPerMatch = stats.mp ? stats.gf / stats.mp : 0;
+    stats.gaPerMatch = stats.mp ? stats.ga / stats.mp : 0;
+    return stats;
+  }
+
+  function playerDna(draw, playerId) {
+    const overall = playerTierStats(draw, playerId);
+    const tiers = LEG_STARS.map(stars => ({ stars, ...playerTierStats(draw, playerId, stars) }));
+    const playedTiers = tiers.filter(row => row.mp);
+    const metrics = overall.mp ? {
+      performance: Math.round(Math.max(0, Math.min(100, overall.ppg / 3 * 100))),
+      attack: Math.round(Math.max(0, Math.min(100, overall.gfPerMatch / 6 * 100))),
+      defence: Math.round(Math.max(0, Math.min(100, 100 - overall.gaPerMatch / 6 * 100))),
+      clutch: Math.round(overall.closeMatches ? overall.closeWins / overall.closeMatches * 100 : 50),
+      versatility: Math.round(playedTiers.length / LEG_STARS.length * 100)
+    } : { performance: 0, attack: 0, defence: 0, clutch: 0, versatility: 0 };
+    const bestTier = [...playedTiers].sort((a, b) => b.ppg - a.ppg || b.gdPerMatch - a.gdPerMatch || b.mp - a.mp)[0] || null;
+    return {
+      playerId,
+      overall,
+      tiers,
+      metrics,
+      trait: bestTier ? uiCopy(`${bestTier.stars}★ Uzmanı`, `${bestTier.stars}★ Specialist`) : uiCopy("Veri Bekleniyor", "Awaiting Data")
+    };
+  }
+
+  function headToHead(draw, playerId, rivalId) {
+    const fixtures = completedFixtures(draw).filter(match =>
+      (match.homeId === playerId && match.awayId === rivalId)
+      || (match.homeId === rivalId && match.awayId === playerId)
+    );
+    const row = { mp: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0, ppg: 0, gd: 0, fixtures };
+    fixtures.forEach(match => {
+      const home = match.homeId === playerId;
+      const gf = Number(home ? match.homeScore : match.awayScore);
+      const ga = Number(home ? match.awayScore : match.homeScore);
+      row.mp += 1; row.gf += gf; row.ga += ga;
+      if (gf > ga) { row.w += 1; row.pts += 3; }
+      else if (gf < ga) row.l += 1;
+      else { row.d += 1; row.pts += 1; }
+    });
+    row.gd = row.gf - row.ga;
+    row.ppg = row.mp ? row.pts / row.mp : 0;
+    return row;
+  }
+
+  function renderTeamPoolIntelligence(draw, players) {
+    const intelligence = teamPoolIntelligence(draw);
+    const selected = resolvePlayer(draw);
+    const passport = selected ? playerTeamPassport(draw, selected) : null;
+    const next = selected ? playerFixtures(draw, selected.id).find(match => !match.completed) : null;
+    const nextRemaining = next && passport
+      ? Math.max(0, teamPool(next.stars).length - passport.selections.filter(item => Number(item.stars) === Number(next.stars)).length)
+      : 0;
+    const topByTier = LEG_STARS.map(stars => {
+      const rows = intelligence.filter(row => Number(row.stars) === Number(stars)).slice(0, 5);
+      const totalUses = intelligence.filter(row => Number(row.stars) === Number(stars)).reduce((sum, row) => sum + row.mp, 0);
+      return `<article><header><b>${stars}★</b><span>${totalUses} ${uiCopy("kullanım", "uses")}</span></header><div>${rows.map((row, index) => `<div><i>${index + 1}</i><strong>${escapeHTML(row.team)}</strong><span>${row.ppg.toFixed(3)} PPG</span><small>${row.mp} ${uiCopy("maç", "MP")} · ${row.gdPerMatch > 0 ? "+" : ""}${row.gdPerMatch.toFixed(2)} ${uiCopy("AV/M", "GD/M")}</small></div>`).join("") || `<p>${uiCopy("Henüz yeterli maç verisi yok.", "There is no match data yet.")}</p>`}</div></article>`;
+    }).join("");
+    return `<section class="f10-team-intelligence"><header><div><span>TEAM POOL INTELLIGENCE</span><h4>${uiCopy("Takım Havuzu Zekâsı", "Team Pool Intelligence")}</h4><p>${uiCopy("Kulüplerin resmî FIFA 10 sonuçlarından kullanım ve performans eğilimleri. Küçük örneklemler özellikle işaretlenir; bu bölüm kural değil karar desteğidir.", "Usage and performance trends from official FIFA 10 results. Small samples remain visible; this is decision support, not a rule.")}</p></div><b>${intelligence.length} ${uiCopy("AKTİF KULÜP", "ACTIVE CLUBS")}</b></header>
+      ${selected && passport ? `<div class="f10-team-scarcity"><div><span>${uiCopy("SEÇİLİ OYUNCU", "SELECTED PLAYER")}</span><strong>${escapeHTML(selected.name)}</strong><small>${passport.selections.length} ${uiCopy("farklı takım kullanıldı", "different teams used")}</small></div>${LEG_STARS.map(stars => {
+        const used = passport.selections.filter(item => Number(item.stars) === Number(stars)).length;
+        return `<article><b>${stars}★</b><strong>${Math.max(0, teamPool(stars).length - used)}</strong><small>${uiCopy("uygun kaldı", "eligible left")}</small></article>`;
+      }).join("")}<div class="next"><span>${uiCopy("SIRADAKİ HAVUZ", "NEXT POOL")}</span><strong>${next ? `${next.stars}★ · ${nextRemaining} ${uiCopy("seçenek", "options")}` : uiCopy("Maçlar tamamlandı", "Matches complete")}</strong></div></div>` : ""}
+      <div class="f10-team-intel-grid">${topByTier}</div>
+      <nav class="f10-player-selector">${players.map(player => `<button type="button" class="${selected?.id === player.id ? "active" : ""}" data-f10draw-action="select-team-player" data-player-id="${escapeHTML(player.id)}">${escapeHTML(player.name)}</button>`).join("")}</nav>
+    </section>`;
+  }
+
+  function renderPlayerDnaCentre(draw) {
+    const players = snapshotPlayers(draw);
+    const selected = resolvePlayer(draw);
+    if (!selected) return "";
+    selectedPlayerRef = selected.id;
+    let rival = resolvePlayer(draw, rivalPlayerRef);
+    if (!rival || rival.id === selected.id) rival = players.find(player => player.id !== selected.id) || null;
+    if (rival) rivalPlayerRef = rival.id;
+    const dna = playerDna(draw, selected.id);
+    const h2h = rival ? headToHead(draw, selected.id, rival.id) : null;
+    const metricCopy = {
+      performance: uiCopy("Performans", "Performance"),
+      attack: uiCopy("Hücum", "Attack"),
+      defence: uiCopy("Savunma", "Defence"),
+      clutch: uiCopy("Kritik Maç", "Clutch"),
+      versatility: uiCopy("Çok Yönlülük", "Versatility")
+    };
+    return `<section class="f10-dna-centre"><header><div><span>PLAYER DNA · RIVAL INTELLIGENCE</span><h4>${uiCopy("Oyuncu DNA ve Rakip Analizi", "Player DNA & Rival Analysis")}</h4><p>${uiCopy("Tamamlanan resmî maçlardan oyun profili, yıldız seviyesi performansı ve bire bir rekabet özeti.", "Playing profile, star-tier performance and head-to-head rivalry from completed official matches.")}</p></div><b>${dna.trait}</b></header>
+      <div class="f10-dna-selectors"><label>${uiCopy("Oyuncu", "Player")}<select id="f10DnaPlayer">${players.map(player => `<option value="${escapeHTML(player.id)}" ${player.id === selected.id ? "selected" : ""}>${escapeHTML(player.name)}</option>`).join("")}</select></label><label>${uiCopy("Rakip", "Rival")}<select id="f10DnaRival">${players.filter(player => player.id !== selected.id).map(player => `<option value="${escapeHTML(player.id)}" ${player.id === rival?.id ? "selected" : ""}>${escapeHTML(player.name)}</option>`).join("")}</select></label></div>
+      <div class="f10-dna-profile"><article><span>${uiCopy("DNA PROFİLİ", "DNA PROFILE")}</span><h5>${escapeHTML(selected.name)}</h5><strong>${dna.trait}</strong><small>${dna.overall.mp} ${uiCopy("resmî maçtan üretildi", "official matches analysed")}</small></article><div>${Object.entries(dna.metrics).map(([key, value]) => `<label><span>${metricCopy[key]}</span><b>${value}</b><i><em style="width:${value}%"></em></i></label>`).join("")}</div></div>
+      <div class="f10-dna-tiers">${dna.tiers.map(row => `<article><header><b>${row.stars}★</b><strong>${row.ppg.toFixed(3)} PPG</strong></header><div><span>${row.mp} ${uiCopy("maç", "MP")}</span><span>${row.w}-${row.d}-${row.l}</span><span>${row.gdPerMatch > 0 ? "+" : ""}${row.gdPerMatch.toFixed(3)} ${uiCopy("AV/M", "GD/M")}</span></div></article>`).join("")}</div>
+      ${rival && h2h ? `<section class="f10-h2h"><header><div><span>HEAD TO HEAD</span><h5>${escapeHTML(selected.name)} <i>VS</i> ${escapeHTML(rival.name)}</h5></div><b>${h2h.mp} ${uiCopy("MAÇ", "MATCHES")}</b></header><div class="summary"><article><span>${uiCopy("Galibiyet", "Wins")}</span><b>${h2h.w}</b></article><article><span>${uiCopy("Beraberlik", "Draws")}</span><b>${h2h.d}</b></article><article><span>${uiCopy("Mağlubiyet", "Losses")}</span><b>${h2h.l}</b></article><article><span>PPG</span><b>${h2h.ppg.toFixed(3)}</b></article><article><span>${uiCopy("Averaj", "Goal Difference")}</span><b>${h2h.gd > 0 ? "+" : ""}${h2h.gd}</b></article></div><div class="matches">${h2h.fixtures.map(match => {
+        const home = match.homeId === selected.id;
+        return `<article><span>${match.stars}★ · ${uiCopy("GRUP", "GROUP")} ${match.group}</span><strong>${escapeHTML(selected.name)} <b>${home ? match.homeScore : match.awayScore}–${home ? match.awayScore : match.homeScore}</b> ${escapeHTML(rival.name)}</strong><small>${escapeHTML(home ? match.homeTeam : match.awayTeam)} · ${escapeHTML(home ? match.awayTeam : match.homeTeam)}</small></article>`;
+      }).join("") || `<p>${uiCopy("Bu iki oyuncu henüz karşılaşmadı.", "These players have not met yet.")}</p>`}</div></section>` : ""}
+    </section>`;
+  }
+
   function renderTeamPassports(draw) {
     const players = [...playerMap(draw).values()]
       .map(player => playerTeamPassport(draw, {
@@ -1281,11 +1549,173 @@
       }).join("");
       return `<article class="f10-passport-card"><header><div><span>GRUP ${escapeHTML(player.group || "–")}</span><strong>${escapeHTML(player.name)}</strong></div><b>${player.selections.length} TAKIM</b></header>${byStars}${player.missing ? `<p>${player.missing} sonuçta takım bilgisi eksik; fikstürden maçı açıp tamamlayabilirsiniz.</p>` : ""}</article>`;
     }).join("");
-    return `<section class="f10-team-centre"><header><div><span>FIFA 10 TEAM PASSPORT</span><h4>Oyuncu Takım Listeleri</h4><p>Her oyuncunun kullandığı takım burada devre bazında izlenir. Kullanılmış takım aynı oyuncunun açılır listesinde otomatik kilitlenir.</p></div><b>${players.reduce((sum, player) => sum + player.selections.length, 0)} SEÇİM</b></header>
+    return `<section class="f10-team-centre">${renderTeamPoolIntelligence(draw, players)}<header><div><span>FIFA 10 TEAM PASSPORT</span><h4>${uiCopy("Oyuncu Takım Listeleri", "Player Team Lists")}</h4><p>${uiCopy("Her oyuncunun kullandığı takım burada devre bazında izlenir. Kullanılmış takım aynı oyuncunun açılır listesinde otomatik kilitlenir.", "Every player’s used teams are tracked by circuit. A used club is automatically locked in that player’s result-entry list.")}</p></div><b>${players.reduce((sum, player) => sum + player.selections.length, 0)} ${uiCopy("SEÇİM", "SELECTIONS")}</b></header>
       <div class="f10-passport-grid">${passportCards}</div>
       <header class="pool-heading"><div><span>LOCKED CLUB CATALOGUE</span><h4>Sabit Takım Havuzu</h4><p>Fikstür sonucu girerken sadece maçın yıldız seviyesine ait bu kulüpler seçilebilir; havuz dışı serbest takım girişi kapatılmıştır.</p></div><b>${LEG_STARS.reduce((sum, stars) => sum + teamPool(stars).length, 0)} TAKIM</b></header>
       <div class="f10-pool-grid">${poolCards}</div>
     </section>`;
+  }
+
+  function officialAwardCandidates(draw) {
+    const players = snapshotPlayers(draw);
+    const rows = standings(draw).filter(row => row.mp > 0);
+    const allDna = players.map(player => ({ player, dna: playerDna(draw, player.id) }));
+    const best = (list, compare) => [...list].sort(compare)[0] || null;
+    const result = [];
+    const add = (id, labelTr, labelEn, entry, metricTr, metricEn) => {
+      result.push({
+        id,
+        label: uiCopy(labelTr, labelEn),
+        playerId: entry?.id || entry?.player?.id || "",
+        playerName: entry?.name || entry?.player?.name || uiCopy("Veri bekleniyor", "Awaiting data"),
+        metric: uiCopy(metricTr, metricEn) || uiCopy("İlgili maçlar oynandığında hesaplanır", "Calculated when relevant matches are played")
+      });
+    };
+    const mvp = best(rows, compareStandingsRows);
+    add("mvp", "Turnuva MVP Adayı", "Tournament MVP Candidate", mvp, mvp ? `${mvp.ppg.toFixed(3)} PPG · ${mvp.gdPerMatch > 0 ? "+" : ""}${mvp.gdPerMatch.toFixed(3)} AV/M` : "", mvp ? `${mvp.ppg.toFixed(3)} PPG · ${mvp.gdPerMatch > 0 ? "+" : ""}${mvp.gdPerMatch.toFixed(3)} GD/M` : "");
+    const bestAverage = best(rows, (a, b) => b.gdPerMatch - a.gdPerMatch || compareStandingsRows(a, b));
+    add("average", "Averaj Ustası", "Goal Difference Master", bestAverage, bestAverage ? `${bestAverage.gdPerMatch > 0 ? "+" : ""}${bestAverage.gdPerMatch.toFixed(3)} AV/M` : "", bestAverage ? `${bestAverage.gdPerMatch > 0 ? "+" : ""}${bestAverage.gdPerMatch.toFixed(3)} GD/M` : "");
+    const topAttack = best(rows, (a, b) => b.gfPerMatch - a.gfPerMatch || compareStandingsRows(a, b));
+    add("attack", "Hücum Ödülü", "Attack Award", topAttack, topAttack ? `${topAttack.gfPerMatch.toFixed(2)} gol/maç` : "", topAttack ? `${topAttack.gfPerMatch.toFixed(2)} goals/match` : "");
+    LEG_STARS.forEach(stars => {
+      const tierRows = allDna
+        .map(item => ({ ...item.dna.tiers.find(row => Number(row.stars) === Number(stars)), player: item.player }))
+        .filter(row => row.mp > 0);
+      const specialist = best(tierRows, (a, b) => b.ppg - a.ppg || b.gdPerMatch - a.gdPerMatch || b.mp - a.mp);
+      add(`specialist-${stars}`, `${stars}★ Uzmanı`, `${stars}★ Specialist`, specialist, specialist ? `${specialist.ppg.toFixed(3)} PPG` : "", specialist ? `${specialist.ppg.toFixed(3)} PPG` : "");
+    });
+    const explorer = best(players.map(player => ({
+      player,
+      count: new Set(playerTeamPassport(draw, player).selections.map(item => normalize(item.team))).size
+    })), (a, b) => b.count - a.count || a.player.name.localeCompare(b.player.name, "tr"));
+    add("explorer", "Takım Kâşifi", "Team Explorer", explorer, explorer ? `${explorer.count} farklı takım` : "", explorer ? `${explorer.count} different teams` : "");
+    const playerLookup = playerMap(draw);
+    const upsets = [];
+    completedFixtures(draw).forEach(match => {
+      if (Number(match.homeScore) === Number(match.awayScore)) return;
+      const winnerId = Number(match.homeScore) > Number(match.awayScore) ? match.homeId : match.awayId;
+      const loserId = winnerId === match.homeId ? match.awayId : match.homeId;
+      const winner = playerLookup.get(winnerId);
+      const loser = playerLookup.get(loserId);
+      if (!winner || !loser) return;
+      upsets.push({ player: winner, eloGap: Number(loser.elo || 0) - Number(winner.elo || 0), match });
+    });
+    const giantKiller = best(upsets.filter(item => item.eloGap > 0), (a, b) => b.eloGap - a.eloGap || b.match.stars - a.match.stars);
+    add("giant-killer", "Dev Avcısı", "Giant Killer", giantKiller, giantKiller ? `+${giantKiller.eloGap} ELO sürprizi` : "", giantKiller ? `+${giantKiller.eloGap} ELO upset` : "");
+    return result;
+  }
+
+  function renderBroadcastHub(draw) {
+    const latest = completedFixtures(draw).sort((a, b) => Date.parse(b.updatedAt || "") - Date.parse(a.updatedAt || "") || b.sequence - a.sequence)[0];
+    const next = buildDynamicSchedule(draw)[0];
+    const players = playerMap(draw);
+    const scene = (mode, tr, en, noteTr, noteEn) => `<article><span>${uiCopy(tr, en)}</span><strong>${mode.toUpperCase()}</strong><small>${uiCopy(noteTr, noteEn)}</small><button type="button" data-f10draw-action="open-broadcast" data-mode="${mode}">${uiCopy("YAYIN EKRANINI AÇ ↗", "OPEN BROADCAST VIEW ↗")}</button></article>`;
+    return `<section class="f10-broadcast-hub"><header><div><span>LIVE BROADCAST · OBS PACKAGE</span><h4>${uiCopy("Canlı Broadcast ve OBS Paketi", "Live Broadcast & OBS Package")}</h4><p>${uiCopy("Şeffaf arka planlı sahneler OBS Browser Source olarak açılır. Puan tablosu, son sonuç, sıradaki maç ve qualification grafiği aynı resmî kaydı okur.", "Transparent scenes open as OBS Browser Sources. Standings, latest result, next match and qualification graphics read the same official state.")}</p></div><b>OBS · 1920×1080</b></header>
+      <div class="f10-broadcast-now"><article><span>${uiCopy("SON SONUÇ", "LATEST RESULT")}</span><strong>${latest ? `${escapeHTML(players.get(latest.homeId)?.name || "–")} ${latest.homeScore}–${latest.awayScore} ${escapeHTML(players.get(latest.awayId)?.name || "–")}` : uiCopy("Henüz sonuç yok", "No result yet")}</strong></article><article><span>${uiCopy("SIRADAKİ", "UP NEXT")}</span><strong>${next ? `${escapeHTML(players.get(next.homeId)?.name || "–")} vs ${escapeHTML(players.get(next.awayId)?.name || "–")}` : uiCopy("Grup aşaması tamamlandı", "Group stage complete")}</strong></article></div>
+      <div class="f10-broadcast-scenes">
+        ${scene("standings", "Genel Puan", "Standings", "PPG ve AV/M odaklı tam tablo", "Full table focused on PPG and GD/M")}
+        ${scene("latest", "Son Sonuç", "Latest Result", "Skor, takımlar ve yıldız seviyesi", "Score, teams and star tier")}
+        ${scene("next", "Sıradaki Maç", "Up Next", "Dinamik takvimdeki ilk maç", "First match in the dynamic schedule")}
+        ${scene("qualification", "Qualification", "Qualification", "1–4 / 5–12 / 13–14 yolları", "Paths for 1–4 / 5–12 / 13–14")}
+        ${scene("lowerthird", "Alt Bant", "Lower Third", "Canlı yayın için kompakt bilgi bandı", "Compact live-broadcast ticker")}
+      </div>
+      <p class="f10-math-note">${uiCopy("OBS kurulumu: Açılan sayfanın adresini Browser Source alanına ekleyin; genişlik 1920, yükseklik 1080 ve özel FPS 30 önerilir.", "OBS setup: add the opened page URL as a Browser Source; 1920×1080 at 30 FPS is recommended.")}</p>
+    </section>`;
+  }
+
+  function renderAwardsUniverse(draw) {
+    const draft = getDraft();
+    const candidates = officialAwardCandidates(draw);
+    const saved = draft.officialAwards || {};
+    const sealed = Boolean(saved.sealedAt);
+    const players = snapshotPlayers(draw);
+    const options = selected => `<option value="">${uiCopy("Seçilmedi", "Not selected")}</option>${players.map(player => `<option value="${escapeHTML(player.name)}" ${player.name === selected ? "selected" : ""}>${escapeHTML(player.name)}</option>`).join("")}`;
+    const completed = completedFixtures(draw).length;
+    const archiveReady = completed === draw.fixtures.length;
+    const system = payload?.seasonSystem || {};
+    const archived = (system.seasons || []).find(item => Number(item.edition) === 10);
+    return `<section class="f10-awards-universe"><header><div><span>OFFICIAL AWARDS · PERSISTENT UNIVERSE</span><h4>${uiCopy("Resmî Ödül Motoru ve Sezonlar Arası Evren", "Official Awards Engine & Persistent Universe")}</h4><p>${uiCopy("Canlı adaylar resmî maçlardan otomatik hesaplanır. Yönetici podyumu kaydeder; sezon tamamlandığında FIFA 10, kupa müzesi ve gelecek sezon altyapısıyla birlikte mühürlenir.", "Live candidates are calculated automatically from official matches. The administrator records the podium; once the season is complete, FIFA 10 is sealed with the trophy museum and next-season foundation.")}</p></div><b class="${sealed ? "sealed" : ""}">${sealed ? uiCopy("SEZON MÜHÜRLENDİ", "SEASON SEALED") : `${completed}/${draw.fixtures.length} ${uiCopy("MAÇ", "MATCHES")}`}</b></header>
+      <div class="f10-award-grid">${candidates.map(item => `<article><span>${escapeHTML(item.label)}</span><strong>${escapeHTML(item.playerName)}</strong><small>${escapeHTML(item.metric)}</small><em>${sealed ? uiCopy("ARŞİV ADAYI", "ARCHIVE CANDIDATE") : uiCopy("CANLI ADAY", "LIVE CANDIDATE")}</em></article>`).join("")}</div>
+      <div class="f10-universe-grid"><form id="f10AwardsUniverseForm"><header><div><span>${uiCopy("RESMÎ PODYUM", "OFFICIAL PODIUM")}</span><strong>FIFA 10</strong></div><small>${archiveReady ? uiCopy("Arşiv mühürlemeye hazır", "Ready to seal archive") : uiCopy("Grup aşaması devam ediyor", "Group stage in progress")}</small></header><label>${uiCopy("Şampiyon", "Champion")}<select name="champion" ${sealed ? "disabled" : ""}>${options(saved.champion)}</select></label><label>${uiCopy("İkinci", "Runner-up")}<select name="runnerUp" ${sealed ? "disabled" : ""}>${options(saved.runnerUp)}</select></label><label>${uiCopy("Üçüncü", "Third place")}<select name="third" ${sealed ? "disabled" : ""}>${options(saved.third)}</select></label><label>${uiCopy("Fair Play", "Fair Play")}<select name="fairPlay" ${sealed ? "disabled" : ""}>${options(saved.fairPlay)}</select></label>${isAdmin() && !sealed ? `<footer><button type="submit" name="intent" value="save">${uiCopy("PODYUM TASLAĞINI KAYDET", "SAVE PODIUM DRAFT")}</button><button type="submit" class="primary" name="intent" value="seal" ${archiveReady ? "" : "disabled"}>${uiCopy("FIFA 10 SEZONUNU MÜHÜRLE", "SEAL FIFA 10 SEASON")}</button></footer>` : ""}</form>
+        <article class="f10-universe-archive"><span>CROSS-SEASON UNIVERSE</span><h5>${archived ? uiCopy("FIFA 10 kalıcı arşivde", "FIFA 10 is in the permanent archive") : uiCopy("Kalıcı sezon köprüsü hazır", "Persistent season bridge is ready")}</h5><div><b>FIFA 09</b><i>→</i><b>FIFA 10</b><i>→</i><b>FIFA 11+</b></div><p>${archived ? uiCopy(`${archived.matches?.length || 0} grup maçı, podyum ve ödül adayları kupa müzesine bağlandı.`, `${archived.matches?.length || 0} group matches, podium and award candidates are linked to the trophy museum.`) : uiCopy("Mühürleme; oyuncuları, grupları, 78 resmî grup maçını, genel sıralamayı, takım pasaportlarını ve ödül anlık görüntüsünü saklar.", "Sealing preserves players, groups, all 78 official group matches, the overall table, team passports and the awards snapshot.")}</p><small>${uiCopy("FIFA 09 verisi değişmez; FIFA 11 taslağı yalnızca bir sonraki sezon başlangıç noktası olarak oluşur.", "FIFA 09 data remains unchanged; the FIFA 11 blueprint is created only as the next-season starting point.")}</small></article></div>
+    </section>`;
+  }
+
+  async function saveAwardsUniverse(form, requestedIntent = "save") {
+    if (!isAdmin()) throw new Error(uiCopy("Bu işlem için yönetici yetkisi gerekir.", "Administrator access is required."));
+    const data = new FormData(form);
+    const intent = String(requestedIntent || data.get("intent") || "save");
+    const podium = {
+      champion: String(data.get("champion") || "").trim(),
+      runnerUp: String(data.get("runnerUp") || "").trim(),
+      third: String(data.get("third") || "").trim(),
+      fairPlay: String(data.get("fairPlay") || "").trim()
+    };
+    const podiumNames = [podium.champion, podium.runnerUp, podium.third];
+    if (intent === "seal") {
+      if (completedFixtures(getDraw()).length !== getDraw().fixtures.length) throw new Error(uiCopy("Sezon, 78 grup maçının tamamı bitmeden mühürlenemez.", "The season cannot be sealed before all 78 group matches are complete."));
+      if (podiumNames.some(name => !name) || new Set(podiumNames).size !== 3) throw new Error(uiCopy("Şampiyon, ikinci ve üçüncü için üç farklı oyuncu seçin.", "Select three different players for champion, runner-up and third place."));
+      if (!window.confirm(uiCopy("FIFA 10 sezonu kalıcı arşive mühürlenecek. Devam edilsin mi?", "FIFA 10 will be sealed into the permanent archive. Continue?"))) return;
+    }
+    await mutatePayload(next => {
+      const draft = getDraft(next);
+      if (draft.officialAwards?.sealedAt) throw new Error(uiCopy("FIFA 10 sezonu zaten mühürlenmiş.", "The FIFA 10 season has already been sealed."));
+      const draw = draft.draw;
+      const awardSnapshot = officialAwardCandidates(draw).map(item => ({ ...item }));
+      draft.officialAwards = {
+        ...podium,
+        candidates: awardSnapshot,
+        updatedAt: nowISO(),
+        ...(intent === "seal" ? { sealedAt: nowISO() } : {})
+      };
+      if (intent !== "seal") return;
+      const system = next.seasonSystem;
+      system.customHonours = Array.isArray(system.customHonours) ? system.customHonours : [];
+      system.seasons = Array.isArray(system.seasons) ? system.seasons : [];
+      const honour = { id: "honour-fifa-10-official", edition: 10, competition: "oruc", winner: podium.champion, runnerUp: podium.runnerUp, third: podium.third };
+      const honourIndex = system.customHonours.findIndex(item => Number(item.edition) === 10 && normalize(item.competition) === "oruc");
+      if (honourIndex >= 0) system.customHonours[honourIndex] = honour;
+      else system.customHonours.push(honour);
+      const players = snapshotPlayers(draw);
+      const names = playerMap(draw);
+      const archive = {
+        id: "season-fifa-10-triple-circuit",
+        edition: 10,
+        status: "completed",
+        format: "FIFA 10 Triple Circuit",
+        champion: podium.champion,
+        runnerUp: podium.runnerUp,
+        third: podium.third,
+        fairPlay: podium.fairPlay,
+        participants: players,
+        groups: deepClone(draw.groups || {}),
+        matches: completedFixtures(draw).map(match => ({
+          id: match.id, edition: 10, stage: "Group Stage", group: match.group,
+          stars: Number(match.stars), homeId: match.homeId, awayId: match.awayId,
+          homeName: names.get(match.homeId)?.name || "", awayName: names.get(match.awayId)?.name || "",
+          homeTeam: match.homeTeam || "", awayTeam: match.awayTeam || "",
+          homeScore: Number(match.homeScore), awayScore: Number(match.awayScore),
+          updatedAt: match.updatedAt || null
+        })),
+        standings: standings(draw),
+        awards: deepClone(draft.officialAwards),
+        teamPassports: players.map(player => playerTeamPassport(draw, player)),
+        completedAt: nowISO(),
+        archivedAt: nowISO(),
+        source: "fifa10-official-universe-seal"
+      };
+      const seasonIndex = system.seasons.findIndex(item => Number(item.edition) === 10);
+      if (seasonIndex >= 0) system.seasons[seasonIndex] = archive;
+      else system.seasons.push(archive);
+      system.nextSeasonBlueprint = {
+        edition: 11,
+        status: "draft",
+        sourceEdition: 10,
+        createdAt: nowISO(),
+        players: players.map(player => ({ id: player.id, name: player.name, elo: player.elo }))
+      };
+      draft.universeArchive = { edition: 10, sealedAt: nowISO(), seasonId: archive.id, nextEdition: 11 };
+    }, intent === "seal" ? uiCopy("FIFA 10 kalıcı evrene mühürlendi.", "FIFA 10 was sealed into the persistent universe.") : uiCopy("Podyum taslağı kaydedildi.", "Podium draft saved."));
   }
 
   function formatSyncTime(value) {
@@ -1397,12 +1827,17 @@
       operationsMount.append(section);
     }
     const tabs = [
-      ["draw", "KURA"],
-      ["groups", "GRUPLAR"],
-      ["standings", "GENEL PUAN"],
-      ["fixtures", "FİKSTÜR"],
-      ["teams", "TAKIMLAR"],
-      ["players", uiCopy("OYUNCU MERKEZİ", "PLAYER CENTRE")]
+      ["draw", uiCopy("KURA", "DRAW")],
+      ["groups", uiCopy("GRUPLAR", "GROUPS")],
+      ["standings", uiCopy("GENEL PUAN", "STANDINGS")],
+      ["qualification", uiCopy("YOL MATEMATİĞİ", "QUALIFICATION")],
+      ["fixtures", uiCopy("FİKSTÜR", "FIXTURES")],
+      ["schedule", uiCopy("TAKVİM", "SCHEDULE")],
+      ["teams", uiCopy("TAKIMLAR", "TEAMS")],
+      ["players", uiCopy("OYUNCU MERKEZİ", "PLAYER CENTRE")],
+      ["dna", "DNA & H2H"],
+      ["broadcast", uiCopy("YAYIN", "BROADCAST")],
+      ["awards", uiCopy("ÖDÜLLER & EVREN", "AWARDS & UNIVERSE")]
     ];
     const participantCount = draw?.participants?.length || registrationRows().length;
     const sizeText = projectedGroupSizes(participantCount).join("-");
@@ -1413,7 +1848,20 @@
       <div class="f10-operation-notice ${operationNotice.type || "info"}"><strong>${operationNotice.type === "success" ? "✓" : operationNotice.type === "warning" ? "!" : "i"}</strong><span>${escapeHTML(operationNotice.text || "")}</span></div>
       ${draw?.status === "completed" ? renderSyncStatus() : ""}
       ${draw?.status === "completed" ? `<section class="f10-connected-universe"><div><span>ONE SOURCE · CONNECTED UNIVERSE</span><strong>Bir sonucu gir; bütün merkezler birlikte güncellensin.</strong><small>Form, oran, Zekâ, canlı maç, takımlar ve tüm zamanlar aynı resmî FIFA 10 maç kaydını okur.</small></div><nav><button type="button" data-f10draw-action="universe-nav" data-target="livestats">Canlı İstatistik</button><button type="button" data-f10draw-action="universe-nav" data-target="form">Form</button><button type="button" data-f10draw-action="universe-nav" data-target="odds">Oranlar</button><button type="button" data-f10draw-action="universe-nav" data-target="intelligence">Zekâ</button><button type="button" data-f10draw-action="universe-nav" data-target="teams">Takımlar</button><button type="button" data-f10draw-action="universe-nav" data-target="alltime">Tüm Zamanlar</button></nav></section>` : ""}
-      <div class="f10-draw-content">${activeTab === "draw" ? renderDrawArena(draw) : activeTab === "groups" ? (draw ? renderGroupTables(draw) : renderDrawArena(null)) : activeTab === "standings" ? (draw?.status === "completed" ? renderStandings(draw) : renderDrawArena(draw)) : activeTab === "teams" ? (draw?.status === "completed" ? renderTeamPassports(draw) : renderDrawArena(draw)) : activeTab === "players" ? (draw?.status === "completed" ? renderPlayerMatchCentre(draw) : renderDrawArena(draw)) : (draw?.status === "completed" ? renderFixtures(draw) : renderDrawArena(draw))}</div>
+      <div class="f10-draw-content">${
+        activeTab === "draw" ? renderDrawArena(draw)
+          : activeTab === "groups" ? (draw ? renderGroupTables(draw) : renderDrawArena(null))
+            : activeTab === "standings" ? (draw?.status === "completed" ? renderStandings(draw) : renderDrawArena(draw))
+              : activeTab === "qualification" ? (draw?.status === "completed" ? renderQualificationCentre(draw) : renderDrawArena(draw))
+                : activeTab === "fixtures" ? (draw?.status === "completed" ? renderFixtures(draw) : renderDrawArena(draw))
+                  : activeTab === "schedule" ? (draw?.status === "completed" ? renderDynamicSchedule(draw) : renderDrawArena(draw))
+                    : activeTab === "teams" ? (draw?.status === "completed" ? renderTeamPassports(draw) : renderDrawArena(draw))
+                      : activeTab === "players" ? (draw?.status === "completed" ? renderPlayerMatchCentre(draw) : renderDrawArena(draw))
+                        : activeTab === "dna" ? (draw?.status === "completed" ? renderPlayerDnaCentre(draw) : renderDrawArena(draw))
+                          : activeTab === "broadcast" ? (draw?.status === "completed" ? renderBroadcastHub(draw) : renderDrawArena(draw))
+                            : activeTab === "awards" ? (draw?.status === "completed" ? renderAwardsUniverse(draw) : renderDrawArena(draw))
+                              : renderDrawArena(draw)
+      }</div>
       <footer class="f10-draw-footer"><span>GENEL SIRALAMA: PPG → MAÇ BAŞINA AVERAJ → TOPLAM ATILAN GOL → GALİBİYET ORANI → KURA SIRASI</span><b>RATE-BASED FAIR TABLE · NO VOLUME ADVANTAGE</b></footer>`;
     const renderSignature = JSON.stringify({
       tab: activeTab,
@@ -1424,6 +1872,8 @@
       auto: autoDrawing,
       notice: `${operationNotice.type || "info"}:${operationNotice.text || ""}`,
       selectedPlayer: selectedPlayerRef,
+      rivalPlayer: rivalPlayerRef,
+      scheduleMinutes: scheduleMatchMinutes,
       quickPlayer: quickPlayerFilter,
       sync: readSyncHistory()[0]?.id || "",
       registrations: registrationRows().map(row => `${row.id}:${row.elo}`).join("|"),
@@ -1447,14 +1897,14 @@
     const navLabel = document.querySelector('.os-primary-nav [data-nav="seasonhub"] span');
     if (navLabel && navLabel.textContent !== "Format & Kura") navLabel.textContent = "Format & Kura";
     const version = document.querySelector(".sidebar-version");
-    const versionText = `Football Universe · V${VERSION} · Championship Play-in`;
+    const versionText = `Football Universe · V${VERSION} · Tournament Intelligence`;
     if (version && version.textContent !== versionText) version.textContent = versionText;
     const meta = document.querySelector('meta[name="fifa9-build"]');
-    const metaValue = `${VERSION}-fifa10-tournament-experience-suite`;
+    const metaValue = `${VERSION}-autonomous-tournament-intelligence`;
     if (meta && meta.content !== metaValue) meta.content = metaValue;
     const url = new URL(location.href);
-    if (url.searchParams.get("fifa9build") !== "471500") {
-      url.searchParams.set("fifa9build", "471500");
+    if (url.searchParams.get("fifa9build") !== "471600") {
+      url.searchParams.set("fifa9build", "471600");
       history.replaceState(history.state, "", url);
     }
     document.querySelectorAll(".f10-format-spine article").forEach(article => {
@@ -1506,6 +1956,7 @@
     sessionStorage.setItem("fifa10-fixture-group", fixtureGroupFilter);
     sessionStorage.setItem("fifa10-fixture-leg", String(fixtureLegFilter));
     sessionStorage.setItem("fifa10-selected-player", selectedPlayerRef);
+    sessionStorage.setItem("fifa10-rival-player", rivalPlayerRef);
     sessionStorage.setItem("fifa10-quick-player", quickPlayerFilter);
   }
 
@@ -1624,6 +2075,31 @@
     document.head.appendChild(style);
   }
 
+  function installAdvancedStyles() {
+    if (document.getElementById("f10AdvancedIntelligenceStyles")) return;
+    const style = document.createElement("style");
+    style.id = "f10AdvancedIntelligenceStyles";
+    style.textContent = `
+      .f10-draw-tabs{overflow-x:auto;scrollbar-width:thin}.f10-draw-tabs>button{flex:0 0 auto;white-space:nowrap}
+      .f10-qualification-centre>header,.f10-schedule-centre>header,.f10-team-intelligence>header,.f10-dna-centre>header,.f10-broadcast-hub>header,.f10-awards-universe>header{display:flex;justify-content:space-between;align-items:end;gap:20px;margin-bottom:16px}
+      .f10-qualification-centre>header span,.f10-schedule-centre>header span,.f10-team-intelligence>header span,.f10-dna-centre>header span,.f10-broadcast-hub>header span,.f10-awards-universe>header span{color:#75c8ff;font-size:8px;font-weight:900;letter-spacing:.15em}
+      .f10-qualification-centre>header h4,.f10-schedule-centre>header h4,.f10-team-intelligence>header h4,.f10-dna-centre>header h4,.f10-broadcast-hub>header h4,.f10-awards-universe>header h4{margin:6px 0;color:#fff;font-size:27px}
+      .f10-qualification-centre>header p,.f10-schedule-centre>header p,.f10-team-intelligence>header p,.f10-dna-centre>header p,.f10-broadcast-hub>header p,.f10-awards-universe>header p{max-width:880px;margin:0;color:#8f9ebe;line-height:1.55}
+      .f10-qualification-centre>header>b,.f10-schedule-centre>header>b,.f10-team-intelligence>header>b,.f10-dna-centre>header>b,.f10-broadcast-hub>header>b,.f10-awards-universe>header>b{color:var(--f10d-gold);white-space:nowrap}.f10-awards-universe>header>b.sealed{color:var(--f10d-green)}
+      .f10-qualification-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:12px}.f10-qualification-kpis article{display:grid;gap:5px;padding:14px;border:1px solid var(--f10d-line);border-radius:13px;background:rgba(8,16,40,.7)}.f10-qualification-kpis span{color:#8392b4;font-size:8px;font-weight:800}.f10-qualification-kpis b{color:#fff;font-size:22px}.f10-qualification-kpis small{color:#75c8ff}
+      .f10-qualification-scroll{overflow:auto;border:1px solid var(--f10d-line);border-radius:15px}.f10-qualification-table{min-width:1080px}.f10-qualification-table>div{display:grid;grid-template-columns:40px minmax(230px,1.4fr) 70px 55px 150px 105px 135px minmax(190px,1fr);align-items:center;min-height:47px;padding:0 12px;border-top:1px solid rgba(125,151,255,.12);color:#aab7d3;font-size:10px}.f10-qualification-table>.head{min-height:38px;border:0;background:#08152f;color:#7384a9;font-size:8px;font-weight:900;letter-spacing:.08em}.f10-qualification-table strong{color:#fff}.f10-qualification-table b{color:#dfe7fb}.f10-qualification-table em{color:#78c9ff;font-size:8px;font-style:normal;font-weight:900}.f10-qualification-table .status-direct{background:rgba(229,189,99,.06)}.f10-qualification-table .status-direct em{color:var(--f10d-gold)}.f10-qualification-table .status-eliminated em{color:#ff8da2}.f10-math-note{margin:10px 0 0;padding:10px 12px;border-left:3px solid #5eaefc;background:rgba(69,167,255,.06);color:#8d9cbc;font-size:9px;line-height:1.5}
+      .f10-schedule-toolbar{display:grid;grid-template-columns:minmax(220px,.6fr) 1fr auto;align-items:center;gap:12px;padding:13px;border:1px solid var(--f10d-line);border-radius:13px;background:rgba(8,16,40,.7)}.f10-schedule-toolbar label{display:grid;gap:5px;color:#8392b4;font-size:8px}.f10-schedule-toolbar select,.f10-dna-selectors select,.f10-awards-universe select{padding:10px;border:1px solid var(--f10d-line);border-radius:9px;background:#07122e;color:#fff}.f10-schedule-toolbar>div{display:grid}.f10-schedule-toolbar span{color:#8291b3;font-size:8px}.f10-schedule-toolbar strong{color:#fff;font-size:18px}.f10-schedule-toolbar small{color:var(--f10d-gold)}.f10-schedule-progress{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}.f10-schedule-progress article{padding:12px;border:1px solid var(--f10d-line);border-radius:12px;background:rgba(8,16,40,.62)}.f10-schedule-progress header{display:flex;justify-content:space-between;color:#fff}.f10-schedule-progress header span{color:#78c9ff}.f10-schedule-progress article>div{height:6px;margin:8px 0;border-radius:8px;background:#111e43;overflow:hidden}.f10-schedule-progress i{display:block;height:100%;background:linear-gradient(90deg,#347fff,#a74df3)}.f10-schedule-progress small{color:#7e8db0}.f10-schedule-list{display:grid;gap:6px}.f10-schedule-list>button{display:grid;grid-template-columns:40px 65px 165px minmax(280px,1fr) 120px;align-items:center;gap:9px;padding:12px;border:1px solid var(--f10d-line);border-radius:11px;background:rgba(7,14,36,.72);color:#fff;text-align:left}.f10-schedule-list>button:not(:disabled){cursor:pointer}.f10-schedule-list>button>b{color:var(--f10d-gold)}.f10-schedule-list time{color:#75c8ff}.f10-schedule-list>button>span{color:#8b9abb;font-size:9px}.f10-schedule-list strong{font-size:11px}.f10-schedule-list strong i{margin:0 8px;color:#78c9ff;font-style:normal}.f10-schedule-list em{color:#6dd9a4;font-size:8px;font-style:normal;font-weight:900}
+      .f10-team-intelligence{margin-bottom:28px;padding-bottom:22px;border-bottom:1px solid var(--f10d-line)}.f10-team-scarcity{display:grid;grid-template-columns:minmax(210px,1.2fr) repeat(3,minmax(90px,.5fr)) minmax(170px,.8fr);gap:8px;margin-bottom:10px}.f10-team-scarcity>div,.f10-team-scarcity>article{display:grid;gap:4px;padding:12px;border:1px solid var(--f10d-line);border-radius:12px;background:rgba(8,16,40,.68)}.f10-team-scarcity span{color:#7fc9ff;font-size:8px;font-weight:900}.f10-team-scarcity strong{color:#fff}.f10-team-scarcity article b{color:var(--f10d-gold)}.f10-team-scarcity article strong{font-size:21px}.f10-team-scarcity small{color:#8191b4}.f10-team-intel-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.f10-team-intel-grid>article{border:1px solid var(--f10d-line);border-radius:13px;overflow:hidden;background:rgba(7,14,36,.65)}.f10-team-intel-grid>article>header{display:flex;justify-content:space-between;padding:11px 13px;background:#091531}.f10-team-intel-grid header b{color:var(--f10d-gold)}.f10-team-intel-grid header span{color:#7e8db0}.f10-team-intel-grid article>div{display:grid}.f10-team-intel-grid article>div>div{display:grid;grid-template-columns:25px minmax(0,1fr) 72px 110px;align-items:center;gap:6px;padding:9px 11px;border-top:1px solid rgba(125,151,255,.1)}.f10-team-intel-grid i{color:#7182a6;font-style:normal}.f10-team-intel-grid strong{color:#fff;font-size:10px}.f10-team-intel-grid div span{color:#79caff;font-size:9px}.f10-team-intel-grid small{color:#8493b4;font-size:8px}
+      .f10-dna-selectors{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:10px}.f10-dna-selectors label{display:grid;gap:5px;color:#8392b4;font-size:8px;font-weight:900}.f10-dna-profile{display:grid;grid-template-columns:minmax(220px,.65fr) 1.35fr;gap:10px;padding:15px;border:1px solid var(--f10d-line);border-radius:15px;background:rgba(7,14,36,.7)}.f10-dna-profile>article{display:grid;align-content:center;gap:5px}.f10-dna-profile>article span{color:#78c9ff;font-size:8px;font-weight:900}.f10-dna-profile h5{margin:0;color:#fff;font-size:24px}.f10-dna-profile>article strong{color:var(--f10d-gold)}.f10-dna-profile>article small{color:#8191b4}.f10-dna-profile>div{display:grid;gap:8px}.f10-dna-profile label{display:grid;grid-template-columns:100px 35px 1fr;align-items:center;gap:8px;color:#aab7d3;font-size:9px}.f10-dna-profile label b{color:#fff;text-align:right}.f10-dna-profile label i{height:7px;border-radius:8px;background:#111f43;overflow:hidden}.f10-dna-profile label em{display:block;height:100%;background:linear-gradient(90deg,#347fff,#a74df3)}.f10-dna-tiers{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}.f10-dna-tiers article{padding:12px;border:1px solid var(--f10d-line);border-radius:12px;background:rgba(8,16,40,.68)}.f10-dna-tiers header,.f10-dna-tiers div{display:flex;justify-content:space-between;gap:8px}.f10-dna-tiers b{color:var(--f10d-gold)}.f10-dna-tiers strong{color:#fff}.f10-dna-tiers div{margin-top:8px;color:#8696b8;font-size:9px}.f10-h2h{border:1px solid var(--f10d-line);border-radius:15px;overflow:hidden}.f10-h2h>header{display:flex;justify-content:space-between;padding:14px;background:#091531}.f10-h2h>header span{color:#78c9ff;font-size:8px;font-weight:900}.f10-h2h h5{margin:4px 0 0;color:#fff;font-size:17px}.f10-h2h h5 i{color:var(--f10d-gold);font-style:normal}.f10-h2h>header>b{color:var(--f10d-gold)}.f10-h2h .summary{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;padding:8px}.f10-h2h .summary article{display:grid;gap:5px;padding:9px;background:rgba(255,255,255,.035);border-radius:8px}.f10-h2h .summary span{color:#8191b3;font-size:8px}.f10-h2h .summary b{color:#fff;font-size:17px}.f10-h2h .matches{display:grid;gap:5px;padding:8px}.f10-h2h .matches article{display:grid;grid-template-columns:115px minmax(0,1fr) 220px;gap:8px;padding:9px;border:1px solid rgba(125,151,255,.12);border-radius:8px}.f10-h2h .matches span{color:#7fc9ff;font-size:8px}.f10-h2h .matches strong{color:#fff}.f10-h2h .matches strong b{color:var(--f10d-gold)}.f10-h2h .matches small{color:#8493b4;text-align:right}
+      .f10-broadcast-now{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}.f10-broadcast-now article{display:grid;gap:5px;padding:13px;border:1px solid var(--f10d-line);border-radius:12px;background:rgba(8,16,40,.68)}.f10-broadcast-now span{color:#78c9ff;font-size:8px;font-weight:900}.f10-broadcast-now strong{color:#fff}.f10-broadcast-scenes{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}.f10-broadcast-scenes article{display:grid;align-content:start;gap:7px;min-height:155px;padding:13px;border:1px solid var(--f10d-line);border-radius:13px;background:linear-gradient(150deg,rgba(52,127,255,.09),rgba(167,77,243,.06))}.f10-broadcast-scenes span{color:#7fc9ff;font-size:8px;font-weight:900}.f10-broadcast-scenes strong{color:#fff}.f10-broadcast-scenes small{color:#8594b5;line-height:1.5}.f10-broadcast-scenes button{align-self:end;margin-top:auto;padding:9px;border:1px solid rgba(125,151,255,.28);border-radius:8px;background:#0b1837;color:#fff;font-size:8px;font-weight:900;cursor:pointer}
+      .f10-award-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:10px}.f10-award-grid article{display:grid;gap:5px;padding:13px;border:1px solid var(--f10d-line);border-radius:12px;background:linear-gradient(145deg,rgba(229,189,99,.07),rgba(157,103,255,.05))}.f10-award-grid span{color:var(--f10d-gold);font-size:8px;font-weight:900}.f10-award-grid strong{color:#fff}.f10-award-grid small{color:#8191b4}.f10-award-grid em{color:#78c9ff;font-size:7px;font-style:normal;font-weight:900}.f10-universe-grid{display:grid;grid-template-columns:.9fr 1.1fr;gap:10px}.f10-universe-grid>form,.f10-universe-archive{padding:15px;border:1px solid var(--f10d-line);border-radius:15px;background:rgba(7,14,36,.7)}.f10-universe-grid form>header{display:flex;justify-content:space-between;margin-bottom:10px}.f10-universe-grid form>header span,.f10-universe-archive>span{color:#78c9ff;font-size:8px;font-weight:900}.f10-universe-grid form>header strong{display:block;color:#fff;font-size:19px}.f10-universe-grid form>header small{color:var(--f10d-gold)}.f10-universe-grid form>label{display:grid;grid-template-columns:95px 1fr;align-items:center;gap:8px;margin:7px 0;color:#8998ba;font-size:9px}.f10-universe-grid form>footer{display:flex;gap:7px;margin-top:11px}.f10-universe-grid button{flex:1;padding:10px;border:1px solid var(--f10d-line);border-radius:9px;background:#0a1735;color:#fff;font-size:8px;font-weight:900}.f10-universe-grid button.primary{border:0;background:linear-gradient(90deg,#347fff,#a74df3)}.f10-universe-grid button:disabled{opacity:.4}.f10-universe-archive{display:grid;align-content:center;gap:9px}.f10-universe-archive h5{margin:0;color:#fff;font-size:22px}.f10-universe-archive>div{display:flex;align-items:center;gap:12px}.f10-universe-archive b{padding:10px;border:1px solid var(--f10d-line);border-radius:9px;color:var(--f10d-gold)}.f10-universe-archive i{color:#78c9ff}.f10-universe-archive p{margin:0;color:#a1aec9;line-height:1.55}.f10-universe-archive small{color:#7f8fb0}
+      @media(max-width:1100px){.f10-broadcast-scenes{grid-template-columns:repeat(3,1fr)}.f10-award-grid{grid-template-columns:repeat(2,1fr)}.f10-team-scarcity{grid-template-columns:repeat(3,1fr)}.f10-team-scarcity>div:first-child,.f10-team-scarcity>.next{grid-column:auto/span 3}}
+      @media(max-width:760px){.f10-qualification-centre>header,.f10-schedule-centre>header,.f10-team-intelligence>header,.f10-dna-centre>header,.f10-broadcast-hub>header,.f10-awards-universe>header{display:grid}.f10-qualification-kpis{grid-template-columns:1fr 1fr}.f10-schedule-toolbar{grid-template-columns:1fr}.f10-schedule-progress,.f10-team-intel-grid,.f10-dna-tiers,.f10-broadcast-now,.f10-universe-grid{grid-template-columns:1fr}.f10-schedule-list>button{grid-template-columns:32px 55px 1fr}.f10-schedule-list>button>strong,.f10-schedule-list>button>em{grid-column:1/4}.f10-team-scarcity{grid-template-columns:repeat(3,1fr)}.f10-team-scarcity>div:first-child,.f10-team-scarcity>.next{grid-column:1/4}.f10-dna-selectors,.f10-dna-profile{grid-template-columns:1fr}.f10-h2h .summary{grid-template-columns:repeat(3,1fr)}.f10-h2h .matches article{grid-template-columns:1fr}.f10-h2h .matches small{text-align:left}.f10-broadcast-scenes,.f10-award-grid{grid-template-columns:1fr 1fr}.f10-universe-grid form>label{grid-template-columns:1fr}.f10-universe-grid form>footer{display:grid}.f10-team-intel-grid article>div>div{grid-template-columns:20px minmax(0,1fr) 65px}.f10-team-intel-grid article>div>div small{grid-column:2/4}}
+      @media(max-width:480px){.f10-qualification-kpis,.f10-broadcast-scenes,.f10-award-grid{grid-template-columns:1fr}.f10-dna-profile label{grid-template-columns:85px 30px 1fr}.f10-h2h .summary{grid-template-columns:1fr 1fr}}
+    `;
+    document.head.appendChild(style);
+  }
+
   async function handleClick(event) {
     const target = event.target instanceof Element ? event.target : event.target?.parentElement;
     const button = target?.closest?.("[data-f10draw-action]");
@@ -1642,7 +2118,10 @@
         persistViewState();
         scheduleRender();
       } else if (action === "print-centre") {
-        window.open("fifa10-print-centre.html?fifa9build=471500", "_blank", "noopener,noreferrer");
+        window.open("fifa10-print-centre.html?fifa9build=471600", "_blank", "noopener,noreferrer");
+      } else if (action === "open-broadcast") {
+        const mode = ["standings", "latest", "next", "qualification", "lowerthird"].includes(button.dataset.mode) ? button.dataset.mode : "standings";
+        window.open(`fifa10-broadcast.html?fifa9build=471600&mode=${encodeURIComponent(mode)}`, "_blank", "noopener,noreferrer");
       } else if (action === "open-tv") {
         openTvMode();
       } else if (action === "close-tv") {
@@ -1659,6 +2138,11 @@
         const selected = resolvePlayer(getDraw(), selectedPlayerRef);
         if (selected) url.searchParams.set("fifa10player", selected.name);
         history.replaceState(history.state, "", url);
+        persistViewState();
+        scheduleRender();
+      } else if (action === "select-team-player") {
+        selectedPlayerRef = button.dataset.playerId || "";
+        activeTab = "teams";
         persistViewState();
         scheduleRender();
       } else if (action === "open-scenario") {
@@ -1698,8 +2182,16 @@
   }
 
   function handleChange(event) {
-    if (event.target?.id !== "f10QuickPlayerFilter") return;
-    quickPlayerFilter = String(event.target.value || "");
+    const id = event.target?.id;
+    if (id === "f10QuickPlayerFilter") quickPlayerFilter = String(event.target.value || "");
+    else if (id === "f10DnaPlayer") {
+      selectedPlayerRef = String(event.target.value || "");
+      if (selectedPlayerRef === rivalPlayerRef) rivalPlayerRef = "";
+    } else if (id === "f10DnaRival") rivalPlayerRef = String(event.target.value || "");
+    else if (id === "f10ScheduleDuration") {
+      scheduleMatchMinutes = Math.max(8, Math.min(30, Number(event.target.value || 15)));
+      localStorage.setItem("fifa10-schedule-minutes", String(scheduleMatchMinutes));
+    } else return;
     persistViewState();
     scheduleRender();
   }
@@ -1727,9 +2219,12 @@
   }
 
   async function handleSubmit(event) {
-    if (event.target?.id !== "f10DrawResultForm") return;
+    if (!["f10DrawResultForm", "f10AwardsUniverseForm"].includes(event.target?.id)) return;
     event.preventDefault();
-    try { await saveResult(event.target); } catch (error) { notify(String(error?.message || error), "error"); }
+    try {
+      if (event.target.id === "f10AwardsUniverseForm") await saveAwardsUniverse(event.target, event.submitter?.value || "save");
+      else await saveResult(event.target);
+    } catch (error) { notify(String(error?.message || error), "error"); }
   }
 
   function handleKeydown(event) {
@@ -1754,6 +2249,7 @@
     if (!ready) return;
     if (new URL(location.href).searchParams.get("fifa10player")) activeTab = "players";
     installStyles();
+    installAdvancedStyles();
     document.addEventListener("click", handleClick, true);
     document.addEventListener("change", handleChange, true);
     document.addEventListener("keydown", handleKeydown, true);
@@ -1785,7 +2281,14 @@
         scheduleRender();
       },
       openTvMode,
-      openPrintCentre: () => window.open("fifa10-print-centre.html?fifa9build=471500", "_blank", "noopener,noreferrer")
+      qualificationOutlook: drawOverride => qualificationOutlook(drawOverride || getDraw()),
+      dynamicSchedule: drawOverride => buildDynamicSchedule(drawOverride || getDraw()),
+      teamPoolIntelligence: drawOverride => teamPoolIntelligence(drawOverride || getDraw()),
+      playerDna: (playerId, drawOverride) => playerDna(drawOverride || getDraw(), playerId),
+      headToHead: (playerId, rivalId, drawOverride) => headToHead(drawOverride || getDraw(), playerId, rivalId),
+      officialAwardCandidates: drawOverride => officialAwardCandidates(drawOverride || getDraw()),
+      openPrintCentre: () => window.open("fifa10-print-centre.html?fifa9build=471600", "_blank", "noopener,noreferrer"),
+      openBroadcast: mode => window.open(`fifa10-broadcast.html?fifa9build=471600&mode=${encodeURIComponent(mode || "standings")}`, "_blank", "noopener,noreferrer")
     };
   }
 

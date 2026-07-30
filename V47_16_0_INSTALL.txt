@@ -1,0 +1,26 @@
+ORUÇ REİS FIFA WORLD — V47.16.0
+AUTONOMOUS TOURNAMENT INTELLIGENCE · COMPLETE SITE
+
+1. ZIP dosyasını açın.
+2. ZIP içindeki bütün dosya ve klasörleri mevcut site projesinin köküne kopyalayın.
+3. Mevcut cloud-config.js dosyanızı değiştirmeyin.
+4. Vercel üzerinden projeyi yeniden yayınlayın.
+5. Yayın sonrasında aşağıdaki adresi açın:
+
+   https://fifa9-tournament-hub.vercel.app/?fifa9build=471600
+
+6. Tarayıcı eski görünümü tutarsa bir kez sert yenileme yapın.
+
+OBS:
+- Site içinde Format & Kura > Yayın / Broadcast sekmesini açın.
+- İstenen sahnenin “Yayın ekranını aç” düğmesine basın.
+- Açılan adresi OBS Browser Source olarak ekleyin.
+- Önerilen ölçü: 1920 × 1080, 30 FPS.
+- Sahne kontrolleri gerekiyorsa adrese `&controls=1` ekleyin.
+- İngilizceyi zorlamak için adrese `&lang=en` ekleyin.
+
+GÜVENLİK:
+- Mevcut sonuçlar, FIFA 09 arşivi ve takım pasaportları korunur.
+- Sezon mühürleme yalnızca 78 grup maçı tamamlanınca açılır.
+- Mühürleme öncesinde şampiyon, ikinci ve üçüncü için üç farklı oyuncu seçilmelidir.
+- FIFA 11 kaydı aktif sezon açmaz; yalnızca başlangıç taslağı üretir.
