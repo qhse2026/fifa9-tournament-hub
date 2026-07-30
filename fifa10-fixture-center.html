@@ -95,7 +95,7 @@
         home.mp++;away.mp++;home.gf+=hs;home.ga+=as;away.gf+=as;away.ga+=hs;
         if(hs>as){home.w++;away.l++;home.pts+=3}else if(hs<as){away.w++;home.l++;away.pts+=3}else{home.d++;away.d++;home.pts++;away.pts++}
       });
-      return rows.map(row=>({...row,gd:row.gf-row.ga,ppg:row.mp?row.pts/row.mp:0})).sort((a,b)=>b.ppg-a.ppg||b.pts-a.pts||b.gd-a.gd||b.gf-a.gf||b.w-a.w||a.name.localeCompare(b.name,"tr"));
+      return rows.map(row=>{const gd=row.gf-row.ga;return {...row,gd,ppg:row.mp?row.pts/row.mp:0,gdPerMatch:row.mp?gd/row.mp:0,gfPerMatch:row.mp?row.gf/row.mp:0,winRate:row.mp?row.w/row.mp:0}}).sort((a,b)=>b.ppg-a.ppg||b.gdPerMatch-a.gdPerMatch||b.gfPerMatch-a.gfPerMatch||b.winRate-a.winRate||a.name.localeCompare(b.name,"tr"));
     }
     function render(){
       document.getElementById("playedCount").innerHTML=`${fixtures.filter(completed).length}<i>/78</i>`;
@@ -108,9 +108,9 @@
           <div class="fixture-list">${visible.map(fixture=>renderFixture(fixture)).join("")}</div>`;
       } else if(activeTab==="standings"){
         const rows=tableRows(),played=fixtures.filter(completed).length;
-        content.innerHTML=`<div class="section-head"><div><small>ONE TABLE · PPG RANKING</small><h2>FIFA 10 Genel Puan Sıralaması</h2><p>Sıralama maç başına puan ortalamasına göre yapılır. Toplam puan parantez içinde gösterilir.</p></div><b>${played}/78</b></div>
-          <div class="ranking-rules"><span>1 · PPG</span><span>2 · TOPLAM PUAN</span><span>3 · AVERAJ</span><span>4 · ATILAN GOL</span><span>5 · GALİBİYET</span></div>
-          <div class="table-scroll"><div class="standings"><div class="thead"><span>#</span><span>Oyuncu</span><span>Grup</span><span>O</span><span>G</span><span>B</span><span>M</span><span>AV</span><span>PPG (P)</span></div>${rows.map((row,index)=>`<div class="${index<4?"top-four":""}"><b>${index+1}</b><strong>${esc(row.name)}</strong><span>${row.group}</span><span>${row.mp}</span><span>${row.w}</span><span>${row.d}</span><span>${row.l}</span><span>${row.gd>0?"+":""}${row.gd}</span><em>${row.ppg.toFixed(3)} <i>(${row.pts})</i></em></div>`).join("")}</div></div>`;
+        content.innerHTML=`<div class="section-head"><div><small>ONE TABLE · RATE-BASED RANKING</small><h2>FIFA 10 Genel Puan Sıralaması</h2><p>Sıralama PPG ve maç başına averajla yapılır. Toplam puan yalnızca parantez içinde bilgi amaçlı gösterilir.</p></div><b>${played}/78</b></div>
+          <div class="ranking-rules"><span>1 · PPG</span><span>2 · AV/M</span><span>3 · AG/M</span><span>4 · GALİBİYET ORANI</span></div>
+          <div class="table-scroll"><div class="standings"><div class="thead"><span>#</span><span>Oyuncu</span><span>Grup</span><span>O</span><span>G</span><span>B</span><span>M</span><span>AV/M (AV)</span><span>PPG (P)</span></div>${rows.map((row,index)=>`<div class="${index<4?"top-four":""}"><b>${index+1}</b><strong>${esc(row.name)}</strong><span>${row.group}</span><span>${row.mp}</span><span>${row.w}</span><span>${row.d}</span><span>${row.l}</span><span>${row.gdPerMatch>0?"+":""}${row.gdPerMatch.toFixed(3)} (${row.gd>0?"+":""}${row.gd})</span><em>${row.ppg.toFixed(3)} <i>(${row.pts})</i></em></div>`).join("")}</div></div>`;
       } else {
         content.innerHTML=`<div class="section-head"><div><small>OFFICIAL DRAW RESULT</small><h2>Kesinleşen Gruplar</h2><p>Grup içi puan tablosu kullanılmaz. Tüm oyuncular Genel Puan ekranında birlikte sıralanır.</p></div><b>5–4–5</b></div><div class="group-grid">${Object.entries(GROUPS).map(([group,players])=>`<article class="group-card"><header><small>GROUP</small><strong>${group}</strong><b>${players.length} OYUNCU</b></header>${players.map((player,index)=>`<div><i>${index+1}</i><span>${esc(player)}</span></div>`).join("")}</article>`).join("")}</div>`;
       }

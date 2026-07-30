@@ -90,7 +90,7 @@
   </header>
   <div class="screen-note"><strong>Doğru çıktı ayarı:</strong> A4 · Yatay · Ölçek %100. Tarayıcının “Daha fazla ayar” bölümünde <strong>Üstbilgiler ve altbilgiler</strong> seçeneğini kapatın. Takım hücrelerine bilgisayardan veya telefondan yazabilirsiniz; manuel girişler bu cihazda korunur.</div>
   <main id="printRoot"></main>
-  <script src="fifa10-team-pools.js?v=47.14.9"></script>
+  <script src="fifa10-team-pools.js?v=47.14.10"></script>
   <script>
   (() => {
     "use strict";
@@ -144,7 +144,7 @@
     const complete = match => Boolean(match.completed) && Number.isFinite(Number(match.homeScore)) && Number.isFinite(Number(match.awayScore));
     const score = match => complete(match) ? `${Number(match.homeScore)}–${Number(match.awayScore)}` : "___–___";
     const groupPlayerCount = group => groups[group].length;
-    const footer = () => `<div class="footer-line"><span>ORUÇ REİS FOOTBALL UNIVERSE · FIFA 10</span><span>V47.14.9 · ${new Date().toLocaleDateString("tr-TR")}</span></div>`;
+    const footer = () => `<div class="footer-line"><span>ORUÇ REİS FOOTBALL UNIVERSE · FIFA 10</span><span>V47.14.10 · ${new Date().toLocaleDateString("tr-TR")}</span></div>`;
     function fixturePage(group) {
       const rows = fixtures.filter(match => match.group === group);
       const counts = Object.fromEntries(STARS.map(stars => [String(stars), rows.filter(match => match.stars === stars).length]));
@@ -164,7 +164,7 @@
           [4.5,"2. DEVRE","19 takım","Aynı rakipliğin ters saha eşleşmesi. Yalnızca 4.5★ havuzu kullanılır."],
           [5,"3. DEVRE","9 takım","Grup aşamasının son devresi. Yalnızca 5★ havuzu kullanılır."]
         ].map(([stars,leg,count,text]) => `<article class="rule-card"><header><strong>${stars}★</strong><span>${leg}</span></header><div><b>${count}</b><p>${text}</p><ul><li>Havuz dışı takım seçilemez.</li><li>Kullanılan takım oyuncu bazında kilitlenir.</li><li>Aynı maçta iki rakip aynı kulübü seçemez.</li></ul></div></article>`).join("")}</div>
-        <div class="global-rules"><div><b>TEK KULLANIM</b><span>Bir oyuncu aynı kulübü FIFA 10 boyunca ikinci kez kullanamaz.</span></div><div><b>ERKEK TAKIMLARI</b><span>W işaretli kadın takımları resmî havuzlara dahil değildir.</span></div><div><b>SONUÇ KAYDI</b><span>Skor ve iki takım birlikte girilmeden maç tamamlanmış sayılmaz.</span></div><div><b>GENEL SIRALAMA</b><span>PPG → toplam puan → averaj → atılan gol → galibiyet.</span></div></div>${footer()}</section>`;
+        <div class="global-rules"><div><b>TEK KULLANIM</b><span>Bir oyuncu aynı kulübü FIFA 10 boyunca ikinci kez kullanamaz.</span></div><div><b>ERKEK TAKIMLARI</b><span>W işaretli kadın takımları resmî havuzlara dahil değildir.</span></div><div><b>SONUÇ KAYDI</b><span>Skor ve iki takım birlikte girilmeden maç tamamlanmış sayılmaz.</span></div><div><b>GENEL SIRALAMA</b><span>PPG → AV/M → AG/M → galibiyet oranı → kura sırası. Toplam puan yalnızca görseldir.</span></div></div>${footer()}</section>`;
     }
     function poolsPage() {
       const pools = window.FIFA10_TEAM_POOLS || {};

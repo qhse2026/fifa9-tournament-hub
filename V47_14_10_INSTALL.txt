@@ -1,0 +1,35 @@
+ORUÇ REİS FIFA WORLD — V47.14.10
+Rate-Based Fair Ranking
+
+KURULUM
+1. ZIP içeriğini Vercel projesinin kök dizinine eksiksiz yükleyin.
+2. Mevcut dosyaların üzerine yazın; cloud-config.js ayarlarınızı koruyun.
+3. Dağıtım bittikten sonra şu adresi açın:
+   https://fifa9-tournament-hub.vercel.app/?fifa9build=471410
+
+YENİ FIFA 10 GENEL SIRALAMA KURALI
+1. Maç başına puan ortalaması (PPG)
+2. Maç başına averaj (AV/M)
+3. Maç başına atılan gol (AG/M)
+4. Galibiyet oranı
+5. Kura sırası
+
+ADALET PRENSİBİ
+- Toplam puan sıralamayı belirlemez.
+- Toplam averaj sıralamayı belirlemez.
+- Fazla maç oynamak hacim avantajı oluşturmaz.
+- PPG yanında toplam puan parantez içinde yalnızca bilgi amaçlı görünür.
+- AV/M yanında toplam averaj parantez içinde yalnızca bilgi amaçlı görünür.
+- Averaj hesaplamasında skor farkı üst sınırı yoktur.
+
+GÜNCELLENEN ALANLAR
+- FIFA 10 ana Genel Puan tablosu
+- Canlı İstatistik oyuncu sıralaması
+- Acil Fikstür Merkezi genel sıralaması
+- Format açıklamaları ve turnuva alt bilgisi
+- Yazdırma Merkezi resmî kural sayfası
+
+MEVCUT VERİLER
+- Girilmiş maç sonuçları ve takım kayıtları korunur.
+- FIFA 09 arşivi ve tüm zamanlar verisi değişmez.
+- Bulut kayıt kuyruğu ve statement-timeout koruması devam eder.

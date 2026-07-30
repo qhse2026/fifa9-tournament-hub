@@ -1,0 +1,41 @@
+ORUÇ REİS FIFA WORLD — V47.14.10 VALIDATION
+Date: 2026-07-29
+
+PASS — UNEQUAL MATCH COUNT FAIRNESS
+Controlled comparison:
+- Player A: 2 matches, 3 total points, 1.500 PPG, +1.000 AV/M
+- Player B: 4 matches, 6 total points, 1.500 PPG, +0.500 AV/M
+- Expected result: Player A ranks above Player B.
+- Actual result: Player A ranked 4th; Player B ranked 5th.
+
+This proves that higher total points and additional matches no longer override
+the average goal-difference tiebreaker when PPG is equal.
+
+PASS — OFFICIAL TIEBREAK ORDER
+1. PPG
+2. Goal difference per match
+3. Goals scored per match
+4. Win rate
+5. Draw order
+
+PASS — DISPLAY CONTRACT
+- PPG is shown to three decimals.
+- Total points remain visible in parentheses only.
+- AV/M is shown to three decimals.
+- Total goal difference remains visible in parentheses only.
+- AG/M and YG/M replace volume-based goal totals in FIFA 10 ranking tables.
+
+PASS — CONNECTED UNIVERSE
+- Main FIFA 10 standings use rate-based ranking.
+- Live Statistics uses the same ranking order.
+- Emergency Fixture Centre uses the same ranking order.
+- Printed rules state the same ranking order.
+- Form, Odds, Intelligence, Teams and All-Time integrations remain connected.
+
+PASS — REGRESSION
+- 78 fixtures retained.
+- Existing results retained.
+- 76-team men's pools retained.
+- Print Centre layout retained.
+- Cloud save queue and timeout retry retained.
+- FIFA 09 archive retained.

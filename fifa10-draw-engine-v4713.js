@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "47.14.9";
+  const VERSION = "47.14.10";
   const STORAGE_KEY = "fifa-tournament-hub-v1";
   const GROUPS = Object.freeze(["A", "B", "C"]);
   const LEG_STARS = Object.freeze([4, 4.5, 5]);
@@ -121,9 +121,9 @@
     draft.settings.groupCount = 3;
     draft.settings.newPlayerBaseElo = NEW_PLAYER_ELO;
     draft.settings.rankingPrimary = "ppg";
-    draft.settings.rankingTieBreakers = ["points", "goalDifference", "goalsFor", "wins", "drawLot"];
+    draft.settings.rankingTieBreakers = ["goalDifferencePerMatch", "goalsForPerMatch", "winRate", "drawLot"];
     draft.settings.goalDifferenceCap = null;
-    draft.settings.goalDifferenceMode = "full-uncapped";
+    draft.settings.goalDifferenceMode = "per-match-uncapped";
     draft.settings.groupRounds = [
       { id: "round-1", label: "1. Devre", stars: 4 },
       { id: "round-2", label: "2. Devre", stars: 4.5 },
@@ -297,7 +297,7 @@
       fivePlayerGroup: null,
       rankingRule: {
         primary: "PPG",
-        tieBreakers: ["Total Points", "Goal Difference", "Goals For", "Wins", "Draw Lot"],
+        tieBreakers: ["Goal Difference Per Match", "Goals For Per Match", "Win Rate", "Draw Lot"],
         goalDifferenceCap: null
       }
     };
@@ -712,28 +712,35 @@
       else if (hs < as) { away.w += 1; home.l += 1; away.pts += 3; }
       else { home.d += 1; away.d += 1; home.pts += 1; away.pts += 1; }
     });
-    const rows = [...table.values()].map(row => ({
-      ...row,
-      gd: row.gf - row.ga,
-      ppg: row.mp ? row.pts / row.mp : 0
-    }));
-    rows.sort((a, b) => {
-      const ppgDifference = b.ppg - a.ppg;
-      if (Math.abs(ppgDifference) > 1e-9) return ppgDifference;
-      return b.pts - a.pts
-        || b.gd - a.gd
-        || b.gf - a.gf
-        || b.w - a.w
-        || a.tieBreakOrder - b.tieBreakOrder;
+    const rows = [...table.values()].map(row => {
+      const gd = row.gf - row.ga;
+      return {
+        ...row,
+        gd,
+        ppg: row.mp ? row.pts / row.mp : 0,
+        gdPerMatch: row.mp ? gd / row.mp : 0,
+        gfPerMatch: row.mp ? row.gf / row.mp : 0,
+        gaPerMatch: row.mp ? row.ga / row.mp : 0,
+        winRate: row.mp ? row.w / row.mp : 0
+      };
     });
+    rows.sort(compareStandingsRows);
     return rows.map((row, index) => ({ ...row, rank: index + 1 }));
+  }
+
+  function compareStandingsRows(a, b) {
+    for (const metric of ["ppg", "gdPerMatch", "gfPerMatch", "winRate"]) {
+      const difference = Number(b?.[metric] || 0) - Number(a?.[metric] || 0);
+      if (Math.abs(difference) > 1e-9) return difference;
+    }
+    return Number(a?.tieBreakOrder || 999) - Number(b?.tieBreakOrder || 999);
   }
 
   function groupStandings(group, draw = getDraw()) {
     const ids = new Set(draw?.groups?.[group] || []);
     return standings(draw)
       .filter(row => ids.has(row.id))
-      .sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf || b.w - a.w || a.tieBreakOrder - b.tieBreakOrder)
+      .sort(compareStandingsRows)
       .map((row, index) => ({ ...row, groupRank: index + 1 }));
   }
 
@@ -1046,11 +1053,11 @@
     const rows = standings(draw);
     const played = completedFixtures(draw).length;
     const total = draw.fixtures?.length || 0;
-    return `<section class="f10-general-standings"><header><div><span>ONE TABLE · PPG RANKING</span><h4>FIFA 10 Genel Puan Sıralaması</h4><p>Farklı grup büyüklükleri maç başına puan ortalamasıyla eşitlenir. Averajın tamamı kullanılır; skor farkına herhangi bir üst sınır uygulanmaz.</p></div><div><strong>${played}/${total}</strong><small>GRUP MAÇI</small></div></header>
-      <div class="f10-ranking-rules"><span>1 · PPG</span><span>2 · TOPLAM PUAN</span><span>3 · GENEL AVERAJ</span><span>4 · ATILAN GOL</span><span>5 · GALİBİYET</span><span>6 · KURA SIRASI</span></div>
-      <div class="f10-standings-scroll"><div class="f10-standings-table"><div class="head"><span>#</span><span>Oyuncu</span><span>Grup</span><span>O</span><span>G</span><span>B</span><span>M</span><span>AG</span><span>YG</span><span>AV</span><span>PPG (P)</span><span>Yol</span></div>${rows.map(row => {
+    return `<section class="f10-general-standings"><header><div><span>ONE TABLE · RATE-BASED RANKING</span><h4>FIFA 10 Genel Puan Sıralaması</h4><p>Farklı maç sayıları PPG ve maç başına averaj ile eşitlenir. Toplam puan yalnızca parantez içinde bilgi amaçlı gösterilir; sıralamayı etkilemez.</p></div><div><strong>${played}/${total}</strong><small>GRUP MAÇI</small></div></header>
+      <div class="f10-ranking-rules"><span>1 · PPG</span><span>2 · AV/M</span><span>3 · AG/M</span><span>4 · GALİBİYET ORANI</span><span>5 · KURA SIRASI</span></div>
+      <div class="f10-standings-scroll"><div class="f10-standings-table"><div class="head"><span>#</span><span>Oyuncu</span><span>Grup</span><span>O</span><span>G</span><span>B</span><span>M</span><span>AG/M</span><span>YG/M</span><span>AV/M (AV)</span><span>PPG (P)</span><span>Yol</span></div>${rows.map(row => {
         const qualification = qualificationLabel(row.rank, rows.length);
-        return `<div class="rank-${row.rank} qualification-${qualification.key}"><span>${row.rank}</span><strong>${escapeHTML(row.name)}</strong><span>${row.group}</span><span>${row.mp}</span><span>${row.w}</span><span>${row.d}</span><span>${row.l}</span><span>${row.gf}</span><span>${row.ga}</span><b>${row.gd > 0 ? "+" : ""}${row.gd}</b><strong>${row.ppg.toFixed(3)} <small>(${row.pts})</small></strong><em>${qualification.label}</em></div>`;
+        return `<div class="rank-${row.rank} qualification-${qualification.key}"><span>${row.rank}</span><strong>${escapeHTML(row.name)}</strong><span>${row.group}</span><span>${row.mp}</span><span>${row.w}</span><span>${row.d}</span><span>${row.l}</span><span>${row.gfPerMatch.toFixed(3)}</span><span>${row.gaPerMatch.toFixed(3)}</span><b>${row.gdPerMatch > 0 ? "+" : ""}${row.gdPerMatch.toFixed(3)} <small>(${row.gd > 0 ? "+" : ""}${row.gd})</small></b><strong>${row.ppg.toFixed(3)} <small>(${row.pts})</small></strong><em>${qualification.label}</em></div>`;
       }).join("")}</div></div>
       ${renderQualificationPath(rows)}
     </section>`;
@@ -1179,7 +1186,7 @@
       <div class="f10-operation-notice ${operationNotice.type || "info"}"><strong>${operationNotice.type === "success" ? "✓" : operationNotice.type === "warning" ? "!" : "i"}</strong><span>${escapeHTML(operationNotice.text || "")}</span></div>
       ${draw?.status === "completed" ? `<section class="f10-connected-universe"><div><span>ONE SOURCE · CONNECTED UNIVERSE</span><strong>Bir sonucu gir; bütün merkezler birlikte güncellensin.</strong><small>Form, oran, Zekâ, canlı maç, takımlar ve tüm zamanlar aynı resmî FIFA 10 maç kaydını okur.</small></div><nav><button type="button" data-f10draw-action="universe-nav" data-target="livestats">Canlı İstatistik</button><button type="button" data-f10draw-action="universe-nav" data-target="form">Form</button><button type="button" data-f10draw-action="universe-nav" data-target="odds">Oranlar</button><button type="button" data-f10draw-action="universe-nav" data-target="intelligence">Zekâ</button><button type="button" data-f10draw-action="universe-nav" data-target="teams">Takımlar</button><button type="button" data-f10draw-action="universe-nav" data-target="alltime">Tüm Zamanlar</button></nav></section>` : ""}
       <div class="f10-draw-content">${activeTab === "draw" ? renderDrawArena(draw) : activeTab === "groups" ? (draw ? renderGroupTables(draw) : renderDrawArena(null)) : activeTab === "standings" ? (draw?.status === "completed" ? renderStandings(draw) : renderDrawArena(draw)) : activeTab === "teams" ? (draw?.status === "completed" ? renderTeamPassports(draw) : renderDrawArena(draw)) : (draw?.status === "completed" ? renderFixtures(draw) : renderDrawArena(draw))}</div>
-      <footer class="f10-draw-footer"><span>GENEL SIRALAMA: PPG → TOPLAM PUAN → TAM AVERAJ → ATILAN GOL → GALİBİYET → KURA SIRASI</span><b>AVERAGE-POINT TABLE · NO GD CAP</b></footer>`;
+      <footer class="f10-draw-footer"><span>GENEL SIRALAMA: PPG → MAÇ BAŞINA AVERAJ → MAÇ BAŞINA ATILAN GOL → GALİBİYET ORANI → KURA SIRASI</span><b>RATE-BASED FAIR TABLE · NO VOLUME ADVANTAGE</b></footer>`;
     const renderSignature = JSON.stringify({
       tab: activeTab,
       groupFilter: fixtureGroupFilter,
@@ -1214,8 +1221,8 @@
     const metaValue = `${VERSION}-live-draw-ppg-engine`;
     if (meta && meta.content !== metaValue) meta.content = metaValue;
     const url = new URL(location.href);
-    if (url.searchParams.get("fifa9build") !== "47149") {
-      url.searchParams.set("fifa9build", "47149");
+    if (url.searchParams.get("fifa9build") !== "471410") {
+      url.searchParams.set("fifa9build", "471410");
       history.replaceState(history.state, "", url);
     }
     document.querySelectorAll(".f10-format-spine article").forEach(article => {
@@ -1230,8 +1237,8 @@
       if (tag === "ONE TABLE") {
         const desc = article.querySelector("p");
         const metaNode = article.querySelector("strong");
-        if (desc && desc.textContent !== "Bütün oyuncular tek tabloda maç başına puan ortalamasıyla sıralanır.") desc.textContent = "Bütün oyuncular tek tabloda maç başına puan ortalamasıyla sıralanır.";
-        if (metaNode && metaNode.textContent !== "PPG · toplam puan · tam averaj · atılan gol") metaNode.textContent = "PPG · toplam puan · tam averaj · atılan gol";
+        if (desc && desc.textContent !== "Bütün oyuncular tek tabloda PPG ve maç başına averajla adil biçimde sıralanır.") desc.textContent = "Bütün oyuncular tek tabloda PPG ve maç başına averajla adil biçimde sıralanır.";
+        if (metaNode && metaNode.textContent !== "PPG · AV/M · AG/M · galibiyet oranı") metaNode.textContent = "PPG · AV/M · AG/M · galibiyet oranı";
       }
     });
     const footer = document.querySelector("#fifa10Registration > footer span");
@@ -1359,9 +1366,9 @@
       .f10-groups-rule span{display:block;color:var(--f10d-green);font-size:8px;font-weight:900;letter-spacing:.15em}
       .f10-groups-rule strong{display:block;margin-top:6px;color:white;font-size:18px}
       .f10-groups-rule p{margin:5px 0 0;color:#92a1c3}
-      .f10-standings-table{min-width:1080px}
-      .f10-standings-table>div{grid-template-columns:35px minmax(170px,1fr) 45px repeat(8,48px) 105px}
-      .f10-standings-table strong small{color:var(--f10d-gold);font-size:9px}
+      .f10-standings-table{min-width:1200px}
+      .f10-standings-table>div{grid-template-columns:35px minmax(170px,1fr) 45px repeat(4,44px) repeat(2,58px) 90px 78px 105px}
+      .f10-standings-table strong small,.f10-standings-table b small{color:var(--f10d-gold);font-size:9px}
     `;
     document.head.appendChild(style);
   }
@@ -1384,7 +1391,7 @@
         persistViewState();
         scheduleRender();
       } else if (action === "print-centre") {
-        window.open("fifa10-print-centre.html?fifa9build=47149", "_blank", "noopener,noreferrer");
+        window.open("fifa10-print-centre.html?fifa9build=471410", "_blank", "noopener,noreferrer");
       } else if (action === "universe-nav") {
         window.FIFA_APP_CONTEXT?.navigate?.(button.dataset.target || "seasonhub");
       } else if (action === "manual-start") await startManualGroupEntry();
@@ -1471,7 +1478,7 @@
     window.FIFA10_DRAW_ENGINE = {
       version: VERSION,
       newPlayerElo: NEW_PLAYER_ELO,
-      standings: () => standings(getDraw()),
+      standings: drawOverride => standings(drawOverride || getDraw()),
       drawState: () => deepClone(getDraw()),
       refresh: reloadAll,
       generateFixtures,
@@ -1481,7 +1488,7 @@
       assignManualGroup,
       finalizeManualGroups,
       prepareDraw,
-      openPrintCentre: () => window.open("fifa10-print-centre.html?fifa9build=47149", "_blank", "noopener,noreferrer")
+      openPrintCentre: () => window.open("fifa10-print-centre.html?fifa9build=471410", "_blank", "noopener,noreferrer")
     };
   }
 
