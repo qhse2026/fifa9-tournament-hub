@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "47.18.0";
+  const VERSION = "47.19.0";
   const STORAGE_KEY = "fifa-tournament-hub-v1";
   const SYNC_HISTORY_KEY = "fifa10-sync-history-v1";
   const GROUPS = Object.freeze(["A", "B", "C"]);
@@ -197,6 +197,7 @@
     draft.settings.preventTeamRepeat = true;
     draft.blackBox = Array.isArray(draft.blackBox) ? draft.blackBox : [];
     draft.forecastLedger = Array.isArray(draft.forecastLedger) ? draft.forecastLedger : [];
+    draft.milestoneLedger = Array.isArray(draft.milestoneLedger) ? draft.milestoneLedger : [];
     return next;
   }
 
@@ -428,6 +429,11 @@
   async function savePayload(nextPayload, message = "") {
     const next = ensurePayloadShape(nextPayload);
     const previous = payload ? deepClone(payload) : null;
+    try {
+      window.FIFA_EVOLUTION_OS?.captureMilestoneEvents?.(next, previous);
+    } catch (error) {
+      console.warn("Milestone transition capture was skipped; official save continues.", error);
+    }
     try {
       window.FIFA_CHAMPIONSHIP_OS?.captureForecastSnapshot?.(next, previous);
     } catch (error) {
@@ -1415,6 +1421,10 @@
   }
 
   function buildDynamicSchedule(draw) {
+    const evolutionSchedule = window.FIFA_EVOLUTION_OS?.optimizedSchedule?.(draw, payload);
+    if (Array.isArray(evolutionSchedule) && evolutionSchedule.length === (draw.fixtures || []).filter(match => !match.completed).length) {
+      return evolutionSchedule;
+    }
     const pending = (draw.fixtures || []).filter(match => !match.completed);
     const completed = completedFixtures(draw).sort((a, b) => Date.parse(b.updatedAt || "") - Date.parse(a.updatedAt || "") || b.sequence - a.sequence);
     let lastPlayers = new Set(completed[0] ? [completed[0].homeId, completed[0].awayId] : []);
@@ -1457,7 +1467,7 @@
       <div class="f10-schedule-progress">${progress.map(item => `<article><header><strong>${uiCopy("GRUP", "GROUP")} ${item.group}</strong><span>${item.done}/${item.total}</span></header><div><i style="width:${item.pct}%"></i></div><small>%${item.pct}</small></article>`).join("")}</div>
       <div class="f10-schedule-list">${schedule.slice(0, 18).map((match, index) => {
         const start = new Date(now + index * scheduleMatchMinutes * 60000);
-        return `<button type="button" data-f10draw-action="open-result" data-fixture-id="${escapeHTML(match.id)}" ${isAdmin() ? "" : "disabled"}><b>${String(index + 1).padStart(2, "0")}</b><time>${start.toLocaleTimeString(window.FIFA_I18N?.language === "en" ? "en-GB" : "tr-TR", {hour:"2-digit",minute:"2-digit"})}</time><span>${uiCopy("GRUP", "GROUP")} ${match.group} · ${match.stars}★ · MD ${match.matchday}</span><strong>${escapeHTML(players.get(match.homeId)?.name || "–")} <i>VS</i> ${escapeHTML(players.get(match.awayId)?.name || "–")}</strong><em>${index === 0 ? uiCopy("SIRADAKİ", "NEXT") : uiCopy("DİNLENME DENGELİ", "REST-BALANCED")}</em></button>`;
+        return `<button type="button" data-f10draw-action="open-result" data-fixture-id="${escapeHTML(match.id)}" ${isAdmin() ? "" : "disabled"}><b>${String(index + 1).padStart(2, "0")}</b><time>${start.toLocaleTimeString(window.FIFA_I18N?.language === "en" ? "en-GB" : "tr-TR", {hour:"2-digit",minute:"2-digit"})}</time><span>${uiCopy("GRUP", "GROUP")} ${match.group} · ${match.stars}★ · MD ${match.matchday}</span><strong>${escapeHTML(players.get(match.homeId)?.name || "–")} <i>VS</i> ${escapeHTML(players.get(match.awayId)?.name || "–")}</strong><em>${index === 0 ? uiCopy("SIRADAKİ", "NEXT") : escapeHTML(match.evolution?.why || uiCopy("DİNLENME DENGELİ", "REST-BALANCED"))}</em></button>`;
       }).join("") || `<p>${uiCopy("Bütün grup maçları tamamlandı.", "All group matches are complete.")}</p>`}</div>
     </section>`;
   }
@@ -1979,6 +1989,7 @@
       ["broadcast", uiCopy("YAYIN", "BROADCAST")],
       ["awards", uiCopy("ÖDÜLLER & EVREN", "AWARDS & UNIVERSE")],
       ["championship", "CHAMPIONSHIP OS"],
+      ["evolution", "EVOLUTION OS"],
       ["universe", uiCopy("EVREN ZEKÂSI", "UNIVERSE INTELLIGENCE")]
     ];
     const participantCount = draw?.participants?.length || registrationRows().length;
@@ -2003,8 +2014,9 @@
                           : activeTab === "broadcast" ? (draw?.status === "completed" ? renderBroadcastHub(draw) : renderDrawArena(draw))
                             : activeTab === "awards" ? (draw?.status === "completed" ? renderAwardsUniverse(draw) : renderDrawArena(draw))
                               : activeTab === "championship" ? (draw?.status === "completed" ? `<div id="f10ChampionshipOSRoot"></div>` : renderDrawArena(draw))
-                                : activeTab === "universe" ? (draw?.status === "completed" ? `<div id="f10UniverseIntelligenceRoot"></div>` : renderDrawArena(draw))
-                                  : renderDrawArena(draw)
+                                : activeTab === "evolution" ? (draw?.status === "completed" ? `<div id="f10EvolutionOSRoot"></div>` : renderDrawArena(draw))
+                                  : activeTab === "universe" ? (draw?.status === "completed" ? `<div id="f10UniverseIntelligenceRoot"></div>` : renderDrawArena(draw))
+                                    : renderDrawArena(draw)
       }</div>
       <footer class="f10-draw-footer"><span>${uiCopy("GENEL SIRALAMA: PPG → MAÇ BAŞINA AVERAJ → TOPLAM ATILAN GOL → GALİBİYET ORANI → KURA SIRASI", "OVERALL RANKING: PPG → GOAL DIFFERENCE PER MATCH → TOTAL GOALS FOR → WIN RATE → DRAW ORDER")}</span><b>RATE-BASED FAIR TABLE · NO VOLUME ADVANTAGE</b></footer>`;
     const renderSignature = JSON.stringify({
@@ -2056,6 +2068,17 @@
         championshipMount.dataset.fcoReady = "error";
       }
     }
+    const evolutionMount = section.querySelector("#f10EvolutionOSRoot");
+    if (activeTab === "evolution" && draw?.status === "completed" && evolutionMount && (replaced || !evolutionMount.dataset.evoReady)) {
+      try {
+        window.FIFA_EVOLUTION_OS?.render(payload, draw, { mount: evolutionMount });
+        evolutionMount.dataset.evoReady = "true";
+      } catch (error) {
+        console.error("Evolution OS render failed", error);
+        evolutionMount.innerHTML = `<div class="f10-empty">${uiCopy("Evolution OS geçici olarak yüklenemedi. Resmî sonuç girişi etkilenmedi.", "Evolution OS could not load temporarily. Official result entry remains unaffected.")}</div>`;
+        evolutionMount.dataset.evoReady = "error";
+      }
+    }
     patchRegistrationLock(draw);
     syncManualGroupOverlay();
     renderTvOverlay(draw);
@@ -2065,14 +2088,14 @@
     const navLabel = document.querySelector('.os-primary-nav [data-nav="seasonhub"] span');
     if (navLabel && navLabel.textContent !== "Format & Kura") navLabel.textContent = "Format & Kura";
     const version = document.querySelector(".sidebar-version");
-    const versionText = `Football Universe · V${VERSION} · Championship Universe OS`;
+    const versionText = `Football Universe · V${VERSION} · Evolution OS`;
     if (version && version.textContent !== versionText) version.textContent = versionText;
     const meta = document.querySelector('meta[name="fifa9-build"]');
-    const metaValue = `${VERSION}-championship-universe-operating-system`;
+    const metaValue = `${VERSION}-evolution-os`;
     if (meta && meta.content !== metaValue) meta.content = metaValue;
     const url = new URL(location.href);
-    if (url.searchParams.get("fifa9build") !== "471800") {
-      url.searchParams.set("fifa9build", "471800");
+    if (url.searchParams.get("fifa9build") !== "471900") {
+      url.searchParams.set("fifa9build", "471900");
       history.replaceState(history.state, "", url);
     }
     document.querySelectorAll(".f10-format-spine article").forEach(article => {
@@ -2286,10 +2309,10 @@
         persistViewState();
         scheduleRender();
       } else if (action === "print-centre") {
-        window.open("fifa10-print-centre.html?fifa9build=471800", "_blank", "noopener,noreferrer");
+        window.open("fifa10-print-centre.html?fifa9build=471900", "_blank", "noopener,noreferrer");
       } else if (action === "open-broadcast") {
         const mode = ["standings", "latest", "next", "qualification", "lowerthird"].includes(button.dataset.mode) ? button.dataset.mode : "standings";
-        window.open(`fifa10-broadcast.html?fifa9build=471800&mode=${encodeURIComponent(mode)}`, "_blank", "noopener,noreferrer");
+        window.open(`fifa10-broadcast.html?fifa9build=471900&mode=${encodeURIComponent(mode)}`, "_blank", "noopener,noreferrer");
       } else if (action === "open-tv") {
         openTvMode();
       } else if (action === "close-tv") {
@@ -2461,10 +2484,11 @@
       blackBox: () => deepClone(getDraft().blackBox || []),
       championshipState: () => deepClone(getDraft().championshipOS || null),
       championshipOS: () => window.FIFA_CHAMPIONSHIP_OS || null,
+      evolutionOS: () => window.FIFA_EVOLUTION_OS || null,
       universeIntelligence: () => window.FIFA_UNIVERSE_INTELLIGENCE || null,
-      openPrintCentre: () => window.open("fifa10-print-centre.html?fifa9build=471800", "_blank", "noopener,noreferrer"),
-      openBroadcast: mode => window.open(`fifa10-broadcast.html?fifa9build=471800&mode=${encodeURIComponent(mode || "standings")}`, "_blank", "noopener,noreferrer"),
-      openFinalNight: mode => window.open(`fifa10-final-night.html?fifa9build=471800&mode=${encodeURIComponent(mode || "journey")}`, "_blank", "noopener,noreferrer")
+      openPrintCentre: () => window.open("fifa10-print-centre.html?fifa9build=471900", "_blank", "noopener,noreferrer"),
+      openBroadcast: mode => window.open(`fifa10-broadcast.html?fifa9build=471900&mode=${encodeURIComponent(mode || "standings")}`, "_blank", "noopener,noreferrer"),
+      openFinalNight: mode => window.open(`fifa10-final-night.html?fifa9build=471900&mode=${encodeURIComponent(mode || "journey")}`, "_blank", "noopener,noreferrer")
     };
   }
 

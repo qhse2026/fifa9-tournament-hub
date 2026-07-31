@@ -1,4 +1,4 @@
-const CACHE = "oruc-reis-football-universe-v47-18-0-championship-universe-operating-system";
+const CACHE = "oruc-reis-football-universe-v47-19-0-evolution-os";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -15,10 +15,12 @@ const APP_SHELL = [
   "./fifa10-triple-circuit-v4712.css",
   "./fifa10-registration-cloud.js",
   "./fifa10-team-pools.js",
-  "./fifa-universe-intelligence-v4718.css",
-  "./fifa-universe-intelligence-v4718.js",
-  "./fifa-championship-os-v4718.css",
-  "./fifa-championship-os-v4718.js",
+  "./fifa-universe-intelligence-v4719.css",
+  "./fifa-universe-intelligence-v4719.js",
+  "./fifa-championship-os-v4719.css",
+  "./fifa-championship-os-v4719.js",
+  "./fifa-evolution-os-v4719.css",
+  "./fifa-evolution-os-v4719.js",
   "./fifa10-draw-engine-v4713.js",
   "./fifa10-fixture-center.html",
   "./fifa10-print-centre.html",
