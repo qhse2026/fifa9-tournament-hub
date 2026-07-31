@@ -1,8 +1,8 @@
 (() => {
   "use strict";
 
-  const VERSION = "2.0.0";
-  const BUILD = "200000";
+  const VERSION = "2.1.0";
+  const BUILD = "201000";
   const ROUND_ORDER = ["playin", "quarterfinal", "semifinal", "bronze", "final"];
   const SERIES_STARS = Object.freeze([4, 4.5, 5]);
   const STORAGE_KEY = "fifa-tournament-hub-v1";

@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "2.0.0";
+  const VERSION = "2.1.0";
   const STORAGE_KEY = "fifa-tournament-hub-v1";
   const SYNC_HISTORY_KEY = "fifa10-sync-history-v1";
   const GROUPS = Object.freeze(["A", "B", "C"]);
@@ -1141,12 +1141,12 @@
 
   function renderPots(draw) {
     const pots = potRows(draw);
-    return `<div class="f10-draw-pots">${pots.map((rows, index) => `<article class="pot-${index + 1}"><header><span>TORBA</span><b>${index + 1}</b><small>${rows.length}/3</small></header><div>${rows.map(row => `<div><strong>${escapeHTML(row.name)}</strong><span>${row.elo} ELO</span>${draw?.assignments?.find(item => item.playerId === row.id) ? `<em>GRUP ${draw.assignments.find(item => item.playerId === row.id).group}</em>` : ""}</div>`).join("") || "<p>Boş</p>"}</div></article>`).join("")}</div>`;
+    return `<div class="f10-draw-pots">${pots.map((rows, index) => `<article class="pot-${index + 1}"><header><span>TORBA</span><b>${index + 1}</b><small>${rows.length}/3</small></header><div>${rows.map(row => `<div><strong>${escapeHTML(row.name)}</strong><span>${row.elo} FPI</span>${draw?.assignments?.find(item => item.playerId === row.id) ? `<em>GRUP ${draw.assignments.find(item => item.playerId === row.id).group}</em>` : ""}</div>`).join("") || "<p>Boş</p>"}</div></article>`).join("")}</div>`;
   }
 
   function renderGroupMini(group, rows, draw) {
     const isFive = rows.length === 5;
-    return `<article class="f10-draw-group-card group-${group} ${isFive ? "is-five" : ""}"><header><div><span>GROUP</span><strong>${group}</strong></div><b>${rows.length} OYUNCU</b></header><div>${rows.map((row, index) => `<div><i>${index + 1}</i><span><strong>${escapeHTML(row.name)}</strong><small>Torba ${row.pot} · ${row.elo} ELO</small></span></div>`).join("") || `<p>Kura bekleniyor</p>`}</div>${isFive ? `<footer>★ 5 OYUNCULU GRUP · KURA SONUCU</footer>` : ""}</article>`;
+    return `<article class="f10-draw-group-card group-${group} ${isFive ? "is-five" : ""}"><header><div><span>GROUP</span><strong>${group}</strong></div><b>${rows.length} OYUNCU</b></header><div>${rows.map((row, index) => `<div><i>${index + 1}</i><span><strong>${escapeHTML(row.name)}</strong><small>Torba ${row.pot} · ${row.elo} FPI</small></span></div>`).join("") || `<p>Kura bekleniyor</p>`}</div>${isFive ? `<footer>★ 5 OYUNCULU GRUP · KURA SONUCU</footer>` : ""}</article>`;
   }
 
   function renderManualGroupEntry(draw) {
@@ -1159,7 +1159,7 @@
       <div class="f10-manual-summary">${GROUPS.map(group=>`<b>GRUP ${group}<span>${groups[group].length} oyuncu</span></b>`).join("")}<em>Beklenen: ${projectedGroupSizes(players.length).join("-")}</em></div>
       <div class="f10-manual-player-list">${players.map(player=>{
         const selected = GROUPS.find(group => (draw.groups?.[group] || []).includes(player.id)) || "";
-        return `<article><div><small>TORBA ${player.pot} · ${player.elo} ELO</small><strong>${escapeHTML(player.name)}</strong></div><div class="f10-group-choice">${GROUPS.map(group=>`<button type="button" class="${selected===group?"active":""}" data-f10draw-action="manual-assign" data-player-id="${escapeHTML(player.id)}" data-group="${group}">${group}</button>`).join("")}</div></article>`;
+        return `<article><div><small>TORBA ${player.pot} · ${player.elo} FPI</small><strong>${escapeHTML(player.name)}</strong></div><div class="f10-group-choice">${GROUPS.map(group=>`<button type="button" class="${selected===group?"active":""}" data-f10draw-action="manual-assign" data-player-id="${escapeHTML(player.id)}" data-group="${group}">${group}</button>`).join("")}</div></article>`;
       }).join("")}</div>
       <footer><button type="button" data-f10draw-action="reset-draw">Grup Girişini Sıfırla</button><button type="button" class="f10-draw-primary" data-f10draw-action="finalize-manual" ${canFinish?"":"disabled"}>Grupları Kaydet ve Fikstürü Oluştur ↗</button></footer>
     </section>`;
@@ -1194,7 +1194,7 @@
     document.body.classList.add("f10-manual-overlay-open");
     if (!body) return;
     if (manualEntryLoading) {
-      body.innerHTML = `<div class="f10-manual-loading"><i></i><strong>Grup giriş ekranı hazırlanıyor…</strong><span>Kayıtlı oyuncular ve ELO torbaları kontrol ediliyor.</span></div>`;
+      body.innerHTML = `<div class="f10-manual-loading"><i></i><strong>Grup giriş ekranı hazırlanıyor…</strong><span>Kayıtlı oyuncular ve FPI torbaları kontrol ediliyor.</span></div>`;
       return;
     }
     const draw = getDraw();
@@ -1238,14 +1238,14 @@
     if (!draw) {
       const count = registrationRows().length;
       const groupCopy = groupDistributionCopy(count);
-      return `<div class="f10-draw-ready-panel"><div><span>${count} PARTICIPANTS · 5 ELO POTS</span><h4>Turnuvayı şimdi başlat.</h4><p>Kura dışarıda çekildiyse sonuçları elle gir. Henüz çekilmediyse sistem üzerinden otomatik kura yap. ${groupCopy}</p></div>${canManage ? `<div class="f10-start-actions"><button type="button" class="f10-draw-primary" data-f10draw-action="manual-start">Çekilen Grupları Elle Gir ↗</button><button type="button" data-f10draw-action="prepare-draw">Sistem Üzerinden Kura Başlat</button></div>` : `<strong class="f10-public-wait">Yönetici grup sonuçlarını sisteme işleyecek.</strong>`}</div>${renderPots(null)}`;
+      return `<div class="f10-draw-ready-panel"><div><span>${count} PARTICIPANTS · 5 FPI POTS</span><h4>Turnuvayı şimdi başlat.</h4><p>Kura dışarıda çekildiyse sonuçları elle gir. Henüz çekilmediyse sistem üzerinden otomatik kura yap. ${groupCopy}</p></div>${canManage ? `<div class="f10-start-actions"><button type="button" class="f10-draw-primary" data-f10draw-action="manual-start">Çekilen Grupları Elle Gir ↗</button><button type="button" data-f10draw-action="prepare-draw">Sistem Üzerinden Kura Başlat</button></div>` : `<strong class="f10-public-wait">Yönetici grup sonuçlarını sisteme işleyecek.</strong>`}</div>${renderPots(null)}`;
     }
     if (draw.status === "manual-entry") {
       const assigned = new Set(GROUPS.flatMap(group => draw.groups?.[group] || [])).size;
       return `<section class="f10-manual-resume"><div><span>MANUAL DRAW RESULT ENTRY</span><h4>Grup girişi devam ediyor.</h4><p>${assigned}/${draw.participants.length} oyuncu yerleştirildi. Tam ekran operasyon panelini açarak kaldığınız yerden devam edin.</p></div><button type="button" class="f10-draw-primary" data-f10draw-action="open-manual-overlay">Grup Giriş Ekranını Aç ↗</button></section>`;
     }
     return `<div class="f10-draw-stage">
-      <div class="f10-live-reveal ${last ? "has-reveal" : ""}"><span>${draw.status === "completed" ? "FINAL DRAW RESULT" : "LIVE DRAW REVEAL"}</span>${last ? `<small>TORBA ${last.pot}</small><h4>${escapeHTML(last.playerName)}</h4><div>GRUP <b>${last.group}</b></div><em>${last.elo} ELO</em>` : `<h4>Kura başlamaya hazır</h4><p>İlk oyuncu ve grubu güvenli rastgele seçimle belirlenecek.</p>`}<footer><strong>${draw.assignments.length}/${draw.participants.length}</strong><span>${remaining} oyuncu kaldı</span><code>${escapeHTML(draw.drawId)}</code></footer></div>
+      <div class="f10-live-reveal ${last ? "has-reveal" : ""}"><span>${draw.status === "completed" ? "FINAL DRAW RESULT" : "LIVE DRAW REVEAL"}</span>${last ? `<small>TORBA ${last.pot}</small><h4>${escapeHTML(last.playerName)}</h4><div>GRUP <b>${last.group}</b></div><em>${last.elo} FPI</em>` : `<h4>Kura başlamaya hazır</h4><p>İlk oyuncu ve grubu güvenli rastgele seçimle belirlenecek.</p>`}<footer><strong>${draw.assignments.length}/${draw.participants.length}</strong><span>${remaining} oyuncu kaldı</span><code>${escapeHTML(draw.drawId)}</code></footer></div>
       <div class="f10-draw-controls">${canManage && draw.entryMode !== "official-fixed-groups" && draw.status !== "completed" ? `<button type="button" class="f10-draw-primary" data-f10draw-action="draw-next" ${moduleBusy || autoDrawing ? "disabled" : ""}>Sıradaki Oyuncuyu Çek</button><button type="button" data-f10draw-action="auto-draw" ${moduleBusy ? "disabled" : ""}>${autoDrawing ? "Otomatik Kurayı Durdur" : "Otomatik Kura"}</button><button type="button" data-f10draw-action="switch-manual">Çekilen Grupları Elle Gir</button>` : ""}${canManage && draw.entryMode !== "official-fixed-groups" ? `${draw.status === "completed" && !(draw.fixtures || []).some(match => match.completed) ? `<button type="button" data-f10draw-action="switch-manual">Grupları Düzenle</button>` : ""}<button type="button" data-f10draw-action="reset-draw">Kurayı Sıfırla</button><button type="button" class="danger" data-f10draw-action="reopen-registration">Kayıtlara Dön</button>` : ""}</div>
       <div class="f10-draw-group-grid">${GROUPS.map(group => renderGroupMini(group, groups[group], draw)).join("")}</div>
       <div class="f10-draw-log"><header><span>KURA KAYDI</span><strong>${draw.assignments.length} işlem</strong></header><div>${[...(draw.assignments || [])].reverse().slice(0, draw.participants.length).map(item => `<div><i>${String(item.sequence).padStart(2, "0")}</i><span><strong>${escapeHTML(item.playerName)}</strong><small>Torba ${item.pot}</small></span><b>GRUP ${item.group}</b></div>`).join("") || `<p>Henüz çekim yapılmadı.</p>`}</div></div>
@@ -1254,7 +1254,7 @@
 
   function renderGroupTables(draw) {
     const groups = currentGroups(draw);
-    return `<section><div class="f10-groups-rule"><span>OFFICIAL DRAW RESULT</span><strong>Grup içi puan tablosu kullanılmaz.</strong><p>Bütün oyuncular maç başına puan ortalamasıyla tek Genel Puan tablosunda sıralanır.</p></div><div class="f10-groups-full">${GROUPS.map(group => `<article class="f10-group-full group-${group}"><header><div><span>GROUP</span><strong>${group}</strong></div><b>${groups[group].length} OYUNCU</b></header><div class="f10-group-members">${groups[group].map(row => `<div><strong>${escapeHTML(row.name)}</strong><span>Torba ${row.pot} · ${row.elo} ELO</span></div>`).join("")}</div></article>`).join("")}</div></section>`;
+    return `<section><div class="f10-groups-rule"><span>OFFICIAL DRAW RESULT</span><strong>Grup içi puan tablosu kullanılmaz.</strong><p>Bütün oyuncular maç başına puan ortalamasıyla tek Genel Puan tablosunda sıralanır.</p></div><div class="f10-groups-full">${GROUPS.map(group => `<article class="f10-group-full group-${group}"><header><div><span>GROUP</span><strong>${group}</strong></div><b>${groups[group].length} OYUNCU</b></header><div class="f10-group-members">${groups[group].map(row => `<div><strong>${escapeHTML(row.name)}</strong><span>Torba ${row.pot} · ${row.elo} FPI</span></div>`).join("")}</div></article>`).join("")}</div></section>`;
   }
 
   function resolvePlayer(draw, reference = selectedPlayerRef) {
@@ -1308,7 +1308,7 @@
     return `<section class="f10-player-centre">
       <header><div><span>PLAYER MATCH CENTRE</span><h4>${uiCopy("Oyuncu Maç Merkezi", "Player Match Centre")}</h4><p>${uiCopy("Kişisel fikstür, kullanılan takımlar ve genel sıralamadaki yol tek ekranda.", "Personal fixtures, used teams and the overall-table path in one screen.")}</p></div><b>${completed.length}/${matches.length} ${uiCopy("MAÇ", "MATCHES")}</b></header>
       <nav class="f10-player-selector">${players.map(player => `<button type="button" class="${player.id === selected.id ? "active" : ""}" data-f10draw-action="select-player" data-player-id="${escapeHTML(player.id)}">${escapeHTML(player.name)}</button>`).join("")}</nav>
-      <div class="f10-player-identity"><div><span>${uiCopy("GRUP", "GROUP")} ${group}</span><h5>${escapeHTML(selected.name)}</h5><small>${selected.elo} ELO</small></div><dl><div><dt>${uiCopy("Sıra", "Rank")}</dt><dd>#${tableRow?.rank || "–"}</dd></div><div><dt>PPG</dt><dd>${(tableRow?.ppg || 0).toFixed(3)}</dd></div><div><dt>${uiCopy("AV/M", "GD/M")}</dt><dd>${(tableRow?.gdPerMatch || 0) > 0 ? "+" : ""}${(tableRow?.gdPerMatch || 0).toFixed(3)}</dd></div><div><dt>${uiCopy("Yol", "Path")}</dt><dd class="path-${qualification.key}">${uiCopy(qualification.label, qualification.key === "direct" ? "DIRECT QF" : qualification.key === "playin" ? "CHAMPIONSHIP PLAY-IN" : "ELIMINATED")}</dd></div></dl></div>
+      <div class="f10-player-identity"><div><span>${uiCopy("GRUP", "GROUP")} ${group}</span><h5>${escapeHTML(selected.name)}</h5><small>${selected.elo} FPI</small></div><dl><div><dt>${uiCopy("Sıra", "Rank")}</dt><dd>#${tableRow?.rank || "–"}</dd></div><div><dt>PPG</dt><dd>${(tableRow?.ppg || 0).toFixed(3)}</dd></div><div><dt>${uiCopy("AV/M", "GD/M")}</dt><dd>${(tableRow?.gdPerMatch || 0) > 0 ? "+" : ""}${(tableRow?.gdPerMatch || 0).toFixed(3)}</dd></div><div><dt>${uiCopy("Yol", "Path")}</dt><dd class="path-${qualification.key}">${uiCopy(qualification.label, qualification.key === "direct" ? "DIRECT QF" : qualification.key === "playin" ? "CHAMPIONSHIP PLAY-IN" : "ELIMINATED")}</dd></div></dl></div>
       ${next ? `<section class="f10-next-match"><div><span>${uiCopy("SIRADAKİ MAÇ", "NEXT MATCH")}</span><strong>${next.stars}★ · ${escapeHTML(localizedLegLabel(next))} · MD ${next.matchday}</strong><h5>${escapeHTML(selected.name)} <i>VS</i> ${escapeHTML(fixtureOpponent(draw, next, selected.id))}</h5></div>${isAdmin() ? `<button type="button" data-f10draw-action="open-result" data-fixture-id="${escapeHTML(next.id)}">${uiCopy("SONUÇ GİR ↗", "ENTER RESULT ↗")}</button>` : ""}</section>` : `<section class="f10-next-match complete"><strong>${uiCopy("Bütün grup maçları tamamlandı.", "All group matches are complete.")}</strong></section>`}
       <div class="f10-player-tier-grid">${tierCards}</div>
       <div class="f10-player-match-columns"><section><header><strong>${uiCopy("Kalan Maçlar", "Remaining Matches")}</strong><span>${pending.length}</span></header><div>${pending.map(matchCard).join("") || `<p>${uiCopy("Kalan maç yok.", "No matches remaining.")}</p>`}</div></section><section><header><strong>${uiCopy("Tamamlanan Maçlar", "Completed Matches")}</strong><span>${completed.length}</span></header><div>${[...completed].reverse().map(matchCard).join("") || `<p>${uiCopy("Henüz tamamlanan maç yok.", "No completed matches yet.")}</p>`}</div></section></div>
@@ -1751,7 +1751,7 @@
       upsets.push({ player: winner, eloGap: Number(loser.elo || 0) - Number(winner.elo || 0), match });
     });
     const giantKiller = best(upsets.filter(item => item.eloGap > 0), (a, b) => b.eloGap - a.eloGap || b.match.stars - a.match.stars);
-    add("giant-killer", "Dev Avcısı", "Giant Killer", giantKiller, giantKiller ? `+${giantKiller.eloGap} ELO sürprizi` : "", giantKiller ? `+${giantKiller.eloGap} ELO upset` : "");
+    add("giant-killer", "Dev Avcısı", "Giant Killer", giantKiller, giantKiller ? `+${giantKiller.eloGap} FPI sürprizi` : "", giantKiller ? `+${giantKiller.eloGap} FPI upset` : "");
     return result;
   }
 
@@ -1996,7 +1996,7 @@
     const sizeText = projectedGroupSizes(participantCount).join("-");
     const fixedGroups = draw?.entryMode === "official-fixed-groups";
     const completedCount = draw?.fixtures?.filter(match => match.completed).length || 0;
-    const html = `<header class="f10-draw-hero"><div><span>FIFA 10 · TOURNAMENT OPERATIONS</span><h3>${fixedGroups ? uiCopy("Resmî fikstür.", "Official fixtures.") : uiCopy("Kura çekimi.", "Group draw.")}<br><em>${uiCopy("Üç grup, tek sıralama.", "Three groups, one table.")}</em></h3><p>${fixedGroups ? uiCopy(`A, B ve C grupları kesinleşti. ${draw.fixtures?.length || 78} maçlık 4★, 4.5★ ve 5★ devreleri bu merkezden yönetilir; her sonuç bütün FIFA evrenine aynı anda işlenir.`, `Groups A, B and C are confirmed. The ${draw.fixtures?.length || 78}-match 4★, 4.5★ and 5★ circuits are managed here; every result updates the entire FIFA universe at once.`) : uiCopy(`${participantCount} katılımcı ELO torbalarından canlı kurayla A, B ve C gruplarına dağıtılır. Beklenen grup dağılımı ${sizeText}; hangi grupların büyük olacağı yalnızca kura sırasında belirlenir.`, `${participantCount} participants are assigned from ELO pots to Groups A, B and C in the live draw. The projected group distribution is ${sizeText}; the larger groups are determined only by the draw.`)}</p></div><aside class="status-${status.key}"><i></i><strong>${status.label}</strong><small>${fixedGroups ? uiCopy(`${completedCount}/${draw.fixtures?.length || 78} sonuç işlendi`, `${completedCount}/${draw.fixtures?.length || 78} results recorded`) : status.note}</small>${draw?.fivePlayerGroups?.length ? `<b>${uiCopy(`5 OYUNCULU GRUP${draw.fivePlayerGroups.length > 1 ? "LAR" : ""}`, `5-PLAYER GROUP${draw.fivePlayerGroups.length > 1 ? "S" : ""}`)} · ${draw.fivePlayerGroups.join(" / ")}</b>` : `<b>${uiCopy("GRUP BÜYÜKLÜKLERİ · KURADA", "GROUP SIZES · DECIDED IN DRAW")}</b>`}</aside></header>
+    const html = `<header class="f10-draw-hero"><div><span>FIFA 10 · TOURNAMENT OPERATIONS</span><h3>${fixedGroups ? uiCopy("Resmî fikstür.", "Official fixtures.") : uiCopy("Kura çekimi.", "Group draw.")}<br><em>${uiCopy("Üç grup, tek sıralama.", "Three groups, one table.")}</em></h3><p>${fixedGroups ? uiCopy(`A, B ve C grupları kesinleşti. ${draw.fixtures?.length || 78} maçlık 4★, 4.5★ ve 5★ devreleri bu merkezden yönetilir; her sonuç bütün FIFA evrenine aynı anda işlenir.`, `Groups A, B and C are confirmed. The ${draw.fixtures?.length || 78}-match 4★, 4.5★ and 5★ circuits are managed here; every result updates the entire FIFA universe at once.`) : uiCopy(`${participantCount} katılımcı FPI torbalarından canlı kurayla A, B ve C gruplarına dağıtılır. Beklenen grup dağılımı ${sizeText}; hangi grupların büyük olacağı yalnızca kura sırasında belirlenir.`, `${participantCount} participants are assigned from FPI pots to Groups A, B and C in the live draw. The projected group distribution is ${sizeText}; the larger groups are determined only by the draw.`)}</p></div><aside class="status-${status.key}"><i></i><strong>${status.label}</strong><small>${fixedGroups ? uiCopy(`${completedCount}/${draw.fixtures?.length || 78} sonuç işlendi`, `${completedCount}/${draw.fixtures?.length || 78} results recorded`) : status.note}</small>${draw?.fivePlayerGroups?.length ? `<b>${uiCopy(`5 OYUNCULU GRUP${draw.fivePlayerGroups.length > 1 ? "LAR" : ""}`, `5-PLAYER GROUP${draw.fivePlayerGroups.length > 1 ? "S" : ""}`)} · ${draw.fivePlayerGroups.join(" / ")}</b>` : `<b>${uiCopy("GRUP BÜYÜKLÜKLERİ · KURADA", "GROUP SIZES · DECIDED IN DRAW")}</b>`}</aside></header>
       <nav class="f10-draw-tabs">${tabs.map(([id, label]) => `<button type="button" class="${activeTab === id ? "active" : ""}" data-f10draw-action="tab" data-tab="${id}" ${!draw && id !== "draw" ? "disabled" : ""}>${label}</button>`).join("")}${draw?.status === "completed" ? `<button type="button" class="f10-tv-launch" data-f10draw-action="open-tv">${uiCopy("TV MODU", "TV MODE")} ↗</button><button type="button" class="f10-print-launch" data-f10draw-action="print-centre">${uiCopy("YAZDIRMA MERKEZİ", "PRINT CENTRE")} ↗</button>` : ""}</nav>
       <div class="f10-operation-notice ${operationNotice.type || "info"}"><strong>${operationNotice.type === "success" ? "✓" : operationNotice.type === "warning" ? "!" : "i"}</strong><span>${escapeHTML(operationNotice.text || "")}</span></div>
       ${draw?.status === "completed" ? renderSyncStatus() : ""}
@@ -2094,8 +2094,8 @@
     const metaValue = `${VERSION}-evolution-os`;
     if (meta && meta.content !== metaValue) meta.content = metaValue;
     const url = new URL(location.href);
-    if (url.searchParams.get("fifa9build") !== "200000") {
-      url.searchParams.set("fifa9build", "200000");
+    if (url.searchParams.get("fifa9build") !== "201000") {
+      url.searchParams.set("fifa9build", "201000");
       history.replaceState(history.state, "", url);
     }
     document.querySelectorAll(".f10-format-spine article").forEach(article => {
@@ -2115,14 +2115,14 @@
       }
     });
     const footer = document.querySelector("#fifa10Registration > footer span");
-    const footerText = "Torbalar ELO sırasıyla 3'er oyuncu olarak doldu. Dört tam torbadan her gruba birer oyuncu gidecek; Torba 5 oyuncusunun çekildiği grup 5 kişilik olacak.";
+    const footerText = "Torbalar FPI Rating sırasıyla 3'er oyuncu olarak doldu. Dört tam torbadan her gruba birer oyuncu gidecek; Torba 5 oyuncusunun çekildiği grup 5 kişilik olacak.";
     if (footer && footer.textContent !== footerText) footer.textContent = footerText;
     document.querySelectorAll(".f10-elo-explainer article").forEach(article => {
       const value = article.querySelector(":scope > span");
       const copy = article.querySelector("p");
-      if (value?.textContent?.trim() === "1500" || copy?.textContent?.includes("1500 ELO")) {
+      if (value?.textContent?.trim() === "1500" || copy?.textContent?.includes("1500 ELO") || copy?.textContent?.includes("1500 FPI")) {
         if (value) value.textContent = String(NEW_PLAYER_ELO);
-        if (copy) copy.textContent = `Yeni oyuncular sisteme ${NEW_PLAYER_ELO} ELO ile girer.`;
+        if (copy) copy.textContent = `Yeni oyuncular sisteme ${NEW_PLAYER_ELO} geçici FPI Rating ile girer.`;
       }
     });
   }
@@ -2309,10 +2309,10 @@
         persistViewState();
         scheduleRender();
       } else if (action === "print-centre") {
-        window.open("fifa10-print-centre.html?fifa9build=200000", "_blank", "noopener,noreferrer");
+        window.open("fifa10-print-centre.html?fifa9build=201000", "_blank", "noopener,noreferrer");
       } else if (action === "open-broadcast") {
         const mode = ["standings", "latest", "next", "qualification", "lowerthird"].includes(button.dataset.mode) ? button.dataset.mode : "standings";
-        window.open(`fifa10-broadcast.html?fifa9build=200000&mode=${encodeURIComponent(mode)}`, "_blank", "noopener,noreferrer");
+        window.open(`fifa10-broadcast.html?fifa9build=201000&mode=${encodeURIComponent(mode)}`, "_blank", "noopener,noreferrer");
       } else if (action === "open-tv") {
         openTvMode();
       } else if (action === "close-tv") {
@@ -2405,7 +2405,7 @@
     draft.status = "registration";
     draft.updatedAt = nowISO();
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    notify(`${name} FIFA 10'a ${NEW_PLAYER_ELO} ELO ile kaydedildi.`, "success");
+    notify(`${name} FIFA 10'a ${NEW_PLAYER_ELO} geçici FPI Rating ile kaydedildi.`, "success");
     setTimeout(() => location.reload(), 450);
   }
 
@@ -2486,9 +2486,9 @@
       championshipOS: () => window.FIFA_CHAMPIONSHIP_OS || null,
       evolutionOS: () => window.FIFA_EVOLUTION_OS || null,
       universeIntelligence: () => window.FIFA_UNIVERSE_INTELLIGENCE || null,
-      openPrintCentre: () => window.open("fifa10-print-centre.html?fifa9build=200000", "_blank", "noopener,noreferrer"),
-      openBroadcast: mode => window.open(`fifa10-broadcast.html?fifa9build=200000&mode=${encodeURIComponent(mode || "standings")}`, "_blank", "noopener,noreferrer"),
-      openFinalNight: mode => window.open(`fifa10-final-night.html?fifa9build=200000&mode=${encodeURIComponent(mode || "journey")}`, "_blank", "noopener,noreferrer")
+      openPrintCentre: () => window.open("fifa10-print-centre.html?fifa9build=201000", "_blank", "noopener,noreferrer"),
+      openBroadcast: mode => window.open(`fifa10-broadcast.html?fifa9build=201000&mode=${encodeURIComponent(mode || "standings")}`, "_blank", "noopener,noreferrer"),
+      openFinalNight: mode => window.open(`fifa10-final-night.html?fifa9build=201000&mode=${encodeURIComponent(mode || "journey")}`, "_blank", "noopener,noreferrer")
     };
   }
 

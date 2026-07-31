@@ -1,8 +1,8 @@
 (() => {
   "use strict";
 
-  const VERSION = "2.0.0";
-  const BUILD = "200000";
+  const VERSION = "2.1.0";
+  const BUILD = "201000";
   const ROUTES = new Set(["dashboard", "livehub", "tournaments", "playershub", "recordshub", "mediahub", "adminhub"]);
   let mode = localStorage.getItem("fifa-universe-v2-mode") || "spectator";
   let selectedPlayer = localStorage.getItem("fifa-universe-v2-player") || "";
@@ -137,6 +137,13 @@
     </section>`;
   }
 
+  function fpiTicker() {
+    const rows = app()?.buildFpiAnalytics?.()?.players || [];
+    if (!rows.length) return "";
+    const items = rows.map(row => `<button type="button" data-v2-player-open="${esc(row.name)}"><i>${row.rank}</i><strong>${esc(row.name)}</strong><b>${row.rating}</b><span>${Number(row.fpi?.score || 50).toFixed(1)}/100</span><em class="${row.last5Change >= 0 ? "up" : "down"}">${row.last5Change >= 0 ? "▲" : "▼"}${Math.abs(row.last5Change || 0)}</em><small>${esc(row.tier?.label || "FPI")}</small></button>`).join("");
+    return `<section class="v2-fpi-ticker" aria-label="${ui("FIFA Player Index canlı sıralaması", "FIFA Player Index live ranking")}"><header><span><i></i> FPI LIVE</span><strong>FIFA PLAYER STANDING</strong><button type="button" data-action="open-fpi-centre" data-v2-fpi-centre>${ui("DETAYLI MODEL", "FULL MODEL")} ↗</button></header><div class="v2-fpi-viewport"><div class="v2-fpi-track">${items}<div class="v2-fpi-repeat" aria-hidden="true">${items}</div></div></div><footer><span>RATING</span><i></i><span>FPI/100</span><i></i><span>${ui("SON 5 HAREKETİ", "LAST-5 MOVEMENT")}</span><i></i><span>${ui("MODEL GÜVENİ PASAPORTTA", "MODEL CONFIDENCE IN PASSPORT")}</span></footer></section>`;
+  }
+
   function pageIntro(eyebrow, title, copy, aside = "") {
     return `<header class="v2-page-intro"><div><span>${eyebrow}</span><h2>${title}</h2><p>${copy}</p></div>${aside}</header>`;
   }
@@ -192,7 +199,7 @@
     const equity = evolution()?.equityTimeline?.(currentPayload(), draw);
     const favorite = (equity?.players || []).map(player => ({ ...player, current: player.points?.at(-1)?.titlePct || 0 })).sort((a, b) => b.current - a.current)[0];
     const currentMode = safeMode();
-    mount.innerHTML = `<div class="v2-page v2-home">${routeNav("dashboard")}${modeBar(data, "dashboard")}
+    mount.innerHTML = `<div class="v2-page v2-home">${routeNav("dashboard")}${modeBar(data, "dashboard")}${fpiTicker()}
       <section class="v2-home-hero stage-${stage.key}"><div class="copy"><span><i></i>${esc(stage.label)}</span><h2>${currentMode === "admin" ? ui("Turnuvayı yönet.\nOyunu durdurma.", "Run the tournament.\nNever stop play.") : currentMode === "player" ? ui("Sıradaki maçını bil.\nKariyerini gör.", "Know your next match.\nSee your career.") : ui("Şu anda ne oluyor?", "What is happening now?")}</h2><p>${ui("FIFA 01'den canlı FIFA 10'a kadar bütün sonuçlar, oyuncular ve hikâyeler tek ve anlaşılır bir evrende.", "Every result, player and story from FIFA 01 to live FIFA 10 in one clear universe.")}</p><div class="actions"><button type="button" data-nav="livehub">${ui("Canlı merkezi aç", "Open Live Centre")}</button><button type="button" data-nav="tournaments">${ui("Turnuvaya git", "Go to Tournament")}</button></div></div>
       <aside><div class="v2-progress-orbit" style="--progress:${clamp(stage.progress)}"><strong>${stage.completed}</strong><span>/${stage.total}</span><small>${ui("GRUP MAÇI", "GROUP MATCHES")}</small></div><div><article><span>LINEAL CROWN</span><b>${esc(crown.holder || "–")}</b></article><article><span>${ui("ŞAMPİYONLUK FAVORİSİ", "TITLE FAVOURITE")}</span><b>${esc(favorite?.name || "–")}</b><small>${favorite ? pct(favorite.current) : "–"}</small></article></div></aside></section>
       ${currentMode === "admin" ? adminToday(data, draw, true) : currentMode === "player" ? playerCockpit(data, draw) : ""}

@@ -1,4 +1,4 @@
-const CACHE = "oruc-reis-fifa-universe-v2-0-0";
+const CACHE = "oruc-reis-fifa-universe-v2-1-0-fpi";
 const APP_SHELL = [
   "./",
   "./index.html",
