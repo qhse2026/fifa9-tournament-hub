@@ -1,0 +1,37 @@
+ORUÇ REİS FIFA UNIVERSE — V2.1.0 FPI VALIDATION
+BUILD 201000
+DATE 31.07.2026
+
+PASS  JavaScript syntax: app, V2 shell, language pack and FIFA 10 engine
+PASS  CSS brace balance: styles.css and fifa-universe-v2.css
+PASS  Universe V2 contract: 7 routes, 3 experience modes, 6 primary centres
+PASS  FPI public API: 21 ranked historical players in the validation dataset
+PASS  FPI/100 range: every score remains within 0–100
+PASS  FPI confidence range: every value remains within 18–99
+PASS  FPI model contract: 6 signals and exactly 100% total weight
+PASS  FPI context: opposition Rating and recent-match ledger available
+PASS  FPI ticker: complete ranking duplicated for seamless continuous movement
+PASS  FPI dossier: selectable player rows and complete six-signal explanation
+PASS  FPI English centre: full English explanation and GD/M transparency note
+PASS  Official draw read-only guard: analytical navigation makes no state mutation
+PASS  Connected Universe: 78 fixtures, 14 players, fixed 5-4-5 groups
+PASS  Standings fairness: equal PPG resolved by average goal difference
+PASS  Qualification: Top 4 direct QF; 5–12 Best of 3; 13–14 eliminated
+PASS  English package: 21 live FIFA 10 operation surfaces audited
+PASS  Manual group entry survives application rerender
+PASS  Cloud save queue serialisation and retry behavior
+PASS  Print Centre: 14 player QR links and 420 editable team cells
+PASS  Broadcast: 5 OBS scenes and transparent background
+PASS  Final Night: 6 English scenes and live-series support
+PASS  Single shared authentication client
+PASS  Team pools: 76 men's teams, zero women's teams, zero duplicates
+PASS  Fixture Centre: 78 fixtures, PPG and GD/M display
+PASS  Media Hub and QR links target build 201000
+PASS  Service worker cache advanced to V2.1.0
+PASS  cloud-config.js SHA-256 preserved:
+      688bbf3cde40da2ab1caf1d37d03b91e6443822b9d53fac4dcfe44bf4f033a45
+
+OPTIONAL VISUAL BROWSER TEST
+The Chromium-only visual smoke script is not part of the automated container run
+because no Chromium binary is installed. Equivalent DOM, responsive-contract,
+English and state-mutation tests passed in JSDOM.

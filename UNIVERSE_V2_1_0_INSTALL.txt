@@ -1,0 +1,26 @@
+ORUÇ REİS FIFA UNIVERSE — V2.1.0 FIFA PLAYER INDEX
+BUILD 201000
+
+INSTALLATION
+
+1. Extract the release ZIP.
+2. Upload the complete folder contents to the existing Vercel project root.
+3. Do not omit service-worker.js, styles.css, fifa-universe-v2.css,
+   fifa-universe-v2.js, app.js or language.js.
+4. Keep the included cloud-config.js unchanged.
+5. After deployment, open:
+   https://fifa9-tournament-hub.vercel.app/?fifa9build=201000
+6. On the first device load, perform one hard refresh so the V2.1.0
+   service-worker cache replaces the previous application shell.
+
+EXPECTED RESULT
+
+- Universe Home displays the continuously scrolling FPI LIVE ticker.
+- Zekâ ve Modeller > FPI opens the complete FIFA Player Index Centre.
+- FIFA Player Standing rows open a player dossier.
+- English mode displays the complete FPI explanation in English.
+- FIFA 10 standings remain PPG -> GD/M; FPI remains the seeding/strength layer.
+
+NO DATABASE MIGRATION IS REQUIRED.
+Existing match results, player history, group draw and registration records remain compatible.
+
