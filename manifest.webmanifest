@@ -1,11 +1,16 @@
 {
-  "name": "Oruç Reis FIFA Universe 2.2",
-  "short_name": "FIFA Universe",
+  "name": "Oruç Reis FIFA Universe 3.0 · Standing Universe",
+  "short_name": "Standing Universe",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#06111f",
   "theme_color": "#06111f",
   "icons": [
-    {"src":"assets/f10-mark.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}
+    {
+      "src": "assets/f10-mark.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
   ]
 }

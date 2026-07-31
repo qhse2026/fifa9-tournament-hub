@@ -1,0 +1,22 @@
+ORUÇ REİS FIFA UNIVERSE V3.0.0 — STANDING UNIVERSE
+
+1. ZIP dosyasını çıkarın.
+2. Klasörün tamamını mevcut Vercel/GitHub deployment alanına yükleyin.
+3. İlk açılışta siteyi aşağıdaki parametreyle bir kez açın:
+   ?fifa9build=300000
+4. Player Standing merkezini açın.
+5. Mevcut Standing ekranının altında yeni PLAYER STANDING UNIVERSE modülü görünecektir.
+
+YENİ SEKME YAPISI
+- UNIVERSE
+- STANDING RACE
+- IMPACT LAB
+- RIVALRY
+- LEGACY
+- INTEGRITY
+
+ÖNEMLİ
+- Veritabanı migration gerekmez.
+- Mevcut sonuçlar, oyuncular ve kayıtlar silinmez.
+- Yeni oyuncular 1350 PROVISIONAL Rating ile sisteme dahil edilir.
+- V2.2 Standing Rating çekirdeği resmî sıralama kaynağı olarak korunur.
