@@ -1,0 +1,41 @@
+ORUÇ REİS FIFA UNIVERSE — V2.0.0 VALIDATION
+BUILD 200000
+
+PASS  JavaScript syntax: app, language and Universe V2 modules
+PASS  CSS structural brace validation
+PASS  Six-centre desktop navigation
+PASS  Five-destination mobile navigation
+PASS  Three-cluster command drawer
+PASS  Seven Universe V2 routes
+PASS  Spectator, Player and Admin experience modes
+PASS  Stage-aware Universe Home
+PASS  Live Hub results and optimized next-match feed
+PASS  FIFA 01–10 Tournament Hub
+PASS  Universal Player Passport and career timeline
+PASS  All-Time, Lineal Crown, living records and milestones
+PASS  Media Hub links use build 200000
+PASS  Admin Today schedule and Integrity Sentinel
+PASS  Notification Centre deduplicates repeated sync events
+PASS  Complete English copy across all seven V2 centres
+PASS  Official FIFA 10 draw remains read-only in V2 views
+PASS  78-match Triple Circuit regression
+PASS  PPG and average goal-difference fairness regression
+PASS  4★ / 4.5★ / 5★ men-only team pools
+PASS  Manual group overlay survives application re-render
+PASS  Realtime database echo does not create endless toasts
+PASS  Cloud save queue serialization and timeout retry
+PASS  Single shared authentication client
+PASS  Print Centre: numberless fixtures, 14 player QR links, 420 editable cells
+PASS  Broadcast: 5 OBS scenes
+PASS  Final Night: 6 scenes and current build
+PASS  Fixture Centre and cloud namespace
+PASS  Existing FIFA 09/FIFA 10 Universe, Championship and Evolution engines
+PASS  cloud-config.js SHA-256 preserved:
+      688bbf3cde40da2ab1caf1d37d03b91e6443822b9d53fac4dcfe44bf4f033a45
+
+ENVIRONMENT NOTE
+
+The optional Playwright screenshot test could not start because this execution
+environment does not contain the Chromium binary. The same manual-group overlay,
+mobile rules and re-render survival contract passed in the JSDOM regression test.
+

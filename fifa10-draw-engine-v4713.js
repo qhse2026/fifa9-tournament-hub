@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "47.19.0";
+  const VERSION = "2.0.0";
   const STORAGE_KEY = "fifa-tournament-hub-v1";
   const SYNC_HISTORY_KEY = "fifa10-sync-history-v1";
   const GROUPS = Object.freeze(["A", "B", "C"]);
@@ -2094,8 +2094,8 @@
     const metaValue = `${VERSION}-evolution-os`;
     if (meta && meta.content !== metaValue) meta.content = metaValue;
     const url = new URL(location.href);
-    if (url.searchParams.get("fifa9build") !== "471900") {
-      url.searchParams.set("fifa9build", "471900");
+    if (url.searchParams.get("fifa9build") !== "200000") {
+      url.searchParams.set("fifa9build", "200000");
       history.replaceState(history.state, "", url);
     }
     document.querySelectorAll(".f10-format-spine article").forEach(article => {
@@ -2309,10 +2309,10 @@
         persistViewState();
         scheduleRender();
       } else if (action === "print-centre") {
-        window.open("fifa10-print-centre.html?fifa9build=471900", "_blank", "noopener,noreferrer");
+        window.open("fifa10-print-centre.html?fifa9build=200000", "_blank", "noopener,noreferrer");
       } else if (action === "open-broadcast") {
         const mode = ["standings", "latest", "next", "qualification", "lowerthird"].includes(button.dataset.mode) ? button.dataset.mode : "standings";
-        window.open(`fifa10-broadcast.html?fifa9build=471900&mode=${encodeURIComponent(mode)}`, "_blank", "noopener,noreferrer");
+        window.open(`fifa10-broadcast.html?fifa9build=200000&mode=${encodeURIComponent(mode)}`, "_blank", "noopener,noreferrer");
       } else if (action === "open-tv") {
         openTvMode();
       } else if (action === "close-tv") {
@@ -2486,9 +2486,9 @@
       championshipOS: () => window.FIFA_CHAMPIONSHIP_OS || null,
       evolutionOS: () => window.FIFA_EVOLUTION_OS || null,
       universeIntelligence: () => window.FIFA_UNIVERSE_INTELLIGENCE || null,
-      openPrintCentre: () => window.open("fifa10-print-centre.html?fifa9build=471900", "_blank", "noopener,noreferrer"),
-      openBroadcast: mode => window.open(`fifa10-broadcast.html?fifa9build=471900&mode=${encodeURIComponent(mode || "standings")}`, "_blank", "noopener,noreferrer"),
-      openFinalNight: mode => window.open(`fifa10-final-night.html?fifa9build=471900&mode=${encodeURIComponent(mode || "journey")}`, "_blank", "noopener,noreferrer")
+      openPrintCentre: () => window.open("fifa10-print-centre.html?fifa9build=200000", "_blank", "noopener,noreferrer"),
+      openBroadcast: mode => window.open(`fifa10-broadcast.html?fifa9build=200000&mode=${encodeURIComponent(mode || "standings")}`, "_blank", "noopener,noreferrer"),
+      openFinalNight: mode => window.open(`fifa10-final-night.html?fifa9build=200000&mode=${encodeURIComponent(mode || "journey")}`, "_blank", "noopener,noreferrer")
     };
   }
 

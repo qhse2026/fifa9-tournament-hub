@@ -77,7 +77,13 @@
   const toastStack = $("#toastStack");
 
   const titleMap = {
-    dashboard: "FIFA 10 Ana Merkezi",
+    dashboard: "FIFA Universe 2.0",
+    livehub: "Canlı Turnuva Merkezi",
+    tournaments: "Turnuvalar",
+    playershub: "Oyuncu Evreni",
+    recordshub: "Tüm Zamanlar",
+    mediahub: "Medya ve Yayın",
+    adminhub: "Yönetici · Bugün",
     livematch: "Canlı Maç Merkezi",
     livestats: "Canlı İstatistikler",
     form: "Form Merkezi",
@@ -305,7 +311,7 @@
       if (!Object.keys(results).length) throw new Error("Aktarılacak sonuç bulunamadı.");
       history.replaceState(history.state, "", `${location.pathname}${location.search}`);
       return {
-        version: "47.19.0",
+        version: "2.0.0",
         updatedAt: new Date().toISOString(),
         transferredFrom: "fifa10-emergency-fixture-centre",
         groups: Object.fromEntries(Object.entries(FIFA10_FIXED_GROUPS).map(([group, names]) => [group, [...names]])),
@@ -2324,7 +2330,7 @@
     };
     state.fifa10StandaloneOperations = {
       ...previous,
-      version: "47.19.0",
+      version: "2.0.0",
       updatedAt: now,
       groups: Object.fromEntries(Object.entries(FIFA10_FIXED_GROUPS).map(([group, names]) => [group, [...names]])),
       results
@@ -2980,6 +2986,7 @@
     refreshKnockout();
     const liveNav = document.querySelector('[data-nav="livematch"]');
     if (liveNav) liveNav.classList.toggle("has-live", Boolean(state.current.live?.active));
+    if (window.FIFA_UNIVERSE_V2?.renderView?.(activeView, view)) return;
     switch (activeView) {
       case "livematch": renderLiveMatchCentre(); break;
       case "livestats": renderLiveStatistics(); break;

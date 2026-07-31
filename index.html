@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#050d22" />
   <meta name="description" content="FIFA Turnuva Merkezi — canlı skor, Elo gücü, Power Exchange, mental baskı analizi, Destiny Path, Live Match Pulse, Broadcast Mode, TV / projektör görünümü, canlı xT, oyuncu ısı rozetleri, AI Tournament Director ve dinamik turnuva simülasyonu." />
-  <meta name="fifa9-build" content="47.19.0-evolution-os" />
+  <meta name="fifa9-build" content="2.0.0-universe-os" />
   <script>
   (()=>{
-    const BUILD="47.19.0-evolution-os";
+    const BUILD="2.0.0-universe-os";
     const KEY="fifa9-active-build";
     if(localStorage.getItem(KEY)===BUILD) return;
     localStorage.setItem(KEY,BUILD);
@@ -17,7 +17,7 @@
     if("serviceWorker" in navigator) cleanup.push(navigator.serviceWorker.getRegistrations().then(regs=>Promise.all(regs.map(reg=>reg.unregister()))));
     Promise.allSettled(cleanup).finally(()=>{
       const url=new URL(location.href);
-      if(url.searchParams.get("fifa9build")!=="471900"){url.searchParams.set("fifa9build","471900");location.replace(url.toString());}
+      if(url.searchParams.get("fifa9build")!=="200000"){url.searchParams.set("fifa9build","200000");location.replace(url.toString());}
     });
   })();
   </script>
@@ -33,13 +33,14 @@
   <link rel="stylesheet" href="navigation-os-v47-1.css?v=47.4.0-sidebar-fix" />
   <link rel="stylesheet" href="final-chapter-third-place.css?v=47.5.0" />
   <link rel="stylesheet" href="champions-podium.css?v=47.5.0" />
-  <link rel="stylesheet" href="final-night-theme-v479.css?v=47.19.0" />
-  <link rel="stylesheet" href="fifa10-era-dashboard-v4711.css?v=47.19.0" />
-  <link rel="stylesheet" href="fifa10-league-return.css?v=47.19.0" />
-  <link rel="stylesheet" href="fifa10-triple-circuit-v4712.css?v=47.19.0" />
-  <link rel="stylesheet" href="fifa-universe-intelligence-v4719.css?v=47.19.0" />
-  <link rel="stylesheet" href="fifa-championship-os-v4719.css?v=47.19.0" />
-  <link rel="stylesheet" href="fifa-evolution-os-v4719.css?v=47.19.0" />
+  <link rel="stylesheet" href="final-night-theme-v479.css?v=2.0.0" />
+  <link rel="stylesheet" href="fifa10-era-dashboard-v4711.css?v=2.0.0" />
+  <link rel="stylesheet" href="fifa10-league-return.css?v=2.0.0" />
+  <link rel="stylesheet" href="fifa10-triple-circuit-v4712.css?v=2.0.0" />
+  <link rel="stylesheet" href="fifa-universe-intelligence-v4719.css?v=2.0.0" />
+  <link rel="stylesheet" href="fifa-championship-os-v4719.css?v=2.0.0" />
+  <link rel="stylesheet" href="fifa-evolution-os-v4719.css?v=2.0.0" />
+  <link rel="stylesheet" href="fifa-universe-v2.css?v=2.0.0" />
 </head>
 <body>
   <div class="ambient ambient-one"></div>
@@ -62,84 +63,65 @@
           <input id="sidebarSearch" type="search" autocomplete="off" placeholder="Mod, araç veya kayıt ara…" />
           <kbd>ESC</kbd>
         </label>
-        <div class="os-drawer-search-meta"><span>COMMAND NAVIGATION</span><b id="sidebarSearchCount">25 seçenek</b></div>
+        <div class="os-drawer-search-meta"><span>COMMAND NAVIGATION</span><b id="sidebarSearchCount">19 seçenek</b></div>
       </div>
 
-      <nav class="main-nav hub-nav" aria-label="FIFA 10 ana navigasyonu">
+      <nav class="main-nav hub-nav" aria-label="FIFA Universe 2.0 ana navigasyonu">
         <button class="nav-item hub-home-link active" data-nav="dashboard">
           <span class="nav-icon">⌂</span>
-          <span><strong>FIFA 10 Ana Merkezi</strong><small>Yeni lig çağı ve sezon merkezi</small></span>
+          <span><strong>Universe Ana Sayfa</strong><small>Şu anda ne oluyor?</small></span>
         </button>
 
-        <section class="nav-cluster is-open" data-nav-cluster="tournament">
-          <button class="nav-cluster-toggle" type="button" data-nav-cluster-toggle="tournament" aria-expanded="true">
-            <span class="nav-cluster-icon tournament">10</span>
-            <span><strong>FIFA 10 Çağı</strong><small>Triple Circuit · ELO Pots</small></span>
+        <section class="nav-cluster is-open" data-nav-cluster="universe">
+          <button class="nav-cluster-toggle" type="button" data-nav-cluster-toggle="universe" aria-expanded="true">
+            <span class="nav-cluster-icon tournament">U2</span>
+            <span><strong>Ana Merkezler</strong><small>Altı sade çalışma alanı</small></span>
             <i>⌄</i>
           </button>
           <div class="nav-cluster-body">
-            <div class="nav-subheading final-heading current-stage-heading">Aktif Dönem</div>
-            <button class="nav-item fifa10-league-link" data-nav="seasonhub">
-              <span class="nav-icon">10</span>
-              <span><strong>FIFA 10 Turnuva Sistemi</strong><small>3 grup · 3 devre · Best of 3</small></span>
-              <em>ANA DÖNEM</em>
-            </button>
-            <div class="nav-subheading">FIFA 09 Legacy</div>
-            <button class="nav-item final-chapter-link final-chapter-primary" data-nav="knockout">
-              <span class="nav-icon">◆</span>
-              <span><strong>FIFA09 Final Chapter</strong><small>Playoff · eleme · üçüncülük · büyük final</small></span>
-              <em>TAMAMLANDI</em>
-            </button>
-            <button class="nav-item final-control-link" data-nav="finalpoll"><span class="nav-icon">✓</span><span>Final Chapter Kararı</span></button>
-
-            <div class="nav-subheading">FIFA 09 Analiz Merkezi</div>
-            <button class="nav-item" data-nav="livematch"><span class="nav-icon live-nav-icon">●</span><span>Maç Merkezi</span></button>
-            <button class="nav-item" data-nav="livestats"><span class="nav-icon">⌁</span><span>Maç İstatistikleri</span></button>
-            <button class="nav-item" data-nav="form"><span class="nav-icon form-nav-icon">↗</span><span>Form Merkezi</span></button>
-            <button class="nav-item" data-nav="odds"><span class="nav-icon odds-nav-icon">1X2</span><span>Maç Oranları</span></button>
-            <button class="nav-item intelligence-nav" data-nav="intelligence"><span class="nav-icon">✦</span><span>Zekâ Merkezi</span></button>
-            <button class="nav-item" data-nav="chat"><span class="nav-icon chat-nav-icon">◌</span><span>Turnuva Sohbeti</span></button>
-
-            <div class="nav-subheading completed-stage-heading">Önceki Aşamalar</div>
-            <div class="nav-stage-stack completed-stages" aria-label="Tamamlanan turnuva aşamaları">
-              <button class="nav-item stage league-stage" data-nav="league">
-                <span class="nav-stage-code">LP</span>
-                <span><strong>League Phase</strong><small>48 maç · tek lig tablosu</small></span>
-              </button>
-              <button class="nav-item stage gold-stage" data-nav="gold">
-                <span class="nav-stage-code">G</span>
-                <span><strong>Altın Grup</strong><small>İlk 6 · elit yarış</small></span>
-              </button>
-              <button class="nav-item stage silver-stage" data-nav="silver">
-                <span class="nav-stage-code">S</span>
-                <span><strong>Gümüş Grup</strong><small>7–12 · ikinci yol</small></span>
-              </button>
-            </div>
-
-            <div class="nav-subheading">Turnuva Araçları</div>
-            <button class="nav-item" data-nav="setup"><span class="nav-icon">◎</span><span>Kura & Oyuncular</span></button>
-            <button class="nav-item" data-nav="print"><span class="nav-icon">▤</span><span>Çıktı Merkezi</span></button>
+            <button class="nav-item" data-nav="livehub"><span class="nav-icon live-nav-icon">●</span><span><strong>Canlı</strong><small>Sonuçlar ve sıradaki maç</small></span></button>
+            <button class="nav-item" data-nav="tournaments"><span class="nav-icon">10</span><span><strong>Turnuvalar</strong><small>FIFA 01–10</small></span></button>
+            <button class="nav-item" data-nav="playershub"><span class="nav-icon">◎</span><span><strong>Oyuncular</strong><small>Kalıcı kariyer pasaportları</small></span></button>
+            <button class="nav-item" data-nav="recordshub"><span class="nav-icon">♛</span><span><strong>Tüm Zamanlar</strong><small>Rekorlar ve miras</small></span></button>
+            <button class="nav-item" data-nav="mediahub"><span class="nav-icon">▤</span><span><strong>Medya</strong><small>Yayın, çıktı ve hikâyeler</small></span></button>
           </div>
         </section>
-<section class="nav-cluster" data-nav-cluster="records">
-          <button class="nav-cluster-toggle" type="button" data-nav-cluster-toggle="records" aria-expanded="false">
-            <span class="nav-cluster-icon records">AR</span>
-            <span><strong>Arşiv & Yönetim</strong><small>Tarihçe, istatistik ve yedek</small></span>
+
+        <section class="nav-cluster" data-nav-cluster="deep-tools">
+          <button class="nav-cluster-toggle" type="button" data-nav-cluster-toggle="deep-tools" aria-expanded="false">
+            <span class="nav-cluster-icon records">10</span>
+            <span><strong>FIFA 10 Araçları</strong><small>Derin operasyon ve analiz</small></span>
             <i>⌄</i>
           </button>
           <div class="nav-cluster-body">
+            <button class="nav-item fifa10-league-link" data-nav="seasonhub"><span class="nav-icon">10</span><span><strong>Turnuva Sistemi</strong><small>Fikstür, tablo ve Championship</small></span></button>
+            <button class="nav-item" data-nav="livematch"><span class="nav-icon">●</span><span>Canlı Maç Studio</span></button>
+            <button class="nav-item" data-nav="livestats"><span class="nav-icon">⌁</span><span>Canlı İstatistikler</span></button>
+            <button class="nav-item" data-nav="form"><span class="nav-icon">↗</span><span>Form Merkezi</span></button>
+            <button class="nav-item" data-nav="odds"><span class="nav-icon">1X2</span><span>Maç Oranları</span></button>
+            <button class="nav-item" data-nav="intelligence"><span class="nav-icon">✦</span><span>Zekâ ve Modeller</span></button>
+            <button class="nav-item" data-nav="knockout"><span class="nav-icon">09</span><span>FIFA 09 Final Chapter</span></button>
             <button class="nav-item" data-nav="archive"><span class="nav-icon">◇</span><span>Turnuva Arşivi</span></button>
-            <button class="nav-item benchmark-nav" data-nav="benchmark"><span class="nav-icon">∑</span><span><strong>Turnuva Karnesi</strong><small>Edisyon kıyası + oyuncu atlası</small></span><em>YENİ</em></button>
-            <button class="nav-item" data-nav="alltime"><span class="nav-icon">♛</span><span>Tüm Zamanlar</span></button>
-            <button class="nav-item" data-nav="teams"><span class="nav-icon">◉</span><span>Takım İstatistikleri</span></button>
+            <button class="nav-item benchmark-nav" data-nav="benchmark"><span class="nav-icon">∑</span><span>Turnuva Karnesi</span></button>
+          </div>
+        </section>
+
+        <section class="nav-cluster" data-nav-cluster="management">
+          <button class="nav-cluster-toggle" type="button" data-nav-cluster-toggle="management" aria-expanded="false">
+            <span class="nav-cluster-icon records">OP</span><span><strong>Yönetim</strong><small>Bugün, çıktı ve veri</small></span><i>⌄</i>
+          </button>
+          <div class="nav-cluster-body">
+            <button class="nav-item" data-nav="adminhub"><span class="nav-icon">◇</span><span><strong>Bugünün Operasyonu</strong><small>Yalnız işlem gerekenler</small></span></button>
+            <button class="nav-item" data-nav="print"><span class="nav-icon">▤</span><span>Çıktı Merkezi</span></button>
             <button class="nav-item" data-nav="backup"><span class="nav-icon">⇩</span><span>Veri & Yedek</span></button>
+            <button class="nav-item" data-nav="teams"><span class="nav-icon">◉</span><span>Takım İstatistikleri</span></button>
           </div>
         </section>
       </nav>
 
       <div class="sidebar-footer">
         <div class="save-indicator" id="sidebarCloudStatus"><span class="status-dot"></span> Canlı bağlantı hazırlanıyor</div>
-        <div class="sidebar-version">Football Universe · V47.19.0 · Evolution OS</div>
+        <div class="sidebar-version">FIFA Universe · V2.0 · Core 47.19</div>
       </div>
     </aside>
     <button class="os-sidebar-backdrop" id="sidebarBackdrop" type="button" aria-label="Komuta menüsünü kapat"></button>
@@ -154,17 +136,18 @@
           </button>
         </div>
 
-        <nav class="os-primary-nav" aria-label="Ana ürün navigasyonu">
-          <button data-nav="dashboard"><span>FIFA 10</span></button>
-          <button data-nav="seasonhub"><span>Format & Kayıt</span></button>
-          <button data-nav="knockout"><span>FIFA 09 Legacy</span></button>
-          <button data-nav="benchmark"><span>Karneler</span></button>
-          
+        <nav class="os-primary-nav v2-primary-nav" aria-label="Universe 2.0 ana navigasyonu">
+          <button data-nav="dashboard"><span>Universe</span></button>
+          <button data-nav="livehub"><span>Canlı</span></button>
+          <button data-nav="tournaments"><span>Turnuvalar</span></button>
+          <button data-nav="playershub"><span>Oyuncular</span></button>
+          <button data-nav="recordshub"><span>Tüm Zamanlar</span></button>
+          <button data-nav="mediahub"><span>Medya</span></button>
         </nav>
 
         <div class="os-context-zone">
-          <div class="hub-breadcrumb" id="hubBreadcrumb"><span>FIFA 10</span><i>/</i><b>Yeni Dönem</b></div>
-          <h1 id="pageTitle">FIFA 10 Ana Merkezi</h1>
+          <div class="hub-breadcrumb" id="hubBreadcrumb"><span>FIFA UNIVERSE</span><i>/</i><b>VERSION 2.0</b></div>
+          <h1 id="pageTitle">FIFA Universe 2.0</h1>
         </div>
 
         <div class="topbar-actions os-utility-zone">
@@ -203,41 +186,46 @@
   <div class="hub-launcher-backdrop hidden" id="hubLauncherBackdrop">
     <section class="hub-launcher" role="dialog" aria-modal="true" aria-labelledby="hubLauncherTitle">
       <header>
-        <div><span>ORUÇ REİS FIFA WORLD · FIFA 10</span><h2 id="hubLauncherTitle">Nereye gitmek istiyorsun?</h2></div>
+        <div><span>FIFA UNIVERSE 2.0 · COMMAND CENTRE</span><h2 id="hubLauncherTitle">Nereye gitmek istiyorsun?</h2></div>
         <button type="button" id="hubLauncherClose" aria-label="Kapat">×</button>
       </header>
       <div class="hub-launcher-grid">
-        <button data-nav="dashboard" class="home"><span>10</span><strong>FIFA 10 Ana Merkez</strong><small>Yeni lig dönemi ve sezon kontrolü</small></button>
-        <button data-nav="seasonhub" class="tournament"><span>10</span><strong>FIFA 10 Format & Kayıt</strong><small>Triple Circuit, ELO torbaları ve kayıt merkezi</small></button>
-        <button data-nav="benchmark" class="records"><span>∑</span><strong>Turnuva Karnesi</strong><small>FIFA 1–9 kıyaslama ve performans atlası</small></button>
+        <button data-nav="dashboard" class="home"><span>⌂</span><strong>Universe</strong><small>Şu anda ne oluyor?</small></button>
+        <button data-nav="livehub" class="live"><span>●</span><strong>Canlı</strong><small>Sonuçlar ve sıradaki maç</small></button>
+        <button data-nav="tournaments" class="tournament"><span>10</span><strong>Turnuvalar</strong><small>FIFA 01–10 turnuva evreni</small></button>
+        <button data-nav="playershub" class="players"><span>◎</span><strong>Oyuncular</strong><small>Kalıcı oyuncu pasaportları</small></button>
+        <button data-nav="recordshub" class="records"><span>♛</span><strong>Tüm Zamanlar</strong><small>Rekorlar, miras ve Lineal Crown</small></button>
+        <button data-nav="mediahub" class="media"><span>▤</span><strong>Medya</strong><small>Yayın, çıktı ve hikâyeler</small></button>
       </div>
     </section>
   </div>
 
-  <nav class="mobile-hub-dock" aria-label="Hızlı mobil navigasyon">
-    <button data-nav="dashboard"><span>10</span><small>Ana</small></button>
-    <button data-nav="seasonhub"><span>10</span><small>Format</small></button>
-    <button data-nav="knockout"><span>09</span><small>Legacy</small></button>
-    <button data-nav="benchmark"><span>∑</span><small>Karneler</small></button>
+  <nav class="mobile-hub-dock" aria-label="Universe 2.0 hızlı mobil navigasyonu">
+    <button data-nav="dashboard"><span>⌂</span><small>Ana</small></button>
+    <button data-nav="livehub"><span>●</span><small>Canlı</small></button>
+    <button data-nav="tournaments"><span>10</span><small>Turnuva</small></button>
+    <button data-nav="playershub"><span>◎</span><small>Oyuncum</small></button>
+    <button data-nav="recordshub"><span>♛</span><small>Tarih</small></button>
   </nav>
 
   <script src="data/historical-data.js"></script>
-  <script src="language.js?v=47.19.0"></script>
+  <script src="language.js?v=2.0.0"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="cloud-config.js?v=44.5.0"></script>
   <script src="cloud.js?v=44.5.0"></script>
-  <script src="fifa10-team-pools.js?v=47.19.0"></script>
-  <script src="fifa10-registration-cloud.js?v=47.19.0"></script>
-  <script src="qrcode-generator-2.0.4.js?v=47.19.0"></script>
-  <script src="fifa-universe-intelligence-v4719.js?v=47.19.0"></script>
-  <script src="fifa-championship-os-v4719.js?v=47.19.0"></script>
-  <script src="fifa-evolution-os-v4719.js?v=47.19.0"></script>
-  <script id="fifa10DrawEngineScript" src="fifa10-draw-engine-v4713.js?v=47.19.0"></script>
+  <script src="fifa10-team-pools.js?v=2.0.0"></script>
+  <script src="fifa10-registration-cloud.js?v=2.0.0"></script>
+  <script src="qrcode-generator-2.0.4.js?v=2.0.0"></script>
+  <script src="fifa-universe-intelligence-v4719.js?v=2.0.0"></script>
+  <script src="fifa-championship-os-v4719.js?v=2.0.0"></script>
+  <script src="fifa-evolution-os-v4719.js?v=2.0.0"></script>
+  <script src="fifa-universe-v2.js?v=2.0.0"></script>
+  <script id="fifa10DrawEngineScript" src="fifa10-draw-engine-v4713.js?v=2.0.0"></script>
   <script src="chat.js?v=44.5.0"></script>
   <script src="community.js?v=44.5.0"></script>
-  <script src="app.js?v=47.19.0-evolution-os"></script>
-  <script src="fifa9-experience-hub.js?v=47.19.0-evolution-os"></script>
-  <script src="horizon-os-v47.js?v=47.19.0-evolution-os"></script>
-  <script src="navigation-os-v47-1.js?v=47.19.0-evolution-os"></script>
+  <script src="app.js?v=2.0.0-universe-os"></script>
+  <script src="fifa9-experience-hub.js?v=2.0.0-universe-os"></script>
+  <script src="horizon-os-v47.js?v=2.0.0-universe-os"></script>
+  <script src="navigation-os-v47-1.js?v=2.0.0-universe-os"></script>
 </body>
 </html>

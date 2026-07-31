@@ -1,4 +1,4 @@
-const CACHE = "oruc-reis-football-universe-v47-19-0-evolution-os";
+const CACHE = "oruc-reis-fifa-universe-v2-0-0";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -21,6 +21,8 @@ const APP_SHELL = [
   "./fifa-championship-os-v4719.js",
   "./fifa-evolution-os-v4719.css",
   "./fifa-evolution-os-v4719.js",
+  "./fifa-universe-v2.css",
+  "./fifa-universe-v2.js",
   "./fifa10-draw-engine-v4713.js",
   "./fifa10-fixture-center.html",
   "./fifa10-print-centre.html",

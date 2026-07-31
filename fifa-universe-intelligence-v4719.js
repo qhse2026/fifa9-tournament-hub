@@ -1,8 +1,8 @@
 (() => {
   "use strict";
 
-  const VERSION = "47.19.0";
-  const BUILD = "471900";
+  const VERSION = "2.0.0";
+  const BUILD = "200000";
   const MIN_SAMPLE = 8;
   const PRIME_WINDOW = 10;
   const PANELS = Object.freeze([

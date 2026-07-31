@@ -1,8 +1,8 @@
 (() => {
   "use strict";
 
-  const VERSION = "47.19.0";
-  const BUILD = "471900";
+  const VERSION = "2.0.0";
+  const BUILD = "200000";
   const PANELS = ["equity", "twin", "operations", "legacy"];
   const MILESTONE_THRESHOLDS = Object.freeze({
     games: [25, 50, 75, 100, 150, 200],

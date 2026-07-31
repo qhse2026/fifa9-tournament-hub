@@ -1,0 +1,33 @@
+ORUÇ REİS FIFA UNIVERSE — V2.0.0
+BUILD 200000
+
+KURULUM
+
+1. ZIP dosyasını açın.
+2. Paketin içindeki tüm site dosyalarını mevcut Vercel projesinin kök dizinine
+   yükleyin. Dizin yapısını koruyun.
+3. Mevcut cloud-config.js dosyasını farklı bir dosyayla değiştirmeyin. Bu paketteki
+   dosya V47.19 sürümüyle aynıdır.
+4. Projeyi normal Vercel iş akışınızla yayınlayın.
+5. Yayın tamamlandıktan sonra ilk açılışı şu adresle yapın:
+
+   https://fifa9-tournament-hub.vercel.app/?fifa9build=200000
+
+6. Sayfa bir kez açıldıktan sonra normal adresi kullanabilirsiniz. Build parametresi
+   eski Service Worker ve uygulama kabuğunun yenilenmesini sağlar.
+
+VERİ GÜVENLİĞİ
+
+- Mevcut FIFA 09 tarihi ve FIFA 10 sonuçları silinmez.
+- V2 ekranları resmî kura verisini yalnız okur.
+- Bulut geçici olarak erişilemezse kayıt kuyruğu ve cihaz kaydı çalışmaya devam
+  eder; Bildirim Merkezi bulut bekleyen olayları tek yerde gösterir.
+- Yönetici hesabıyla giriş yapılmadan resmî sonuç veya turnuva verisi değiştirilemez.
+
+V2 ANA MERKEZLER
+
+Universe · Canlı · Turnuvalar · Oyuncular · Tüm Zamanlar · Medya
+
+Yönetici araçları: Yan menü > Yönetim > Bugünün Operasyonu
+FIFA 10 derin araçları: Yan menü > FIFA 10 Araçları
+
