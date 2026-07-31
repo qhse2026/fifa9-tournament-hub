@@ -1,0 +1,46 @@
+ORUÇ REİS FIFA UNIVERSE V2.2.0
+PLAYER STANDING INTELLIGENCE — GELİŞTİRME ÖZETİ
+
+ANA DEĞİŞİKLİKLER
+1. FIFA Player Index görünür kimliği FIFA Player Standing olarak yenilendi.
+2. Ana sayfaya kesintisiz STANDING PULSE sıralama bandı eklendi.
+3. Player Standing Centre tamamen yeniden tasarlandı.
+4. Standing Rating ile Standing Index /100 birbirinden net biçimde ayrıldı.
+5. Standing Shift; rating hareketi ve sıra hareketini ayrı gösteriyor.
+6. Standing DNA eklendi:
+   - Result Efficiency
+   - Opposition Level
+   - Dominance
+   - Pressure Index
+   - Consistency
+   - Momentum
+7. WHY THIS STANDING? otomatik oyuncu açıklaması eklendi.
+8. NEXT TARGET, lider farkı ve bir üst sıraya gereken puan eklendi.
+9. Standing Timeline ve Latest Shift Anatomy eklendi.
+10. Universal Player Passport içine Standing Identity eklendi.
+11. FIFA 10 kayıt, torba, kura, simülasyon ve analiz ekranları Player Standing terminolojisine geçirildi.
+
+MATEMATİKSEL GELİŞTİRMELER
+- Deneyim K-faktörü: 36 / 30 / 24 / 20
+- Final: x1.35
+- Yarı final: x1.25
+- Çeyrek final: x1.15
+- Play-in/eleme: x1.10
+- Üçüncülük: x1.05
+- Skor etkisi tavanı: x1.28
+- Maç başına maksimum hareket: ±48
+- Sistem sıfır toplamlıdır.
+- Standing Index ağırlıkları toplamı: 100
+
+COMPETITIVE CLASS
+- ICON: 1750+
+- ELITE: 1650–1749
+- TITLE CONTENDER: 1550–1649
+- CHALLENGER: 1450–1549
+- RISING: 1350–1449
+- OUTSIDER: 1350 altı
+
+KURULUM
+Mevcut sitenin dosyalarını bu paketteki dosyalarla güncelleyin.
+İlk açılışta: ?fifa9build=202000
+Veritabanı migration işlemi gerekmemektedir.

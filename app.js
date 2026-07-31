@@ -2768,14 +2768,14 @@
 
   function fifa10RegistrationOptions() {
     const registered = fifa10RegisteredNameSet();
-    return fifa10KnownPlayers().filter(item => !registered.has(item.name.toLocaleLowerCase("tr-TR"))).map(item => `<option value="${escapeHTML(item.name)}">${escapeHTML(item.name)} · ${item.elo} FPI</option>`).join("");
+    return fifa10KnownPlayers().filter(item => !registered.has(item.name.toLocaleLowerCase("tr-TR"))).map(item => `<option value="${escapeHTML(item.name)}">${escapeHTML(item.name)} · ${item.elo} Standing</option>`).join("");
   }
 
   function fifa10RegistrationSelectionLabel(value = fifa10RegistrationSelection) {
     if (value === "__new__") return "＋ Yeni oyuncu";
     if (!value) return "İsmini seç";
     const known = fifa10KnownPlayers().find(item => item.name === value);
-    return known ? `${known.name} · ${known.elo} FPI Rating` : value;
+    return known ? `${known.name} · ${known.elo} Standing Rating` : value;
   }
 
   function syncFifa10RegistrationSelection(value, { focusNew = false } = {}) {
@@ -2807,7 +2807,7 @@
       <div class="f10-player-picker-intro"><strong>FIFA 10 Kayıt Listesi</strong><p>Kendi ismine dokun. Listede yoksan “Yeni oyuncu” seçeneğini kullan.</p></div>
       <label class="f10-player-picker-search"><span>⌕</span><input id="fifa10PlayerPickerSearch" type="search" autocomplete="off" inputmode="search" placeholder="İsim ara…"></label>
       <div class="f10-player-picker-list" id="fifa10PlayerPickerList">
-        ${players.map(item => `<button type="button" data-action="select-fifa10-registration-player" data-player-name="${escapeHTML(item.name)}" data-search-name="${escapeHTML(item.name.toLocaleLowerCase("tr-TR"))}"><span>${escapeHTML(item.name)}</span><b>${item.elo} FPI</b><i>↗</i></button>`).join("") || `<p class="f10-player-picker-empty">Seçilebilir mevcut oyuncu kalmadı.</p>`}
+        ${players.map(item => `<button type="button" data-action="select-fifa10-registration-player" data-player-name="${escapeHTML(item.name)}" data-search-name="${escapeHTML(item.name.toLocaleLowerCase("tr-TR"))}"><span>${escapeHTML(item.name)}</span><b>${item.elo} Standing</b><i>↗</i></button>`).join("") || `<p class="f10-player-picker-empty">Seçilebilir mevcut oyuncu kalmadı.</p>`}
       </div>
       <button type="button" class="f10-player-picker-new" data-action="select-fifa10-registration-player" data-player-name="__new__"><span>＋</span><div><strong>Yeni oyuncu</strong><small>İsim ve soyisim alanını aç</small></div><i>↗</i></button>
     </section>`, "PLAYER REGISTRATION · MOBILE SAFE");
@@ -2855,7 +2855,7 @@
       form.reset();
       fifa10RegistrationSelection = "";
       syncFifa10RegistrationSelection("");
-      toast(`${name} FIFA 10'a kaydedildi. FPI Rating sırasına göre sıradaki torbaya yerleştirildi.`, "success");
+      toast(`${name} FIFA 10'a kaydedildi. Standing Rating sırasına göre sıradaki torbaya yerleştirildi.`, "success");
       render();
     } catch (error) {
       toast(String(error?.message || error || "Kayıt tamamlanamadı."), "error");
@@ -2910,23 +2910,24 @@
       <button class="f10-registration-submit" type="submit" ${statusOpen?"":"disabled"}>FIFA 10'a Kayıt Ol</button>
     </form>`;
     return `<section class="f10-registration-section ${compact?"compact":""}" id="fifa10Registration">
-      <header><div><span>PLAYER REGISTRATION · FPI SEEDING</span><h3>Kaydını yap.<br>Torbanı FPI belirlesin.</h3><p>FIFA Player Index; bütün resmî maç geçmişini, rakip kalitesini ve büyük maç etkisini kullanarak seri başlarını belirler. Yalnızca “Yeni oyuncu” seçildiğinde İsim Soyisim alanı açılır.</p></div><div class="f10-registration-status ${statusOpen?"open":"closed"}"><i></i><strong>${statusOpen?"KAYIT AÇIK":"KAYIT KAPALI"}</strong><small>${assignment.rows.length} oyuncu · ${cloudMode?"canlı kayıt":"yerel kayıt"}</small>${canEdit()?`<button type="button" data-action="toggle-fifa10-registration">${statusOpen?"Kayıtları Kapat":"Kayıtları Aç"}</button>`:""}</div></header>
+      <header><div><span>PLAYER REGISTRATION · STANDING SEEDING</span><h3>Kaydını yap.<br>Torbanı Player Standing belirlesin.</h3><p>Player Standing; bütün resmî maç geçmişini, rakip kalitesini, skor etkisini ve büyük maç performansını kullanarak seri başlarını belirler. Yalnızca “Yeni oyuncu” seçildiğinde İsim Soyisim alanı açılır.</p></div><div class="f10-registration-status ${statusOpen?"open":"closed"}"><i></i><strong>${statusOpen?"KAYIT AÇIK":"KAYIT KAPALI"}</strong><small>${assignment.rows.length} oyuncu · ${cloudMode?"canlı kayıt":"yerel kayıt"}</small>${canEdit()?`<button type="button" data-action="toggle-fifa10-registration">${statusOpen?"Kayıtları Kapat":"Kayıtları Aç"}</button>`:""}</div></header>
       ${fifa10RegistrationsError?`<div class="f10-registration-alert"><strong>Canlı kayıt bağlantısı hazırlanamadı.</strong><span>${escapeHTML(fifa10RegistrationsError)}</span></div>`:""}
-      <div class="f10-registration-main">${form}<div class="f10-pot-preview">${pots.map((rows,index)=>`<article class="pot-${index+1} ${rows.length===assignment.potCapacity?"is-complete":(index===nextPotIndex?"is-filling":"is-waiting")}"><header><span>TORBA</span><strong>${index+1}</strong><small>${rows.length}/${assignment.potCapacity} oyuncu</small></header><div>${rows.length?rows.map(row=>`<div><span>${escapeHTML(row.name)}</span><b>${row.elo}</b>${canEdit()?`<button type="button" data-action="remove-fifa10-registration" data-registration-id="${escapeHTML(row.id)}" data-player-name="${escapeHTML(row.name)}" aria-label="Kaydı kaldır">×</button>`:""}</div>`).join(""):`<p>${index===nextPotIndex?"Sıradaki FPI oyuncuları burada":"Önceki torbanın dolması bekleniyor"}</p>`}</div></article>`).join("")}</div></div>
-      <footer><span>Torbalar FPI Rating sırasına göre ardışık dolar. 3 grup olduğu için her tam torba 3 oyuncudur. Tahmini kura dağılımı: ${escapeHTML(projectedGroups)}.</span><b>${assignment.potCount} TORBA · 3 GRUP · SIRALI DOLUM</b></footer>
+      <div class="f10-registration-main">${form}<div class="f10-pot-preview">${pots.map((rows,index)=>`<article class="pot-${index+1} ${rows.length===assignment.potCapacity?"is-complete":(index===nextPotIndex?"is-filling":"is-waiting")}"><header><span>TORBA</span><strong>${index+1}</strong><small>${rows.length}/${assignment.potCapacity} oyuncu</small></header><div>${rows.length?rows.map(row=>`<div><span>${escapeHTML(row.name)}</span><b>${row.elo}</b>${canEdit()?`<button type="button" data-action="remove-fifa10-registration" data-registration-id="${escapeHTML(row.id)}" data-player-name="${escapeHTML(row.name)}" aria-label="Kaydı kaldır">×</button>`:""}</div>`).join(""):`<p>${index===nextPotIndex?"Sıradaki Standing oyuncuları burada":"Önceki torbanın dolması bekleniyor"}</p>`}</div></article>`).join("")}</div></div>
+      <footer><span>Torbalar Standing Rating sırasına göre ardışık dolar. 3 grup olduğu için her tam torba 3 oyuncudur. Tahmini kura dağılımı: ${escapeHTML(projectedGroups)}.</span><b>${assignment.potCount} TORBA · 3 GRUP · SIRALI DOLUM</b></footer>
     </section>`;
   }
 
-  function renderFifa10EloBlock({limit=10}={}) {
-    const elo=buildEloAnalytics();
-    const registered=fifa10RegisteredNameSet();
-    const rows=elo.players.slice(0,limit);
-    return `<section class="f10-elo-section f10-fpi-section"><header><div><span>FIFA PLAYER INDEX · OFFICIAL SEEDING</span><h3>Bir sayı değil.<br>Oyuncunun güç kimliği.</h3><p>FPI Rating resmî sonuçlardan doğar; FPI/100 ise rakip kalitesi, beklenti üstü performans, güncel form, baskı maçları ve takımdan bağımsız etkiyi açıklanabilir bir profile dönüştürür.</p></div><button type="button" data-action="open-fpi-centre">FPI merkezini aç ↗</button></header><div class="f10-elo-layout"><div class="f10-elo-table"><div class="head"><span>#</span><span>Oyuncu</span><span>FPI</span><span>Güven</span></div>${rows.map(row=>`<div><span>${row.rank}</span><strong>${escapeHTML(row.name)}<small>${escapeHTML(row.fpi.signal)}</small></strong><b>${row.rating}<em>${row.fpi.score}/100</em></b><small class="${registered.has(row.name.toLocaleLowerCase("tr-TR"))?"registered":""}">${row.fpi.confidence}% · ${row.fpi.confidenceBand}</small></div>`).join("")}</div><div class="f10-elo-explainer"><article><span>1500</span><div><strong>Tarafsız tarihsel merkez</strong><p>Veteranların bütün resmî geçmişi 1500 merkezli yeniden yürütülür; yeni oyuncular 1350 geçici girişle başlar.</p></div></article><article><span>45%</span><div><strong>Temel güç omurgası</strong><p>Uzun vadeli Rating, FPI/100 açıklama skorunun ana bileşenidir.</p></div></article><article><span>38%</span><div><strong>Bağlam katmanı</strong><p>Beklenti üstü sonuç, rakip seviyesi ve son form birlikte değerlendirilir.</p></div></article><article><span>17%</span><div><strong>Baskı ve takım etkisi</strong><p>Büyük maç dayanıklılığı ile kullanılan takımdan bağımsız değer ayrıştırılır.</p></div></article></div></div></section>`;
-  }
+
+function renderFifa10EloBlock({limit=10}={}) {
+  const elo=buildEloAnalytics();
+  const registered=fifa10RegisteredNameSet();
+  const rows=elo.players.slice(0,limit);
+  return `<section class="f10-elo-section f10-fpi-section f10-standing-section"><header><div><span>FIFA PLAYER STANDING · OFFICIAL SEEDING</span><h3>Bir sayı değil.<br>Resmî rekabet hiyerarşisi.</h3><p>Standing Rating resmî sonuçlardan doğar; Standing Index ve Standing DNA rakip seviyesi, beklenti üstü performans, skor üstünlüğü, baskı, istikrar ve momentumu açıklanabilir bir profile dönüştürür.</p></div><button type="button" data-action="open-fpi-centre">Player Standing'i aç ↗</button></header><div class="f10-elo-layout"><div class="f10-elo-table"><div class="head"><span>#</span><span>Oyuncu</span><span>STANDING</span><span>Güven</span></div>${rows.map(row=>`<div><span>${row.rank}</span><strong>${escapeHTML(row.name)}<small>${escapeHTML(row.fpi.signal)}</small></strong><b>${row.rating}<em>${row.standing.index}/100</em></b><small class="${registered.has(row.name.toLocaleLowerCase("tr-TR"))?"registered":""}">${row.fpi.confidence}% · ${row.tier.label}</small></div>`).join("")}</div><div class="f10-elo-explainer"><article><span>1500</span><div><strong>Tarafsız tarihsel merkez</strong><p>Veteran geçmişi 1500 merkezli yürütülür; yeni oyuncular 1350 provisional girişle başlar.</p></div></article><article><span>K</span><div><strong>Deneyime göre kalibrasyon</strong><p>Yeni oyuncular hızlı, doğrulanmış oyuncular daha kontrollü hareket eder.</p></div></article><article><span>×1.35</span><div><strong>Aşama ağırlığı</strong><p>Final en yüksek; yarı final, çeyrek final ve play-in ayrı katsayı kullanır.</p></div></article><article><span>1.28</span><div><strong>Skor etkisi tavanı</strong><p>Farklı galibiyet değer üretir ancak tek maç kariyer tarihini ezemez.</p></div></article></div></div></section>`;
+}
 
   function renderFifa10FormatSpine({detailed=false}={}) {
     const stages=[
-      {no:"01",tag:"GROUP DRAW",title:"3 dengeli grup",desc:"5 torba · FPI seri başları · oyuncular yalnızca kendi grubunda oynar.",meta:"12 → 4-4-4 · 13 → 5-4-4 · 15 → 5-5-5"},
+      {no:"01",tag:"GROUP DRAW",title:"3 dengeli grup",desc:"5 torba · Standing seri başları · oyuncular yalnızca kendi grubunda oynar.",meta:"12 → 4-4-4 · 13 → 5-4-4 · 15 → 5-5-5"},
       {no:"02",tag:"TRIPLE CIRCUIT",title:"3 devreli grup aşaması",desc:"Aynı rakiplerle üç farklı takım seviyesinde mücadele.",meta:"1. Devre 4★ · 2. Devre 4.5★ · 3. Devre 5★"},
       {no:"03",tag:"ONE TABLE",title:"Tek ve adil genel sıralama",desc:"Puan ortalaması eşitliğinde maç başına averaj sıralamayı belirler. Gol sayıları toplam olarak gösterilir.",meta:"PPG · AV/M · toplam AG · galibiyet oranı"},
       {no:"04",tag:"DIRECT ACCESS",title:"İlk 4 doğrudan çeyrek final",desc:"Genel sıralamanın ilk dört oyuncusu hem seri başı hem doğrudan çeyrek finalist.",meta:"1 · 2 · 3 · 4"},
@@ -2954,7 +2955,7 @@
     const assignment=fifa10AssignPots();
     const honour=allMuseumHonours().find(item=>Number(item.edition)===9&&item.competition==="oruc")||currentFifa9Honour();
     view.innerHTML=`<div class="f10-page f10-triple-page">
-      <section class="f10-triple-hero"><div><span>FIFA 10 · TRIPLE CIRCUIT</span><h2>Three circuits.<br><em>One table.</em><br>One champion.</h2><p>FIFA 10'un resmî omurgası; FPI seri başları, üç gruplu üç devre, genel sıralama ve Best of 3 şampiyonluk yolu üzerine kuruludur.</p><div><button class="btn btn-blue" data-nav="dashboard">Ana dashboard</button><a class="btn btn-gold" href="#fifa10Registration">Kayıt merkezine git</a></div></div><aside><small>FIFA 09 LEGACY CHAMPION</small><strong>${escapeHTML(honour?.winner||"Çağlar Can Tatar")}</strong><span>Yeni çağın FIFA Player Index referansı hazır.</span><div><b>${assignment.rows.length}</b><em>Kayıtlı oyuncu</em></div><div><b>5</b><em>FPI torbası</em></div></aside></section>
+      <section class="f10-triple-hero"><div><span>FIFA 10 · TRIPLE CIRCUIT</span><h2>Three circuits.<br><em>One table.</em><br>One champion.</h2><p>FIFA 10'un resmî omurgası; Standing seri başları, üç gruplu üç devre, genel sıralama ve Best of 3 şampiyonluk yolu üzerine kuruludur.</p><div><button class="btn btn-blue" data-nav="dashboard">Ana dashboard</button><a class="btn btn-gold" href="#fifa10Registration">Kayıt merkezine git</a></div></div><aside><small>FIFA 09 LEGACY CHAMPION</small><strong>${escapeHTML(honour?.winner||"Çağlar Can Tatar")}</strong><span>Yeni çağın FIFA Player Standing hiyerarşisi hazır.</span><div><b>${assignment.rows.length}</b><em>Kayıtlı oyuncu</em></div><div><b>5</b><em>Standing torbası</em></div></aside></section>
       <div class="f10-operations-mount" id="fifa10OperationsMount"></div>
       ${renderFifa10EloBlock({limit:20})}
       ${renderFifa10FormatSpine({detailed:true})}
@@ -3133,14 +3134,14 @@
     view.innerHTML=`<div class="os-home f10-era-home f10-triple-home" data-os-page="fifa10-home">
       <section class="os-hero f10-era-hero f10-triple-dashboard-hero" aria-labelledby="osHeroTitle">
         <canvas class="os-field-canvas" data-os-field aria-hidden="true"></canvas><div class="os-hero-aurora" aria-hidden="true"></div><div class="f10-era-number" aria-hidden="true">10</div>
-        <div class="os-hero-grid"><div class="os-hero-copy"><div class="os-kicker f10-era-kicker"><span class="f10-era-dot"></span><b>FIFA 10 · TRIPLE CIRCUIT</b><i>${fifa10RegistrationState().settings.registrationOpen===false?"REGISTRATION CLOSED":"REGISTRATION OPEN"}</i></div><h2 id="osHeroTitle">Three groups.<br><em>Three circuits.</em><br>One champion.</h2><p>FPI Rating ile belirlenen beş torba, üç devreli grup aşaması, tek genel sıralama ve Best of 3 eleme serileri. FIFA 10'un şampiyonluk yolu artık burada başlıyor.</p><div class="os-hero-actions"><a class="os-primary-action" href="#fifa10Registration"><span>FIFA 10'a Kayıt Ol</span><b>↗</b></a><button class="os-secondary-action" data-nav="seasonhub"><span>Turnuva Formatı</span></button><button class="os-text-action" data-action="open-fpi-centre"><span>FPI geçmişini aç</span><b>↗</b></button></div><div class="os-hero-proof f10-era-proof"><article><small>Registered</small><strong>${String(registeredCount).padStart(2,"0")}</strong><span>FIFA 10 players</span></article><article><small>Seeding</small><strong>05</strong><span>FPI pots</span></article><article><small>Group rounds</small><strong>03</strong><span>4★ · 4.5★ · 5★</span></article></div></div>
-        <div class="f10-era-console-wrap"><article class="f10-era-console f10-triple-console" data-nav="seasonhub"><div class="f10-console-grid"></div><header><span><i></i>CHAMPIONSHIP ROUTE</span><b>FIFA 10</b></header><div class="f10-route-mini"><div><span>GROUPS</span><b>3 × 3 ROUNDS</b></div><i></i><div><span>TOP 4</span><b>DIRECT QF</b></div><i></i><div><span>5–12</span><b>BEST OF 3</b></div><i></i><div><span>FINAL</span><b>5★</b></div></div><footer><span>ONE TABLE · FPI SEEDING</span><b>FULL FORMAT ↗</b></footer></article><div class="f10-era-metrics"><article><small>FIFA 09 CHAMPION</small><strong>${escapeHTML(champion)}</strong><span>Legacy podium preserved</span></article><article><small>REGISTRATION</small><strong>${registeredCount} Players</strong><span>Automatic FPI pot assignment</span></article></div></div></div><div class="os-scroll-signal"><span>REGISTER · COMPETE · TAKE THE CROWN</span><i></i></div>
+        <div class="os-hero-grid"><div class="os-hero-copy"><div class="os-kicker f10-era-kicker"><span class="f10-era-dot"></span><b>FIFA 10 · TRIPLE CIRCUIT</b><i>${fifa10RegistrationState().settings.registrationOpen===false?"REGISTRATION CLOSED":"REGISTRATION OPEN"}</i></div><h2 id="osHeroTitle">Three groups.<br><em>Three circuits.</em><br>One champion.</h2><p>Standing Rating ile belirlenen beş torba, üç devreli grup aşaması, tek genel sıralama ve Best of 3 eleme serileri. FIFA 10'un şampiyonluk yolu artık burada başlıyor.</p><div class="os-hero-actions"><a class="os-primary-action" href="#fifa10Registration"><span>FIFA 10'a Kayıt Ol</span><b>↗</b></a><button class="os-secondary-action" data-nav="seasonhub"><span>Turnuva Formatı</span></button><button class="os-text-action" data-action="open-fpi-centre"><span>Player Standing'i aç</span><b>↗</b></button></div><div class="os-hero-proof f10-era-proof"><article><small>Registered</small><strong>${String(registeredCount).padStart(2,"0")}</strong><span>FIFA 10 players</span></article><article><small>Seeding</small><strong>05</strong><span>Standing pots</span></article><article><small>Group rounds</small><strong>03</strong><span>4★ · 4.5★ · 5★</span></article></div></div>
+        <div class="f10-era-console-wrap"><article class="f10-era-console f10-triple-console" data-nav="seasonhub"><div class="f10-console-grid"></div><header><span><i></i>CHAMPIONSHIP ROUTE</span><b>FIFA 10</b></header><div class="f10-route-mini"><div><span>GROUPS</span><b>3 × 3 ROUNDS</b></div><i></i><div><span>TOP 4</span><b>DIRECT QF</b></div><i></i><div><span>5–12</span><b>BEST OF 3</b></div><i></i><div><span>FINAL</span><b>5★</b></div></div><footer><span>ONE TABLE · STANDING SEEDING</span><b>FULL FORMAT ↗</b></footer></article><div class="f10-era-metrics"><article><small>FIFA 09 CHAMPION</small><strong>${escapeHTML(champion)}</strong><span>Legacy podium preserved</span></article><article><small>REGISTRATION</small><strong>${registeredCount} Players</strong><span>Automatic Standing pot assignment</span></article></div></div></div><div class="os-scroll-signal"><span>REGISTER · COMPETE · TAKE THE CROWN</span><i></i></div>
       </section>
-      <section class="os-ticker f10-era-ticker"><div><span>ACTIVE ERA</span><b>FIFA 10</b></div><div><span>FORMAT</span><b>TRIPLE CIRCUIT</b></div><div><span>SEEDING</span><b>5 FPI POTS</b></div><div><span>DIRECT QF</span><b>TOP 4</b></div><div><span>FINAL</span><b>5★ · ONE MATCH</b></div></section>
+      <section class="os-ticker f10-era-ticker"><div><span>ACTIVE ERA</span><b>FIFA 10</b></div><div><span>FORMAT</span><b>TRIPLE CIRCUIT</b></div><div><span>SEEDING</span><b>5 STANDING POTS</b></div><div><span>DIRECT QF</span><b>TOP 4</b></div><div><span>FINAL</span><b>5★ · ONE MATCH</b></div></section>
       <div class="f10-operations-mount" id="fifa10OperationsMount"></div>
       ${renderFifa10EloBlock({limit:10})}
       ${renderDashboardChampionsPodium()}
-      <section class="os-operations-section f10-records-section"><div class="os-section-heading compact"><div><span>05 / FOOTBALL INTELLIGENCE</span><h3>The new era remembers<br>everything before it.</h3></div><p>FPI, turnuva karneleri ve Tüm Zamanlar kayıtları FIFA 10 torbalarının veri temelidir.</p></div><div class="os-operation-rail"><button data-action="open-fpi-centre"><span class="os-op-icon">↗</span><div><small>RATING</small><strong>FPI Merkezi</strong><p>Güç kimliği, bağlam ve Rating hareketleri</p></div><b>↗</b></button><button data-nav="benchmark"><span class="os-op-icon">∑</span><div><small>COMPARE</small><strong>Turnuva Karnesi</strong><p>FIFA I–IX dönem ve performans kıyası</p></div><b>↗</b></button><button data-nav="alltime"><span class="os-op-icon">♛</span><div><small>LEGACY</small><strong>Tüm Zamanlar</strong><p>Şampiyonluklar, rekorlar ve oyuncu kartları</p></div><b>↗</b></button><button data-nav="archive"><span class="os-op-icon">◇</span><div><small>HISTORY</small><strong>Turnuva Arşivi</strong><p>Dokuz edisyonun kalıcı kayıtları</p></div><b>↗</b></button></div></section>
+      <section class="os-operations-section f10-records-section"><div class="os-section-heading compact"><div><span>05 / FOOTBALL INTELLIGENCE</span><h3>The new era remembers<br>everything before it.</h3></div><p>Player Standing, turnuva karneleri ve Tüm Zamanlar kayıtları FIFA 10 torbalarının veri temelidir.</p></div><div class="os-operation-rail"><button data-action="open-fpi-centre"><span class="os-op-icon">↗</span><div><small>RATING</small><strong>Player Standing</strong><p>Resmî sıra, Standing DNA ve hareket anatomisi</p></div><b>↗</b></button><button data-nav="benchmark"><span class="os-op-icon">∑</span><div><small>COMPARE</small><strong>Turnuva Karnesi</strong><p>FIFA I–IX dönem ve performans kıyası</p></div><b>↗</b></button><button data-nav="alltime"><span class="os-op-icon">♛</span><div><small>LEGACY</small><strong>Tüm Zamanlar</strong><p>Şampiyonluklar, rekorlar ve oyuncu kartları</p></div><b>↗</b></button><button data-nav="archive"><span class="os-op-icon">◇</span><div><small>HISTORY</small><strong>Turnuva Arşivi</strong><p>Dokuz edisyonun kalıcı kayıtları</p></div><b>↗</b></button></div></section>
       ${renderFifa10FormatSpine()}
       ${renderFifa10RegistrationBlock({compact:true})}
     </div>`;
@@ -7045,193 +7046,276 @@
   }
 
   function intelligenceTier(rating) {
-    if (rating >= 1825) return { key: "icon", label: "ICON", note: intelligenceCopy("Tarihî elit seviye", "Historic elite level") };
-    if (rating >= 1725) return { key: "elite", label: "ELITE", note: intelligenceCopy("Şampiyonluk seviyesi", "Championship level") };
-    if (rating >= 1625) return { key: "contender", label: "CONTENDER", note: intelligenceCopy("Ciddi şampiyonluk adayı", "Serious title contender") };
-    if (rating >= 1525) return { key: "challenger", label: "CHALLENGER", note: intelligenceCopy("Tehlikeli rakip", "Dangerous challenger") };
-    if (rating >= 1425) return { key: "rising", label: "RISING", note: intelligenceCopy("Yükseliş potansiyeli", "Rising potential") };
+    if (rating >= 1750) return { key: "icon", label: "ICON", note: intelligenceCopy("Tarihî elit seviye", "Historic elite level") };
+    if (rating >= 1650) return { key: "elite", label: "ELITE", note: intelligenceCopy("Şampiyonluk seviyesi", "Championship level") };
+    if (rating >= 1550) return { key: "contender", label: "TITLE CONTENDER", note: intelligenceCopy("Ciddi şampiyonluk adayı", "Serious title contender") };
+    if (rating >= 1450) return { key: "challenger", label: "CHALLENGER", note: intelligenceCopy("Tehlikeli rakip", "Dangerous challenger") };
+    if (rating >= 1350) return { key: "rising", label: "RISING", note: intelligenceCopy("Yükseliş potansiyeli", "Rising potential") };
     return { key: "outsider", label: "OUTSIDER", note: intelligenceCopy("Sürpriz arayan oyuncu", "Upset-seeking outsider") };
   }
 
-  function buildEloAnalytics() {
-    const ratings = new Map();
-    const rows = new Map();
-    const records = [];
-    const matches = buildUnifiedAllTimeMatches();
 
-    function ensure(name) {
-      if (!ratings.has(name)) ratings.set(name, 1500);
-      if (!rows.has(name)) rows.set(name, {
-        name, rating: 1500, peak: 1500, floor: 1500, games: 0,
-        wins: 0, draws: 0, losses: 0, lastChange: 0, last5Change: 0,
-        timeline: [{ index: 0, rating: 1500, label: "Başlangıç" }]
-      });
-      return rows.get(name);
-    }
+function buildEloAnalytics() {
+  const ratings = new Map();
+  const rows = new Map();
+  const records = [];
+  const matches = buildUnifiedAllTimeMatches();
 
-    matches.forEach((match, index) => {
-      const home = String(match.homeName || "").trim();
-      const away = String(match.awayName || "").trim();
-      if (!home || !away || /^P\d+$/i.test(home) || /^P\d+$/i.test(away)) return;
-      const homeRow = ensure(home);
-      const awayRow = ensure(away);
-      const beforeHome = ratings.get(home) || 1500;
-      const beforeAway = ratings.get(away) || 1500;
-      const expectedHome = 1 / (1 + Math.pow(10, (beforeAway - beforeHome) / 400));
-      const winner = match.winnerName || (match.homeScore > match.awayScore ? home : match.awayScore > match.homeScore ? away : "");
-      const scoreHome = !winner ? 0.5 : winner === home ? 1 : 0;
-      const stage = String(match.stage || "").toLowerCase();
-      const stageMultiplier = stage.includes("final") ? 1.35 : stage.includes("semi") ? 1.22 : stage.includes("quarter") || stage.includes("knockout") ? 1.14 : 1;
-      const editionMultiplier = Number(match.edition) === Number(seasonSystem().activeEdition || 10) ? 1.08 : 1;
-      const margin = Math.abs(Number(match.homeScore) - Number(match.awayScore));
-      const marginMultiplier = margin <= 1 ? 1 : Math.min(1.65, 1 + Math.log1p(margin - 1) * 0.24);
-      const k = 24 * stageMultiplier * editionMultiplier;
-      const delta = Math.round(k * marginMultiplier * (scoreHome - expectedHome));
-      const afterHome = beforeHome + delta;
-      const afterAway = beforeAway - delta;
-      ratings.set(home, afterHome);
-      ratings.set(away, afterAway);
+  const stageWeightFor = raw => {
+    const stage = String(raw || "").toLocaleLowerCase("tr-TR");
+    if (/third|3rd|bronze|üçüncülük|ucunculuk/.test(stage)) return { key:"third", multiplier:1.05, label:intelligenceCopy("Üçüncülük Maçı", "Third-place Match") };
+    if (/semi|yarı|yari/.test(stage)) return { key:"semi", multiplier:1.25, label:intelligenceCopy("Yarı Final", "Semi-final") };
+    if (/quarter|çeyrek|ceyrek/.test(stage)) return { key:"quarter", multiplier:1.15, label:intelligenceCopy("Çeyrek Final", "Quarter-final") };
+    if (/play.?in|knockout|eleme/.test(stage)) return { key:"knockout", multiplier:1.10, label:intelligenceCopy("Eleme Maçı", "Knockout Match") };
+    if (/grand.?final|(^|\s)final($|\s)|finale/.test(stage)) return { key:"final", multiplier:1.35, label:intelligenceCopy("Final", "Final") };
+    return { key:"standard", multiplier:1, label:intelligenceCopy("Standart Maç", "Standard Match") };
+  };
+  const kFactorFor = games => games < 6 ? 36 : games < 13 ? 30 : games < 30 ? 24 : 20;
+  const marginWeightFor = margin => margin <= 1 ? 1 : margin === 2 ? 1.08 : margin === 3 ? 1.15 : margin === 4 ? 1.21 : 1.28;
+  const signed = value => `${Number(value) >= 0 ? "+" : ""}${Number(value) || 0}`;
 
-      homeRow.rating = afterHome; awayRow.rating = afterAway;
-      homeRow.games += 1; awayRow.games += 1;
-      if (!winner) { homeRow.draws += 1; awayRow.draws += 1; }
-      else if (winner === home) { homeRow.wins += 1; awayRow.losses += 1; }
-      else { awayRow.wins += 1; homeRow.losses += 1; }
-      homeRow.lastChange = delta; awayRow.lastChange = -delta;
-      homeRow.peak = Math.max(homeRow.peak, afterHome); awayRow.peak = Math.max(awayRow.peak, afterAway);
-      homeRow.floor = Math.min(homeRow.floor, afterHome); awayRow.floor = Math.min(awayRow.floor, afterAway);
-      homeRow.timeline.push({ index: index + 1, rating: afterHome, label: `${match.editionLabel} · ${match.stage}` });
-      awayRow.timeline.push({ index: index + 1, rating: afterAway, label: `${match.editionLabel} · ${match.stage}` });
-      records.push({
-        id: match.id, match, home, away, winner,
-        beforeHome, beforeAway, afterHome, afterAway,
-        deltaHome: delta, deltaAway: -delta,
-        expectedHome, surprise: winner === home ? beforeHome < beforeAway - 90 : winner === away ? beforeAway < beforeHome - 90 : false
-      });
+  function ensure(name) {
+    if (!ratings.has(name)) ratings.set(name, 1500);
+    if (!rows.has(name)) rows.set(name, {
+      name, rating: 1500, peak: 1500, floor: 1500, games: 0,
+      wins: 0, draws: 0, losses: 0, lastChange: 0, last5Change: 0,
+      timeline: [{ index: 0, rating: 1500, label: intelligenceCopy("Başlangıç", "Start") }]
     });
-
-    const recordByPlayer = new Map();
-    records.forEach(record => {
-      for (const name of [record.home, record.away]) {
-        if (!recordByPlayer.has(name)) recordByPlayer.set(name, []);
-        recordByPlayer.get(name).push(record);
-      }
-    });
-
-    const average = values => {
-      const clean = values.map(Number).filter(Number.isFinite);
-      return clean.length ? clean.reduce((sum, value) => sum + value, 0) / clean.length : 0;
-    };
-    const deviation = values => {
-      const clean = values.map(Number).filter(Number.isFinite);
-      if (clean.length < 2) return 0;
-      const centre = average(clean);
-      return Math.sqrt(average(clean.map(value => Math.pow(value - centre, 2))));
-    };
-    const teamKey = value => String(value || "").trim().toLocaleLowerCase("tr-TR").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
-    const teamSamples = new Map();
-    records.forEach(record => {
-      const homeTeam = teamKey(record.match?.homeTeam);
-      const awayTeam = teamKey(record.match?.awayTeam);
-      const homeActual = record.winner ? (record.winner === record.home ? 1 : 0) : .5;
-      const awayActual = 1 - homeActual;
-      if (homeTeam) { if (!teamSamples.has(homeTeam)) teamSamples.set(homeTeam, []); teamSamples.get(homeTeam).push(homeActual); }
-      if (awayTeam) { if (!teamSamples.has(awayTeam)) teamSamples.set(awayTeam, []); teamSamples.get(awayTeam).push(awayActual); }
-    });
-    const teamBaseline = new Map([...teamSamples].map(([key, values]) => [key, average(values)]));
-
-    let players = [...rows.values()].map(row => {
-      const playerRecords = recordByPlayer.get(row.name) || [];
-      row.last5Change = playerRecords.slice(-5).reduce((sum, record) => sum + (record.home === row.name ? record.deltaHome : record.deltaAway), 0);
-      row.rating = Math.round(row.rating);
-      row.peak = Math.round(row.peak);
-      row.floor = Math.round(row.floor);
-      row.tier = intelligenceTier(row.rating);
-      row.winRate = row.games ? row.wins / row.games * 100 : 0;
-      const ledger = playerRecords.map(record => {
-        const homeSide = record.home === row.name;
-        const actual = record.winner ? (record.winner === row.name ? 1 : 0) : .5;
-        const expected = homeSide ? record.expectedHome : 1 - record.expectedHome;
-        const opponentRating = homeSide ? record.beforeAway : record.beforeHome;
-        const change = homeSide ? record.deltaHome : record.deltaAway;
-        const opponent = homeSide ? record.away : record.home;
-        const team = homeSide ? record.match?.homeTeam : record.match?.awayTeam;
-        const stage = String(record.match?.stage || "");
-        const pressure = /final|semi|quarter|knockout|play.?in|championship/i.test(stage);
-        const normalizedTeam = teamKey(team);
-        return {
-          id: record.id, actual, expected, opponentRating, change, opponent, team, stage,
-          pressure, teamResidual: normalizedTeam ? actual - (teamBaseline.get(normalizedTeam) ?? .5) : 0,
-          edition: Number(record.match?.edition) || 0,
-          score: `${Number(record.match?.homeScore) || 0}-${Number(record.match?.awayScore) || 0}`
-        };
-      });
-      const recent = ledger.slice(-5);
-      const pressureLedger = ledger.filter(item => item.pressure);
-      const performanceAboveExpected = average(ledger.map(item => item.actual - item.expected));
-      const pressureAboveExpected = pressureLedger.length ? average(pressureLedger.map(item => item.actual - item.expected)) : 0;
-      const scheduleRating = average(ledger.map(item => item.opponentRating)) || 1500;
-      const teamResidual = average(ledger.map(item => item.teamResidual));
-      const ratingScore = intelligenceClamp(50 + (row.rating - 1500) / 6.5);
-      const expectationScore = intelligenceClamp(50 + performanceAboveExpected * 105);
-      const oppositionScore = intelligenceClamp(50 + (scheduleRating - 1500) / 6);
-      const formScore = recent.length ? intelligenceClamp(average(recent.map(item => item.actual)) * 100) : 50;
-      const pressureScore = pressureLedger.length ? intelligenceClamp(50 + pressureAboveExpected * 115) : 50;
-      const teamIndependenceScore = ledger.some(item => item.team) ? intelligenceClamp(50 + teamResidual * 120) : 50;
-      const stabilityScore = intelligenceClamp(100 - deviation(ledger.map(item => item.change)) * 3.1);
-      const confidence = intelligenceClamp(18 + Math.sqrt(row.games) * 10.5, 18, 99);
-      const score = intelligenceClamp(
-        ratingScore * .45 + expectationScore * .17 + oppositionScore * .11 +
-        formScore * .10 + pressureScore * .10 + teamIndependenceScore * .07
-      );
-      const components = [
-        { key:"rating", label:intelligenceCopy("Temel Güç", "Core Strength"), value:ratingScore, weight:45 },
-        { key:"expectation", label:intelligenceCopy("Beklenti Üstü", "Above Expectation"), value:expectationScore, weight:17 },
-        { key:"opposition", label:intelligenceCopy("Rakip Kalitesi", "Opposition Quality"), value:oppositionScore, weight:11 },
-        { key:"form", label:intelligenceCopy("Güncel Form", "Current Form"), value:formScore, weight:10 },
-        { key:"pressure", label:intelligenceCopy("Baskı Gücü", "Pressure Strength"), value:pressureScore, weight:10 },
-        { key:"team", label:intelligenceCopy("Takımdan Bağımsızlık", "Team Independence"), value:teamIndependenceScore, weight:7 }
-      ];
-      const strongest = [...components].sort((a, b) => b.value - a.value)[0];
-      const development = [...components].sort((a, b) => a.value - b.value)[0];
-      row.fpi = {
-        score:Number(score.toFixed(1)), confidence:Number(confidence.toFixed(0)),
-        confidenceBand: confidence >= 88 ? intelligenceCopy("KANITLANMIŞ", "PROVEN") : confidence >= 72 ? intelligenceCopy("YERLEŞİK", "ESTABLISHED") : confidence >= 52 ? intelligenceCopy("GELİŞEN", "DEVELOPING") : intelligenceCopy("GEÇİCİ", "PROVISIONAL"),
-        scheduleRating:Math.round(scheduleRating), expectationDelta:Number((performanceAboveExpected * 100).toFixed(1)),
-        pressureGames:pressureLedger.length, pressureScore:Number(pressureScore.toFixed(0)),
-        formScore:Number(formScore.toFixed(0)), teamIndependenceScore:Number(teamIndependenceScore.toFixed(0)),
-        stabilityScore:Number(stabilityScore.toFixed(0)), components, strongest, development,
-        recentLedger:recent.slice().reverse()
-      };
-      return row;
-    }).sort((a, b) => b.rating - a.rating || b.peak - a.peak || a.name.localeCompare(b.name, "tr"))
-      .map((row, index) => ({ ...row, rank: index + 1 }));
-
-    const previousRanks = new Map([...players]
-      .sort((a, b) => (b.rating - b.last5Change) - (a.rating - a.last5Change) || a.name.localeCompare(b.name, "tr"))
-      .map((row, index) => [row.name, index + 1]));
-    players = players.map(row => {
-      const previousRank = previousRanks.get(row.name) || row.rank;
-      const rankMovement = previousRank - row.rank;
-      const signal = row.last5Change >= 18 ? intelligenceCopy("HIZLI YÜKSELİŞ", "SURGING") : row.last5Change >= 6 ? intelligenceCopy("YÜKSELİŞ", "RISING") : row.last5Change <= -18 ? intelligenceCopy("SERT DÜŞÜŞ", "SLIDING") : row.last5Change <= -6 ? intelligenceCopy("GERİLİYOR", "COOLING") : intelligenceCopy("DENGELİ", "STEADY");
-      return { ...row, previousRank, rankMovement, fpi:{ ...row.fpi, signal } };
-    });
-
-    return {
-      players,
-      playerMap: new Map(players.map(row => [row.name, row])),
-      records,
-      recordMap: new Map(records.map(row => [row.id, row])),
-      summary: {
-        leader: players[0] || null,
-        mover: [...players].sort((a, b) => b.last5Change - a.last5Change)[0] || null,
-        faller: [...players].sort((a, b) => a.last5Change - b.last5Change)[0] || null,
-        trusted: [...players].sort((a, b) => b.fpi.confidence - a.fpi.confidence || b.games - a.games)[0] || null,
-        pressureLeader: [...players].filter(row => row.fpi.pressureGames > 0).sort((a, b) => b.fpi.pressureScore - a.fpi.pressureScore || b.fpi.pressureGames - a.fpi.pressureGames)[0] || null,
-        average: players.length ? Math.round(players.reduce((sum, row) => sum + row.rating, 0) / players.length) : 1500
-      }
-    };
+    return rows.get(name);
   }
+
+  matches.forEach((match, index) => {
+    const home = String(match.homeName || "").trim();
+    const away = String(match.awayName || "").trim();
+    if (!home || !away || /^P\d+$/i.test(home) || /^P\d+$/i.test(away)) return;
+    const homeRow = ensure(home);
+    const awayRow = ensure(away);
+    const beforeHome = ratings.get(home) || 1500;
+    const beforeAway = ratings.get(away) || 1500;
+    const expectedHome = 1 / (1 + Math.pow(10, (beforeAway - beforeHome) / 400));
+    const winner = match.winnerName || (Number(match.homeScore) > Number(match.awayScore) ? home : Number(match.awayScore) > Number(match.homeScore) ? away : "");
+    const scoreHome = !winner ? 0.5 : winner === home ? 1 : 0;
+    const stageMeta = stageWeightFor(match.stage);
+    const margin = Math.abs(Number(match.homeScore) - Number(match.awayScore));
+    const marginMultiplier = marginWeightFor(margin);
+    const homeK = kFactorFor(homeRow.games);
+    const awayK = kFactorFor(awayRow.games);
+    const sharedK = Math.round((homeK + awayK) / 2);
+    const rawDelta = sharedK * stageMeta.multiplier * marginMultiplier * (scoreHome - expectedHome);
+    const delta = Math.max(-48, Math.min(48, Math.round(rawDelta)));
+    const afterHome = beforeHome + delta;
+    const afterAway = beforeAway - delta;
+    ratings.set(home, afterHome);
+    ratings.set(away, afterAway);
+
+    homeRow.rating = afterHome; awayRow.rating = afterAway;
+    homeRow.games += 1; awayRow.games += 1;
+    if (!winner) { homeRow.draws += 1; awayRow.draws += 1; }
+    else if (winner === home) { homeRow.wins += 1; awayRow.losses += 1; }
+    else { awayRow.wins += 1; homeRow.losses += 1; }
+    homeRow.lastChange = delta; awayRow.lastChange = -delta;
+    homeRow.peak = Math.max(homeRow.peak, afterHome); awayRow.peak = Math.max(awayRow.peak, afterAway);
+    homeRow.floor = Math.min(homeRow.floor, afterHome); awayRow.floor = Math.min(awayRow.floor, afterAway);
+    const timelineLabel = `${match.editionLabel || `FIFA ${match.edition || "–"}`} · ${match.stage || stageMeta.label}`;
+    homeRow.timeline.push({ index: index + 1, rating: afterHome, label: timelineLabel, change:delta });
+    awayRow.timeline.push({ index: index + 1, rating: afterAway, label: timelineLabel, change:-delta });
+    const winnerBefore = winner === home ? beforeHome : winner === away ? beforeAway : 0;
+    const loserBefore = winner === home ? beforeAway : winner === away ? beforeHome : 0;
+    records.push({
+      id: match.id, match, home, away, winner,
+      beforeHome, beforeAway, afterHome, afterAway,
+      deltaHome: delta, deltaAway: -delta,
+      expectedHome, actualHome:scoreHome, margin,
+      kFactor:sharedK, homeK, awayK,
+      stageKey:stageMeta.key, stageLabel:stageMeta.label, stageMultiplier:stageMeta.multiplier,
+      marginMultiplier,
+      surprise:Boolean(winner && loserBefore - winnerBefore >= 90),
+      upsetGap:winner ? Math.max(0, loserBefore - winnerBefore) : 0
+    });
+  });
+
+  const recordByPlayer = new Map();
+  records.forEach(record => {
+    for (const name of [record.home, record.away]) {
+      if (!recordByPlayer.has(name)) recordByPlayer.set(name, []);
+      recordByPlayer.get(name).push(record);
+    }
+  });
+
+  const average = values => {
+    const clean = values.map(Number).filter(Number.isFinite);
+    return clean.length ? clean.reduce((sum, value) => sum + value, 0) / clean.length : 0;
+  };
+  const deviation = values => {
+    const clean = values.map(Number).filter(Number.isFinite);
+    if (clean.length < 2) return 0;
+    const centre = average(clean);
+    return Math.sqrt(average(clean.map(value => Math.pow(value - centre, 2))));
+  };
+  const teamKey = value => String(value || "").trim().toLocaleLowerCase("tr-TR").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+  const teamSamples = new Map();
+  records.forEach(record => {
+    const homeTeam = teamKey(record.match?.homeTeam);
+    const awayTeam = teamKey(record.match?.awayTeam);
+    const homeActual = record.winner ? (record.winner === record.home ? 1 : 0) : .5;
+    const awayActual = 1 - homeActual;
+    if (homeTeam) { if (!teamSamples.has(homeTeam)) teamSamples.set(homeTeam, []); teamSamples.get(homeTeam).push(homeActual); }
+    if (awayTeam) { if (!teamSamples.has(awayTeam)) teamSamples.set(awayTeam, []); teamSamples.get(awayTeam).push(awayActual); }
+  });
+  const teamBaseline = new Map([...teamSamples].map(([key, values]) => [key, average(values)]));
+
+  let players = [...rows.values()].map(row => {
+    const playerRecords = recordByPlayer.get(row.name) || [];
+    row.last5Change = playerRecords.slice(-5).reduce((sum, record) => sum + (record.home === row.name ? record.deltaHome : record.deltaAway), 0);
+    row.rating = Math.round(row.rating);
+    row.peak = Math.round(row.peak);
+    row.floor = Math.round(row.floor);
+    row.tier = intelligenceTier(row.rating);
+    row.winRate = row.games ? row.wins / row.games * 100 : 0;
+    const ledger = playerRecords.map(record => {
+      const homeSide = record.home === row.name;
+      const actual = record.winner ? (record.winner === row.name ? 1 : 0) : .5;
+      const expected = homeSide ? record.expectedHome : 1 - record.expectedHome;
+      const opponentRating = homeSide ? record.beforeAway : record.beforeHome;
+      const ownRatingBefore = homeSide ? record.beforeHome : record.beforeAway;
+      const change = homeSide ? record.deltaHome : record.deltaAway;
+      const opponent = homeSide ? record.away : record.home;
+      const team = homeSide ? record.match?.homeTeam : record.match?.awayTeam;
+      const stage = String(record.match?.stage || record.stageLabel || "");
+      const pressure = record.stageMultiplier > 1;
+      const normalizedTeam = teamKey(team);
+      const goalsFor = Number(homeSide ? record.match?.homeScore : record.match?.awayScore) || 0;
+      const goalsAgainst = Number(homeSide ? record.match?.awayScore : record.match?.homeScore) || 0;
+      return {
+        id: record.id, actual, expected, opponentRating, ownRatingBefore, change, opponent, team, stage,
+        pressure, teamResidual: normalizedTeam ? actual - (teamBaseline.get(normalizedTeam) ?? .5) : 0,
+        edition: Number(record.match?.edition) || 0,
+        score: `${goalsFor}-${goalsAgainst}`, goalsFor, goalsAgainst, goalDifference:goalsFor-goalsAgainst,
+        kFactor:record.kFactor, stageMultiplier:record.stageMultiplier, stageLabel:record.stageLabel,
+        marginMultiplier:record.marginMultiplier, margin:record.margin,
+        expectedResult:Number((expected * 100).toFixed(1))
+      };
+    });
+    const recent = ledger.slice(-5);
+    const pressureLedger = ledger.filter(item => item.pressure);
+    const performanceAboveExpected = average(ledger.map(item => item.actual - item.expected));
+    const pressureAboveExpected = pressureLedger.length ? average(pressureLedger.map(item => item.actual - item.expected)) : 0;
+    const scheduleRating = average(ledger.map(item => item.opponentRating)) || 1500;
+    const teamResidual = average(ledger.map(item => item.teamResidual));
+    const ratingScore = intelligenceClamp(50 + (row.rating - 1500) / 6.5);
+    const expectationScore = intelligenceClamp(50 + performanceAboveExpected * 105);
+    const oppositionScore = intelligenceClamp(50 + (scheduleRating - 1500) / 6);
+    const formScore = recent.length ? intelligenceClamp(average(recent.map(item => item.actual)) * 100) : 50;
+    const pressureScore = pressureLedger.length ? intelligenceClamp(50 + pressureAboveExpected * 115) : 50;
+    const teamIndependenceScore = ledger.some(item => item.team) ? intelligenceClamp(50 + teamResidual * 120) : 50;
+    const stabilityScore = intelligenceClamp(100 - deviation(ledger.map(item => item.change)) * 3.05);
+    const dominanceScore = ledger.length ? intelligenceClamp(50 + average(ledger.map(item => intelligenceClamp(item.goalDifference, -5, 5))) * 8 + (row.winRate - 50) * .12) : 50;
+    const momentumScore = recent.length ? intelligenceClamp(average(recent.map(item => item.actual)) * 65 + intelligenceClamp(50 + row.last5Change * 1.55) * .35) : 50;
+    const teamCoverage = row.games ? ledger.filter(item => item.team).length / row.games : 0;
+    const confidence = intelligenceClamp(20 + Math.sqrt(row.games) * 9.2 + Math.min(10, pressureLedger.length * 1.2) + teamCoverage * 5, 20, 99);
+    const score = intelligenceClamp(
+      ratingScore * .35 + expectationScore * .16 + oppositionScore * .11 + pressureScore * .10 +
+      dominanceScore * .09 + stabilityScore * .07 + momentumScore * .06 + teamIndependenceScore * .06
+    );
+    const components = [
+      { key:"rating", label:intelligenceCopy("Temel Güç", "Core Strength"), value:ratingScore, weight:35 },
+      { key:"expectation", label:intelligenceCopy("Sonuç Verimliliği", "Result Efficiency"), value:expectationScore, weight:16 },
+      { key:"opposition", label:intelligenceCopy("Rakip Kalitesi", "Opposition Quality"), value:oppositionScore, weight:11 },
+      { key:"pressure", label:intelligenceCopy("Baskı Gücü", "Pressure Strength"), value:pressureScore, weight:10 },
+      { key:"dominance", label:intelligenceCopy("Oyun Üstünlüğü", "Dominance"), value:dominanceScore, weight:9 },
+      { key:"consistency", label:intelligenceCopy("İstikrar", "Consistency"), value:stabilityScore, weight:7 },
+      { key:"momentum", label:intelligenceCopy("Momentum", "Momentum"), value:momentumScore, weight:6 },
+      { key:"team", label:intelligenceCopy("Takım Etkisinden Arındırma", "Team-Adjusted Impact"), value:teamIndependenceScore, weight:6 }
+    ];
+    const dna = [
+      { key:"efficiency", label:intelligenceCopy("Sonuç Verimliliği", "Result Efficiency"), value:expectationScore },
+      { key:"opposition", label:intelligenceCopy("Rakip Seviyesi", "Opposition Level"), value:oppositionScore },
+      { key:"dominance", label:intelligenceCopy("Dominance", "Dominance"), value:dominanceScore },
+      { key:"pressure", label:intelligenceCopy("Pressure Index", "Pressure Index"), value:pressureScore },
+      { key:"consistency", label:intelligenceCopy("Consistency", "Consistency"), value:stabilityScore },
+      { key:"momentum", label:intelligenceCopy("Momentum", "Momentum"), value:momentumScore }
+    ];
+    const strongest = [...components].sort((a, b) => b.value - a.value)[0];
+    const development = [...components].sort((a, b) => a.value - b.value)[0];
+    const wins = ledger.filter(item => item.actual === 1).sort((a,b) => (b.opponentRating - b.expected * 90 + (b.pressure ? 30 : 0)) - (a.opponentRating - a.expected * 90 + (a.pressure ? 30 : 0)));
+    const losses = ledger.filter(item => item.actual === 0).sort((a,b) => a.change - b.change);
+    const form = recent.map(item => item.actual === 1 ? "W" : item.actual === .5 ? "D" : "L").join("");
+    row.fpi = {
+      score:Number(score.toFixed(1)), confidence:Number(confidence.toFixed(0)),
+      confidenceBand: confidence >= 88 ? intelligenceCopy("KANITLANMIŞ", "PROVEN") : confidence >= 72 ? intelligenceCopy("YERLEŞİK", "ESTABLISHED") : confidence >= 52 ? intelligenceCopy("GELİŞEN", "DEVELOPING") : intelligenceCopy("GEÇİCİ", "PROVISIONAL"),
+      scheduleRating:Math.round(scheduleRating), expectationDelta:Number((performanceAboveExpected * 100).toFixed(1)),
+      pressureGames:pressureLedger.length, pressureScore:Number(pressureScore.toFixed(0)),
+      formScore:Number(formScore.toFixed(0)), teamIndependenceScore:Number(teamIndependenceScore.toFixed(0)),
+      stabilityScore:Number(stabilityScore.toFixed(0)), dominanceScore:Number(dominanceScore.toFixed(0)), momentumScore:Number(momentumScore.toFixed(0)),
+      components, dna, strongest, development, recentLedger:recent.slice().reverse(), ledger,
+      biggestWin:wins[0] || null, biggestLoss:losses[0] || null, form
+    };
+    row.standing = {
+      rating:row.rating, index:Number(score.toFixed(1)), class:row.tier,
+      latestShift:row.lastChange, momentumShift:row.last5Change,
+      form, confidence:Number(confidence.toFixed(0)), confidenceBand:row.fpi.confidenceBand,
+      dna, timeline:row.timeline.slice(-36), provisional:row.games < 6
+    };
+    return row;
+  }).sort((a, b) => b.rating - a.rating || b.peak - a.peak || a.name.localeCompare(b.name, "tr"))
+    .map((row, index) => ({ ...row, rank: index + 1 }));
+
+  const previousRanks = new Map([...players]
+    .sort((a, b) => (b.rating - b.last5Change) - (a.rating - a.last5Change) || a.name.localeCompare(b.name, "tr"))
+    .map((row, index) => [row.name, index + 1]));
+  players = players.map(row => {
+    const previousRank = previousRanks.get(row.name) || row.rank;
+    const rankMovement = previousRank - row.rank;
+    const signal = row.last5Change >= 18 ? intelligenceCopy("HIZLI YÜKSELİŞ", "SURGING") : row.last5Change >= 6 ? intelligenceCopy("YÜKSELİŞ", "RISING") : row.last5Change <= -18 ? intelligenceCopy("SERT DÜŞÜŞ", "SLIDING") : row.last5Change <= -6 ? intelligenceCopy("GERİLİYOR", "COOLING") : intelligenceCopy("DENGELİ", "STEADY");
+    return { ...row, previousRank, rankMovement, fpi:{ ...row.fpi, signal }, standing:{ ...row.standing, rankMovement, signal } };
+  });
+
+  const leader = players[0] || null;
+  players = players.map((row, index) => {
+    const next = index > 0 ? players[index - 1] : null;
+    const gapToLeader = leader ? leader.rating - row.rating : 0;
+    const gapToNext = next ? next.rating - row.rating : 0;
+    const pointsToPass = next ? gapToNext + 1 : 0;
+    const trendText = row.last5Change >= 12 ? intelligenceCopy("güçlü yükseliş momentumu taşıyor", "is carrying strong upward momentum") : row.last5Change <= -12 ? intelligenceCopy("son dönemde rating baskısı yaşıyor", "is under recent rating pressure") : intelligenceCopy("istikrarlı bir bantta ilerliyor", "is moving in a stable band");
+    const targetText = next ? intelligenceCopy(`${next.name} oyuncusunu geçmek için yaklaşık ${pointsToPass} Standing Rating gerekiyor.`, `Approximately ${pointsToPass} Standing Rating points are required to pass ${next.name}.`) : intelligenceCopy("Player Standing liderliğini koruyor.", "Holds the Player Standing lead.");
+    const why = intelligenceCopy(
+      `${row.name}, ${row.rating} Standing Rating ile #${row.rank} sırada ve ${trendText}. Ortalama ${row.fpi.scheduleRating} seviyesinde rakiplerle oynadı; en güçlü sinyali ${row.fpi.strongest.label} (${row.fpi.strongest.value.toFixed(0)}/100). ${next ? `Bir üst sırayla fark ${gapToNext} puan.` : "Sıralamanın zirvesinde."}`,
+      `${row.name} is ranked #${row.rank} with a ${row.rating} Standing Rating and ${trendText}. The average opponent level is ${row.fpi.scheduleRating}; the strongest signal is ${row.fpi.strongest.label} (${row.fpi.strongest.value.toFixed(0)}/100). ${next ? `The gap to the next position is ${gapToNext} points.` : "This player leads the ranking."}`
+    );
+    return {
+      ...row,
+      standing:{
+        ...row.standing, rank:row.rank, gapToLeader, gapToNext, pointsToPass,
+        nextTarget:next ? { name:next.name, rating:next.rating, gap:gapToNext, pointsToPass } : null,
+        targetText, why, leaderGapText:gapToLeader ? `-${gapToLeader}` : "LEADER"
+      }
+    };
+  });
+
+  const adjacentGaps = players.slice(1).map((row, index) => ({ upper:players[index], lower:row, gap:players[index].rating-row.rating }));
+  const biggestUpset = [...records].filter(record => record.winner && record.upsetGap > 0).sort((a,b) => b.upsetGap-a.upsetGap || Math.abs(b.deltaHome)-Math.abs(a.deltaHome))[0] || null;
+  return {
+    players,
+    playerMap: new Map(players.map(row => [row.name, row])),
+    records,
+    recordMap: new Map(records.map(row => [row.id, row])),
+    model: {
+      name:"STANDING INTELLIGENCE ENGINE", version:"2.2", startingRating:1500, newPlayerRating:1350,
+      weights:{ core:35, efficiency:16, opposition:11, pressure:10, dominance:9, consistency:7, momentum:6, teamAdjusted:6 },
+      zeroSum:true, maxMatchShift:48
+    },
+    summary: {
+      leader,
+      mover: [...players].sort((a, b) => b.last5Change - a.last5Change)[0] || null,
+      faller: [...players].sort((a, b) => a.last5Change - b.last5Change)[0] || null,
+      trusted: [...players].sort((a, b) => b.fpi.confidence - a.fpi.confidence || b.games - a.games)[0] || null,
+      pressureLeader: [...players].filter(row => row.fpi.pressureGames > 0).sort((a, b) => b.fpi.pressureScore - a.fpi.pressureScore || b.fpi.pressureGames - a.fpi.pressureGames)[0] || null,
+      biggestUpset,
+      smallestGap:[...adjacentGaps].sort((a,b) => a.gap-b.gap)[0] || null,
+      average: players.length ? Math.round(players.reduce((sum, row) => sum + row.rating, 0) / players.length) : 1500
+    }
+  };
+}
 
   function matchImportance(match) {
     if (!match) return { level: "standard", label: "Standart Maç", note: "Turnuva fikstürü" };
@@ -7320,7 +7404,7 @@
       else if (total >= 10) lead = `${winner}, gol düellosuna dönüşen karşılaşmayı ${match.homeScore}-${match.awayScore} kazandı.`;
       else lead = `${winner}, dengeli mücadelede ${loser} karşısında ${match.homeScore}-${match.awayScore} kazandı.`;
     } else lead = `${item.homeName} ve ${item.awayName}, ${match.homeScore}-${match.awayScore} beraberlikle puanları paylaştı.`;
-    const eloText = eloRecord ? `${eloRecord.deltaHome >= 0 ? item.homeName : item.awayName} FPI Rating sıralamasında ${Math.abs(eloRecord.deltaHome)} puanlık değişim yarattı.` : "";
+    const eloText = eloRecord ? `${eloRecord.deltaHome >= 0 ? item.homeName : item.awayName} Standing Rating sıralamasında ${Math.abs(eloRecord.deltaHome)} puanlık değişim yarattı.` : "";
     return { lead, eloText, ...liveInsight };
   }
 
@@ -7365,11 +7449,11 @@
         </div>` : `<div class="info-box">Henüz analiz edilecek fikstür bulunmuyor.</div>`}
       </section>
       <section class="panel">
-        <div class="panel-header"><div><h3 class="panel-title">Yaklaşan Maç Dosyaları</h3><div class="panel-subtitle">Form, FPI Rating, H2H ve turnuva önemine göre otomatik hazırlanır.</div></div><span class="badge badge-blue">${data.upcoming.length} MATCH FILES</span></div>
+        <div class="panel-header"><div><h3 class="panel-title">Yaklaşan Maç Dosyaları</h3><div class="panel-subtitle">Form, Standing Rating, H2H ve turnuva önemine göre otomatik hazırlanır.</div></div><span class="badge badge-blue">${data.upcoming.length} MATCH FILES</span></div>
         ${data.upcoming.length ? `<div class="intel-match-list">${data.upcoming.slice(0, 10).map(item => `<button class="intel-match-row" data-action="open-matchday-analysis" data-match-id="${escapeHTML(item.id)}"><span class="intel-match-stage">${escapeHTML(item.stage)}</span><strong>${escapeHTML(item.home.name)} <b>vs</b> ${escapeHTML(item.away.name)}</strong><span>${item.predictedHome}-${item.predictedAway}</span><small class="${item.importance.level}">${escapeHTML(item.importance.label)}</small></button>`).join("")}</div>` : `<div class="info-box">Oynanmamış maç bulunmuyor.</div>`}
       </section>
       <section class="panel">
-        <div class="panel-header"><div><h3 class="panel-title">Otomatik Maç Sonu Hikâyeleri</h3><div class="panel-subtitle">Canlı zaman çizelgesi, skor, FPI Rating ve rekor etkisinden oluşturulur.</div></div><span class="badge badge-silver">POST MATCH</span></div>
+        <div class="panel-header"><div><h3 class="panel-title">Otomatik Maç Sonu Hikâyeleri</h3><div class="panel-subtitle">Canlı zaman çizelgesi, skor, Standing Rating ve rekor etkisinden oluşturulur.</div></div><span class="badge badge-silver">POST MATCH</span></div>
         ${data.recent.length ? `<div class="intel-story-grid">${data.recent.map(item => `<article class="intel-story-card"><span>${escapeHTML(item.stage)}</span><h4>${escapeHTML(item.homeName)} ${item.homeScore}-${item.awayScore} ${escapeHTML(item.awayName)}</h4><p>${escapeHTML(item.story.lead)}</p><small>${escapeHTML(item.story.turningPoint)}${item.story.eloText ? ` · ${escapeHTML(item.story.eloText)}` : ""}</small></article>`).join("")}</div>` : `<div class="info-box">İlk sonuç girildiğinde otomatik maç hikâyeleri burada görünür.</div>`}
       </section>
     </div>`;
@@ -7390,45 +7474,72 @@
     openModal(`${item.home.name} vs ${item.away.name}`, `
       <div class="intel-dossier-hero"><div><span class="intel-importance ${importance.level}">${escapeHTML(importance.label)}</span><h3>${escapeHTML(item.home.name)} <b>vs</b> ${escapeHTML(item.away.name)}</h3><p>${escapeHTML(item.reason)}</p></div><div class="intel-score-prediction"><span>MODEL SKORU</span><strong>${item.predictedHome}-${item.predictedAway}</strong><small>${item.confidence}% güven</small></div></div>
       ${renderProbabilityRail(liveProbability || { home: item.market.home.probability, draw: item.market.draw.probability, away: item.market.away.probability }, { home: item.home.name, away: item.away.name })}
-      <div class="intel-dossier-kpis"><div><span>FPI RATING</span><strong>${homeElo?.rating || 1500} – ${awayElo?.rating || 1500}</strong></div><div><span>Son 20 PPG</span><strong>${item.home.form.ppg.toFixed(2)} – ${item.away.form.ppg.toFixed(2)}</strong></div><div><span>H2H</span><strong>${item.h2h.meetings ? `${item.h2h.winsA}-${item.h2h.draws}-${item.h2h.winsB}` : "İlk maç"}</strong></div><div><span>Kritiklik</span><strong>${escapeHTML(importance.label)}</strong></div></div>
+      <div class="intel-dossier-kpis"><div><span>STANDING RATING</span><strong>${homeElo?.rating || 1500} – ${awayElo?.rating || 1500}</strong></div><div><span>Son 20 PPG</span><strong>${item.home.form.ppg.toFixed(2)} – ${item.away.form.ppg.toFixed(2)}</strong></div><div><span>H2H</span><strong>${item.h2h.meetings ? `${item.h2h.winsA}-${item.h2h.draws}-${item.h2h.winsB}` : "İlk maç"}</strong></div><div><span>Kritiklik</span><strong>${escapeHTML(importance.label)}</strong></div></div>
       <div class="grid-2 mt-24"><div class="intel-dossier-player"><h4>${escapeHTML(item.home.name)}</h4><strong>${item.home.strength.toFixed(0)} güç</strong><p>${item.home.form.games} maç · ${item.home.form.wins}G ${item.home.form.draws}B ${item.home.form.losses}M · ${item.home.form.gf}-${item.home.form.ga}</p>${oddsFormStrip(item.home)}</div><div class="intel-dossier-player"><h4>${escapeHTML(item.away.name)}</h4><strong>${item.away.strength.toFixed(0)} güç</strong><p>${item.away.form.games} maç · ${item.away.form.wins}G ${item.away.form.draws}B ${item.away.form.losses}M · ${item.away.form.gf}-${item.away.form.ga}</p>${oddsFormStrip(item.away)}</div></div>
       <section class="mt-24"><div class="panel-title">Rivalry Timeline</div><div class="intel-dossier-h2h-list">${h2hLatest}</div></section>
       <div class="modal-actions"><button class="btn btn-ghost" data-action="close-modal">Kapat</button><button class="btn btn-gold" data-action="share-single-odds" data-match-id="${escapeHTML(match.id)}">Maçı Paylaş</button></div>
     `, "MATCHDAY INTELLIGENCE");
   }
 
-  function renderEloSection() {
-    const data = buildEloAnalytics();
-    const selected = data.playerMap.get(intelligenceFpiPlayer) || data.summary.leader || data.players[0];
-    if (selected) intelligenceFpiPlayer = selected.name;
-    const movement = row => row.rankMovement > 0 ? `▲${row.rankMovement}` : row.rankMovement < 0 ? `▼${Math.abs(row.rankMovement)}` : "◆";
-    const movementClass = row => row.rankMovement > 0 ? "positive" : row.rankMovement < 0 ? "negative" : "steady";
-    const resultLabel = item => item.actual === 1 ? intelligenceCopy("GALİBİYET", "WIN") : item.actual === .5 ? intelligenceCopy("BERABERLİK", "DRAW") : intelligenceCopy("MAĞLUBİYET", "LOSS");
-    const latest = selected?.fpi?.recentLedger?.[0];
-    return `<div class="intel-section-stack">
-      <section class="intel-elo-hero fpi-hero"><div><div class="eyebrow">FIFA PLAYER INDEX · FPI</div><h2>${intelligenceCopy("Sıralamadan fazlası. Oyuncunun güç kimliği.", "More than a ranking. A player's power identity.")}</h2><p>${intelligenceCopy("FPI Rating kimin daha güçlü olduğunu sıralar. FPI/100 ise bu gücün nereden geldiğini; rakip, beklenti, form, baskı, takım etkisi ve veri güveniyle açıklar.", "FPI Rating ranks who is stronger. FPI/100 explains where that strength comes from through opposition, expectation, form, pressure, team effect and data confidence.")}</p><div class="fpi-principles"><span>ZERO-SUM CORE</span><span>CONTEXT AWARE</span><span>EXPLAINABLE</span><span>ALL-TIME</span></div></div><div class="intel-elo-crown"><span>FPI WORLD No.1</span><strong>${escapeHTML(data.summary.leader?.name || "–")}</strong><b>${data.summary.leader?.rating || 1500}</b><small>${data.summary.leader?.fpi.score || 50}/100 · ${data.summary.leader?.tier.label || ""}</small></div></section>
-      <div class="kpi-grid">
-        ${kpiCard(intelligenceCopy("FPI Lideri", "FPI Leader"), data.summary.leader?.name || "–", data.summary.leader ? `${data.summary.leader.rating} Rating · ${data.summary.leader.fpi.score}/100` : intelligenceCopy("Veri bekleniyor", "Awaiting data"))}
-        ${kpiCard(intelligenceCopy("En Hızlı Yükselen", "Fastest Riser"), data.summary.mover?.name || "–", data.summary.mover ? `${intelligenceCopy("Son 5 maç", "Last 5 matches")} ${data.summary.mover.last5Change >= 0 ? "+" : ""}${data.summary.mover.last5Change}` : intelligenceCopy("Veri bekleniyor", "Awaiting data"))}
-        ${kpiCard(intelligenceCopy("Baskı Lideri", "Pressure Leader"), data.summary.pressureLeader?.name || "–", data.summary.pressureLeader ? `${data.summary.pressureLeader.fpi.pressureScore}/100 · ${data.summary.pressureLeader.fpi.pressureGames} ${intelligenceCopy("kritik maç", "pressure matches")}` : intelligenceCopy("Kritik maç bekleniyor", "Awaiting pressure matches"))}
-        ${kpiCard(intelligenceCopy("Model Güveni", "Model Confidence"), `${data.summary.trusted?.fpi.confidence || 0}%`, data.summary.trusted ? `${data.summary.trusted.name} · ${data.summary.trusted.games} MP` : intelligenceCopy("Veri bekleniyor", "Awaiting data"))}
-      </div>
-      <section class="panel fpi-method-panel"><div class="panel-header"><div><h3 class="panel-title">FPI/100 ${intelligenceCopy("Nasıl Oluşur?", "How Is It Built?")}</h3><div class="panel-subtitle">${intelligenceCopy("Rating sıralamayı korur; açıklama skoru altı farklı sinyalle oyuncunun profilini görünür kılar.", "Rating preserves the ranking; the explanation score reveals the player's profile through six signals.")}</div></div><span class="badge badge-blue">MODEL v2.1</span></div><div class="fpi-method-grid">${[
-        ["45%",intelligenceCopy("Temel Güç", "Core Strength"),intelligenceCopy("Bütün resmî sonuçların sıfır toplamlı uzun vadeli Rating'i.", "Zero-sum long-term Rating from every official result.")],
-        ["17%",intelligenceCopy("Beklenti Üstü", "Above Expectation"),intelligenceCopy("Modelin maç öncesi beklentisine karşı gerçek performans.", "Actual performance against the model's pre-match expectation.")],
-        ["11%",intelligenceCopy("Rakip Kalitesi", "Opposition Quality"),intelligenceCopy("Karşılaşılan rakiplerin maç öncesi ortalama Rating seviyesi.", "Average pre-match Rating of faced opponents.")],
-        ["10%",intelligenceCopy("Güncel Form", "Current Form"),intelligenceCopy("Son beş resmî maçın ağırlıklı sonuç sinyali.", "Weighted result signal from the latest five official matches.")],
-        ["10%",intelligenceCopy("Baskı Gücü", "Pressure Strength"),intelligenceCopy("Play-in, eleme, yarı final ve final performansı.", "Play-in, knockout, semi-final and final performance.")],
-        ["7%",intelligenceCopy("Takım Etkisinden Arındırma", "Team-Adjusted Impact"),intelligenceCopy("Kullanılan takımın genel başarısına göre oyuncunun ürettiği ek değer.", "Added value produced relative to the selected team's overall results.")]
-      ].map(([weight,title,copy])=>`<article><b>${weight}</b><strong>${title}</strong><p>${copy}</p></article>`).join("")}</div><div class="fpi-method-rule"><strong>${intelligenceCopy("İki ayrı cevap:", "Two separate answers:")}</strong> <span>FPI RATING = ${intelligenceCopy("Kim daha güçlü?", "Who is stronger?")}</span><i></i><span>FPI/100 = ${intelligenceCopy("Neden ve ne kadar güvenilir?", "Why, and how reliable?")}</span></div></section>
-      ${selected ? `<section class="fpi-dossier"><header><div><span>PLAYER INDEX DOSSIER · #${selected.rank}</span><h3>${escapeHTML(selected.name)}</h3><p>${escapeHTML(selected.tier.note)} · ${selected.fpi.signal} · ${selected.fpi.confidenceBand}</p></div><div class="fpi-dossier-score"><article><span>FPI RATING</span><strong>${selected.rating}</strong><small>PEAK ${selected.peak} · FLOOR ${selected.floor}</small></article><article><span>FPI / 100</span><strong>${selected.fpi.score}</strong><small>${selected.fpi.confidence}% ${intelligenceCopy("MODEL GÜVENİ", "MODEL CONFIDENCE")}</small></article></div></header><div class="fpi-dossier-body"><div class="fpi-component-list">${selected.fpi.components.map(component=>`<div><span>${escapeHTML(component.label)} <small>${component.weight}%</small></span><i><b style="width:${component.value}%"></b></i><strong>${component.value.toFixed(0)}</strong></div>`).join("")}</div><aside><article><span>${intelligenceCopy("EN GÜÇLÜ SİNYAL", "STRONGEST SIGNAL")}</span><strong>${escapeHTML(selected.fpi.strongest.label)}</strong><b>${selected.fpi.strongest.value.toFixed(0)}/100</b></article><article><span>${intelligenceCopy("GELİŞİM ALANI", "DEVELOPMENT AREA")}</span><strong>${escapeHTML(selected.fpi.development.label)}</strong><b>${selected.fpi.development.value.toFixed(0)}/100</b></article><article><span>${intelligenceCopy("RAKİP ORTALAMASI", "OPPOSITION AVERAGE")}</span><strong>${selected.fpi.scheduleRating}</strong><b>${selected.fpi.expectationDelta >= 0 ? "+" : ""}${selected.fpi.expectationDelta}% EXP</b></article></aside></div><footer><div><span>${intelligenceCopy("SON BEŞ RATING", "LAST-FIVE RATING")}</span><strong class="${selected.last5Change >= 0 ? "positive" : "negative"}">${selected.last5Change >= 0 ? "+" : ""}${selected.last5Change}</strong></div><div><span>${intelligenceCopy("İSTİKRAR", "STABILITY")}</span><strong>${selected.fpi.stabilityScore}/100</strong></div><div><span>${intelligenceCopy("BASKI MAÇI", "PRESSURE MATCHES")}</span><strong>${selected.fpi.pressureGames}</strong></div><div><span>${intelligenceCopy("SON DEĞİŞİM", "LATEST CHANGE")}</span><strong>${latest ? `${latest.change >= 0 ? "+" : ""}${latest.change} vs ${escapeHTML(latest.opponent)}` : "–"}</strong></div><button type="button" data-v2-player-open="${escapeHTML(selected.name)}">${intelligenceCopy("Oyuncu pasaportunu aç", "Open Player Passport")} ↗</button></footer>${selected.fpi.recentLedger.length ? `<div class="fpi-ledger"><div class="head"><span>${intelligenceCopy("SON MAÇ", "RECENT MATCH")}</span><span>${intelligenceCopy("RAKİP", "OPPONENT")}</span><span>${intelligenceCopy("BEKLENTİ", "EXPECTED")}</span><span>${intelligenceCopy("SONUÇ", "RESULT")}</span><span>FPI Δ</span></div>${selected.fpi.recentLedger.map(item=>`<div><span>FIFA ${item.edition} · ${escapeHTML(item.stage || "MATCH")}</span><strong>${escapeHTML(item.opponent)}</strong><span>${Math.round(item.expected*100)}%</span><b class="result-${item.actual===1?"win":item.actual===.5?"draw":"loss"}">${resultLabel(item)}</b><em class="${item.change>=0?"positive":"negative"}">${item.change>=0?"+":""}${item.change}</em></div>`).join("")}</div>`:""}</section>` : ""}
-      <section class="panel">
-        <div class="panel-header"><div><h3 class="panel-title">FIFA Player Standing</h3><div class="panel-subtitle">${intelligenceCopy("FPI Rating sıralamayı belirler. Satıra dokunarak bu Rating'in nedenlerini aç.", "FPI Rating determines the ranking. Select a row to reveal why the Rating exists.")}</div></div><span class="badge badge-gold">LIVE FPI</span></div>
-        <div class="intel-elo-table fpi-standing-table"><div class="intel-elo-head"><span>#</span><span>${intelligenceCopy("Oyuncu", "Player")}</span><span>RATING</span><span>FPI/100</span><span>${intelligenceCopy("Hareket", "Movement")}</span><span>${intelligenceCopy("RAKİP ORT.", "OPP. AVG")}</span><span>${intelligenceCopy("Baskı", "Pressure")}</span><span>${intelligenceCopy("Güven", "Confidence")}</span><span>${intelligenceCopy("Seviye", "Tier")}</span></div>${data.players.map(row => `<button type="button" class="intel-elo-row tier-${row.tier.key} ${selected?.name===row.name?"active":""}" data-action="select-fpi-player" data-player-name="${escapeHTML(row.name)}"><span>${row.rank}</span><strong>${escapeHTML(row.name)}<small>${escapeHTML(row.fpi.signal)}</small></strong><b>${row.rating}</b><span>${row.fpi.score}</span><em class="${movementClass(row)}">${movement(row)}</em><span>${row.fpi.scheduleRating}</span><span>${row.fpi.pressureScore}</span><span>${row.fpi.confidence}%</span><small>${row.tier.label}</small></button>`).join("")}</div>
-      </section>
-      <section class="panel"><div class="panel-header"><div><h3 class="panel-title">${intelligenceCopy("Rating Seviyeleri ve Güven Katmanı", "Rating Tiers and Confidence Layer")}</h3><div class="panel-subtitle">${intelligenceCopy("Seviye oyuncunun gücünü; güven yüzdesi bu hükmün veriyle ne kadar desteklendiğini gösterir.", "Tier shows player strength; confidence shows how strongly the evidence supports that judgement.")}</div></div></div><div class="intel-tier-grid">${["ICON · 1825+","ELITE · 1725+","CONTENDER · 1625+","CHALLENGER · 1525+","RISING · 1425+","OUTSIDER · <1425"].map((label, index) => `<div class="tier-${["icon","elite","contender","challenger","rising","outsider"][index]}"><strong>${label.split(" · ")[0]}</strong><span>${label.split(" · ")[1]}</span></div>`).join("")}</div><div class="fpi-confidence-legend"><span><i style="--c:95%"></i><b>PROVEN</b><small>88–99%</small></span><span><i style="--c:80%"></i><b>ESTABLISHED</b><small>72–87%</small></span><span><i style="--c:62%"></i><b>DEVELOPING</b><small>52–71%</small></span><span><i style="--c:35%"></i><b>PROVISIONAL</b><small>18–51%</small></span></div><p class="fpi-audit-note"><strong>${intelligenceCopy("Şeffaflık notu:", "Transparency note:")}</strong> ${intelligenceCopy("FPI Rating resmî seri başı sırasıdır. FPI/100 açıklama ve oyuncu profili içindir; turnuva puan tablosu PPG ve AV/M kurallarını kullanmaya devam eder.", "FPI Rating is the official seeding order. FPI/100 explains the player profile; tournament standings continue to use PPG and GD/M rules.")}</p></section>
-    </div>`;
-  }
+
+function renderEloSection() {
+  const data = buildEloAnalytics();
+  const selected = data.playerMap.get(intelligenceFpiPlayer) || data.summary.leader || data.players[0];
+  if (selected) intelligenceFpiPlayer = selected.name;
+  const movement = row => row.rankMovement > 0 ? `▲${row.rankMovement}` : row.rankMovement < 0 ? `▼${Math.abs(row.rankMovement)}` : "◆";
+  const movementClass = row => row.rankMovement > 0 ? "positive" : row.rankMovement < 0 ? "negative" : "steady";
+  const resultLabel = item => item.actual === 1 ? intelligenceCopy("GALİBİYET", "WIN") : item.actual === .5 ? intelligenceCopy("BERABERLİK", "DRAW") : intelligenceCopy("MAĞLUBİYET", "LOSS");
+  const latest = selected?.fpi?.recentLedger?.[0];
+  const signed = value => `${Number(value) >= 0 ? "+" : ""}${Number(value) || 0}`;
+  const formStrip = row => `<span class="standing-form-strip">${String(row?.fpi?.form || "").split("").map(letter => `<i class="${letter === "W" ? "win" : letter === "D" ? "draw" : "loss"}">${letter}</i>`).join("") || "–"}</span>`;
+  const timeline = row => {
+    const points = (row?.standing?.timeline || row?.timeline || []).slice(-32);
+    if (points.length < 2) return `<div class="standing-chart-empty">${intelligenceCopy("Grafik için daha fazla maç gerekiyor.", "More matches are required for a chart.")}</div>`;
+    const width = 780, height = 190, padX = 24, padY = 24;
+    const values = points.map(point => Number(point.rating) || 1500);
+    const min = Math.min(...values) - 10, max = Math.max(...values) + 10;
+    const range = Math.max(1, max - min);
+    const coords = points.map((point, index) => {
+      const x = padX + index * ((width - padX * 2) / Math.max(1, points.length - 1));
+      const y = height - padY - ((Number(point.rating) - min) / range) * (height - padY * 2);
+      return { x:Number(x.toFixed(1)), y:Number(y.toFixed(1)), point };
+    });
+    const polyline = coords.map(point => `${point.x},${point.y}`).join(" ");
+    const last = coords.at(-1);
+    return `<svg class="standing-timeline-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Standing Rating timeline"><defs><linearGradient id="standingLine" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#4b8ff4"/><stop offset="1" stop-color="#d0a8ff"/></linearGradient><linearGradient id="standingArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#657ee8" stop-opacity=".34"/><stop offset="1" stop-color="#657ee8" stop-opacity="0"/></linearGradient></defs><path d="M ${coords[0].x} ${height-padY} L ${polyline.replace(/ /g," L ")} L ${last.x} ${height-padY} Z" fill="url(#standingArea)"/><polyline points="${polyline}" fill="none" stroke="url(#standingLine)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>${coords.map((point,index)=>index===coords.length-1||index===0?`<circle cx="${point.x}" cy="${point.y}" r="5" fill="#f0cf78"/>`:"").join("")}<text x="${padX}" y="17" fill="#7385ad" font-size="10">${Math.round(max)}</text><text x="${padX}" y="${height-5}" fill="#7385ad" font-size="10">${Math.round(min)}</text><text x="${last.x-8}" y="${Math.max(15,last.y-12)}" text-anchor="end" fill="#f0cf78" font-size="12" font-weight="800">${row.rating}</text></svg>`;
+  };
+  const upset = data.summary.biggestUpset;
+  const upsetText = upset ? `${escapeHTML(upset.winner)} · +${upset.upsetGap}` : "–";
+  const gap = data.summary.smallestGap;
+  return `<div class="intel-section-stack player-standing-centre">
+    <section class="intel-elo-hero fpi-hero player-standing-hero"><div><div class="eyebrow">FIFA PLAYER STANDING · STANDING INTELLIGENCE ENGINE</div><h2>${intelligenceCopy("Her maç hiyerarşiyi değiştirir.", "Every match moves the hierarchy.")}</h2><p>${intelligenceCopy("Standing Rating resmî rekabet sırasını belirler. Standing Index ve Standing DNA ise bu sıranın nedenini; rakip seviyesi, sonuç verimliliği, skor üstünlüğü, baskı, istikrar ve momentum üzerinden açıklar.", "Standing Rating determines the official competitive order. Standing Index and Standing DNA explain why through opposition level, result efficiency, dominance, pressure, consistency and momentum.")}</p><div class="fpi-principles"><span>ZERO-SUM CORE</span><span>EXPERIENCE CALIBRATED</span><span>STAGE WEIGHTED</span><span>EXPLAINABLE</span></div></div><div class="intel-elo-crown standing-hero-crown"><span>WORLD STANDING No.1</span><strong>${escapeHTML(data.summary.leader?.name || "–")}</strong><b>${data.summary.leader?.rating || 1500}</b><small>${data.summary.leader?.standing.index || 50}/100 · ${data.summary.leader?.tier.label || ""}</small></div></section>
+    <div class="kpi-grid standing-kpi-grid">
+      ${kpiCard(intelligenceCopy("Standing Lideri", "Standing Leader"), data.summary.leader?.name || "–", data.summary.leader ? `${data.summary.leader.rating} Rating · ${data.summary.leader.standing.index}/100` : intelligenceCopy("Veri bekleniyor", "Awaiting data"))}
+      ${kpiCard(intelligenceCopy("Top Mover", "Top Mover"), data.summary.mover?.name || "–", data.summary.mover ? `${signed(data.summary.mover.last5Change)} · ${movement(data.summary.mover)} ${intelligenceCopy("sıra", "positions")}` : intelligenceCopy("Hareket yok", "No movement"))}
+      ${kpiCard(intelligenceCopy("En Büyük Sürpriz", "Biggest Upset"), upsetText, upset ? `${escapeHTML(upset.home)} ${upset.match?.homeScore}-${upset.match?.awayScore} ${escapeHTML(upset.away)}` : intelligenceCopy("Sürpriz sonucu yok", "No upset result"))}
+      ${kpiCard(intelligenceCopy("En Dar Fark", "Smallest Gap"), gap ? `${gap.gap} PTS` : "–", gap ? `${escapeHTML(gap.upper.name)} ↔ ${escapeHTML(gap.lower.name)}` : intelligenceCopy("Veri bekleniyor", "Awaiting data"))}
+    </div>
+    <section class="panel fpi-method-panel standing-method-panel"><div class="panel-header"><div><h3 class="panel-title">STANDING INDEX / 100</h3><div class="panel-subtitle">${intelligenceCopy("Standing Rating resmî sıralamadır; Index/100 oyuncunun rekabet profilini sekiz denetlenebilir sinyalle açıklar.", "Standing Rating is the official order; Index/100 explains the competitive profile through eight auditable signals.")}</div></div><span class="badge badge-blue">ENGINE 2.2</span></div><div class="fpi-method-grid standing-method-grid">${[
+      ["35%",intelligenceCopy("Temel Güç", "Core Strength"),intelligenceCopy("Bütün resmî sonuçların sıfır toplamlı Standing Rating omurgası.", "Zero-sum Standing Rating core from every official result.")],
+      ["16%",intelligenceCopy("Sonuç Verimliliği", "Result Efficiency"),intelligenceCopy("Gerçek sonuçların maç öncesi beklentiye göre ürettiği değer.", "Value produced by actual results versus pre-match expectation.")],
+      ["11%",intelligenceCopy("Rakip Kalitesi", "Opposition Quality"),intelligenceCopy("Karşılaşılan rakiplerin maç öncesi ortalama Rating seviyesi.", "Average pre-match Rating of faced opponents.")],
+      ["10%",intelligenceCopy("Baskı Gücü", "Pressure Strength"),intelligenceCopy("Play-in, eleme, yarı final ve final performansı.", "Play-in, knockout, semi-final and final performance.")],
+      ["9%",intelligenceCopy("Dominance", "Dominance"),intelligenceCopy("Skor farkı, gol dengesi ve maç kontrolünün bileşik sinyali.", "Composite signal from score margin, goal balance and match control.")],
+      ["7%",intelligenceCopy("İstikrar", "Consistency"),intelligenceCopy("Maçlar arasındaki Rating hareketinin ne kadar dengeli olduğu.", "How stable Rating movement remains between matches.")],
+      ["6%",intelligenceCopy("Momentum", "Momentum"),intelligenceCopy("Son beş maçın sonuç ve Rating yönelimi.", "Result and Rating direction across the latest five matches.")],
+      ["6%",intelligenceCopy("Takım Etkisi", "Team-Adjusted Impact"),intelligenceCopy("Kullanılan takımın genel başarısından ayrıştırılan oyuncu değeri.", "Player value isolated from the general performance of teams used.")]
+    ].map(([weight,title,copy])=>`<article><b>${weight}</b><strong>${title}</strong><p>${copy}</p></article>`).join("")}</div><div class="fpi-method-rule"><strong>${intelligenceCopy("Üç ayrı cevap:", "Three separate answers:")}</strong><span>STANDING RATING = ${intelligenceCopy("Kim daha güçlü?", "Who is stronger?")}</span><i></i><span>INDEX / 100 = ${intelligenceCopy("Bu gücün kalitesi nedir?", "What is the quality of that strength?")}</span><i></i><span>CONFIDENCE = ${intelligenceCopy("Kanıt ne kadar güçlü?", "How strong is the evidence?")}</span></div></section>
+    ${selected ? `<section class="fpi-dossier standing-dossier"><header><div><span>STANDING IDENTITY · WORLD #${selected.rank}</span><h3>${escapeHTML(selected.name)}</h3><p>${escapeHTML(selected.tier.note)} · ${selected.fpi.signal} · ${selected.fpi.confidenceBand}${selected.standing.provisional ? ` · ${intelligenceCopy("PROVISIONAL", "PROVISIONAL")}` : ""}</p></div><div class="fpi-dossier-score standing-score-grid"><article><span>STANDING RATING</span><strong>${selected.rating}</strong><small>PEAK ${selected.peak} · FLOOR ${selected.floor}</small></article><article><span>STANDING INDEX</span><strong>${selected.standing.index}</strong><small>${selected.fpi.confidence}% ${intelligenceCopy("MODEL GÜVENİ", "MODEL CONFIDENCE")}</small></article><article><span>STANDING SHIFT</span><strong class="${selected.last5Change >= 0 ? "positive" : "negative"}">${signed(selected.last5Change)}</strong><small>${movement(selected)} ${intelligenceCopy("SIRA · SON 5", "RANK · LAST 5")}</small></article></div></header>
+      <div class="standing-identity-grid"><article><span>${intelligenceCopy("LİDERLE FARK", "GAP TO LEADER")}</span><strong>${selected.standing.gapToLeader ? `-${selected.standing.gapToLeader}` : "LEADER"}</strong><small>${data.summary.leader?.name ? escapeHTML(data.summary.leader.name) : "–"}</small></article><article><span>${intelligenceCopy("SON DEĞİŞİM", "LATEST SHIFT")}</span><strong class="${selected.lastChange >= 0 ? "positive" : "negative"}">${signed(selected.lastChange)}</strong><small>${latest ? `vs ${escapeHTML(latest.opponent)}` : "–"}</small></article><article><span>${intelligenceCopy("FORM", "FORM")}</span><strong>${formStrip(selected)}</strong><small>${selected.games} MP · ${selected.winRate.toFixed(1)}% WR</small></article><article><span>${intelligenceCopy("COMPETITIVE CLASS", "COMPETITIVE CLASS")}</span><strong>${selected.tier.label}</strong><small>${selected.fpi.confidenceBand}</small></article></div>
+      <div class="standing-narrative-grid"><article class="standing-why"><span>WHY THIS STANDING?</span><p>${escapeHTML(selected.standing.why)}</p></article><article class="standing-target"><span>NEXT TARGET</span><strong>${selected.standing.nextTarget ? `#${selected.rank-1} ${escapeHTML(selected.standing.nextTarget.name)}` : intelligenceCopy("LİDERLİĞİ KORU", "DEFEND THE LEAD")}</strong><p>${escapeHTML(selected.standing.targetText)}</p></article></div>
+      <div class="standing-analytics-grid"><section class="standing-dna-panel"><header><span>STANDING DNA</span><strong>${selected.standing.index}/100</strong></header><div class="standing-dna-grid">${selected.fpi.dna.map(component=>`<article><span>${escapeHTML(component.label)}</span><b>${component.value.toFixed(0)}</b><i><em style="width:${component.value}%"></em></i></article>`).join("")}</div></section><section class="standing-timeline-panel"><header><span>STANDING TIMELINE</span><strong>${selected.timeline.length-1} ${intelligenceCopy("RESMÎ MAÇ", "OFFICIAL MATCHES")}</strong></header>${timeline(selected)}</section></div>
+      ${latest ? `<section class="standing-shift-anatomy"><header><div><span>LATEST SHIFT ANATOMY</span><h4>${escapeHTML(selected.name)} vs ${escapeHTML(latest.opponent)}</h4></div><strong class="${latest.change >= 0 ? "positive" : "negative"}">${signed(latest.change)}</strong></header><div><article><span>${intelligenceCopy("MAÇ ÖNCESİ BEKLENTİ", "PRE-MATCH EXPECTATION")}</span><b>${latest.expectedResult}%</b><small>${latest.expectedResult < 45 ? intelligenceCopy("UNDERDOG", "UNDERDOG") : latest.expectedResult > 55 ? intelligenceCopy("FAVORİ", "FAVOURITE") : intelligenceCopy("DENGELİ", "BALANCED")}</small></article><article><span>${intelligenceCopy("DENEYİM K-FAKTÖRÜ", "EXPERIENCE K-FACTOR")}</span><b>${latest.kFactor}</b><small>${selected.games < 6 ? "PROVISIONAL" : selected.games < 13 ? "CALIBRATING" : selected.games < 30 ? "ESTABLISHED" : "VERIFIED"}</small></article><article><span>${intelligenceCopy("AŞAMA AĞIRLIĞI", "STAGE WEIGHT")}</span><b>×${latest.stageMultiplier.toFixed(2)}</b><small>${escapeHTML(latest.stageLabel)}</small></article><article><span>${intelligenceCopy("SKOR ETKİSİ", "SCORE IMPACT")}</span><b>×${latest.marginMultiplier.toFixed(2)}</b><small>${latest.score}</small></article><article><span>${intelligenceCopy("NİHAİ HAREKET", "FINAL SHIFT")}</span><b class="${latest.change >= 0 ? "positive" : "negative"}">${signed(latest.change)}</b><small>${intelligenceCopy("SIFIR TOPLAMLI", "ZERO-SUM")}</small></article></div></section>` : ""}
+      <footer><div><span>${intelligenceCopy("EN GÜÇLÜ SİNYAL", "STRONGEST SIGNAL")}</span><strong>${escapeHTML(selected.fpi.strongest.label)} · ${selected.fpi.strongest.value.toFixed(0)}</strong></div><div><span>${intelligenceCopy("GELİŞİM ALANI", "DEVELOPMENT AREA")}</span><strong>${escapeHTML(selected.fpi.development.label)} · ${selected.fpi.development.value.toFixed(0)}</strong></div><div><span>${intelligenceCopy("RAKİP ORTALAMASI", "OPPOSITION AVG")}</span><strong>${selected.fpi.scheduleRating}</strong></div><div><span>${intelligenceCopy("BASKI MAÇI", "PRESSURE MATCHES")}</span><strong>${selected.fpi.pressureGames}</strong></div><button type="button" data-v2-player-open="${escapeHTML(selected.name)}">${intelligenceCopy("Oyuncu pasaportunu aç", "Open Player Passport")} ↗</button></footer>
+      ${selected.fpi.recentLedger.length ? `<div class="fpi-ledger standing-ledger"><div class="head"><span>${intelligenceCopy("SON MAÇ", "RECENT MATCH")}</span><span>${intelligenceCopy("RAKİP", "OPPONENT")}</span><span>${intelligenceCopy("BEKLENTİ", "EXPECTED")}</span><span>${intelligenceCopy("SONUÇ", "RESULT")}</span><span>SHIFT</span></div>${selected.fpi.recentLedger.map(item=>`<div><span>FIFA ${item.edition} · ${escapeHTML(item.stage || "MATCH")}</span><strong>${escapeHTML(item.opponent)}</strong><span>${Math.round(item.expected*100)}%</span><b class="result-${item.actual===1?"win":item.actual===.5?"draw":"loss"}">${resultLabel(item)}</b><em class="${item.change>=0?"positive":"negative"}">${signed(item.change)}</em></div>`).join("")}</div>` : ""}</section>` : ""}
+    <section class="panel standing-table-panel"><div class="panel-header"><div><h3 class="panel-title">FIFA Player Standing</h3><div class="panel-subtitle">${intelligenceCopy("Standing Rating resmî rekabet sırasıdır. Sıra hareketi, Rating hareketi ve form birbirinden ayrı gösterilir.", "Standing Rating is the official competitive order. Rank movement, Rating movement and form are shown separately.")}</div></div><span class="badge badge-gold">OFFICIAL ORDER</span></div><div class="intel-elo-table fpi-standing-table standing-table"><div class="intel-elo-head"><span>#</span><span>${intelligenceCopy("Oyuncu", "Player")}</span><span>RATING</span><span>${intelligenceCopy("SIRA", "RANK")}</span><span>SHIFT</span><span>FORM</span><span>${intelligenceCopy("LİDER FARKI", "LEADER GAP")}</span><span>${intelligenceCopy("GÜVEN", "CONFIDENCE")}</span><span>${intelligenceCopy("CLASS", "CLASS")}</span></div>${data.players.map(row => `<button type="button" class="intel-elo-row tier-${row.tier.key} ${selected?.name===row.name?"active":""}" data-action="select-fpi-player" data-player-name="${escapeHTML(row.name)}"><span>${row.rank}</span><strong>${escapeHTML(row.name)}<small>${escapeHTML(row.fpi.signal)}</small></strong><b>${row.rating}</b><em class="${movementClass(row)}">${movement(row)}</em><span class="${row.last5Change>=0?"positive":"negative"}">${signed(row.last5Change)}</span><span>${formStrip(row)}</span><span>${row.standing.gapToLeader ? `-${row.standing.gapToLeader}` : "LEADER"}</span><span>${row.fpi.confidence}%</span><small>${row.tier.label}</small></button>`).join("")}</div></section>
+    <section class="panel"><div class="panel-header"><div><h3 class="panel-title">${intelligenceCopy("Competitive Class ve Kanıt Katmanı", "Competitive Class and Evidence Layer")}</h3><div class="panel-subtitle">${intelligenceCopy("Class oyuncunun güç bandını; confidence ise hükmün veriyle ne kadar desteklendiğini gösterir.", "Class shows the strength band; confidence shows how strongly the evidence supports the judgement.")}</div></div></div><div class="intel-tier-grid">${["ICON · 1750+","ELITE · 1650–1749","TITLE CONTENDER · 1550–1649","CHALLENGER · 1450–1549","RISING · 1350–1449","OUTSIDER · <1350"].map((label, index) => `<div class="tier-${["icon","elite","contender","challenger","rising","outsider"][index]}"><strong>${label.split(" · ")[0]}</strong><span>${label.split(" · ")[1]}</span></div>`).join("")}</div><div class="fpi-confidence-legend"><span><i style="--c:95%"></i><b>PROVEN</b><small>88–99%</small></span><span><i style="--c:80%"></i><b>ESTABLISHED</b><small>72–87%</small></span><span><i style="--c:62%"></i><b>DEVELOPING</b><small>52–71%</small></span><span><i style="--c:35%"></i><b>PROVISIONAL</b><small>20–51%</small></span></div><p class="fpi-audit-note"><strong>${intelligenceCopy("Şeffaflık notu:", "Transparency note:")}</strong> ${intelligenceCopy("Standing Rating, Elo-türevi sıfır toplamlı teknik çekirdektir. Standing Index açıklama katmanıdır; turnuva puan tablosu PPG ve AV/M kurallarını kullanmaya devam eder.", "Standing Rating uses an Elo-derived zero-sum technical core. Standing Index is the explanation layer; tournament standings continue to use PPG and GD/M rules.")}</p></section>
+  </div>`;
+}
 
   function rivalryDNAData(playerA, playerB) {
     const analytics = buildAllTimeAnalytics();
@@ -7657,9 +7768,9 @@
       "iron-reign":"Rule without defeat for 15 matches.",
       "untouchable":"Go 20 matches without a defeat.",
       "immortal-run":"Build a historic 25-match unbeaten run.",
-      "giant-killer":"Defeat an opponent rated stronger by the FPI model.",
-      "king-slayer":"Beat an opponent while starting at least 150 FPI Rating points behind.",
-      "elo-emperor":"Raise your career peak FPI Rating to 1800.",
+      "giant-killer":"Defeat an opponent rated stronger by the Standing model.",
+      "king-slayer":"Beat an opponent while starting at least 150 Standing Rating points behind.",
+      "elo-emperor":"Raise your career peak Standing Rating to 1800.",
       "comeback-king":"Come from at least two goals behind and win.",
       "phoenix-rising":"Come from three or more goals behind and win.",
       "last-minute-hero":"Score the winning goal after the 85th minute.",
@@ -7774,9 +7885,9 @@
       { key:"iron-reign", title:"Iron Reign", icon:"U15", rarity:"legendary", target:15, metric:"maxUnbeaten", desc:"15 maç boyunca yenilmeden hükmet." },
       { key:"untouchable", title:"The Untouchable", icon:"U20", rarity:"mythic", target:20, metric:"maxUnbeaten", desc:"20 maç boyunca mağlubiyet yüzü görme.", titleUnlock:"THE UNTOUCHABLE" },
       { key:"immortal-run", title:"Immortal Run", icon:"U25", rarity:"secret", target:25, metric:"maxUnbeaten", desc:"25 maçlık tarihî yenilmezlik serisi.", hidden:true, titleUnlock:"IMMORTAL RUN" },
-      { key:"giant-killer", title:"Giant Killer", icon:"♜", rarity:"rare", target:1, metric:"giantWins", desc:"FPI modelinde senden güçlü bir rakibi sürpriz şekilde mağlup et." },
-      { key:"king-slayer", title:"King Slayer", icon:"⚔", rarity:"elite", target:1, metric:"majorUpsets", desc:"Maç öncesinde en az 150 FPI Rating geride olduğun rakibi mağlup et." },
-      { key:"elo-emperor", title:"FPI Emperor", icon:"1800", rarity:"legendary", target:1800, metric:"eloPeak", desc:"Kariyer FPI Rating zirveni 1800 seviyesine çıkar.", titleUnlock:"FPI EMPEROR" },
+      { key:"giant-killer", title:"Giant Killer", icon:"♜", rarity:"rare", target:1, metric:"giantWins", desc:"Standing modelinde senden güçlü bir rakibi sürpriz şekilde mağlup et." },
+      { key:"king-slayer", title:"King Slayer", icon:"⚔", rarity:"elite", target:1, metric:"majorUpsets", desc:"Maç öncesinde en az 150 Standing Rating geride olduğun rakibi mağlup et." },
+      { key:"elo-emperor", title:"Standing Emperor", icon:"1800", rarity:"legendary", target:1800, metric:"eloPeak", desc:"Kariyer Standing Rating zirveni 1800 seviyesine çıkar.", titleUnlock:"Standing EMPEROR" },
       { key:"comeback-king", title:"Comeback King", icon:"↺2", rarity:"rare", target:1, metric:"comeback2", desc:"En az iki fark geriden gelerek maçı kazan." },
       { key:"phoenix-rising", title:"Phoenix Rising", icon:"↺3", rarity:"legendary", target:1, metric:"comeback3", desc:"Üç veya daha fazla farktan geri dönerek kazan.", titleUnlock:"PHOENIX RISING" },
       { key:"last-minute-hero", title:"Last-Minute Hero", icon:"90+", rarity:"elite", target:1, metric:"lateWins", desc:"85. dakikadan sonra gelen golle maçı kazan." },
@@ -7916,7 +8027,7 @@
         <div class="prestige-level-legend">${levels.map(level=>`<div class="prestige-level-chip prestige-${level.key}"><span>${escapeHTML(level.icon)}</span><div><strong>${level.name}</strong><small>${level.model} · ${level.min.toLocaleString(locale)} XP</small></div></div>`).join("")}</div>
       </section>
 
-      <section class="panel"><div class="panel-header"><div><h3 class="panel-title">${intelligenceCopy("Kariyer Prestige Sıralaması","Career Prestige Ranking")}</h3><div class="panel-subtitle">${intelligenceCopy("FPI Rating güncel gücü, Prestige ise kariyer mirası ve başarı çeşitliliğini temsil eder.","FPI Rating represents current strength, while Prestige represents career legacy and achievement diversity.")}</div></div><span class="badge badge-blue">LIVE CAREER</span></div>
+      <section class="panel"><div class="panel-header"><div><h3 class="panel-title">${intelligenceCopy("Kariyer Prestige Sıralaması","Career Prestige Ranking")}</h3><div class="panel-subtitle">${intelligenceCopy("Standing Rating güncel gücü, Prestige ise kariyer mirası ve başarı çeşitliliğini temsil eder.","Standing Rating represents current strength, while Prestige represents career legacy and achievement diversity.")}</div></div><span class="badge badge-blue">LIVE CAREER</span></div>
         <div class="prestige-card-grid">${data.players.map(player=>renderPrestigeCard(player,true)).join("")}</div>
       </section>
 
@@ -8399,7 +8510,7 @@
       `Model favorisi: ${data.favorite.name} · Şampiyonluk ${simulationPct(data.favorite.championProbability,1)}`,
       `En olası final: ${finalNames} · ${simulationPct(data.mostLikelyFinalProbability,1)}`,
       ...top.map((row,index) => `${index + 1}. ${row.name} · Şampiyon ${simulationPct(row.championProbability,1)} · Final ${simulationPct(row.finalProbability,1)}`),
-      "Gerçek sonuçlar sabitlenir; kalan turnuva güncel FPI Rating, form ve performansa göre yeniden simüle edilir.",
+      "Gerçek sonuçlar sabitlenir; kalan turnuva güncel Standing Rating, form ve performansa göre yeniden simüle edilir.",
       window.location.href
     ];
     const text = lines.join("\n");
@@ -8423,20 +8534,20 @@
     const closeScenarios = allPredictions.filter(match=>Math.abs(Number(match.homeScore||0)-Number(match.awayScore||0))<=1).length;
     const progress = data.totalKnown ? data.completed / data.totalKnown * 100 : 0;
     return `<div class="intel-section-stack tournament-simulation-centre">
-      <section class="simulation-hero"><div><div class="eyebrow">ADVANCED SCORE ENGINE · v25</div><h2>Dinamik Turnuva Simülasyonu</h2><p>Girilen gerçek sonuçları sabitler; kalan turnuvayı Bayesçi hücum-savunma profili, aşırı dağılımlı skor matrisi, güncel FPI Rating, form, tempo, volatilite ve ikili rekabetle binlerce kez yeniden oynatır.</p><div class="simulation-actions"><button class="btn btn-gold" data-action="rerun-tournament-simulation">Simülasyonu Yenile</button><button class="btn btn-ghost" data-action="share-tournament-simulation">WhatsApp’ta Paylaş</button></div></div><div class="simulation-orb"><strong>${data.runs.toLocaleString("tr-TR")}</strong><span>SANAL TURNUVA</span><small>${data.completed} gerçek sonuç sabitlendi</small><i style="--progress:${Math.round(progress * 3.6)}deg"></i></div></section>
+      <section class="simulation-hero"><div><div class="eyebrow">ADVANCED SCORE ENGINE · v25</div><h2>Dinamik Turnuva Simülasyonu</h2><p>Girilen gerçek sonuçları sabitler; kalan turnuvayı Bayesçi hücum-savunma profili, aşırı dağılımlı skor matrisi, güncel Standing Rating, form, tempo, volatilite ve ikili rekabetle binlerce kez yeniden oynatır.</p><div class="simulation-actions"><button class="btn btn-gold" data-action="rerun-tournament-simulation">Simülasyonu Yenile</button><button class="btn btn-ghost" data-action="share-tournament-simulation">WhatsApp’ta Paylaş</button></div></div><div class="simulation-orb"><strong>${data.runs.toLocaleString("tr-TR")}</strong><span>SANAL TURNUVA</span><small>${data.completed} gerçek sonuç sabitlendi</small><i style="--progress:${Math.round(progress * 3.6)}deg"></i></div></section>
 
       <section class="simulation-control-strip"><div><span>Simülasyon Hassasiyeti</span><strong>Her skor girişinden sonra otomatik yeniden hesaplanır.</strong></div><div class="segmented-control">${[1000,5000,10000].map(value => `<button class="segment-btn ${data.runs === value ? "active" : ""}" data-action="set-simulation-runs" data-simulation-runs="${value}">${value/1000}K</button>`).join("")}</div><small>Son hesaplama: ${new Date(data.recalculatedAt).toLocaleTimeString("tr-TR", {hour:"2-digit",minute:"2-digit",second:"2-digit"})}</small></section>
 
       <div class="simulation-kpi-grid">
-        <article><span>Şampiyonluk Favorisi</span><strong>${escapeHTML(data.favorite?.name || "–")}</strong><b>${simulationPct(data.favorite?.championProbability,1)}</b><small>${data.favorite?.elo || 1500} FPI · ${data.favorite?.eloTier?.label || ""}</small></article>
+        <article><span>Şampiyonluk Favorisi</span><strong>${escapeHTML(data.favorite?.name || "–")}</strong><b>${simulationPct(data.favorite?.championProbability,1)}</b><small>${data.favorite?.elo || 1500} Standing · ${data.favorite?.eloTier?.label || ""}</small></article>
         <article><span>En Olası Final</span><strong>${escapeHTML(finalNames.join(" vs ") || "–")}</strong><b>${simulationPct(data.mostLikelyFinalProbability,1)}</b><small>${data.runs.toLocaleString("tr-TR")} turnuvadaki en sık eşleşme</small></article>
-        <article><span>Sürpriz Şampiyon Adayı</span><strong>${escapeHTML(data.surprise?.name || "–")}</strong><b>${simulationPct(data.surprise?.championProbability,1)}</b><small>FPI sırası ${data.surprise?.eloRank || "–"} · Final ${simulationPct(data.surprise?.finalProbability,1)}</small></article>
+        <article><span>Sürpriz Şampiyon Adayı</span><strong>${escapeHTML(data.surprise?.name || "–")}</strong><b>${simulationPct(data.surprise?.championProbability,1)}</b><small>Standing sırası ${data.surprise?.eloRank || "–"} · Final ${simulationPct(data.surprise?.finalProbability,1)}</small></article>
         <article><span>En Olası Şampiyon</span><strong>${escapeHTML(playerName(path.championId))}</strong><b>${path.final.homeScore}–${path.final.awayScore}</b><small>${escapeHTML(playerName(path.final.homeId))} vs ${escapeHTML(playerName(path.final.awayId))}</small></article>
       </div>
 
-      <section class="panel simulation-title-race"><div class="panel-header"><div><h3 class="panel-title">Şampiyonluk Olasılığı</h3><div class="panel-subtitle">Model tek bir sonuç söylemez; kalan turnuvayı binlerce farklı olasılıkla oynatır.</div></div><span class="badge badge-gold">${data.runs.toLocaleString("tr-TR")} RUNS</span></div><div class="simulation-title-bars">${data.rows.slice(0,8).map((row,index) => `<div><span>${index + 1}</span><strong>${escapeHTML(row.name)}</strong><div><i style="width:${Math.max(1,row.championProbability*100)}%"></i></div><b>${simulationPct(row.championProbability,1)}</b><small>${row.elo} FPI</small></div>`).join("")}</div></section>
+      <section class="panel simulation-title-race"><div class="panel-header"><div><h3 class="panel-title">Şampiyonluk Olasılığı</h3><div class="panel-subtitle">Model tek bir sonuç söylemez; kalan turnuvayı binlerce farklı olasılıkla oynatır.</div></div><span class="badge badge-gold">${data.runs.toLocaleString("tr-TR")} RUNS</span></div><div class="simulation-title-bars">${data.rows.slice(0,8).map((row,index) => `<div><span>${index + 1}</span><strong>${escapeHTML(row.name)}</strong><div><i style="width:${Math.max(1,row.championProbability*100)}%"></i></div><b>${simulationPct(row.championProbability,1)}</b><small>${row.elo} Standing</small></div>`).join("")}</div></section>
 
-      <section class="panel"><div class="panel-header"><div><h3 class="panel-title">Tur Atlama Olasılık Matrisi</h3><div class="panel-subtitle">Altın/Gümüş Grup, yarı final, final ve şampiyonluk ihtimalleri aynı anda izlenir.</div></div><span class="badge badge-blue">AUTO UPDATE</span></div><div class="simulation-probability-table"><div class="head"><span>#</span><span>Oyuncu</span><span>FPI</span><span>Altın</span><span>Gümüş</span><span>Yarı Final</span><span>Final</span><span>Şampiyon</span><span>Tahmini Lig</span></div>${data.rows.map((row,index) => `<div><span>${index + 1}</span><strong>${escapeHTML(row.name)}</strong><b>${row.elo}</b><span>${simulationPct(row.goldProbability)}</span><span>${simulationPct(row.silverProbability)}</span><span>${simulationPct(row.semiProbability)}</span><span>${simulationPct(row.finalProbability)}</span><strong class="champ-prob">${simulationPct(row.championProbability,1)}</strong><small>${row.expectedLeagueRank.toFixed(1)}. · ${row.expectedLeaguePoints.toFixed(1)} P</small></div>`).join("")}</div></section>
+      <section class="panel"><div class="panel-header"><div><h3 class="panel-title">Tur Atlama Olasılık Matrisi</h3><div class="panel-subtitle">Altın/Gümüş Grup, yarı final, final ve şampiyonluk ihtimalleri aynı anda izlenir.</div></div><span class="badge badge-blue">AUTO UPDATE</span></div><div class="simulation-probability-table"><div class="head"><span>#</span><span>Oyuncu</span><span>Standing</span><span>Altın</span><span>Gümüş</span><span>Yarı Final</span><span>Final</span><span>Şampiyon</span><span>Tahmini Lig</span></div>${data.rows.map((row,index) => `<div><span>${index + 1}</span><strong>${escapeHTML(row.name)}</strong><b>${row.elo}</b><span>${simulationPct(row.goldProbability)}</span><span>${simulationPct(row.silverProbability)}</span><span>${simulationPct(row.semiProbability)}</span><span>${simulationPct(row.finalProbability)}</span><strong class="champ-prob">${simulationPct(row.championProbability,1)}</strong><small>${row.expectedLeagueRank.toFixed(1)}. · ${row.expectedLeaguePoints.toFixed(1)} P</small></div>`).join("")}</div></section>
 
       <section class="panel"><div class="panel-header"><div><h3 class="panel-title">En Olası Turnuva Akışı</h3><div class="panel-subtitle">Modelin mevcut veriden ürettiği tek ana senaryo. Kesin sonuç değil, en yüksek olasılıklı yol haritasıdır.</div></div><span class="badge badge-gold">MOST LIKELY PATH</span></div><div class="simulation-flow-grid"><div><h4>League Phase</h4>${simulationProjectedTable(path.leagueTable,"league")}</div><div><h4>Altın Grup</h4>${simulationProjectedTable(path.goldTable,"gold")}</div><div><h4>Gümüş Grup</h4>${simulationProjectedTable(path.silverTable,"silver")}</div></div></section>
 
@@ -9455,7 +9566,7 @@
 
   function playerCardTimelineSvg(values) {
     const list=(values||[]).map(Number).filter(Number.isFinite);
-    if(!list.length)return `<div class="intel-no-badge">${intelligenceCopy("FPI Rating verisi yok","No FPI Rating data")}</div>`;
+    if(!list.length)return `<div class="intel-no-badge">${intelligenceCopy("Standing Rating verisi yok","No Standing Rating data")}</div>`;
     const w=320,h=105,min=Math.min(...list)-20,max=Math.max(...list)+20;
     const pts=list.map((value,index)=>`${index/(Math.max(1,list.length-1))*w},${h-(value-min)/(max-min||1)*h}`).join(" ");
     return `<svg viewBox="0 0 ${w} ${h}" class="fm30-timeline-svg"><polyline points="${pts}"></polyline>${list.map((value,index)=>`<circle cx="${index/(Math.max(1,list.length-1))*w}" cy="${h-(value-min)/(max-min||1)*h}" r="2.5"></circle>`).join("")}</svg>`;
@@ -9488,7 +9599,7 @@
       <section class="fm32-edition-atlas"><header><div><span>${intelligenceCopy("TURNUVA PERFORMANS ATLASI","TOURNAMENT PERFORMANCE ATLAS")}</span><h3>${intelligenceCopy(`FIFA 1’den FIFA ${activeEdition}’a edisyon bazlı performans`,`Edition-by-edition performance from FIFA 1 to FIFA ${activeEdition}`)}</h3></div><small>${intelligenceCopy("Her turnuva kendi gol, puan, oyuncu ve aşama dağılımı içinde değerlendirilir.","Each tournament is evaluated within its own scoring, points, player and stage distribution.")}</small></header><div class="fm32-edition-cards">${Array.from({length:Math.max(10,activeEdition)},(_,index)=>index+1).map(edition=>{const profile=selected.editionProfiles.find(item=>item.edition===edition);return `<button class="fm32-edition-card ${edition===Number(intelligencePlayerEdition)?'active':''} ${profile?'':'empty'}" data-action="set-player-edition" data-player-edition="${edition}" ${profile?'':'disabled'}><span>FIFA ${edition}</span><strong>${profile?profile.performance:'—'}</strong><small>${profile?`${profile.stats.matches} ${intelligenceCopy('maç','matches')} · ${profile.stats.winRate.toFixed(0)}%` : intelligenceCopy('Katılmadı','No appearance')}</small></button>`;}).join("")}</div></section>
       <div class="fm30-layout">
         <aside class="fm30-left-column">
-          <article class="fm30-identity-card prestige-${selected.modelKey}"><header><strong>${selected.currentAbility}</strong><span>#${cards.findIndex(row=>row.name===selected.name)+1}</span></header><div class="fm30-avatar">${escapeHTML(selected.initials)}</div><h3>${escapeHTML(selected.name)}</h3><p>${escapeHTML(selected.activeTitle)}</p><div class="fm30-identity-meta"><div><span>${intelligenceCopy("OYUN TARZI","PLAY STYLE")}</span><b>${escapeHTML(selected.role)}</b></div><div><span>${intelligenceCopy("FAVORİ TAKIM","FAVOURITE TEAM")}</span><b>${escapeHTML(selected.favoriteTeam)}</b></div><div><span>FPI</span><b>${selected.elo}</b></div><div><span>${intelligenceCopy("PRESTIGE","PRESTIGE")}</span><b>${escapeHTML(selected.prestige.name)}</b></div></div><footer><div><span>${intelligenceCopy("MAÇ","MATCHES")}</span><strong>${selected.career.games||0}</strong></div><div><span>${intelligenceCopy("GALİBİYET","WINS")}</span><strong>${selected.career.wins||0}</strong></div><div><span>${intelligenceCopy("KUPA","TITLES")}</span><strong>${selected.career.titles||0}</strong></div></footer></article>
+          <article class="fm30-identity-card prestige-${selected.modelKey}"><header><strong>${selected.currentAbility}</strong><span>#${cards.findIndex(row=>row.name===selected.name)+1}</span></header><div class="fm30-avatar">${escapeHTML(selected.initials)}</div><h3>${escapeHTML(selected.name)}</h3><p>${escapeHTML(selected.activeTitle)}</p><div class="fm30-identity-meta"><div><span>${intelligenceCopy("OYUN TARZI","PLAY STYLE")}</span><b>${escapeHTML(selected.role)}</b></div><div><span>${intelligenceCopy("FAVORİ TAKIM","FAVOURITE TEAM")}</span><b>${escapeHTML(selected.favoriteTeam)}</b></div><div><span>Standing</span><b>${selected.elo}</b></div><div><span>${intelligenceCopy("PRESTIGE","PRESTIGE")}</span><b>${escapeHTML(selected.prestige.name)}</b></div></div><footer><div><span>${intelligenceCopy("MAÇ","MATCHES")}</span><strong>${selected.career.games||0}</strong></div><div><span>${intelligenceCopy("GALİBİYET","WINS")}</span><strong>${selected.career.wins||0}</strong></div><div><span>${intelligenceCopy("KUPA","TITLES")}</span><strong>${selected.career.titles||0}</strong></div></footer></article>
           <article class="fm30-panel"><h4>${intelligenceCopy("Hızlı Gerçekler","Quick Facts")}</h4><div class="fm30-fact"><span>${intelligenceCopy("En Skor Yaptığı Maç","Highest-Scoring Match")}</span><b>${selected.quickFacts.maxScore}</b></div><div class="fm30-fact"><span>${intelligenceCopy("En Zor Rakibe Karşı Galibiyet","Hardest Opponent Win")}</span><b>${selected.quickFacts.hardestWin}</b></div><div class="fm30-fact"><span>${intelligenceCopy("Galibiyet Serisi","Win Streak")}</span><b>${selected.quickFacts.winStreak}</b></div><div class="fm30-fact"><span>${intelligenceCopy("Yenilmezlik","Unbeaten Run")}</span><b>${selected.quickFacts.unbeaten}</b></div></article>
           <article class="fm30-panel pros"><h4>${intelligenceCopy("Kariyer Güçlü Yönleri","Career Strengths")}</h4>${selected.pros.map(item=>`<p>✓ ${escapeHTML(item.label)} <b>${item.value}</b></p>`).join("")}</article>
           <article class="fm30-panel cons"><h4>${intelligenceCopy("Kariyer Gelişim Alanları","Career Development Areas")}</h4>${selected.cons.map(item=>`<p>◆ ${escapeHTML(item.label)} <b>${item.value}</b></p>`).join("")}</article>
@@ -9503,9 +9614,9 @@
           <article class="fm30-panel fifa9"><h4>FIFA ${editionProfile?.edition||intelligencePlayerEdition} ${intelligenceCopy("Performans Özeti","Performance Summary")}</h4><div class="fm30-form-head"><strong>${escapeHTML(playerCardReferenceLabel(editionProfile?.performance||25))}</strong><small>${intelligenceCopy("Edisyon içi normalize performans","Edition-normalised performance")}</small></div><div class="fm30-form-row">${playerCardFormRibbon((editionProfile?.rows||[]).slice(-10).map(row=>({result:row.result,opponent:row.opponent})))}</div><div class="fm30-stat-grid"><div><span>${intelligenceCopy("MAÇ","MATCHES")}</span><b>${stats.matches}</b></div><div><span>${intelligenceCopy("GALİBİYET %","WIN %")}</span><b>${stats.winRate.toFixed(0)}%</b></div><div><span>${intelligenceCopy("PUAN ORT.","PPG")}</span><b>${stats.ppg.toFixed(2)}</b></div><div><span>${intelligenceCopy("GOL ORT.","AVG GF")}</span><b>${stats.avgGF.toFixed(2)}</b></div><div><span>${intelligenceCopy("YENİLEN GOL","AVG GA")}</span><b>${stats.avgGA.toFixed(2)}</b></div><div><span>${intelligenceCopy("GOL FARKI","GOAL DIFF")}</span><b>${stats.gd>=0?'+':''}${stats.gd.toFixed(2)}</b></div></div></article>
           <article class="fm30-panel"><h4>${intelligenceCopy("Edisyon Model Bileşenleri","Edition Model Components")}</h4><div class="fm32-component-grid v33"><div><span>${playerCardMetricLabel('resultPerformance')}</span><b>${editionProfile?.resultPerformance||0}</b></div><div><span>${playerCardMetricLabel('bigMatchPerformance')}</span><b>${editionProfile?.bigMatchPerformance||0}</b></div><div><span>${playerCardMetricLabel('expectationPerformance')}</span><b>${editionProfile?.expectationPerformance||0}</b></div><div><span>${playerCardMetricLabel('opponentQuality')}</span><b>${editionProfile?.opponentQuality||0}</b></div><div><span>${intelligenceCopy('AŞAMA BAŞARISI','STAGE ACHIEVEMENT')}</span><b>${editionProfile?.stageBreakdown?.achievement||0}</b></div><div><span>${intelligenceCopy('MODEL GÜVENİ','MODEL CONFIDENCE')}</span><b>${editionProfile?.confidence||0}%</b></div></div></article>
           <article class="fm30-panel fm33-stage-panel"><h4>${intelligenceCopy("Turnuva Aşama Etkisi","Tournament Stage Impact")}</h4><div class="fm33-stage-grid">${[['league','Lig / İlk Aşama','League / First Stage'],['group','Altın / Gümüş Grup','Gold / Silver Group'],['knockout','Play-off / Eleme','Play-off / Knockout'],['semi','Yarı Final','Semi-final'],['final','Final','Final']].map(([key,tr,en])=>{const value=editionProfile?.stageBreakdown?.[key];return `<div class="${value==null?'is-na':''}"><span>${intelligenceCopy(tr,en)}</span><strong>${value==null?'N/A':value}</strong></div>`;}).join('')}</div><footer><span>${intelligenceCopy('ULAŞILAN AŞAMA','STAGE REACHED')}</span><b>${escapeHTML(editionProfile?.stageBreakdown?.achievementLabel||'—')}</b></footer></article>
-          <article class="fm30-panel"><h4>${intelligenceCopy("Kariyer Özeti (Tüm Turnuvalar)","Career Summary (All Tournaments)")}</h4><div class="fm30-stat-grid"><div><span>${intelligenceCopy("TOPLAM MAÇ","TOTAL MATCHES")}</span><b>${selected.career.games||0}</b></div><div><span>${intelligenceCopy("GALİBİYET %","WIN %")}</span><b>${(selected.career.winRate||0).toFixed(0)}%</b></div><div><span>${intelligenceCopy("TOPLAM GOL","TOTAL GOALS")}</span><b>${selected.career.gf||0}</b></div><div><span>${intelligenceCopy("FİNALLER","FINALS")}</span><b>${selected.career.finals||0}</b></div><div><span>${intelligenceCopy("ŞAMPİYONLUK","TITLES")}</span><b>${selected.career.titles||0}</b></div><div><span>PEAK FPI</span><b>${selected.eloPeak}</b></div></div></article>
+          <article class="fm30-panel"><h4>${intelligenceCopy("Kariyer Özeti (Tüm Turnuvalar)","Career Summary (All Tournaments)")}</h4><div class="fm30-stat-grid"><div><span>${intelligenceCopy("TOPLAM MAÇ","TOTAL MATCHES")}</span><b>${selected.career.games||0}</b></div><div><span>${intelligenceCopy("GALİBİYET %","WIN %")}</span><b>${(selected.career.winRate||0).toFixed(0)}%</b></div><div><span>${intelligenceCopy("TOPLAM GOL","TOTAL GOALS")}</span><b>${selected.career.gf||0}</b></div><div><span>${intelligenceCopy("FİNALLER","FINALS")}</span><b>${selected.career.finals||0}</b></div><div><span>${intelligenceCopy("ŞAMPİYONLUK","TITLES")}</span><b>${selected.career.titles||0}</b></div><div><span>PEAK Standing</span><b>${selected.eloPeak}</b></div></div></article>
           <article class="fm30-panel"><h4>${intelligenceCopy("Performans Bağlamı","Performance Context")}</h4>${[['strongOpponentPerformance','strong'],['underdogPerformance','underdog'],['favouriteResponsibility','favourite'],['weakOpponentDelivery','weak'],['evenMatchPerformance','even']].map(([key])=>{const value=contextMap[key];return `<div class="fm30-context-row ${value==null?'is-na':''}"><span>${escapeHTML(playerCardMetricLabel(key))}</span><i><b style="width:${value==null?0:value}%"></b></i><strong>${displayMetricValue(value)}</strong></div>`;}).join("")}${playerCardRadar({attack:editionProfile?.attack||0,defense:editionProfile?.defense||0,competition:editionProfile?.competition||0,mental:editionProfile?.mental||0,teamUsage:editionProfile?.teamUsage||0,form:selected.currentForm})}</article>
-          <article class="fm30-panel"><h4>${intelligenceCopy("Kariyer FPI Rating Zaman Çizelgesi","Career FPI Rating Timeline")}</h4>${playerCardTimelineSvg(selected.eloTimeline)}</article>
+          <article class="fm30-panel"><h4>${intelligenceCopy("Kariyer Standing Rating Zaman Çizelgesi","Career Standing Rating Timeline")}</h4>${playerCardTimelineSvg(selected.eloTimeline)}</article>
           <article class="fm30-panel"><h4>${intelligenceCopy("En Çok Kullandığı Takımlar","Most-Used Teams")}</h4>${selected.topTeams.map((team,index)=>`<div class="fm30-team-row"><span>${index+1}</span><b>${escapeHTML(team.team)}</b><em>${team.games} ${intelligenceCopy("maç","matches")}</em><strong>%${(team.winRate||0).toFixed(0)}</strong></div>`).join("")}</article>
         </aside>
       </div>
@@ -9680,7 +9791,7 @@
       <section class="panel"><div class="panel-header"><div><h3 class="panel-title">${intelligenceCopy("Mental Güç Sıralaması", "Mental Strength Ranking")}</h3><div class="panel-subtitle">${intelligenceCopy("Her sonuçtan sonra baskı profili otomatik yeniden hesaplanır.", "The pressure profile is recalculated automatically after every result.")}</div></div><span class="badge badge-gold">LIVE MENTAL INDEX</span></div>
         <div class="pressure-table"><div class="head"><span>#</span><span>${intelligenceCopy("Oyuncu", "Player")}</span><span>MENTAL</span><span>CLUTCH</span><span>${intelligenceCopy("ELEME", "KNOCKOUT")}</span><span>${intelligenceCopy("FAVORİ KORUMA", "FAVOURITE HOLD")}</span><span>${intelligenceCopy("DİRENÇ", "RESILIENCE")}</span><span>${intelligenceCopy("KİMLİK", "IDENTITY")}</span></div>${data.players.map(row => `<div class="pressure-row archetype-${row.archetype}"><span>${row.rank}</span><strong>${escapeHTML(row.name)}</strong><b>${row.mentalIndex}</b><span>${row.clutchRate.toFixed(0)}%</span><span>${row.knockoutRate.toFixed(0)}%</span><span>${row.protectionRate.toFixed(0)}%</span><span>${row.resilience.toFixed(0)}</span><small>${escapeHTML(row.archetypeLabel)}</small></div>`).join("")}</div>
       </section>
-      <section class="pressure-card-grid">${data.players.slice(0, 6).map(row => `<article class="pressure-player-card archetype-${row.archetype}"><div class="pressure-player-head"><span>${row.rank}</span><div><strong>${escapeHTML(row.name)}</strong><small>${row.elo} FPI · ${row.highPressureGames} ${intelligenceCopy("baskı maçı", "pressure matches")}</small></div><b>${row.mentalIndex}</b></div><div class="pressure-radar-bars"><div><span>CLUTCH</span><i style="width:${row.clutchRate}%"></i><strong>${row.clutchRate.toFixed(0)}</strong></div><div><span>KNOCKOUT</span><i style="width:${row.knockoutRate}%"></i><strong>${row.knockoutRate.toFixed(0)}</strong></div><div><span>RESILIENCE</span><i style="width:${row.resilience}%"></i><strong>${row.resilience.toFixed(0)}</strong></div></div><footer><span>${escapeHTML(row.archetypeLabel)}</span><em class="${row.trend >= 0 ? "positive" : "negative"}">${intelligenceSigned(row.trend)}</em></footer></article>`).join("")}</section>
+      <section class="pressure-card-grid">${data.players.slice(0, 6).map(row => `<article class="pressure-player-card archetype-${row.archetype}"><div class="pressure-player-head"><span>${row.rank}</span><div><strong>${escapeHTML(row.name)}</strong><small>${row.elo} Standing · ${row.highPressureGames} ${intelligenceCopy("baskı maçı", "pressure matches")}</small></div><b>${row.mentalIndex}</b></div><div class="pressure-radar-bars"><div><span>CLUTCH</span><i style="width:${row.clutchRate}%"></i><strong>${row.clutchRate.toFixed(0)}</strong></div><div><span>KNOCKOUT</span><i style="width:${row.knockoutRate}%"></i><strong>${row.knockoutRate.toFixed(0)}</strong></div><div><span>RESILIENCE</span><i style="width:${row.resilience}%"></i><strong>${row.resilience.toFixed(0)}</strong></div></div><footer><span>${escapeHTML(row.archetypeLabel)}</span><em class="${row.trend >= 0 ? "positive" : "negative"}">${intelligenceSigned(row.trend)}</em></footer></article>`).join("")}</section>
       <div class="info-box"><strong>${intelligenceCopy("Model notu:", "Model note:")}</strong> ${intelligenceCopy("Mental puan; yakın maç başarısı, eleme/final performansı, favoriyken skor koruma, güçlü rakibe karşı sürpriz ve canlı kayıtlardaki geri dönüşlerden hesaplanır. Bu bir psikolojik teşhis değil, turnuva içi performans göstergesidir.", "The mental score is calculated from close-match success, knockout/final performance, favourite protection, upsets against stronger opponents and comebacks recorded live. It is a tournament performance indicator, not a psychological diagnosis.")}</div>
     </div>`;
   }
@@ -9751,7 +9862,7 @@
     const data = buildPowerExchange();
     if (!data.players.length) return `<div class="info-box">${intelligenceCopy("Power Exchange için oyuncu verisi bekleniyor.", "Player data is required for Power Exchange.")}</div>`;
     return `<div class="intel-section-stack">
-      <section class="exchange-hero"><div><div class="eyebrow">FIFA 9 POWER EXCHANGE</div><h2>${intelligenceCopy("Turnuva Güç Piyasası", "Tournament Power Market")}</h2><p>${intelligenceCopy("FPI Rating, güncel form, mental güç ve şampiyonluk ihtimalini tek bir canlı Power Index içinde birleştirir. Her resmî sonuçtan sonra piyasa yeniden fiyatlanır.", "Combines FPI Rating, current form, mental strength and title probability into one live Power Index. The market is repriced after every official result.")}</p></div><div class="exchange-ticker"><span>F9PX</span><strong>${data.leader?.powerIndex.toFixed(1) || "—"}</strong><b class="${(data.leader?.change || 0) >= 0 ? "positive" : "negative"}">${intelligenceSigned(data.leader?.change || 0)}</b><small>${escapeHTML(data.leader?.name || "")}</small></div></section>
+      <section class="exchange-hero"><div><div class="eyebrow">FIFA 9 POWER EXCHANGE</div><h2>${intelligenceCopy("Turnuva Güç Piyasası", "Tournament Power Market")}</h2><p>${intelligenceCopy("Standing Rating, güncel form, mental güç ve şampiyonluk ihtimalini tek bir canlı Power Index içinde birleştirir. Her resmî sonuçtan sonra piyasa yeniden fiyatlanır.", "Combines Standing Rating, current form, mental strength and title probability into one live Power Index. The market is repriced after every official result.")}</p></div><div class="exchange-ticker"><span>F9PX</span><strong>${data.leader?.powerIndex.toFixed(1) || "—"}</strong><b class="${(data.leader?.change || 0) >= 0 ? "positive" : "negative"}">${intelligenceSigned(data.leader?.change || 0)}</b><small>${escapeHTML(data.leader?.name || "")}</small></div></section>
       <div class="exchange-summary-grid">
         <article><span>${intelligenceCopy("Piyasa Lideri", "Market Leader")}</span><strong>${escapeHTML(data.leader?.name || "—")}</strong><b>${data.leader?.powerIndex.toFixed(1) || "—"}</b></article>
         <article><span>${intelligenceCopy("En Güçlü Yükseliş", "Top Gainer")}</span><strong>${escapeHTML(data.riser?.name || "—")}</strong><b class="positive">${intelligenceSigned(data.riser?.change || 0)}</b></article>
@@ -9760,9 +9871,9 @@
         <article><span>${intelligenceCopy("En Volatil", "Most Volatile")}</span><strong>${escapeHTML(data.volatile?.name || "—")}</strong><b>${data.volatile?.volatility || 0}/100</b></article>
       </div>
       <section class="panel"><div class="panel-header"><div><h3 class="panel-title">Power Exchange Board</h3><div class="panel-subtitle">${intelligenceCopy("Endeks değeri para veya bahis değeri değildir; oyuncunun turnuva içindeki birleşik rekabet gücünü temsil eder.", "The index is not money or a betting value; it represents the player's combined competitive strength within the tournament.")}</div></div><span class="badge badge-gold">AUTO REPRICE</span></div>
-        <div class="exchange-board"><div class="head"><span>#</span><span>${intelligenceCopy("Oyuncu", "Player")}</span><span>POWER INDEX</span><span>${intelligenceCopy("DEĞİŞİM", "CHANGE")}</span><span>${intelligenceCopy("TREND", "TREND")}</span><span>FPI</span><span>FORM</span><span>MENTAL</span><span>${intelligenceCopy("ŞAMPİYON", "CHAMPION")}</span><span>${intelligenceCopy("SİNYAL", "SIGNAL")}</span></div>${data.players.map(row => `<div class="exchange-row value-${row.valuation}"><span>${row.rank}</span><strong>${escapeHTML(row.name)}</strong><b>${row.powerIndex.toFixed(1)}</b><em class="${row.change >= 0 ? "positive" : "negative"}">${intelligenceSigned(row.change)}</em><span>${intelligenceSparkline(row.spark, row.change >= 0 ? "up" : "down")}</span><span>${row.elo}</span><span>${row.form}</span><span>${row.mental}</span><span>${simulationPct(row.championProbability,1)}</span><small>${escapeHTML(row.valuationLabel)}</small></div>`).join("")}</div>
+        <div class="exchange-board"><div class="head"><span>#</span><span>${intelligenceCopy("Oyuncu", "Player")}</span><span>POWER INDEX</span><span>${intelligenceCopy("DEĞİŞİM", "CHANGE")}</span><span>${intelligenceCopy("TREND", "TREND")}</span><span>Standing</span><span>FORM</span><span>MENTAL</span><span>${intelligenceCopy("ŞAMPİYON", "CHAMPION")}</span><span>${intelligenceCopy("SİNYAL", "SIGNAL")}</span></div>${data.players.map(row => `<div class="exchange-row value-${row.valuation}"><span>${row.rank}</span><strong>${escapeHTML(row.name)}</strong><b>${row.powerIndex.toFixed(1)}</b><em class="${row.change >= 0 ? "positive" : "negative"}">${intelligenceSigned(row.change)}</em><span>${intelligenceSparkline(row.spark, row.change >= 0 ? "up" : "down")}</span><span>${row.elo}</span><span>${row.form}</span><span>${row.mental}</span><span>${simulationPct(row.championProbability,1)}</span><small>${escapeHTML(row.valuationLabel)}</small></div>`).join("")}</div>
       </section>
-      <section class="exchange-card-grid">${data.players.slice(0,8).map(row => `<article class="exchange-player-card value-${row.valuation}"><header><span>#${row.rank}</span><small>${escapeHTML(row.valuationLabel)}</small></header><h3>${escapeHTML(row.name)}</h3><div class="exchange-index"><strong>${row.powerIndex.toFixed(1)}</strong><em class="${row.change >= 0 ? "positive" : "negative"}">${intelligenceSigned(row.change)}</em></div>${intelligenceSparkline(row.spark, row.change >= 0 ? "up" : "down")}<footer><span>${row.elo} FPI</span><span>${row.volatility} VOL</span><span>${simulationPct(row.championProbability,1)} TITLE</span></footer></article>`).join("")}</section>
+      <section class="exchange-card-grid">${data.players.slice(0,8).map(row => `<article class="exchange-player-card value-${row.valuation}"><header><span>#${row.rank}</span><small>${escapeHTML(row.valuationLabel)}</small></header><h3>${escapeHTML(row.name)}</h3><div class="exchange-index"><strong>${row.powerIndex.toFixed(1)}</strong><em class="${row.change >= 0 ? "positive" : "negative"}">${intelligenceSigned(row.change)}</em></div>${intelligenceSparkline(row.spark, row.change >= 0 ? "up" : "down")}<footer><span>${row.elo} Standing</span><span>${row.volatility} VOL</span><span>${simulationPct(row.championProbability,1)} TITLE</span></footer></article>`).join("")}</section>
     </div>`;
   }
 
@@ -9826,8 +9937,8 @@
     const row = data.selected;
     const nextOpponent = data.nextMatch ? playerName(data.nextMatch.homeId === data.id ? data.nextMatch.awayId : data.nextMatch.homeId) : "—";
     return `<div class="intel-section-stack">
-      <section class="destiny-hero"><div><div class="eyebrow">DESTINY PATH</div><h2>${intelligenceCopy("Oyuncunun Kader Yolu", "Player Destiny Path")}</h2><p>${intelligenceCopy("Monte Carlo simülasyonu, güncel FPI Rating ve kalan fikstürü kullanarak her oyuncunun kupaya giden olası rotasını sürekli yeniden çizer.", "Monte Carlo simulation continuously redraws every player's possible route to the trophy using current FPI Rating and the remaining schedule.")}</p></div><select id="intelDestinyPlayerSelect">${simulation.rows.map(item=>`<option value="${escapeHTML(item.name)}" ${item.name===row.name?"selected":""}>${escapeHTML(item.name)} · ${simulationPct(item.championProbability,1)}</option>`).join("")}</select></section>
-      <section class="destiny-profile"><div class="destiny-player"><span>${escapeHTML(row.name.split(" ").map(part=>part[0]).slice(0,2).join("").toUpperCase())}</span><div><h3>${escapeHTML(row.name)}</h3><p>${row.elo} FPI · ${row.eloTier?.label || ""}</p></div><strong>${simulationPct(row.championProbability,1)}<small>${intelligenceCopy("ŞAMPİYONLUK", "TITLE")}</small></strong></div><div class="destiny-current-grid"><div><span>${intelligenceCopy("Tahmini Lig Sırası", "Projected League Rank")}</span><strong>${row.expectedLeagueRank.toFixed(1)}.</strong></div><div><span>${intelligenceCopy("Tahmini Puan", "Projected Points")}</span><strong>${row.expectedLeaguePoints.toFixed(1)}</strong></div><div><span>${intelligenceCopy("Yarı Final", "Semi-final")}</span><strong>${simulationPct(row.semiProbability,1)}</strong></div><div><span>${intelligenceCopy("Final", "Final")}</span><strong>${simulationPct(row.finalProbability,1)}</strong></div></div></section>
+      <section class="destiny-hero"><div><div class="eyebrow">DESTINY PATH</div><h2>${intelligenceCopy("Oyuncunun Kader Yolu", "Player Destiny Path")}</h2><p>${intelligenceCopy("Monte Carlo simülasyonu, güncel Standing Rating ve kalan fikstürü kullanarak her oyuncunun kupaya giden olası rotasını sürekli yeniden çizer.", "Monte Carlo simulation continuously redraws every player's possible route to the trophy using current Standing Rating and the remaining schedule.")}</p></div><select id="intelDestinyPlayerSelect">${simulation.rows.map(item=>`<option value="${escapeHTML(item.name)}" ${item.name===row.name?"selected":""}>${escapeHTML(item.name)} · ${simulationPct(item.championProbability,1)}</option>`).join("")}</select></section>
+      <section class="destiny-profile"><div class="destiny-player"><span>${escapeHTML(row.name.split(" ").map(part=>part[0]).slice(0,2).join("").toUpperCase())}</span><div><h3>${escapeHTML(row.name)}</h3><p>${row.elo} Standing · ${row.eloTier?.label || ""}</p></div><strong>${simulationPct(row.championProbability,1)}<small>${intelligenceCopy("ŞAMPİYONLUK", "TITLE")}</small></strong></div><div class="destiny-current-grid"><div><span>${intelligenceCopy("Tahmini Lig Sırası", "Projected League Rank")}</span><strong>${row.expectedLeagueRank.toFixed(1)}.</strong></div><div><span>${intelligenceCopy("Tahmini Puan", "Projected Points")}</span><strong>${row.expectedLeaguePoints.toFixed(1)}</strong></div><div><span>${intelligenceCopy("Yarı Final", "Semi-final")}</span><strong>${simulationPct(row.semiProbability,1)}</strong></div><div><span>${intelligenceCopy("Final", "Final")}</span><strong>${simulationPct(row.finalProbability,1)}</strong></div></div></section>
       <section class="destiny-path-track">${data.nodes.map((node,index)=>`<article class="destiny-node node-${node.key}"><div class="destiny-node-ring" style="--destiny:${Math.round(node.probability*360)}deg"><span>${index+1}</span></div><strong>${escapeHTML(node.label)}</strong><b>${escapeHTML(node.value)}</b>${index<data.nodes.length-1?`<i>→</i>`:""}</article>`).join("")}</section>
       <div class="grid-2 destiny-grids"><section class="panel"><div class="panel-header"><div><h3 class="panel-title">${intelligenceCopy("Sıradaki Kader Maçı", "Next Destiny Match")}</h3><div class="panel-subtitle">${intelligenceCopy("Bir sonraki resmî maçın model üzerindeki tahmini etkisi.", "Estimated model impact of the next official match.")}</div></div><span class="badge badge-gold">LEVERAGE</span></div>${data.nextMatch ? `<div class="destiny-next-match"><span>${escapeHTML(currentMatchStageLabel(data.nextMatch))}</span><div><strong>${escapeHTML(row.name)}</strong><b>VS</b><strong>${escapeHTML(nextOpponent)}</strong></div><p>${intelligenceCopy("Kazanma ihtimali", "Win probability")}: <b>${simulationPct(data.winProbability,1)}</b></p><div class="destiny-swing"><div class="win"><span>${intelligenceCopy("Kazanırsa tahmini sıçrama", "Estimated upside with a win")}</span><strong>+${data.winSwing.toFixed(1)} pp</strong></div><div class="loss"><span>${intelligenceCopy("Kaybederse tahmini risk", "Estimated downside with a loss")}</span><strong>−${data.lossSwing.toFixed(1)} pp</strong></div></div></div>` : `<div class="info-box">${intelligenceCopy("Bekleyen maç bulunmuyor; kader yolu tamamlandı.", "No pending match remains; the destiny path is complete.")}</div>`}</section>
       <section class="panel"><div class="panel-header"><div><h3 class="panel-title">${intelligenceCopy("En Olası Yolculuk", "Most Likely Journey")}</h3><div class="panel-subtitle">${intelligenceCopy("Ana simülasyon senaryosundaki rakip ve aşamalar.", "Opponents and stages in the primary simulation scenario.")}</div></div><span class="badge badge-blue">PATH MAP</span></div><div class="destiny-route-list"><div><span>${intelligenceCopy("League Phase", "League Phase")}</span><strong>${data.projectedLeague ? `${data.projectedLeague.rank}. ${intelligenceCopy("sıra", "place")} · ${data.projectedLeague.pts} P` : "—"}</strong></div><div><span>${intelligenceCopy("İkinci Aşama", "Second Stage")}</span><strong>${data.projectedGroup === "gold" ? intelligenceCopy("Altın Grup", "Gold Group") : data.projectedGroup === "silver" ? intelligenceCopy("Gümüş Grup", "Silver Group") : intelligenceCopy("Elendi", "Eliminated")}${data.projectedGroupRow ? ` · ${data.projectedGroupRow.rank}.` : ""}</strong></div><div><span>${intelligenceCopy("Olası Rakipler", "Likely Opponents")}</span><strong>${escapeHTML(data.routeOpponents.join(" → ") || intelligenceCopy("Henüz oluşmadı", "Not formed yet"))}</strong></div><div><span>${intelligenceCopy("Model Kararı", "Model Verdict")}</span><strong>${row.championProbability >= .2 ? intelligenceCopy("Kupaya gerçek aday", "Genuine title contender") : row.finalProbability >= .25 ? intelligenceCopy("Final yolu açık", "Final route is open") : row.semiProbability >= .35 ? intelligenceCopy("Tehlikeli yarışmacı", "Dangerous challenger") : intelligenceCopy("Sürpriz yol arıyor", "Seeking an upset route")}</strong></div></div></section></div>
@@ -9944,7 +10055,7 @@
     const voice = packs[directorTone] || packs.analyst;
     const alerts = [];
     if (active) alerts.push(lang === "en" ? `LIVE: ${playerName(active.match.homeId)} ${active.live.homeScore}–${active.live.awayScore} ${playerName(active.match.awayId)} at ${liveMinuteText(active.live)}.` : `CANLI: ${playerName(active.match.homeId)} ${active.live.homeScore}–${active.live.awayScore} ${playerName(active.match.awayId)} · ${liveMinuteText(active.live)}.`);
-    if (elo.summary.mover) alerts.push(lang === "en" ? `${mover} is the fastest FPI riser over the latest five matches (${intelligenceSigned(elo.summary.mover.last5Change,0)}).` : `${mover}, son beş maçın en hızlı FPI yükseleni (${intelligenceSigned(elo.summary.mover.last5Change,0)}).`);
+    if (elo.summary.mover) alerts.push(lang === "en" ? `${mover} is the fastest Standing riser over the latest five matches (${intelligenceSigned(elo.summary.mover.last5Change,0)}).` : `${mover}, son beş maçın en hızlı Standing yükseleni (${intelligenceSigned(elo.summary.mover.last5Change,0)}).`);
     if (form.records.unbeaten) alerts.push(lang === "en" ? `${form.records.unbeaten.name} owns the longest active unbeaten run: ${form.records.unbeaten.currentUnbeatenStreak} matches.` : `${form.records.unbeaten.name}, ${form.records.unbeaten.currentUnbeatenStreak} maçla en uzun aktif yenilmezlik serisine sahip.`);
     if (simulation?.surprise) alerts.push(lang === "en" ? `Dark-horse watch: ${simulation.surprise.name} reaches the final in ${simulationPct(simulation.surprise.finalProbability,1)} of simulations.` : `Sürpriz alarmı: ${simulation.surprise.name}, simülasyonların ${simulationPct(simulation.surprise.finalProbability,1)} bölümünde finale çıkıyor.`);
     alerts.push(lang === "en" ? `Latest official result: ${recentLine}.` : `Son resmî sonuç: ${recentLine}.`);
@@ -9965,10 +10076,10 @@
     const briefing = buildTournamentDirectorBriefing();
     const toneButtons = ["analyst","dramatic","ruthless","captain"];
     return `<div class="intel-section-stack">
-      <section class="director-hero"><div><div class="eyebrow">AI TOURNAMENT DIRECTOR</div><h2>${intelligenceCopy("Turnuvanın Dijital Sesi", "The Digital Voice of the Tournament")}</h2><p>${intelligenceCopy("Sonuçları, FPI hareketlerini, canlı maçı ve simülasyonu okuyarak otomatik maç günü bülteni, uyarı ve gündem üretir.", "Reads results, FPI movement, the live match and simulation to generate an automatic matchday briefing, alerts and agenda.")}</p><div class="director-actions"><button class="btn btn-gold" data-action="refresh-director-briefing">${intelligenceCopy("Yeni Bülten Oluştur", "Generate New Briefing")}</button><button class="btn btn-ghost" data-action="share-director-briefing">${intelligenceCopy("WhatsApp'ta Paylaş", "Share on WhatsApp")}</button></div></div><div class="director-avatar"><span>AI</span><i>F9</i><b>DIRECTOR</b></div></section>
+      <section class="director-hero"><div><div class="eyebrow">AI TOURNAMENT DIRECTOR</div><h2>${intelligenceCopy("Turnuvanın Dijital Sesi", "The Digital Voice of the Tournament")}</h2><p>${intelligenceCopy("Sonuçları, Standing hareketlerini, canlı maçı ve simülasyonu okuyarak otomatik maç günü bülteni, uyarı ve gündem üretir.", "Reads results, Standing movement, the live match and simulation to generate an automatic matchday briefing, alerts and agenda.")}</p><div class="director-actions"><button class="btn btn-gold" data-action="refresh-director-briefing">${intelligenceCopy("Yeni Bülten Oluştur", "Generate New Briefing")}</button><button class="btn btn-ghost" data-action="share-director-briefing">${intelligenceCopy("WhatsApp'ta Paylaş", "Share on WhatsApp")}</button></div></div><div class="director-avatar"><span>AI</span><i>F9</i><b>DIRECTOR</b></div></section>
       <section class="panel director-console"><div class="panel-header"><div><h3 class="panel-title">${intelligenceCopy("Direktör Sesi", "Director Voice")}</h3><div class="panel-subtitle">${intelligenceCopy("Aynı veriyi farklı anlatım karakterleriyle sunar.", "Presents the same data through different narrative personalities.")}</div></div><span class="badge badge-gold">${escapeHTML(directorToneLabel(directorTone))}</span></div><div class="director-tone-tabs">${toneButtons.map(tone=>`<button class="${tone===directorTone?"active":""}" data-action="set-director-tone" data-director-tone="${tone}">${escapeHTML(directorToneLabel(tone))}</button>`).join("")}</div></section>
       <section class="director-briefing"><header><span>${intelligenceCopy("GÜNLÜK DİREKTÖR BÜLTENİ", "DAILY DIRECTOR BRIEFING")}</span><small>${new Date(briefing.generatedAt).toLocaleString(intelligenceLanguage()==="en"?"en-GB":"tr-TR",{dateStyle:"medium",timeStyle:"short"})}</small></header><h3>${escapeHTML(briefing.title)}</h3><p class="director-opening">${escapeHTML(briefing.opening)}</p><div class="director-alert-feed">${briefing.alerts.map((item,index)=>`<div><span>${String(index+1).padStart(2,"0")}</span><p>${escapeHTML(item)}</p></div>`).join("")}</div><blockquote>${escapeHTML(briefing.verdict)}</blockquote><footer><span>AI TOURNAMENT DIRECTOR</span><strong>${escapeHTML(directorToneLabel(directorTone))}</strong></footer></section>
-      <div class="grid-2"><section class="panel"><div class="panel-header"><div><h3 class="panel-title">${intelligenceCopy("Bugünün Kontrol Paneli", "Today's Control Panel")}</h3></div><span class="badge badge-blue">AUTO BRIEF</span></div><div class="director-control-grid"><div><span>${intelligenceCopy("Güncel Lider", "Current Leader")}</span><strong>${escapeHTML(briefing.leaderName)}</strong></div><div><span>${intelligenceCopy("Şampiyonluk Favorisi", "Title Favourite")}</span><strong>${escapeHTML(briefing.titleFavourite)} · ${briefing.titlePct}</strong></div><div><span>${intelligenceCopy("FPI Yükseleni", "FPI Riser")}</span><strong>${escapeHTML(briefing.mover)}</strong></div><div><span>${intelligenceCopy("Öncelikli Maç", "Priority Match")}</span><strong>${escapeHTML(briefing.nextLabel)}</strong></div></div></section><section class="panel"><div class="panel-header"><div><h3 class="panel-title">${intelligenceCopy("Direktör Protokolü", "Director Protocol")}</h3></div></div><div class="format-list"><div class="format-row"><div class="format-icon">1</div><div><div class="format-title">${intelligenceCopy("Gerçek sonuçları oku", "Read official results")}</div><div class="format-desc">${intelligenceCopy("Puan tablosu, FPI ve form değişimini tarar.", "Scans standings, FPI and form movement.")}</div></div></div><div class="format-row"><div class="format-icon">2</div><div><div class="format-title">${intelligenceCopy("Kritik gelişmeyi seç", "Select critical development")}</div><div class="format-desc">${intelligenceCopy("Canlı maç, seri, simülasyon ve sürpriz sinyallerini önceliklendirir.", "Prioritises live matches, streaks, simulation and upset signals.")}</div></div></div><div class="format-row"><div class="format-icon">3</div><div><div class="format-title">${intelligenceCopy("Bülteni yeniden yaz", "Rewrite the briefing")}</div><div class="format-desc">${intelligenceCopy("Seçilen anlatım karakterine göre dinamik metin üretir.", "Generates dynamic copy in the selected narrative voice.")}</div></div></div></div></section></div>
+      <div class="grid-2"><section class="panel"><div class="panel-header"><div><h3 class="panel-title">${intelligenceCopy("Bugünün Kontrol Paneli", "Today's Control Panel")}</h3></div><span class="badge badge-blue">AUTO BRIEF</span></div><div class="director-control-grid"><div><span>${intelligenceCopy("Güncel Lider", "Current Leader")}</span><strong>${escapeHTML(briefing.leaderName)}</strong></div><div><span>${intelligenceCopy("Şampiyonluk Favorisi", "Title Favourite")}</span><strong>${escapeHTML(briefing.titleFavourite)} · ${briefing.titlePct}</strong></div><div><span>${intelligenceCopy("Standing Yükseleni", "Standing Riser")}</span><strong>${escapeHTML(briefing.mover)}</strong></div><div><span>${intelligenceCopy("Öncelikli Maç", "Priority Match")}</span><strong>${escapeHTML(briefing.nextLabel)}</strong></div></div></section><section class="panel"><div class="panel-header"><div><h3 class="panel-title">${intelligenceCopy("Direktör Protokolü", "Director Protocol")}</h3></div></div><div class="format-list"><div class="format-row"><div class="format-icon">1</div><div><div class="format-title">${intelligenceCopy("Gerçek sonuçları oku", "Read official results")}</div><div class="format-desc">${intelligenceCopy("Puan tablosu, Standing ve form değişimini tarar.", "Scans standings, Standing and form movement.")}</div></div></div><div class="format-row"><div class="format-icon">2</div><div><div class="format-title">${intelligenceCopy("Kritik gelişmeyi seç", "Select critical development")}</div><div class="format-desc">${intelligenceCopy("Canlı maç, seri, simülasyon ve sürpriz sinyallerini önceliklendirir.", "Prioritises live matches, streaks, simulation and upset signals.")}</div></div></div><div class="format-row"><div class="format-icon">3</div><div><div class="format-title">${intelligenceCopy("Bülteni yeniden yaz", "Rewrite the briefing")}</div><div class="format-desc">${intelligenceCopy("Seçilen anlatım karakterine göre dinamik metin üretir.", "Generates dynamic copy in the selected narrative voice.")}</div></div></div></div></section></div>
       <div class="info-box"><strong>${intelligenceCopy("Şeffaflık:", "Transparency:")}</strong> ${intelligenceCopy("Direktör metinleri sitenin kayıtlı verilerinden çalışan kurallı bir anlatım motoruyla üretilir; dışarıya veri göndermez ve kesin sonuç iddiasında bulunmaz.", "Director copy is generated by a rules-based narrative engine using data stored on the site; it sends no data externally and makes no claim of certainty.")}</div>
     </div>`;
   }
@@ -10076,10 +10187,10 @@
     if (!finalChapterIntelligencePlayer || !data.rows.some(row=>row.id===finalChapterIntelligencePlayer)) finalChapterIntelligencePlayer=data.rows[0]?.id||"";
     const selected=data.playerMap.get(finalChapterIntelligencePlayer)||data.rows[0];
     return `<div class="fc-intelligence-page">
-      <section class="fc-intelligence-hero"><div><div class="eyebrow">CONNECTED UNIVERSE · V${FINAL_CHAPTER_CONNECTED_UNIVERSE_VERSION}</div><h2>Final Chapter Intelligence</h2><p>${intelligenceCopy("Canlı maç, seri skoru, Final Chapter formu ve FPI gücü tek modelde birleşir. Yüzdeler olasılık tahminidir; kesin sonuç değildir.", "Live match state, series score, Final Chapter form and FPI strength combine in one model. Percentages are estimates, not certainties.")}</p></div><div><span>${intelligenceCopy("Şampiyonluk Favorisi", "Title Favourite")}</span><strong>${escapeHTML(data.favourite?.name||"–")}</strong><b>${simulationPct(data.favourite?.title||0,1)}</b></div></section>
+      <section class="fc-intelligence-hero"><div><div class="eyebrow">CONNECTED UNIVERSE · V${FINAL_CHAPTER_CONNECTED_UNIVERSE_VERSION}</div><h2>Final Chapter Intelligence</h2><p>${intelligenceCopy("Canlı maç, seri skoru, Final Chapter formu ve Standing gücü tek modelde birleşir. Yüzdeler olasılık tahminidir; kesin sonuç değildir.", "Live match state, series score, Final Chapter form and Standing strength combine in one model. Percentages are estimates, not certainties.")}</p></div><div><span>${intelligenceCopy("Şampiyonluk Favorisi", "Title Favourite")}</span><strong>${escapeHTML(data.favourite?.name||"–")}</strong><b>${simulationPct(data.favourite?.title||0,1)}</b></div></section>
       <section class="panel fc-intel-progress"><div class="panel-header"><div><h3 class="panel-title">${intelligenceCopy("Road to the Final", "Road to the Final")}</h3><div class="panel-subtitle">${intelligenceCopy("Her aşama aynı resmî sonuç kaydından güncellenir.", "Every stage updates from the same official result record.")}</div></div><span class="badge badge-green">SYNCED</span></div><div class="fc-progress-route">${data.progress.map(row=>`<article class="${row.completedSeries===row.series&&row.series?"complete":""}"><span>${escapeHTML(row.label)}</span><strong>${row.completedSeries}/${row.series}</strong><small>${row.completedMatches} ${intelligenceCopy("maç", "matches")}</small><i style="width:${row.series?row.completedSeries/row.series*100:0}%"></i></article>`).join("")}</div></section>
-      <section class="panel"><div class="panel-header"><div><h3 class="panel-title">${intelligenceCopy("Şampiyonluk Olasılıkları", "Championship Probabilities")}</h3><div class="panel-subtitle">FPI Rating, son form, mevcut seri skoru ve kalan yol birlikte değerlendirilir.</div></div><span class="badge badge-gold">LIVE MODEL</span></div><div class="fc-probability-table"><div class="head"><span>#</span><span>${intelligenceCopy("Oyuncu", "Player")}</span><span>${intelligenceCopy("Durum", "Status")}</span><span>FPI</span><span>FORM</span><span>QF</span><span>SF</span><span>${intelligenceCopy("Final", "Final")}</span><span>${intelligenceCopy("Şampiyon", "Champion")}</span></div>${data.rows.map(row=>`<button class="${selected?.id===row.id?"active":""}" data-action="select-fc-intelligence-player" data-player-id="${row.id}"><span>${row.rank}</span><strong>${escapeHTML(row.name)}</strong><small>${escapeHTML(row.status)}</small><b>${row.elo}</b><b>${row.form}</b><span>${simulationPct(row.qf,0)}</span><span>${simulationPct(row.semi,0)}</span><span>${simulationPct(row.final,0)}</span><strong>${simulationPct(row.title,1)}</strong></button>`).join("")}</div></section>
-      ${selected?`<section class="fc-destiny-profile"><div><span>${escapeHTML(selected.name.split(" ").map(part=>part[0]).slice(0,2).join(""))}</span><div><h3>${escapeHTML(selected.name)}</h3><p>${escapeHTML(selected.status)} · ${selected.elo} FPI · Form ${selected.form}</p></div><strong>${simulationPct(selected.title,1)}<small>${intelligenceCopy("ŞAMPİYONLUK", "TITLE")}</small></strong></div><div class="fc-destiny-grid"><article><span>${intelligenceCopy("Çeyrek Final", "Quarter-final")}</span><strong>${simulationPct(selected.qf,1)}</strong></article><article><span>${intelligenceCopy("Yarı Final", "Semi-final")}</span><strong>${simulationPct(selected.semi,1)}</strong></article><article><span>${intelligenceCopy("Final", "Final")}</span><strong>${simulationPct(selected.final,1)}</strong></article><article><span>${intelligenceCopy("Şampiyon", "Champion")}</span><strong>${simulationPct(selected.title,1)}</strong></article></div>${selected.opponent?`<div class="fc-current-opponent"><span>${intelligenceCopy("Güncel eşleşme", "Current tie")}</span><strong>${escapeHTML(selected.name)} vs ${escapeHTML(selected.opponent)}</strong><b>${simulationPct(selected.seriesProbability||0,1)} ${intelligenceCopy("seri şansı", "series chance")}</b><p>${escapeHTML(selected.path)}</p></div>`:""}</section>`:""}
+      <section class="panel"><div class="panel-header"><div><h3 class="panel-title">${intelligenceCopy("Şampiyonluk Olasılıkları", "Championship Probabilities")}</h3><div class="panel-subtitle">Standing Rating, son form, mevcut seri skoru ve kalan yol birlikte değerlendirilir.</div></div><span class="badge badge-gold">LIVE MODEL</span></div><div class="fc-probability-table"><div class="head"><span>#</span><span>${intelligenceCopy("Oyuncu", "Player")}</span><span>${intelligenceCopy("Durum", "Status")}</span><span>Standing</span><span>FORM</span><span>QF</span><span>SF</span><span>${intelligenceCopy("Final", "Final")}</span><span>${intelligenceCopy("Şampiyon", "Champion")}</span></div>${data.rows.map(row=>`<button class="${selected?.id===row.id?"active":""}" data-action="select-fc-intelligence-player" data-player-id="${row.id}"><span>${row.rank}</span><strong>${escapeHTML(row.name)}</strong><small>${escapeHTML(row.status)}</small><b>${row.elo}</b><b>${row.form}</b><span>${simulationPct(row.qf,0)}</span><span>${simulationPct(row.semi,0)}</span><span>${simulationPct(row.final,0)}</span><strong>${simulationPct(row.title,1)}</strong></button>`).join("")}</div></section>
+      ${selected?`<section class="fc-destiny-profile"><div><span>${escapeHTML(selected.name.split(" ").map(part=>part[0]).slice(0,2).join(""))}</span><div><h3>${escapeHTML(selected.name)}</h3><p>${escapeHTML(selected.status)} · ${selected.elo} STANDING · Form ${selected.form}</p></div><strong>${simulationPct(selected.title,1)}<small>${intelligenceCopy("ŞAMPİYONLUK", "TITLE")}</small></strong></div><div class="fc-destiny-grid"><article><span>${intelligenceCopy("Çeyrek Final", "Quarter-final")}</span><strong>${simulationPct(selected.qf,1)}</strong></article><article><span>${intelligenceCopy("Yarı Final", "Semi-final")}</span><strong>${simulationPct(selected.semi,1)}</strong></article><article><span>${intelligenceCopy("Final", "Final")}</span><strong>${simulationPct(selected.final,1)}</strong></article><article><span>${intelligenceCopy("Şampiyon", "Champion")}</span><strong>${simulationPct(selected.title,1)}</strong></article></div>${selected.opponent?`<div class="fc-current-opponent"><span>${intelligenceCopy("Güncel eşleşme", "Current tie")}</span><strong>${escapeHTML(selected.name)} vs ${escapeHTML(selected.opponent)}</strong><b>${simulationPct(selected.seriesProbability||0,1)} ${intelligenceCopy("seri şansı", "series chance")}</b><p>${escapeHTML(selected.path)}</p></div>`:""}</section>`:""}
       <section class="panel"><div class="panel-header"><div><h3 class="panel-title">${intelligenceCopy("Aktif Seri Radarı", "Active Series Radar")}</h3><div class="panel-subtitle">${intelligenceCopy("Sıradaki oynanabilir maçlar ve canlı seri durumu.", "Next playable matches and live series state.")}</div></div></div>${data.activeTies.length?`<div class="fc-active-ties">${data.activeTies.map(({stage,series})=>{const wins=seriesWins(series);const next=series.games.find(matchAvailableForLive);return `<article><span>${escapeHTML(finalChapterStageLabel(stage))}</span><h4>${displayName(series.playerAId)} <b>${wins.a}–${wins.b}</b> ${displayName(series.playerBId)}</h4><p>${next?`${intelligenceCopy("Sıradaki maç", "Next match")}: M${finalChapterMatchContext(next)?.gameNumber||1}`:intelligenceCopy("Seri sonucu bekleniyor", "Awaiting series result")}</p></article>`}).join("")}</div>`:`<div class="info-box">${intelligenceCopy("Şu anda aktif ve oynanabilir seri bulunmuyor.", "There is currently no active playable series.")}</div>`}</section>
     </div>`;
   }
@@ -10087,7 +10198,7 @@
   function renderIntelligenceCentre() {
     const sections = [
       ...(finalChapterIsEnabled() ? [["finalchapter", "Final Chapter", "09"]] : []),
-      ["matchday", "Matchday", "◈"], ["elo", "FPI", "↗"], ["exchange", "Power Exchange", "⌁"],
+      ["matchday", "Matchday", "◈"], ["elo", intelligenceCopy("Player Standing", "Player Standing"), "↗"], ["exchange", "Power Exchange", "⌁"],
       ["pressure", intelligenceCopy("Baskı", "Pressure"), "◆"], ["destiny", intelligenceCopy("Kader Yolu", "Destiny Path"), "◇"],
       ["pulse", intelligenceCopy("Live Pulse", "Live Pulse"), "♥"], ["director", "AI Director", "AI"],
       ["rivalry", "Rivalry DNA", "∞"], ["predictions", intelligenceCopy("Tahmin Ligi", "Prediction League"), "1X2"],

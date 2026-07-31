@@ -1,0 +1,17 @@
+{
+  "html_files": 5,
+  "html_local_references": 50,
+  "service_worker_assets": 47,
+  "contracts": {
+    "build_202000": true,
+    "standing_css_loaded": true,
+    "engine_identity": true,
+    "why_this_standing": true,
+    "latest_shift_anatomy": true,
+    "standing_pulse": true,
+    "standing_identity": true,
+    "competitive_class": true,
+    "public_fpi_retired": true,
+    "sw_cache_v220": true
+  }
+}

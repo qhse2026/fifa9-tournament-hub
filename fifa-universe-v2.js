@@ -1,8 +1,8 @@
 (() => {
   "use strict";
 
-  const VERSION = "2.1.0";
-  const BUILD = "201000";
+  const VERSION = "2.2.0";
+  const BUILD = "202000";
   const ROUTES = new Set(["dashboard", "livehub", "tournaments", "playershub", "recordshub", "mediahub", "adminhub"]);
   let mode = localStorage.getItem("fifa-universe-v2-mode") || "spectator";
   let selectedPlayer = localStorage.getItem("fifa-universe-v2-player") || "";
@@ -137,12 +137,19 @@
     </section>`;
   }
 
-  function fpiTicker() {
-    const rows = app()?.buildFpiAnalytics?.()?.players || [];
-    if (!rows.length) return "";
-    const items = rows.map(row => `<button type="button" data-v2-player-open="${esc(row.name)}"><i>${row.rank}</i><strong>${esc(row.name)}</strong><b>${row.rating}</b><span>${Number(row.fpi?.score || 50).toFixed(1)}/100</span><em class="${row.last5Change >= 0 ? "up" : "down"}">${row.last5Change >= 0 ? "▲" : "▼"}${Math.abs(row.last5Change || 0)}</em><small>${esc(row.tier?.label || "FPI")}</small></button>`).join("");
-    return `<section class="v2-fpi-ticker" aria-label="${ui("FIFA Player Index canlı sıralaması", "FIFA Player Index live ranking")}"><header><span><i></i> FPI LIVE</span><strong>FIFA PLAYER STANDING</strong><button type="button" data-action="open-fpi-centre" data-v2-fpi-centre>${ui("DETAYLI MODEL", "FULL MODEL")} ↗</button></header><div class="v2-fpi-viewport"><div class="v2-fpi-track">${items}<div class="v2-fpi-repeat" aria-hidden="true">${items}</div></div></div><footer><span>RATING</span><i></i><span>FPI/100</span><i></i><span>${ui("SON 5 HAREKETİ", "LAST-5 MOVEMENT")}</span><i></i><span>${ui("MODEL GÜVENİ PASAPORTTA", "MODEL CONFIDENCE IN PASSPORT")}</span></footer></section>`;
-  }
+
+function fpiTicker() {
+  const analytics = app()?.buildFpiAnalytics?.() || {};
+  const rows = analytics.players || [];
+  if (!rows.length) return "";
+  const signed = value => `${Number(value) >= 0 ? "+" : ""}${Number(value) || 0}`;
+  const rankMove = row => row.rankMovement > 0 ? `▲${row.rankMovement}` : row.rankMovement < 0 ? `▼${Math.abs(row.rankMovement)}` : "◆";
+  const items = rows.map(row => `<button type="button" data-v2-player-open="${esc(row.name)}"><i>${row.rank}</i><strong>${esc(row.name)}</strong><b>${row.rating}</b><span>${rankMove(row)} POS</span><em class="${row.last5Change >= 0 ? "up" : "down"}">${signed(row.last5Change)}</em><small>${esc(row.tier?.label || "STANDING")}</small></button>`).join("");
+  const mover = analytics.summary?.mover;
+  const upset = analytics.summary?.biggestUpset;
+  const gap = analytics.summary?.smallestGap;
+  return `<section class="v2-fpi-ticker v2-standing-pulse" aria-label="${ui("FIFA Player Standing canlı sıralaması", "FIFA Player Standing live ranking")}"><header><span><i></i> STANDING PULSE</span><strong>FIFA PLAYER STANDING</strong><button type="button" data-action="open-fpi-centre" data-v2-fpi-centre>${ui("STANDING CENTRE", "STANDING CENTRE")} ↗</button></header><div class="v2-fpi-viewport"><div class="v2-fpi-track">${items}<div class="v2-fpi-repeat" aria-hidden="true">${items}</div></div></div><footer><span>TOP MOVER: <b>${esc(mover?.name || "–")} ${mover ? signed(mover.last5Change) : ""}</b></span><i></i><span>BIGGEST UPSET: <b>${upset ? `${esc(upset.winner)} +${upset.upsetGap}` : "–"}</b></span><i></i><span>SMALLEST GAP: <b>${gap ? `${gap.gap} PTS · #${gap.upper.rank}/#${gap.lower.rank}` : "–"}</b></span></footer></section>`;
+}
 
   function pageIntro(eyebrow, title, copy, aside = "") {
     return `<header class="v2-page-intro"><div><span>${eyebrow}</span><h2>${title}</h2><p>${copy}</p></div>${aside}</header>`;
@@ -227,21 +234,27 @@
     </div>`;
   }
 
-  function renderPlayers(mount) {
-    const data = universeData(); const draw = currentDraw(); const player = selectedUniversePlayer(data, draw);
-    if (!player) { mount.innerHTML = `<div class="v2-page">${routeNav("playershub")}<p>${ui("Oyuncu verisi bulunamadı.", "No player data available.")}</p></div>`; return; }
-    const twin = evolution()?.digitalTwins?.(data)?.find(row => row.key === player.key);
-    const career = evolution()?.careerStates?.(data, 10)?.find(row => row.player.key === player.key)?.career;
-    const current = standings(draw).find(row => normalize(row.name) === player.key);
-    const rivals = (data.rivalries || []).filter(row => [normalize(row.playerA), normalize(row.playerB)].includes(player.key)).slice(0, 5);
-    const recent = [...(player.entries || [])].slice(-8).reverse();
-    const teams = [...new Set((player.entries || []).map(entry => entry.team).filter(Boolean))];
-    mount.innerHTML = `<div class="v2-page">${routeNav("playershub")}${modeBar(data, "playershub")}${pageIntro("UNIVERSAL PLAYER PASSPORT", ui("Bir oyuncu. Bütün kariyer.", "One player. The whole career."), ui("Aktif turnuva, tüm zamanlar, kariyer evresi, takım kullanımı ve rekabet geçmişi tek kalıcı profilde.", "Live tournament, all-time history, career state, team usage and rivalry history in one permanent profile."), `<label class="v2-page-player-select"><span>${ui("OYUNCU SEÇ", "SELECT PLAYER")}</span><select id="v2PlayerSelect">${data.players.map(row => `<option value="${esc(row.name)}" ${row.key === player.key ? "selected" : ""}>${esc(row.name)}</option>`).join("")}</select></label>`)}
-      <section class="v2-passport-hero"><div class="identity"><i>${esc(player.name.split(/\s+/).map(part => part[0]).slice(0, 2).join(""))}</i><div><span>${career?.label || ui("Kariyer profili", "Career profile")}</span><h3>${esc(player.name)}</h3><p>${player.editions?.length || 0} ${ui("edisyon", "editions")} · ${player.games} MP · ${teams.length} ${ui("takım", "teams")}</p></div></div><div class="metrics"><article><span>LIVE</span><b>${current?.rank ? `#${current.rank}` : "–"}</b><small>${current ? `${Number(current.ppg).toFixed(3)} PPG` : "FIFA 10"}</small></article><article><span>LEGACY</span><b>${Number(player.legacy || 0).toFixed(1)}</b><small>${player.titles} TITLES</small></article><article><span>DIGITAL TWIN</span><b>${twin?.posteriorRating?.toFixed(0) || "–"}</b><small>${twin ? `${twin.lowerRating.toFixed(0)}–${twin.upperRating.toFixed(0)}` : "–"}</small></article><article><span>PRIME</span><b>${Number(player.prime?.score || 0).toFixed(1)}</b><small>FIFA ${player.prime?.startEdition || "–"}–${player.prime?.endEdition || "–"}</small></article></div></section>
-      <section class="v2-player-detail-grid"><div><header><span>CAREER TIMELINE</span><h3>${ui("Kariyer evreleri", "Career states")}</h3></header><div class="v2-career-line">${(career?.segments || []).map(segment => `<article class="${segment.state}"><i></i><b>FIFA ${segment.edition}</b><span>${esc(segment.label)}</span><small>${Number(segment.score).toFixed(1)}</small></article>`).join("") || `<p>${ui("Kariyer evresi için daha fazla veri gerekiyor.", "More data is required for career states.")}</p>`}</div></div><div><header><span>RIVALRY</span><h3>${ui("En güçlü rekabetler", "Strongest rivalries")}</h3></header><div class="v2-rival-list">${rivals.map(row => { const opponent = normalize(row.playerA) === player.key ? row.playerB : row.playerA; return `<article><strong>${esc(opponent)}</strong><span>${row.matches} MP</span><b>${Number(row.heat || 0).toFixed(0)}</b></article>`; }).join("") || `<p>${ui("Rekabet verisi bekleniyor.", "Awaiting rivalry data.")}</p>`}</div></div></section>
-      <section class="v2-player-history"><div><header><span>${ui("SON MAÇLAR", "RECENT MATCHES")}</span></header>${recent.map(entry => `<article><span>FIFA ${entry.edition} · ${Number(entry.stars || 0) || "–"}★</span><strong>${esc(entry.opponent)}</strong><b class="p${entry.points}">${entry.points === 3 ? "W" : entry.points === 1 ? "D" : "L"}</b><small>${entry.gf}–${entry.ga} · ${esc(entry.team || "–")}</small></article>`).join("")}</div><div><header><span>${ui("KULLANILAN TAKIMLAR", "USED TEAMS")}</span><b>${teams.length}</b></header><div>${teams.slice(0, 24).map(team => `<span>${esc(team)}</span>`).join("") || `<p>${ui("Takım kaydı bulunmuyor.", "No team records.")}</p>`}</div></div></section>
-    </div>`;
-  }
+
+function renderPlayers(mount) {
+  const data = universeData(); const draw = currentDraw(); const player = selectedUniversePlayer(data, draw);
+  if (!player) { mount.innerHTML = `<div class="v2-page">${routeNav("playershub")}<p>${ui("Oyuncu verisi bulunamadı.", "No player data available.")}</p></div>`; return; }
+  const twin = evolution()?.digitalTwins?.(data)?.find(row => row.key === player.key);
+  const career = evolution()?.careerStates?.(data, 10)?.find(row => row.player.key === player.key)?.career;
+  const current = standings(draw).find(row => normalize(row.name) === player.key);
+  const rivals = (data.rivalries || []).filter(row => [normalize(row.playerA), normalize(row.playerB)].includes(player.key)).slice(0, 5);
+  const recent = [...(player.entries || [])].slice(-8).reverse();
+  const teams = [...new Set((player.entries || []).map(entry => entry.team).filter(Boolean))];
+  const standingAnalytics = app()?.buildFpiAnalytics?.() || {};
+  const standing = (standingAnalytics.players || []).find(row => normalize(row.name) === player.key);
+  const standingDna = standing?.fpi?.dna || [];
+  const signed = value => `${Number(value) >= 0 ? "+" : ""}${Number(value) || 0}`;
+  mount.innerHTML = `<div class="v2-page">${routeNav("playershub")}${modeBar(data, "playershub")}${pageIntro("UNIVERSAL PLAYER PASSPORT", ui("Bir oyuncu. Bütün kariyer.", "One player. The whole career."), ui("Aktif turnuva, Player Standing, tüm zamanlar, kariyer evresi, takım kullanımı ve rekabet geçmişi tek kalıcı profilde.", "Live tournament, Player Standing, all-time history, career state, team usage and rivalry history in one permanent profile."), `<label class="v2-page-player-select"><span>${ui("OYUNCU SEÇ", "SELECT PLAYER")}</span><select id="v2PlayerSelect">${data.players.map(row => `<option value="${esc(row.name)}" ${row.key === player.key ? "selected" : ""}>${esc(row.name)}</option>`).join("")}</select></label>`)}
+    <section class="v2-passport-hero"><div class="identity"><i>${esc(player.name.split(/\s+/).map(part => part[0]).slice(0, 2).join(""))}</i><div><span>${career?.label || ui("Kariyer profili", "Career profile")}</span><h3>${esc(player.name)}</h3><p>${player.editions?.length || 0} ${ui("edisyon", "editions")} · ${player.games} MP · ${teams.length} ${ui("takım", "teams")}</p></div></div><div class="metrics"><article><span>LIVE</span><b>${current?.rank ? `#${current.rank}` : "–"}</b><small>${current ? `${Number(current.ppg).toFixed(3)} PPG` : "FIFA 10"}</small></article><article><span>STANDING</span><b>${standing ? `#${standing.rank}` : "–"}</b><small>${standing ? `${standing.rating} · ${standing.tier.label}` : "–"}</small></article><article><span>LEGACY</span><b>${Number(player.legacy || 0).toFixed(1)}</b><small>${player.titles} TITLES</small></article><article><span>PRIME</span><b>${Number(player.prime?.score || 0).toFixed(1)}</b><small>FIFA ${player.prime?.startEdition || "–"}–${player.prime?.endEdition || "–"}</small></article></div></section>
+    ${standing ? `<section class="v2-standing-identity"><header><div><span>STANDING IDENTITY</span><h3>${esc(standing.name)} · World #${standing.rank}</h3><p>${esc(standing.standing.why)}</p></div><button type="button" data-action="open-fpi-centre">${ui("Tam Standing dosyasını aç", "Open full Standing dossier")} ↗</button></header><div class="v2-standing-identity-metrics"><article><span>STANDING RATING</span><b>${standing.rating}</b><small>PEAK ${standing.peak} · FLOOR ${standing.floor}</small></article><article><span>STANDING INDEX</span><b>${standing.standing.index}</b><small>${standing.fpi.confidence}% ${standing.fpi.confidenceBand}</small></article><article><span>MOMENTUM SHIFT</span><b class="${standing.last5Change>=0?"positive":"negative"}">${signed(standing.last5Change)}</b><small>${standing.fpi.signal}</small></article><article><span>NEXT TARGET</span><b>${standing.standing.nextTarget ? `#${standing.rank-1}` : "LEADER"}</b><small>${esc(standing.standing.nextTarget?.name || ui("Liderliği koru", "Defend the lead"))}</small></article></div><div class="v2-standing-dna">${standingDna.map(component=>`<article><span>${esc(component.label)}</span><b>${Number(component.value).toFixed(0)}</b><i><em style="width:${component.value}%"></em></i></article>`).join("")}</div></section>` : ""}
+    <section class="v2-player-detail-grid"><div><header><span>CAREER TIMELINE</span><h3>${ui("Kariyer evreleri", "Career states")}</h3></header><div class="v2-career-line">${(career?.segments || []).map(segment => `<article class="${segment.state}"><i></i><b>FIFA ${segment.edition}</b><span>${esc(segment.label)}</span><small>${Number(segment.score).toFixed(1)}</small></article>`).join("") || `<p>${ui("Kariyer evresi için daha fazla veri gerekiyor.", "More data is required for career states.")}</p>`}</div></div><div><header><span>RIVALRY</span><h3>${ui("En güçlü rekabetler", "Strongest rivalries")}</h3></header><div class="v2-rival-list">${rivals.map(row => { const opponent = normalize(row.playerA) === player.key ? row.playerB : row.playerA; return `<article><strong>${esc(opponent)}</strong><span>${row.matches} MP</span><b>${Number(row.heat || 0).toFixed(0)}</b></article>`; }).join("") || `<p>${ui("Rekabet verisi bekleniyor.", "Awaiting rivalry data.")}</p>`}</div></div></section>
+    <section class="v2-player-history"><div><header><span>${ui("SON MAÇLAR", "RECENT MATCHES")}</span></header>${recent.map(entry => `<article><span>FIFA ${entry.edition} · ${Number(entry.stars || 0) || "–"}★</span><strong>${esc(entry.opponent)}</strong><b class="p${entry.points}">${entry.points === 3 ? "W" : entry.points === 1 ? "D" : "L"}</b><small>${entry.gf}–${entry.ga} · ${esc(entry.team || "–")}</small></article>`).join("")}</div><div><header><span>${ui("KULLANILAN TAKIMLAR", "USED TEAMS")}</span><b>${teams.length}</b></header><div>${teams.slice(0, 24).map(team => `<span>${esc(team)}</span>`).join("") || `<p>${ui("Takım kaydı bulunmuyor.", "No team records.")}</p>`}</div></div></section>
+  </div>`;
+}
 
   function renderRecords(mount) {
     const data = universeData(); const draw = currentDraw();

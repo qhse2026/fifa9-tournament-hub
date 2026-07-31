@@ -1,0 +1,16 @@
+ORUÇ REİS FIFA UNIVERSE V2.2.0 — PLAYER STANDING INTELLIGENCE
+
+1. Upload the complete folder to the existing deployment target.
+2. Do not delete cloud-config.js or Supabase settings.
+3. Open the site with ?fifa9build=202000 once after deployment.
+4. The new service-worker cache automatically replaces V2.1.0.
+
+Main additions:
+- FIFA Player Standing public identity
+- Standing Pulse home ticker
+- Standing Rating + Standing Index + Standing DNA
+- Why This Standing / Next Target
+- Latest Shift Anatomy
+- Standing Identity in Universal Player Passport
+
+Existing data remains compatible; no database migration is required.
