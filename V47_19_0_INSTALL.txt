@@ -1,0 +1,56 @@
+ORUÇ REİS FIFA WORLD — V47.19.0
+EVOLUTION OPERATING SYSTEM
+BUILD 471900
+
+KURULUM
+
+1. Tam ZIP paketini site/proje köküne çıkarın.
+2. Dizin yapısını değiştirmeyin.
+3. Klasörün tamamını deploy edin.
+4. Şu adresi açın:
+
+   https://fifa9-tournament-hub.vercel.app/?fifa9build=471900
+
+471900 build parametresi eski uygulama kabuğunu ve Service Worker önbelleğini
+yenileyerek V47.19.0 dosyalarını yükletir.
+
+ÖNEMLİ
+
+- Paket kısmi yama değil, tam sitedir.
+- cloud-config.js bilinçli olarak değiştirilmemiştir.
+- Turnuva cihazı bulut denemesinden önce her zaman yerel kayıt yapar.
+- Mevcut sonuçlar, gruplar, takım pasaportları ve FIFA 09 tarihi korunur.
+- Analitik ve simülasyon sistemleri resmî sonuçları değiştiremez.
+- Living Milestone Ceremony yalnızca resmî kayıt anında türetilen eşik
+  olaylarını milestoneLedger alanına ekler.
+
+ANA GİRİŞ
+
+- index.html
+
+EVOLUTION OS
+
+FIFA 10 Turnuva Sistemi → EVOLUTION OS
+
+PANELLER
+
+- Equity Timeline
+- Player Digital Twin
+- Integrity & Schedule
+- Records & Legacy
+
+YENİ DOSYALAR
+
+- fifa-evolution-os-v4719.js
+- fifa-evolution-os-v4719.css
+- fifa-universe-intelligence-v4719.js
+- fifa-universe-intelligence-v4719.css
+- fifa-championship-os-v4719.js
+- fifa-championship-os-v4719.css
+
+CANLI BUILD ADRESİ
+
+https://fifa9-tournament-hub.vercel.app/?fifa9build=471900
+
+Not: Bu dosya paketin kurulacağı adresi verir; paketin deploy edildiğini iddia
+etmez.
