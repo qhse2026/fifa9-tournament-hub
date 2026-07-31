@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "47.17.0";
+  const VERSION = "47.18.0";
   const STORAGE_KEY = "fifa-tournament-hub-v1";
   const SYNC_HISTORY_KEY = "fifa10-sync-history-v1";
   const GROUPS = Object.freeze(["A", "B", "C"]);
@@ -161,6 +161,16 @@
     return JSON.parse(JSON.stringify(value));
   }
 
+  function stableHash(value) {
+    const text = typeof value === "string" ? value : JSON.stringify(value);
+    let result = 2166136261;
+    for (let index = 0; index < text.length; index += 1) {
+      result ^= text.charCodeAt(index);
+      result = Math.imul(result, 16777619);
+    }
+    return (result >>> 0).toString(16).padStart(8, "0");
+  }
+
   function ensurePayloadShape(source) {
     const next = source && typeof source === "object" ? source : {};
     next.seasonSystem ||= {};
@@ -185,6 +195,8 @@
     draft.settings.teamPoolVersion = window.FIFA10_TEAM_POOL_VERSION || "FC26-2026.07-MEN-ONLY";
     draft.settings.fixedTeamPools = true;
     draft.settings.preventTeamRepeat = true;
+    draft.blackBox = Array.isArray(draft.blackBox) ? draft.blackBox : [];
+    draft.forecastLedger = Array.isArray(draft.forecastLedger) ? draft.forecastLedger : [];
     return next;
   }
 
@@ -194,6 +206,63 @@
 
   function getDraw(source = payload) {
     return getDraft(source).draw || null;
+  }
+
+  function officialSnapshot(source) {
+    const draft = getDraft(source);
+    return {
+      capturedAt: nowISO(),
+      draw: draft.draw ? deepClone(draft.draw) : null,
+      championshipOS: draft.championshipOS ? deepClone(draft.championshipOS) : null,
+      officialAwards: draft.officialAwards ? deepClone(draft.officialAwards) : null
+    };
+  }
+
+  function blackBoxDeviceId() {
+    const key = "fifa10-black-box-device-id";
+    let value = localStorage.getItem(key);
+    if (!value) {
+      value = `DEVICE-${Date.now().toString(36).toUpperCase()}-${randomToken(4)}`;
+      localStorage.setItem(key, value);
+    }
+    return value;
+  }
+
+  function championshipCompletedCount(state) {
+    return Object.values(state?.rounds || {}).flat()
+      .flatMap(series => series.matches || [])
+      .filter(match => match.completed).length;
+  }
+
+  function officialSnapshotHash(snapshot) {
+    return stableHash({
+      draw: snapshot?.draw || null,
+      championshipOS: snapshot?.championshipOS || null,
+      officialAwards: snapshot?.officialAwards || null
+    });
+  }
+
+  function recordBlackBoxTransition(nextPayload, previousPayload, reason = "") {
+    const draft = getDraft(nextPayload);
+    const snapshot = officialSnapshot(nextPayload);
+    const previousSnapshot = previousPayload ? officialSnapshot(previousPayload) : null;
+    const hash = officialSnapshotHash(snapshot);
+    const previousHash = previousSnapshot ? officialSnapshotHash(previousSnapshot) : "";
+    const latest = draft.blackBox[draft.blackBox.length - 1];
+    if (hash === previousHash || latest?.hash === hash) return;
+    draft.blackBox.push({
+      id: `F10-BB-${Date.now().toString(36).toUpperCase()}-${randomToken(4)}`,
+      at: nowISO(),
+      reason: String(reason || uiCopy("Resmî turnuva verisi güncellendi.", "Official tournament data updated.")),
+      actor: isAdmin() ? "admin" : "operator",
+      deviceId: blackBoxDeviceId(),
+      hash,
+      previousHash,
+      groupResults: snapshot.draw?.fixtures?.filter(match => match.completed).length || 0,
+      championshipResults: championshipCompletedCount(snapshot.championshipOS),
+      snapshot
+    });
+    if (draft.blackBox.length > 120) draft.blackBox.splice(0, draft.blackBox.length - 120);
   }
 
   function syncPayloadFromApplication() {
@@ -358,6 +427,13 @@
 
   async function savePayload(nextPayload, message = "") {
     const next = ensurePayloadShape(nextPayload);
+    const previous = payload ? deepClone(payload) : null;
+    try {
+      window.FIFA_CHAMPIONSHIP_OS?.captureForecastSnapshot?.(next, previous);
+    } catch (error) {
+      console.warn("Forecast ledger snapshot was skipped; official save continues.", error);
+    }
+    recordBlackBoxTransition(next, previous, message);
     payload = next;
     // Always commit locally first. The tournament can continue even if the network momentarily fails.
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
@@ -428,6 +504,70 @@
       moduleBusy = false;
       scheduleRender();
     }
+  }
+
+  function validateChampionshipState(state, draw = getDraw()) {
+    if (!state || typeof state !== "object" || Number(state.version) !== 1) {
+      throw new Error(uiCopy("Championship verisi geçerli değil.", "The Championship state is invalid."));
+    }
+    const serialized = JSON.stringify(state);
+    if (serialized.length > 650000) {
+      throw new Error(uiCopy("Championship verisi güvenli boyut sınırını aşıyor.", "The Championship state exceeds the safe size limit."));
+    }
+    const participantIds = new Set((draw?.participants || []).map(player => String(player.id)));
+    const rounds = Object.values(state.rounds || {}).flat();
+    rounds.forEach(series => {
+      [series.homeId, series.awayId].filter(Boolean).forEach(id => {
+        if (!participantIds.has(String(id))) {
+          throw new Error(uiCopy("Championship eşleşmesinde bilinmeyen oyuncu bulundu.", "An unknown player was found in a Championship pairing."));
+        }
+      });
+      (series.matches || []).forEach(match => {
+        if (![4, 4.5, 5].includes(Number(match.stars))) {
+          throw new Error(uiCopy("Championship maçında geçersiz yıldız seviyesi bulundu.", "An invalid star tier was found in a Championship match."));
+        }
+        if (match.completed) {
+          const homeScore = Number(match.homeScore);
+          const awayScore = Number(match.awayScore);
+          if (!Number.isInteger(homeScore) || !Number.isInteger(awayScore) || homeScore < 0 || awayScore < 0 || homeScore === awayScore) {
+            throw new Error(uiCopy("Eleme maçlarında geçerli ve eşit olmayan skor gerekir.", "Knockout matches require valid, non-tied scores."));
+          }
+        }
+      });
+    });
+    return true;
+  }
+
+  async function saveChampionshipState(state, reason = "") {
+    if (!isAdmin()) throw new Error(uiCopy("Bu işlem için yönetici yetkisi gerekir.", "Administrator access is required for this operation."));
+    validateChampionshipState(state);
+    await mutatePayload(next => {
+      const draft = getDraft(next);
+      validateChampionshipState(state, draft.draw);
+      draft.championshipOS = deepClone(state);
+      draft.championshipOS.updatedAt = nowISO();
+      draft.updatedAt = nowISO();
+      if (draft.draw) draft.draw.updatedAt = nowISO();
+    }, reason || uiCopy("Championship operasyonu kaydedildi.", "Championship operation saved."));
+    return deepClone(getDraft().championshipOS);
+  }
+
+  async function restoreBlackBoxEvent(eventId) {
+    if (!isAdmin()) throw new Error(uiCopy("Bu işlem için yönetici yetkisi gerekir.", "Administrator access is required for this operation."));
+    await mutatePayload(next => {
+      const draft = getDraft(next);
+      const event = draft.blackBox.find(item => item.id === eventId);
+      if (!event?.snapshot) throw new Error(uiCopy("Geri yükleme noktası bulunamadı.", "The recovery point could not be found."));
+      const snapshot = deepClone(event.snapshot);
+      draft.draw = snapshot.draw || null;
+      if (snapshot.championshipOS) draft.championshipOS = snapshot.championshipOS;
+      else delete draft.championshipOS;
+      if (snapshot.officialAwards) draft.officialAwards = snapshot.officialAwards;
+      else delete draft.officialAwards;
+      draft.updatedAt = nowISO();
+      if (draft.draw) draft.draw.updatedAt = nowISO();
+    }, uiCopy("Tournament Black Box geri yükleme noktası uygulandı.", "Tournament Black Box recovery point restored."));
+    return deepClone(getDraft());
   }
 
   async function prepareDraw() {
@@ -1838,6 +1978,7 @@
       ["dna", "DNA & H2H"],
       ["broadcast", uiCopy("YAYIN", "BROADCAST")],
       ["awards", uiCopy("ÖDÜLLER & EVREN", "AWARDS & UNIVERSE")],
+      ["championship", "CHAMPIONSHIP OS"],
       ["universe", uiCopy("EVREN ZEKÂSI", "UNIVERSE INTELLIGENCE")]
     ];
     const participantCount = draw?.participants?.length || registrationRows().length;
@@ -1861,8 +2002,9 @@
                         : activeTab === "dna" ? (draw?.status === "completed" ? renderPlayerDnaCentre(draw) : renderDrawArena(draw))
                           : activeTab === "broadcast" ? (draw?.status === "completed" ? renderBroadcastHub(draw) : renderDrawArena(draw))
                             : activeTab === "awards" ? (draw?.status === "completed" ? renderAwardsUniverse(draw) : renderDrawArena(draw))
-                              : activeTab === "universe" ? (draw?.status === "completed" ? `<div id="f10UniverseIntelligenceRoot"></div>` : renderDrawArena(draw))
-                                : renderDrawArena(draw)
+                              : activeTab === "championship" ? (draw?.status === "completed" ? `<div id="f10ChampionshipOSRoot"></div>` : renderDrawArena(draw))
+                                : activeTab === "universe" ? (draw?.status === "completed" ? `<div id="f10UniverseIntelligenceRoot"></div>` : renderDrawArena(draw))
+                                  : renderDrawArena(draw)
       }</div>
       <footer class="f10-draw-footer"><span>${uiCopy("GENEL SIRALAMA: PPG → MAÇ BAŞINA AVERAJ → TOPLAM ATILAN GOL → GALİBİYET ORANI → KURA SIRASI", "OVERALL RANKING: PPG → GOAL DIFFERENCE PER MATCH → TOTAL GOALS FOR → WIN RATE → DRAW ORDER")}</span><b>RATE-BASED FAIR TABLE · NO VOLUME ADVANTAGE</b></footer>`;
     const renderSignature = JSON.stringify({
@@ -1903,6 +2045,17 @@
         universeMount.dataset.fuiReady = "error";
       }
     }
+    const championshipMount = section.querySelector("#f10ChampionshipOSRoot");
+    if (activeTab === "championship" && draw?.status === "completed" && championshipMount && (replaced || !championshipMount.dataset.fcoReady)) {
+      try {
+        window.FIFA_CHAMPIONSHIP_OS?.render(payload, draw, { mount: championshipMount });
+        championshipMount.dataset.fcoReady = "true";
+      } catch (error) {
+        console.error("Championship OS render failed", error);
+        championshipMount.innerHTML = `<div class="f10-empty">${uiCopy("Championship OS geçici olarak yüklenemedi. Resmî sonuç girişi etkilenmedi.", "Championship OS could not load temporarily. Official result entry remains unaffected.")}</div>`;
+        championshipMount.dataset.fcoReady = "error";
+      }
+    }
     patchRegistrationLock(draw);
     syncManualGroupOverlay();
     renderTvOverlay(draw);
@@ -1912,14 +2065,14 @@
     const navLabel = document.querySelector('.os-primary-nav [data-nav="seasonhub"] span');
     if (navLabel && navLabel.textContent !== "Format & Kura") navLabel.textContent = "Format & Kura";
     const version = document.querySelector(".sidebar-version");
-    const versionText = `Football Universe · V${VERSION} · Tournament Intelligence`;
+    const versionText = `Football Universe · V${VERSION} · Championship Universe OS`;
     if (version && version.textContent !== versionText) version.textContent = versionText;
     const meta = document.querySelector('meta[name="fifa9-build"]');
-    const metaValue = `${VERSION}-football-universe-intelligence`;
+    const metaValue = `${VERSION}-championship-universe-operating-system`;
     if (meta && meta.content !== metaValue) meta.content = metaValue;
     const url = new URL(location.href);
-    if (url.searchParams.get("fifa9build") !== "471700") {
-      url.searchParams.set("fifa9build", "471700");
+    if (url.searchParams.get("fifa9build") !== "471800") {
+      url.searchParams.set("fifa9build", "471800");
       history.replaceState(history.state, "", url);
     }
     document.querySelectorAll(".f10-format-spine article").forEach(article => {
@@ -2133,10 +2286,10 @@
         persistViewState();
         scheduleRender();
       } else if (action === "print-centre") {
-        window.open("fifa10-print-centre.html?fifa9build=471700", "_blank", "noopener,noreferrer");
+        window.open("fifa10-print-centre.html?fifa9build=471800", "_blank", "noopener,noreferrer");
       } else if (action === "open-broadcast") {
         const mode = ["standings", "latest", "next", "qualification", "lowerthird"].includes(button.dataset.mode) ? button.dataset.mode : "standings";
-        window.open(`fifa10-broadcast.html?fifa9build=471700&mode=${encodeURIComponent(mode)}`, "_blank", "noopener,noreferrer");
+        window.open(`fifa10-broadcast.html?fifa9build=471800&mode=${encodeURIComponent(mode)}`, "_blank", "noopener,noreferrer");
       } else if (action === "open-tv") {
         openTvMode();
       } else if (action === "close-tv") {
@@ -2263,6 +2416,7 @@
     const ready = await waitForApplication();
     if (!ready) return;
     if (new URL(location.href).searchParams.get("fifa10player")) activeTab = "players";
+    if (new URL(location.href).searchParams.get("fifa10pass")) activeTab = "championship";
     installStyles();
     installAdvancedStyles();
     document.addEventListener("click", handleClick, true);
@@ -2302,9 +2456,15 @@
       playerDna: (playerId, drawOverride) => playerDna(drawOverride || getDraw(), playerId),
       headToHead: (playerId, rivalId, drawOverride) => headToHead(drawOverride || getDraw(), playerId, rivalId),
       officialAwardCandidates: drawOverride => officialAwardCandidates(drawOverride || getDraw()),
+      saveChampionshipState,
+      restoreBlackBoxEvent,
+      blackBox: () => deepClone(getDraft().blackBox || []),
+      championshipState: () => deepClone(getDraft().championshipOS || null),
+      championshipOS: () => window.FIFA_CHAMPIONSHIP_OS || null,
       universeIntelligence: () => window.FIFA_UNIVERSE_INTELLIGENCE || null,
-      openPrintCentre: () => window.open("fifa10-print-centre.html?fifa9build=471700", "_blank", "noopener,noreferrer"),
-      openBroadcast: mode => window.open(`fifa10-broadcast.html?fifa9build=471700&mode=${encodeURIComponent(mode || "standings")}`, "_blank", "noopener,noreferrer")
+      openPrintCentre: () => window.open("fifa10-print-centre.html?fifa9build=471800", "_blank", "noopener,noreferrer"),
+      openBroadcast: mode => window.open(`fifa10-broadcast.html?fifa9build=471800&mode=${encodeURIComponent(mode || "standings")}`, "_blank", "noopener,noreferrer"),
+      openFinalNight: mode => window.open(`fifa10-final-night.html?fifa9build=471800&mode=${encodeURIComponent(mode || "journey")}`, "_blank", "noopener,noreferrer")
     };
   }
 

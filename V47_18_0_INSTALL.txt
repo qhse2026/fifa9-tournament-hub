@@ -1,0 +1,53 @@
+ORUÇ REİS FIFA WORLD — V47.18.0
+CHAMPIONSHIP UNIVERSE OPERATING SYSTEM
+BUILD 471800
+
+INSTALLATION
+
+1. Extract the full ZIP into the site/project root.
+2. Keep the directory structure unchanged.
+3. Deploy the complete folder.
+4. Open:
+
+   https://fifa9-tournament-hub.vercel.app/?fifa9build=471800
+
+The build query forces browsers to discard the previous application shell and
+load V47.18.0.
+
+IMPORTANT
+
+- This is a complete site package, not a partial patch.
+- cloud-config.js is deliberately preserved unchanged.
+- The tournament device always saves locally before attempting cloud sync.
+- Championship results require the existing administrator authorization.
+- Analysis and counterfactual simulation cannot modify official results.
+
+NEW FILES
+
+- fifa-championship-os-v4718.js
+- fifa-championship-os-v4718.css
+- fifa10-final-night.html
+- fifa-universe-intelligence-v4718.js
+- fifa-universe-intelligence-v4718.css
+
+MAIN ENTRY
+
+- index.html
+
+CHAMPIONSHIP OS
+
+FIFA 10 Tournament System → CHAMPIONSHIP OS
+
+FINAL NIGHT DIRECTOR
+
+Open from the Championship OS Final Night panel, or use:
+
+- fifa10-final-night.html?fifa9build=471800&mode=journey
+- fifa10-final-night.html?fifa9build=471800&mode=series
+- fifa10-final-night.html?fifa9build=471800&mode=latest
+- fifa10-final-night.html?fifa9build=471800&mode=next
+- fifa10-final-night.html?fifa9build=471800&mode=champion
+- fifa10-final-night.html?fifa9build=471800&mode=lowerthird
+
+Add &controls=1 for the local scene selector and &lang=en for English.
+

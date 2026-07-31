@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#050b1d">
+  <title>FIFA 10 · Final Night Director</title>
+  <style>
+    :root{--blue:#59bfff;--gold:#efc75d;--green:#57dfa4;--red:#ff7f98;--purple:#a96cff;--line:rgba(126,158,255,.28);--panel:rgba(5,12,31,.96)}
+    *{box-sizing:border-box}html,body{width:100%;height:100%;margin:0;overflow:hidden;background:transparent;color:#fff;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    button,select{font:inherit}.stage{position:fixed;inset:0;display:grid;align-items:end;padding:3vw}.scene{width:100%}.brand{display:flex;align-items:center;gap:13px;margin-bottom:11px;text-shadow:0 2px 16px #000}.brand i{width:9px;height:9px;border-radius:50%;background:var(--green);box-shadow:0 0 18px var(--green)}.brand span{font-size:12px;font-weight:900;letter-spacing:.16em}.brand small{margin-left:auto;color:#afc0e2;font-weight:800}
+    .panel{overflow:hidden;border:1px solid var(--line);border-radius:22px;background:linear-gradient(120deg,rgba(5,12,31,.98),rgba(22,18,66,.96));box-shadow:0 24px 80px rgba(0,0,0,.58)}.panel>header{display:flex;justify-content:space-between;align-items:end;padding:20px 24px;border-bottom:1px solid var(--line);background:rgba(8,18,45,.9)}.panel>header span{color:var(--blue);font-size:9px;font-weight:900;letter-spacing:.16em}.panel h1{margin:5px 0 0;font-size:31px}.panel>header b{color:var(--gold);font-size:19px}
+    .journey{display:grid;grid-template-columns:1.15fr 1.15fr .75fr .65fr .65fr;gap:8px;padding:14px}.round{border:1px solid var(--line);border-radius:13px;background:rgba(4,11,28,.5)}.round>strong{display:block;padding:10px;color:var(--blue);font-size:8px;letter-spacing:.11em}.series{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:5px;margin:6px;padding:9px;border:1px solid rgba(126,158,255,.18);border-radius:9px;background:#0a1634}.series span{overflow:hidden;font-size:10px;font-weight:800;text-overflow:ellipsis;white-space:nowrap}.series span:last-child{text-align:right}.series b{color:var(--gold)}
+    .series-live{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:25px;padding:38px}.series-live article{text-align:center}.series-live article span{color:#90a3c8;font-size:10px;font-weight:900;letter-spacing:.1em}.series-live article h2{margin:8px 0;font-size:38px}.series-live article small{color:var(--gold)}.series-score{color:#fff;font-size:72px;font-weight:950}.series-score i{margin:0 12px;color:var(--gold);font-style:normal}
+    .next{padding:42px;text-align:center}.next>span{color:var(--blue);font-size:11px;font-weight:900;letter-spacing:.17em}.next h2{margin:15px 0;font-size:47px}.next h2 i{margin:0 18px;color:var(--gold);font-style:normal}.next strong{display:block;color:#a4b6d6}.next small{display:block;margin-top:15px;color:var(--gold)}
+    .champion{display:grid;place-items:center;min-height:470px;padding:40px;text-align:center;background:radial-gradient(circle at center,rgba(239,199,93,.23),transparent 48%)}.champion span{color:var(--gold);font-size:13px;font-weight:900;letter-spacing:.25em}.champion h1{margin:20px;color:#fff;font-size:72px;text-transform:uppercase}.champion b{font-size:25px}.champion small{margin-top:12px;color:#aebddd}
+    .latest{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:28px;padding:38px}.latest article{text-align:center}.latest h2{font-size:36px}.latest span{color:#90a3c8;font-weight:800}.latest-score{font-size:72px;font-weight:950}.latest-score i{color:var(--gold);font-style:normal}
+    .lowerthird{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:18px;padding:18px 22px}.lowerthird>i{width:11px;height:58px;border-radius:5px;background:linear-gradient(var(--blue),var(--purple))}.lowerthird span{color:var(--blue);font-size:9px;font-weight:900;letter-spacing:.15em}.lowerthird h2{margin:5px 0 0;font-size:27px}.lowerthird>b{color:var(--gold);font-size:22px}.empty{padding:55px;text-align:center;color:#9baece}
+    .controls{position:fixed;top:12px;left:50%;z-index:5;display:none;gap:6px;max-width:95%;overflow:auto;transform:translateX(-50%);padding:7px;border:1px solid var(--line);border-radius:11px;background:#07122e}.controls.visible{display:flex}.controls button,.controls select{padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#0c1938;color:#fff;font-size:10px;font-weight:800;white-space:nowrap}.status{position:fixed;right:18px;top:18px;color:#91a5ca;font-size:9px;text-shadow:0 1px 5px #000}
+    @media(max-width:900px){.stage{padding:12px}.journey{display:flex;overflow:auto}.round{flex:0 0 220px}.series-live,.latest{gap:10px;padding:20px}.series-live article h2,.latest h2{font-size:22px}.series-score,.latest-score{font-size:39px}.next h2{font-size:28px}.champion h1{font-size:43px}.brand span{font-size:9px}}
+  </style>
+</head>
+<body>
+  <nav class="controls" id="controls">
+    <button data-mode="journey">Journey</button><button data-mode="series">Series</button><button data-mode="latest">Latest</button><button data-mode="next">Next</button><button data-mode="champion">Champion</button><button data-mode="lowerthird">Lower Third</button>
+    <select id="language"><option value="tr">TR</option><option value="en">EN</option></select>
+  </nav>
+  <main class="stage"><div class="scene" id="scene"></div></main>
+  <div class="status" id="status">FIFA 10 · FINAL NIGHT</div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="cloud-config.js?v=47.18.0"></script>
+  <script src="cloud.js?v=47.18.0"></script>
+  <script>
+  (() => {
+    "use strict";
+    const KEY="fifa-tournament-hub-v1";
+    const params=new URL(location.href).searchParams;
+    const valid=["journey","series","latest","next","champion","lowerthird"];
+    let mode=valid.includes(params.get("mode"))?params.get("mode"):"journey";
+    let language=params.get("lang")==="en"||localStorage.getItem("fifa9-ui-language")==="en"?"en":"tr";
+    let state=null;
+    const copy=(tr,en)=>language==="en"?en:tr;
+    const esc=value=>String(value??"").replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[char]));
+    const draft=()=>state?.seasonSystem?.fifa10Draft||{};
+    const draw=()=>draft().draw||null;
+    const journey=()=>draft().championshipOS||null;
+    const players=()=>new Map((draw()?.participants||[]).map(player=>[String(player.id),player]));
+    const name=id=>players().get(String(id))?.name||copy("Bekleniyor","TBD");
+    const rounds=()=>["playin","quarterfinal","semifinal","bronze","final"].flatMap(round=>(journey()?.rounds?.[round]||[]));
+    const brand=label=>`<div class="brand"><i></i><span>ORUÇ REİS FOOTBALL UNIVERSE · FIFA 10</span><small>${esc(label)}</small></div>`;
+    const nextSeries=()=>rounds().find(series=>series.homeId&&series.awayId&&series.status!=="completed");
+    const latestKnockout=()=>rounds().flatMap(series=>(series.matches||[]).map(match=>({...match,series}))).filter(match=>match.completed).sort((a,b)=>Date.parse(b.updatedAt||"")-Date.parse(a.updatedAt||""))[0];
+    function renderJourney(){
+      const labels={playin:"PLAY-IN",quarterfinal:copy("ÇEYREK FİNAL","QUARTER-FINAL"),semifinal:copy("YARI FİNAL","SEMI-FINAL"),bronze:copy("ÜÇÜNCÜLÜK","THIRD PLACE"),final:copy("BÜYÜK FİNAL","GRAND FINAL")};
+      return `${brand(copy("CANLI ŞAMPİYONLUK OMURGASI","LIVE CHAMPIONSHIP JOURNEY"))}<section class="panel"><header><div><span>CHAMPIONSHIP JOURNEY OS</span><h1>FIFA 10 · ${copy("Kupaya Giden Yol","Road to the Trophy")}</h1></div><b>${journey()?.status?.toUpperCase()||"PREVIEW"}</b></header><div class="journey">${Object.entries(labels).map(([round,label])=>`<div class="round"><strong>${label}</strong>${(journey()?.rounds?.[round]||[]).map(series=>`<div class="series"><span>${esc(name(series.homeId))}</span><b>${series.homeWins||0}–${series.awayWins||0}</b><span>${esc(name(series.awayId))}</span></div>`).join("")}</div>`).join("")}</div></section>`;
+    }
+    function renderSeries(){
+      const series=nextSeries();
+      if(!series)return `${brand("LIVE SERIES")}<section class="panel empty">${copy("Hazır seri bulunmuyor.","No series is ready.")}</section>`;
+      const next=(series.matches||[]).find(match=>!match.completed&&!match.notRequired);
+      return `${brand("LIVE SERIES · BEST OF 3")}<section class="panel"><header><div><span>${esc(series.label)} · ${next?.stars||"–"}★</span><h1>${copy("Canlı Seri Durumu","Live Series State")}</h1></div><b>${series.homeWins||0}–${series.awayWins||0}</b></header><div class="series-live"><article><span>${esc(next?.homeTeam||copy("TAKIM BEKLENİYOR","TEAM PENDING"))}</span><h2>${esc(name(series.homeId))}</h2></article><div class="series-score">${series.homeWins||0}<i>–</i>${series.awayWins||0}</div><article><span>${esc(next?.awayTeam||copy("TAKIM BEKLENİYOR","TEAM PENDING"))}</span><h2>${esc(name(series.awayId))}</h2></article></div></section>`;
+    }
+    function renderLatest(){
+      const match=latestKnockout();
+      if(!match)return `${brand(copy("SON SONUÇ","LATEST RESULT"))}<section class="panel empty">${copy("Championship sonucu bekleniyor.","Waiting for a Championship result.")}</section>`;
+      return `${brand(copy("SON CHAMPIONSHIP SONUCU","LATEST CHAMPIONSHIP RESULT"))}<section class="panel"><header><div><span>${esc(match.series.label)} · ${match.stars}★</span><h1>${copy("Resmî Maç Sonucu","Official Match Result")}</h1></div><b>M${match.number}</b></header><div class="latest"><article><span>${esc(match.homeTeam)}</span><h2>${esc(name(match.series.homeId))}</h2></article><div class="latest-score">${match.homeScore}<i>–</i>${match.awayScore}</div><article><span>${esc(match.awayTeam)}</span><h2>${esc(name(match.series.awayId))}</h2></article></div></section>`;
+    }
+    function renderNext(){
+      const series=nextSeries();const match=series?.matches?.find(item=>!item.completed&&!item.notRequired);
+      if(!series||!match)return `${brand(copy("SIRADAKİ MAÇ","UP NEXT"))}<section class="panel empty">${copy("Sıradaki Championship maçı bekleniyor.","Waiting for the next Championship match.")}</section>`;
+      return `${brand(copy("SIRADAKİ MAÇ","UP NEXT"))}<section class="panel"><header><div><span>${esc(series.label)} · MATCH ${match.number}</span><h1>${copy("Sıradaki Resmî Maç","Next Official Match")}</h1></div><b>${match.stars}★</b></header><div class="next"><span>${series.bestOf===3?"BEST OF 3":copy("TEK MAÇ","SINGLE MATCH")}</span><h2>${esc(name(series.homeId))}<i>VS</i>${esc(name(series.awayId))}</h2><strong>${series.homeWins||0}–${series.awayWins||0} ${copy("seri durumu","series score")}</strong><small>${match.stars}★ · ${copy("Takımlar sonuç merkezinde seçilir","Teams are selected in the result centre")}</small></div></section>`;
+    }
+    function renderChampion(){
+      if(!journey()?.championId)return `${brand("FIFA 10 CHAMPION")}<section class="panel empty">${copy("Şampiyonluk sonucu bekleniyor.","Waiting for the championship result.")}</section>`;
+      return `${brand("FIFA 10 · OFFICIAL CHAMPION")}<section class="panel champion"><span>ORUÇ REİS FOOTBALL UNIVERSE</span><h1>${esc(name(journey().championId))}</h1><b>FIFA 10 CHAMPION</b><small>${copy("Şampiyonluk gecesi tamamlandı","Championship night complete")}</small></section>`;
+    }
+    function renderLowerThird(){
+      const series=nextSeries();const text=series?`${esc(name(series.homeId))} vs ${esc(name(series.awayId))}`:journey()?.championId?`${esc(name(journey().championId))} · FIFA 10 CHAMPION`:copy("FIFA 10 Championship","FIFA 10 Championship");
+      return `${brand(copy("CANLI ALT BANT","LIVE LOWER THIRD"))}<section class="panel lowerthird"><i></i><div><span>${series?esc(series.label):"FINAL NIGHT"}</span><h2>${text}</h2></div><b>${series?`${series.homeWins||0}–${series.awayWins||0}`:"FIFA 10"}</b></section>`;
+    }
+    function render(){
+      document.documentElement.lang=language;
+      const scene=document.getElementById("scene");
+      if(!draw()){scene.innerHTML=`${brand("FIFA 10")}<section class="panel empty">${copy("Turnuva verisi bekleniyor…","Waiting for tournament data…")}</section>`;return}
+      scene.innerHTML=mode==="series"?renderSeries():mode==="latest"?renderLatest():mode==="next"?renderNext():mode==="champion"?renderChampion():mode==="lowerthird"?renderLowerThird():renderJourney();
+    }
+    function readLocal(){try{const value=JSON.parse(localStorage.getItem(KEY)||"{}");if(value&&typeof value==="object")state=value}catch(_){}}
+    document.getElementById("controls").classList.toggle("visible",params.get("controls")==="1");
+    document.getElementById("language").value=language;
+    document.addEventListener("click",event=>{const button=event.target.closest("[data-mode]");if(!button)return;mode=button.dataset.mode;render()});
+    document.getElementById("language").addEventListener("change",event=>{language=event.target.value;render()});
+    readLocal();render();
+    window.addEventListener("storage",()=>{readLocal();render()});
+    if(window.FIFA_CLOUD?.init)window.FIFA_CLOUD.init({onState:payload=>{state=payload;document.getElementById("status").textContent="FIFA 10 · LIVE CLOUD";render()},onStatus:info=>{document.getElementById("status").textContent=`FIFA 10 · ${String(info.status||"LIVE").toUpperCase()}`}}).catch(()=>{});
+    setInterval(()=>{readLocal();render()},15000);
+  })();
+  </script>
+</body>
+</html>
