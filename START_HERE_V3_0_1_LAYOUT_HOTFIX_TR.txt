@@ -1,0 +1,16 @@
+FIFA UNIVERSE V3.0.1 — STANDING UNIVERSE LAYOUT HOTFIX
+
+Bu paket iki problemi düzeltir:
+1) V3.0.0 index.html yanlışlıkla adresi ?fifa9build=202000 değerine zorluyordu.
+2) Eski grid/layout katmanları bazı FIFA 10 / Championship ekranlarında sağ tarafın kesilmesine neden olabiliyordu.
+
+YÜKLEME
+- Bu paketin TÜM içeriğini mevcut Vercel proje köküne yükleyin/deploy edin.
+- Deploy tamamlandıktan sonra aşağıdaki adresi açın:
+  https://fifa9-tournament-hub.vercel.app/?fifa9build=300001
+- İlk açılışta eski cache/service worker otomatik temizlenir.
+- Gerekirse Ctrl+Shift+R ile bir kez sert yenileme yapın.
+
+DOĞRU SÜRÜM
+V3.0.1 Standing Universe Layout Hotfix
+Build query: fifa9build=300001

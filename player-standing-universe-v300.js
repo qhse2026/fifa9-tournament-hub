@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "3.0.0";
+  const VERSION = "3.0.1";
   const MODULE_ID = "player-standing-universe-v300";
   const ui = {
     tab: sessionStorage.getItem("psu-tab") || "overview",

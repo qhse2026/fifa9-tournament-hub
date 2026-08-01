@@ -1,4 +1,4 @@
-const CACHE = "oruc-reis-fifa-universe-v3-0-0-standing-universe";
+const CACHE = "oruc-reis-fifa-universe-v3-0-1-standing-universe-layout-hotfix";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -24,6 +24,7 @@ const APP_SHELL = [
   "./fifa-universe-v2.css",
   "./player-standing-v220.css",
   "./player-standing-universe-v300.css",
+  "./layout-hotfix-v301.css",
   "./player-standing-universe-v300.js",
   "./fifa-universe-v2.js",
   "./fifa10-draw-engine-v4713.js",

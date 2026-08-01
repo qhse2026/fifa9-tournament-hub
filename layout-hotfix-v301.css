@@ -1,0 +1,56 @@
+/* FIFA Universe V3.0.1 · viewport/layout hotfix
+   Fixes legacy grid-column reservation and clipped tournament workspaces. */
+html,body{width:100%;max-width:100%}
+body{overflow-x:clip!important}
+.app-shell{
+  display:block!important;
+  grid-template-columns:none!important;
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  margin:0!important;
+}
+.main-content{
+  grid-column:auto!important;
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  margin:0!important;
+}
+#view,.view{
+  width:100%!important;
+  max-width:none!important;
+  min-width:0!important;
+  margin:0!important;
+}
+.v2-page,.f10-page,.f10-triple-page,.f10-operations-mount,
+.f10-draw-centre,#f10ChampionshipOSRoot,#f10EvolutionOSRoot,
+#f10UniverseIntelligenceRoot,.fco-root{
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+}
+.f10-draw-centre{margin-left:0!important;margin-right:0!important}
+.f10-draw-content{min-width:0!important;overflow:visible!important}
+.fco-root>main,.fco-panel,.fco-clinch{min-width:0!important;max-width:100%!important}
+.fco-table-wrap{
+  width:100%!important;
+  max-width:100%!important;
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-gutter:stable;
+}
+.fco-table-wrap table{width:100%!important;min-width:960px}
+/* Desktop: use available viewport before introducing inner horizontal scroll. */
+@media(min-width:1100px){
+  .v2-page{padding-left:clamp(12px,1.35vw,24px)!important;padding-right:clamp(12px,1.35vw,24px)!important}
+  .f10-draw-content{padding-left:clamp(14px,1.6vw,28px)!important;padding-right:clamp(14px,1.6vw,28px)!important}
+  .fco-table-wrap table{min-width:0;table-layout:auto}
+  .fco-table-wrap th,.fco-table-wrap td{padding-left:7px!important;padding-right:7px!important}
+}
+@media(max-width:1099px){
+  body{overflow-x:hidden!important}
+  .v2-page{padding-left:10px!important;padding-right:10px!important}
+  .f10-draw-centre{border-radius:20px!important}
+}
