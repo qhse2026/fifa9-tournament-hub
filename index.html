@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#050d22" />
   <meta name="description" content="FIFA Turnuva Merkezi — canlı skor, Player Standing, Power Exchange, mental baskı analizi, Destiny Path, Live Match Pulse, Broadcast Mode, TV / projektör görünümü, canlı xT, oyuncu ısı rozetleri, AI Tournament Director ve dinamik turnuva simülasyonu." />
-  <meta name="fifa9-build" content="3.0.1-standing-universe-layout-hotfix" />
+  <meta name="fifa9-build" content="3.1.0-all-time-records-hub" />
   <script>
   (()=>{
-    const BUILD="3.0.1-standing-universe-layout-hotfix";
+    const BUILD="3.1.0-all-time-records-hub";
     const KEY="fifa9-active-build";
     if(localStorage.getItem(KEY)===BUILD) return;
     localStorage.setItem(KEY,BUILD);
@@ -17,7 +17,7 @@
     if("serviceWorker" in navigator) cleanup.push(navigator.serviceWorker.getRegistrations().then(regs=>Promise.all(regs.map(reg=>reg.unregister()))));
     Promise.allSettled(cleanup).finally(()=>{
       const url=new URL(location.href);
-      if(url.searchParams.get("fifa9build")!=="300002"){url.searchParams.set("fifa9build","300002");location.replace(url.toString());}
+      if(url.searchParams.get("fifa9build")!=="310000"){url.searchParams.set("fifa9build","310000");location.replace(url.toString());}
     });
   })();
   </script>
@@ -85,7 +85,7 @@
             <button class="nav-item" data-nav="livehub"><span class="nav-icon live-nav-icon">●</span><span><strong>Canlı</strong><small>Sonuçlar ve sıradaki maç</small></span></button>
             <button class="nav-item" data-nav="tournaments"><span class="nav-icon">10</span><span><strong>Turnuvalar</strong><small>FIFA 01–10</small></span></button>
             <button class="nav-item" data-nav="playershub"><span class="nav-icon">◎</span><span><strong>Oyuncular</strong><small>Kalıcı kariyer pasaportları</small></span></button>
-            <button class="nav-item" data-nav="recordshub"><span class="nav-icon">♛</span><span><strong>Tüm Zamanlar</strong><small>Rekorlar ve miras</small></span></button>
+            <button class="nav-item" data-nav="alltime"><span class="nav-icon">♛</span><span><strong>Tüm Zamanlar</strong><small>Rekorlar ve miras</small></span></button>
             <button class="nav-item" data-nav="mediahub"><span class="nav-icon">▤</span><span><strong>Medya</strong><small>Yayın, çıktı ve hikâyeler</small></span></button>
           </div>
         </section>
@@ -124,7 +124,7 @@
 
       <div class="sidebar-footer">
         <div class="save-indicator" id="sidebarCloudStatus"><span class="status-dot"></span> Canlı bağlantı hazırlanıyor</div>
-        <div class="sidebar-version">FIFA Universe · V2.2 · Standing Intelligence</div>
+        <div class="sidebar-version">FIFA Universe · V3.1 · All-Time Records Hub</div>
       </div>
     </aside>
     <button class="os-sidebar-backdrop" id="sidebarBackdrop" type="button" aria-label="Komuta menüsünü kapat"></button>
@@ -144,13 +144,13 @@
           <button data-nav="livehub"><span>Canlı</span></button>
           <button data-nav="tournaments"><span>Turnuvalar</span></button>
           <button data-nav="playershub"><span>Oyuncular</span></button>
-          <button data-nav="recordshub"><span>Tüm Zamanlar</span></button>
+          <button data-nav="alltime"><span>Tüm Zamanlar</span></button>
           <button data-nav="mediahub"><span>Medya</span></button>
         </nav>
 
         <div class="os-context-zone">
-          <div class="hub-breadcrumb" id="hubBreadcrumb"><span>FIFA UNIVERSE</span><i>/</i><b>VERSION 2.2</b></div>
-          <h1 id="pageTitle">FIFA Universe 2.2</h1>
+          <div class="hub-breadcrumb" id="hubBreadcrumb"><span>FIFA UNIVERSE</span><i>/</i><b>VERSION 3.1</b></div>
+          <h1 id="pageTitle">FIFA Universe 3.1</h1>
         </div>
 
         <div class="topbar-actions os-utility-zone">
@@ -189,7 +189,7 @@
   <div class="hub-launcher-backdrop hidden" id="hubLauncherBackdrop">
     <section class="hub-launcher" role="dialog" aria-modal="true" aria-labelledby="hubLauncherTitle">
       <header>
-        <div><span>FIFA UNIVERSE 2.0 · COMMAND CENTRE</span><h2 id="hubLauncherTitle">Nereye gitmek istiyorsun?</h2></div>
+        <div><span>FIFA UNIVERSE 3.1 · COMMAND CENTRE</span><h2 id="hubLauncherTitle">Nereye gitmek istiyorsun?</h2></div>
         <button type="button" id="hubLauncherClose" aria-label="Kapat">×</button>
       </header>
       <div class="hub-launcher-grid">
@@ -197,7 +197,7 @@
         <button data-nav="livehub" class="live"><span>●</span><strong>Canlı</strong><small>Sonuçlar ve sıradaki maç</small></button>
         <button data-nav="tournaments" class="tournament"><span>10</span><strong>Turnuvalar</strong><small>FIFA 01–10 turnuva evreni</small></button>
         <button data-nav="playershub" class="players"><span>◎</span><strong>Oyuncular</strong><small>Kalıcı oyuncu pasaportları</small></button>
-        <button data-nav="recordshub" class="records"><span>♛</span><strong>Tüm Zamanlar</strong><small>Rekorlar, miras ve Lineal Crown</small></button>
+        <button data-nav="alltime" class="records"><span>♛</span><strong>Tüm Zamanlar</strong><small>Rekorlar, miras ve Lineal Crown</small></button>
         <button data-nav="mediahub" class="media"><span>▤</span><strong>Medya</strong><small>Yayın, çıktı ve hikâyeler</small></button>
       </div>
     </section>
@@ -208,7 +208,7 @@
     <button data-nav="livehub"><span>●</span><small>Canlı</small></button>
     <button data-nav="tournaments"><span>10</span><small>Turnuva</small></button>
     <button data-nav="playershub"><span>◎</span><small>Oyuncum</small></button>
-    <button data-nav="recordshub"><span>♛</span><small>Tarih</small></button>
+    <button data-nav="alltime"><span>♛</span><small>Tarih</small></button>
   </nav>
 
   <script src="data/historical-data.js"></script>

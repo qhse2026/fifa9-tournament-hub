@@ -1,8 +1,8 @@
 (() => {
   "use strict";
 
-  const VERSION = "2.2.1";
-  const BUILD = "202001";
+  const VERSION = "3.1.0";
+  const BUILD = "310000";
   const ROUTES = new Set(["dashboard", "livehub", "tournaments", "playershub", "recordshub", "mediahub", "adminhub"]);
   let mode = localStorage.getItem("fifa-universe-v2-mode") || "spectator";
   let selectedPlayer = localStorage.getItem("fifa-universe-v2-player") || "";
@@ -138,7 +138,7 @@
       ["livehub", ui("Canlı", "Live"), "●"],
       ["tournaments", ui("Turnuvalar", "Tournaments"), "10"],
       ["playershub", ui("Oyuncular", "Players"), "◎"],
-      ["recordshub", ui("Tüm Zamanlar", "All-Time"), "♛"],
+      ["alltime", ui("Tüm Zamanlar", "All-Time"), "♛"],
       ["mediahub", ui("Medya", "Media"), "▤"]
     ];
     return `<nav class="v2-route-nav" aria-label="${ui("Universe 2.0 ana navigasyonu", "Universe 2.0 primary navigation")}">${routes.map(([id, label, icon]) => `<button type="button" data-nav="${id}" class="${active === id ? "active" : ""}"><i>${icon}</i><span>${label}</span></button>`).join("")}</nav>`;
@@ -235,7 +235,7 @@ function fpiTicker() {
       <aside><div class="v2-progress-orbit" style="--progress:${clamp(stage.progress)}"><strong>${stage.completed}</strong><span>/${stage.total}</span><small>${ui("GRUP MAÇI", "GROUP MATCHES")}</small></div><div><article><span>LINEAL CROWN</span><b>${esc(crown.holder || "–")}</b></article><article><span>${ui("ŞAMPİYONLUK FAVORİSİ", "TITLE FAVOURITE")}</span><b>${esc(favorite?.name || "–")}</b><small>${favorite ? pct(favorite.current) : "–"}</small></article></div></aside></section>
       ${currentMode === "admin" ? adminToday(data, draw, true) : currentMode === "player" ? playerCockpit(data, draw) : ""}
       <section class="v2-now-grid"><div class="v2-live-table"><header><div><span>LIVE TABLE</span><h3>${ui("Şampiyonluk yarışı", "Championship race")}</h3></div><button type="button" data-nav="seasonhub">${ui("Tam tablo", "Full table")} ↗</button></header>${compactTable(rows, 8)}</div><div class="v2-match-stack"><header><span>NOW</span><h3>${ui("Sonuç ve sıradaki maç", "Latest and next")}</h3></header>${latest ? matchCard(latest, draw, "latest") : `<p>${ui("Henüz sonuç girilmedi.", "No result recorded yet.")}</p>`}${next ? matchCard(next, draw, "upcoming") : `<p>${ui("Bekleyen grup maçı yok.", "No group fixture pending.")}</p>`}</div></section>
-      <section class="v2-universe-snapshot"><header><div><span>ONE UNIVERSE</span><h3>${ui("Geçmiş ayrı bir arşiv değil; bugünün temelidir.", "History is not a separate archive; it powers today.")}</h3></div><button type="button" data-nav="recordshub">${ui("Tüm zamanları aç", "Open all-time")} ↗</button></header><div><article><b>${data.editions?.length || 10}</b><span>${ui("EDİSYON", "EDITIONS")}</span></article><article><b>${data.matches?.length || 0}</b><span>${ui("RESMÎ MAÇ", "OFFICIAL MATCHES")}</span></article><article><b>${data.players?.length || 0}</b><span>${ui("OYUNCU", "PLAYERS")}</span></article><article><b>${data.rivalries?.length || 0}</b><span>${ui("REKABET", "RIVALRIES")}</span></article></div></section>
+      <section class="v2-universe-snapshot"><header><div><span>ONE UNIVERSE</span><h3>${ui("Geçmiş ayrı bir arşiv değil; bugünün temelidir.", "History is not a separate archive; it powers today.")}</h3></div><button type="button" data-nav="alltime">${ui("Tüm zamanları aç", "Open all-time")} ↗</button></header><div><article><b>${data.editions?.length || 10}</b><span>${ui("EDİSYON", "EDITIONS")}</span></article><article><b>${data.matches?.length || 0}</b><span>${ui("RESMÎ MAÇ", "OFFICIAL MATCHES")}</span></article><article><b>${data.players?.length || 0}</b><span>${ui("OYUNCU", "PLAYERS")}</span></article><article><b>${data.rivalries?.length || 0}</b><span>${ui("REKABET", "RIVALRIES")}</span></article></div></section>
     </div>`;
   }
 

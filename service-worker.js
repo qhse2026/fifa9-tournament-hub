@@ -1,4 +1,4 @@
-const CACHE = "oruc-reis-fifa-universe-v3-0-1-standing-universe-layout-hotfix";
+const CACHE = "oruc-reis-fifa-universe-v3-1-0-all-time-records-hub";
 const APP_SHELL = [
   "./",
   "./index.html",
