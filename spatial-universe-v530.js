@@ -560,14 +560,20 @@
   }
 
   function open(scene) {
-    ensureShell(); state.open=true; document.body.classList.add('su-open'); const shell=document.querySelector('#suShell'); shell?.classList.add('open'); shell?.setAttribute('aria-hidden','false'); renderScene(scene||state.scene);
+    ensureShell();
+    if(!document.body.classList.contains('ss-extension-scene-open') || (scene && SCENES.includes(scene))){
+      document.body.classList.remove('ss-extension-scene-open');
+      const extShell=document.querySelector('#suShell'); if(extShell) delete extShell.dataset.extensionScene;
+    }
+    state.open=true; document.body.classList.add('su-open'); const shell=document.querySelector('#suShell'); shell?.classList.add('open'); shell?.setAttribute('aria-hidden','false'); renderScene(scene||state.scene);
   }
 
   function close() {
-    closeHologram(); stopCinematic(false); state.open=false; document.body.classList.remove('su-open'); const shell=document.querySelector('#suShell'); shell?.classList.remove('open'); shell?.setAttribute('aria-hidden','true');
+    closeHologram(); stopCinematic(false); state.open=false; document.body.classList.remove('su-open','ss-extension-scene-open'); const shell=document.querySelector('#suShell'); if(shell) delete shell.dataset.extensionScene; shell?.classList.remove('open'); shell?.setAttribute('aria-hidden','true');
   }
 
   function switchScene(scene, focusPlayer='') {
+    document.body.classList.remove('ss-extension-scene-open'); const extShell=document.querySelector('#suShell'); if(extShell) delete extShell.dataset.extensionScene;
     if(focusPlayer){setContextPlayer(focusPlayer); if(scene==='museum')state.museumPlayer=focusPlayer; if(scene==='galaxy')state.galaxyPlayer=focusPlayer;}
     renderScene(scene);
   }
@@ -621,12 +627,13 @@
     document.addEventListener('keydown',event=>{
       if(event.ctrlKey&&event.shiftKey&&event.code==='Space'){event.preventDefault();state.open?close():open();return;}
       if(event.key==='Escape'&&state.open){close();return;}
-      if((event.key==='c'||event.key==='C')&&state.open&&!/input|select|textarea/i.test(document.activeElement?.tagName||'')){toggleCinematic();}
-      if(state.open&&['1','2','3','4','5','6','7'].includes(event.key)&&!/input|select|textarea/i.test(document.activeElement?.tagName||'')){switchScene(SCENES[Number(event.key)-1]);}
+      const extensionActive=document.body.classList.contains('ss-extension-scene-open');
+      if((event.key==='c'||event.key==='C')&&state.open&&!extensionActive&&!/input|select|textarea/i.test(document.activeElement?.tagName||'')){toggleCinematic();}
+      if(state.open&&!extensionActive&&['1','2','3','4','5','6','7'].includes(event.key)&&!/input|select|textarea/i.test(document.activeElement?.tagName||'')){switchScene(SCENES[Number(event.key)-1]);}
     });
     window.addEventListener('storage',event=>{if(event.key===PLAYER_KEY&&event.newValue){state.museumPlayer=event.newValue;state.galaxyPlayer=event.newValue;saveState();if(state.open&&(state.scene==='museum'||state.scene==='galaxy'))renderScene(state.scene);}});
     document.addEventListener('click',event=>{const openBtn=event.target.closest('[data-su-home-open]');if(openBtn){open(openBtn.dataset.suHomeOpen);return;}});
-    const sync=()=>{setTimeout(()=>{if(state.open)renderScene(state.scene);ensureHomePreview(true);checkProactiveEvents();},420);};
+    const sync=()=>{setTimeout(()=>{if(state.open&&!document.body.classList.contains('ss-extension-scene-open'))renderScene(state.scene);ensureHomePreview(true);checkProactiveEvents();},420);};
     window.addEventListener('fifa10:draw-updated',sync);
     window.addEventListener('fifa:state-updated',sync);
     window.addEventListener('focus',()=>setTimeout(()=>ensureHomePreview(false),300));

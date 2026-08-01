@@ -1,4 +1,4 @@
-const CACHE = "oruc-reis-fifa-universe-v5-4-0-spatial-stadium-living-history";
+const CACHE = "oruc-reis-fifa-universe-v5-4-1-spatial-stability-hotfix";
 const APP_SHELL = [
   "./",
   "./index.html",

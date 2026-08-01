@@ -1,12 +1,15 @@
 (() => {
   'use strict';
 
-  const VERSION = '5.4.0';
+  const VERSION = '5.4.1';
   const BUILD = '540000';
   const STATE_KEY = 'fifa-spatial-stadium-v540';
   const HISTORY_KEY = 'fifa-living-history-v540';
   const SNAPSHOT_KEY = 'fifa-living-history-snapshot-v540';
   const MAX_HISTORY = 60;
+  let syncTimer = null;
+  let maintenanceTimer = null;
+  let lastStadiumSignature = '';
 
   const state = (() => {
     let saved = {};
@@ -163,7 +166,8 @@
     const top=document.querySelector('#suShell .su-topbar'); if(!top)return;
     let root=top.querySelector('#ssBreadcrumbs');
     if(!root){root=document.createElement('div');root.id='ssBreadcrumbs';root.className='ss-breadcrumbs';top.appendChild(root);}
-    root.innerHTML=state.breadcrumbs.length ? `<span>${isTR()?'YOL':'PATH'}</span>${state.breadcrumbs.map((c,i)=>`<button type="button" data-ss-crumb="${i}">${esc(c.label)}</button>`).join('<i>›</i>')}` : '';
+    const html=state.breadcrumbs.length ? `<span>${isTR()?'YOL':'PATH'}</span>${state.breadcrumbs.map((c,i)=>`<button type="button" data-ss-crumb="${i}">${esc(c.label)}</button>`).join('<i>›</i>')}` : '';
+    if(root.innerHTML!==html) root.innerHTML=html;
   }
 
   function ensureScenes(){
@@ -180,6 +184,22 @@
     return true;
   }
 
+  function setExtensionScene(id=''){
+    const shell=document.querySelector('#suShell');
+    if(id){
+      document.body.classList.add('ss-extension-scene-open');
+      if(shell) shell.dataset.extensionScene=id;
+    } else {
+      document.body.classList.remove('ss-extension-scene-open');
+      if(shell) delete shell.dataset.extensionScene;
+    }
+  }
+
+  function stadiumSignature(match){
+    if(!match)return '';
+    return [match.id,match.homeScore,match.awayScore,match.stage,match.edition].join('|');
+  }
+
   function activateScene(id){
     if(!ensureScenes())return;
     document.querySelectorAll('#suShell .su-scene').forEach(el=>el.classList.remove('active'));
@@ -187,6 +207,7 @@
     document.querySelectorAll('#suShell [data-su-tab],#suShell [data-ss-tab]').forEach(btn=>btn.classList.remove('active'));
     document.querySelector(`#suShell [data-ss-tab="${id}"]`)?.classList.add('active');
     state.scene=id;
+    setExtensionScene(id);
     const label=document.querySelector('#suCinematicLabel');if(label)label.textContent=id.toUpperCase();
   }
 
@@ -202,7 +223,7 @@
       activateScene('stadium');
       document.querySelector('#ssSceneStadium').innerHTML=`<div class="su-scene-inner"><div class="ss-empty"><span>◉ SPATIAL STADIUM</span><h2>${isTR()?'Henüz oynanmış maç bulunmuyor.':'No completed match yet.'}</h2></div></div>`;return;
     }
-    state.matchId=String(match.id); saveState(); activateScene('stadium'); pushCrumb(`FIFA ${String(num(match.edition)).padStart(2,'0')} · ${match.homeName} ${match.homeScore}-${match.awayScore} ${match.awayName}`,'stadium',match.id);
+    state.matchId=String(match.id); lastStadiumSignature=stadiumSignature(match); saveState(); activateScene('stadium'); pushCrumb(`FIFA ${String(num(match.edition)).padStart(2,'0')} · ${match.homeName} ${match.homeScore}-${match.awayScore} ${match.awayName}`,'stadium',match.id);
     const root=document.querySelector('#ssSceneStadium'); if(!root)return;
     const narrative=story(match), momentumData=momentum(match), hue=editionHue(match.edition);
     const homeMomentum=Math.round(momentumData.reduce((s,v)=>s+v,0)/momentumData.length), awayMomentum=100-homeMomentum;
@@ -265,7 +286,12 @@
   }
 
   function applyLivingTrophyLighting(){
-    document.querySelectorAll('#suShell [data-su-trophy-edition]').forEach(el=>{const edition=Number(el.dataset.suTrophyEdition||1);el.style.setProperty('--ss-era-hue',editionHue(edition));el.classList.add('ss-era-lit');});
+    document.querySelectorAll('#suShell [data-su-trophy-edition]').forEach(el=>{
+      const edition=Number(el.dataset.suTrophyEdition||1);
+      const hue=String(editionHue(edition));
+      if(el.style.getPropertyValue('--ss-era-hue')!==hue) el.style.setProperty('--ss-era-hue',hue);
+      if(!el.classList.contains('ss-era-lit')) el.classList.add('ss-era-lit');
+    });
   }
 
   function augmentHologram(){
@@ -333,6 +359,8 @@
 
   function bind(){
     document.addEventListener('click',event=>{
+      const baseNav=event.target.closest('[data-su-tab],[data-su-scene],[data-su-route],[data-su-close],[data-su-normal-site],[data-su-cinematic]');
+      if(baseNav) setExtensionScene('');
       const stadiumTab=event.target.closest('[data-ss-tab="stadium"]'); if(stadiumTab){event.preventDefault();event.stopPropagation();renderStadium();return;}
       const historyTab=event.target.closest('[data-ss-tab="history"]'); if(historyTab){event.preventDefault();event.stopPropagation();renderHistory();return;}
       const match=event.target.closest('[data-ss-match]'); if(match){renderStadium(match.dataset.ssMatch);return;}
@@ -356,13 +384,39 @@
       if((event.key==='d'||event.key==='D') && !/input|select|textarea/i.test(document.activeElement?.tagName||'')){event.preventDefault();startDirector(false);}
     });
 
-    const sync=()=>setTimeout(()=>{updateLivingHistory();augmentHomePortal();applyLivingTrophyLighting();if(state.scene==='stadium'&&document.body.classList.contains('su-open'))renderStadium(state.matchId);},520);
+    const sync=()=>{
+      if(syncTimer) clearTimeout(syncTimer);
+      syncTimer=setTimeout(()=>{
+        updateLivingHistory();
+        augmentHomePortal();
+        if(document.body.classList.contains('su-open')){
+          ensureScenes();
+          applyLivingTrophyLighting();
+          renderBreadcrumbs();
+        }
+        if(state.scene==='stadium'&&document.body.classList.contains('su-open')){
+          const current=findMatch(state.matchId,getData());
+          const sig=stadiumSignature(current);
+          if(current && sig!==lastStadiumSignature) renderStadium(state.matchId);
+        }
+      },650);
+    };
     window.addEventListener('fifa10:draw-updated',sync);window.addEventListener('fifa:state-updated',sync);
     window.addEventListener('storage',event=>{if(event.key&&/fifa/i.test(event.key))sync();});
     window.addEventListener('fullscreenchange',()=>{if(!document.fullscreenElement&&state.director)stopDirector();});
 
-    const observer=new MutationObserver(()=>{ensureScenes();augmentHologram();augmentHomePortal();applyLivingTrophyLighting();renderBreadcrumbs();});
-    observer.observe(document.body,{childList:true,subtree:true});
+    // IMPORTANT: No global MutationObserver here. V5.4.0 observed its own DOM writes
+    // and created a render feedback loop. Maintenance is low-frequency and idempotent.
+    if(!maintenanceTimer){
+      maintenanceTimer=setInterval(()=>{
+        augmentHomePortal();
+        if(document.body.classList.contains('su-open')){
+          ensureScenes();
+          applyLivingTrophyLighting();
+          renderBreadcrumbs();
+        }
+      },3200);
+    }
   }
 
   function boot(){
@@ -370,6 +424,7 @@
     const wait=()=>{
       if(!window.INFANTINO_VISUAL){setTimeout(wait,120);return;}
       ensureScenes();bind();updateLivingHistory();augmentHomePortal();applyLivingTrophyLighting();
+      setTimeout(augmentHomePortal,900); setTimeout(augmentHomePortal,2400);
       window.INFANTINO_STADIUM={version:VERSION,build:BUILD,open:openStadium,history:renderHistory,director:startDirector,ambient:startAmbient,stop:stopDirector,data:getData};
     };
     wait();

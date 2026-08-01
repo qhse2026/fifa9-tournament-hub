@@ -1,0 +1,30 @@
+FIFA UNIVERSE V5.4.1 — SPATIAL STABILITY HOTFIX
+
+AMAÇ
+V5.4.0'da site genelinde donma/çökme hissi oluşturan render feedback-loop'u kaldırır.
+
+KÖK NEDEN
+1) spatial-stadium-v540.js içindeki global MutationObserver kendi DOM yazılarını tekrar izliyordu.
+2) Breadcrumb render her mutation'da innerHTML yazdığı için observer yeniden tetikleniyordu.
+3) V5.3 ana Spatial motoru, Stadium/History extension sahnesi açıkken state update sonrası önceki base scene'i yeniden render edebiliyordu.
+
+DÜZELTME
+- Global MutationObserver kaldırıldı.
+- Breadcrumb ve trophy lighting idempotent hale getirildi.
+- Event refresh debounce edildi.
+- Stadium yalnız veri imzası gerçekten değişirse yeniden render edilir.
+- V5.3 base motoruna extension-scene guard eklendi.
+- Stadium/History açıkken base auto-render devre dışı.
+- Normal site/result entry/standing motorlarına dokunulmadı.
+
+DEPLOY
+V5_4_1_SPATIAL_STABILITY_HOTFIX_DEPLOY_PATCH.zip içeriğini proje root'una kopyalayın ve mevcut dosyaların üzerine yazın.
+Vercel deploy sonrası Ctrl+Shift+R yapın.
+URL fifa9build=540000 olarak kalır; bu bilinçlidir. Yeni dosyalar v=5.4.1-hotfix query'siyle cache'ten ayrılır.
+
+TEST
+1. Ana sayfa 20-30 sn açık: titreme/donma olmamalı.
+2. Sonuç giriş modalı aç/kaydet: normal çalışmalı.
+3. IF > Match Theatre > Stadium: sahne sabit kalmalı.
+4. Stadium açıkken başka tabdan storage/state update olsa bile Theatre'a geri atmamalı.
+5. Normal Site ile çıkış yapıldığında ana site etkileşimleri çalışmalı.
