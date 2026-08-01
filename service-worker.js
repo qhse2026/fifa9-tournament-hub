@@ -1,4 +1,4 @@
-const CACHE = "oruc-reis-fifa-universe-v5-1-0-infantino-ai";
+const CACHE = "oruc-reis-fifa-universe-v5-2-0-spatial-universe";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -26,10 +26,10 @@ const APP_SHELL = [
   "./player-standing-universe-v300.css",
   "./layout-hotfix-v301.css",
   "./live-table-motion-v311.css",
-  "./spatial-ai-v510.css",
+  "./spatial-universe-v520.css",
   "./player-standing-universe-v300.js",
   "./live-table-motion-v311.js",
-  "./spatial-ai-v510.js",
+  "./spatial-universe-v520.js",
   "./fifa-universe-v2.js",
   "./fifa10-draw-engine-v4713.js",
   "./fifa10-fixture-center.html",
