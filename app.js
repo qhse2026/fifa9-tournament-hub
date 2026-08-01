@@ -11975,6 +11975,7 @@ ${shareData.url}`)}`;
     getFifa10Draw: () => ensureFifa10IntegratedTournament().draw,
     getFifa10TeamPools: () => Object.fromEntries(FIFA10_LEG_STARS.map(stars => [String(stars), fifa10TeamPool(stars)])),
     buildUnifiedAllTimeMatches: () => buildUnifiedAllTimeMatches(),
+    buildAllTimeAnalytics: () => buildAllTimeAnalytics(),
     buildFormAnalytics: (windowSize = 20, scope = "current") => buildFormAnalytics(windowSize, scope),
     buildOddsAnalytics: () => buildOddsAnalytics(),
     buildFpiAnalytics: () => buildEloAnalytics(),

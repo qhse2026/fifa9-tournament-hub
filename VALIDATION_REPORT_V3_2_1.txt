@@ -1,0 +1,11 @@
+VALIDATION REPORT — V3.2.1 ALL-TIME RECORD MEDALS
+
+[OK] app.js exposes buildAllTimeAnalytics through FIFA_APP_CONTEXT.
+[OK] Player Passport reads medal ownership from All-Time analytics.
+[OK] Old limited FIFA_UNIVERSE_INTELLIGENCE living-record medal source removed.
+[OK] All-Time player records, streak records and match records supported.
+[OK] Duplicate medal labels are prevented by record IDs.
+[OK] Players without a current All-Time record receive no artificial medal.
+[OK] app.js syntax check passed.
+[OK] fifa-universe-v2.js syntax check passed.
+[OK] Build updated to 321000.

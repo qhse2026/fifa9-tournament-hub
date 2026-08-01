@@ -102,3 +102,6 @@ body[data-v2-route] #view{padding:0;max-width:none}
 @media (max-width:1280px){.v2-passport-performance-strip{grid-template-columns:repeat(3,minmax(0,1fr))}.v2-museum-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:860px){.v2-passport-performance-strip{grid-template-columns:repeat(2,minmax(0,1fr))}.v2-passport-bars article{grid-template-columns:1fr}.v2-passport-chart header,.v2-passport-performance-table header,.v2-player-museum header{flex-direction:column}.v2-museum-grid{grid-template-columns:1fr}}
 @media (max-width:560px){.v2-passport-performance-strip{grid-template-columns:1fr}.v2-passport-chart header h3,.v2-passport-performance-table header h3,.v2-player-museum header h3{font-size:28px}.v2-passport-performance-strip b{font-size:30px}}
+
+/* V3.2.1 — All-Time Record Medal source */
+.v2-museum-shelf.medals button em{display:block;margin-top:5px;color:#7893c4;font-size:11px;font-style:normal;line-height:1.4}

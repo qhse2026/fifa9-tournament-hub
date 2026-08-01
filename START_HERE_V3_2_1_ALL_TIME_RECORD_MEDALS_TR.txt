@@ -1,0 +1,39 @@
+FIFA UNIVERSE V3.2.1 — ALL-TIME RECORD MEDALS
+
+Amaç:
+Player Museum > Bireysel Rekor Madalyaları artık Standing/Legacy living records listesinden değil,
+doğrudan Tüm Zamanlar Elit Merkezi'nin gerçek rekor motorundan beslenir.
+
+Madalya kaynakları:
+- Legacy Rating liderliği
+- En çok şampiyonluk
+- En çok final
+- En çok galibiyet
+- En çok gol
+- En iyi PPG (20+)
+- En sağlam savunma (20+)
+- En çok maç
+- En iyi toplam averaj
+- En yüksek galibiyet oranı (20+)
+- En çok clean sheet
+- En yüksek beraberlik oranı
+- En yüksek yenilmezlik oranı
+- En yüksek gol/maç
+- En iyi averaj/maç
+- En yüksek clean sheet oranı
+- En gollü manager
+- En uzun galibiyet serisi
+- En uzun yenilmezlik serisi
+- En uzun gol atma serisi
+- En uzun clean sheet serisi
+- En farklı galibiyet
+- En gollü maç
+- En gollü beraberlik
+- En çok oynanan rekabet
+
+Kural:
+Bir oyuncu Tüm Zamanlar Merkezi'nde ilgili rekorun güncel sahibi değilse o madalya müzesinde görünmez.
+Rekor el değiştirirse Player Museum otomatik olarak yeni sahibini gösterir.
+
+Deploy sonrası adres:
+https://fifa9-tournament-hub.vercel.app/?fifa9build=321000

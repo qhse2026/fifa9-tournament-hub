@@ -1,8 +1,8 @@
 (() => {
   "use strict";
 
-  const VERSION = "3.2.0";
-  const BUILD = "320000";
+  const VERSION = "3.2.1";
+  const BUILD = "321000";
   const ROUTES = new Set(["dashboard", "livehub", "tournaments", "playershub", "recordshub", "mediahub", "adminhub"]);
   let mode = localStorage.getItem("fifa-universe-v2-mode") || "spectator";
   let selectedPlayer = localStorage.getItem("fifa-universe-v2-player") || "";
@@ -305,6 +305,81 @@ function fpiTicker() {
     return map[key] || map.gfPerMatch;
   }
 
+
+  function allTimeRecordMedals(player) {
+    const analytics = app()?.buildAllTimeAnalytics?.();
+    if (!analytics || !player) return [];
+    const key = player.key || normalize(player.name);
+    const isPlayer = row => row && normalize(row.name || row.player || "") === key;
+    const medals = [];
+    const seen = new Set();
+    const add = (label, value, detail = "", icon = "◈", id = label) => {
+      const dedupe = String(id || label);
+      if (seen.has(dedupe)) return;
+      seen.add(dedupe);
+      medals.push({ id: dedupe, icon, label, value: String(value ?? "–"), detail: String(detail || "") });
+    };
+
+    const records = analytics.records || {};
+    const playerRecordDefinitions = [
+      ["titles", ui("En Çok Şampiyonluk", "Most Championships"), row => `${row.titles} ${ui("şampiyonluk", "titles")}`, row => `${row.finals} ${ui("final", "finals")}`, "♛"],
+      ["finals", ui("En Çok Final", "Most Finals"), row => `${row.finals} ${ui("final", "finals")}`, row => `${row.podiums} ${ui("podyum", "podiums")}`, "◆"],
+      ["wins", ui("En Çok Galibiyet", "Most Wins"), row => `${row.wins} ${ui("galibiyet", "wins")}`, row => `${row.points} ${ui("puan", "points")}`, "W"],
+      ["goals", ui("En Çok Gol", "Most Goals"), row => `${row.gf} ${ui("gol", "goals")}`, row => `${row.avgGoals.toFixed(2)} GF/M`, "GF"],
+      ["ppg", ui("En İyi PPG · 20+", "Best PPG · 20+"), row => `${row.ppg.toFixed(2)} PPG`, row => `${row.games} MP`, "PPG"],
+      ["defense", ui("En Sağlam Savunma · 20+", "Best Defence · 20+"), row => `${row.gaPerGame.toFixed(2)} GA/M`, row => `${row.cleanSheets} CS`, "DEF"],
+      ["matches", ui("En Çok Maç", "Most Matches"), row => `${row.games} MP`, row => `${row.editionsPlayed || 0} ${ui("edisyon", "editions")}`, "MP"],
+      ["goalDifference", ui("En Çok Gol Farkı", "Best Goal Difference"), row => `${row.gd > 0 ? "+" : ""}${row.gd}`, row => `${row.gdPerGame > 0 ? "+" : ""}${row.gdPerGame.toFixed(2)} AV/M`, "GD"],
+      ["winRate", ui("En Yüksek Galibiyet Oranı · 20+", "Highest Win Rate · 20+"), row => `${row.winRate.toFixed(1)}%`, row => `${row.wins}/${row.games}`, "W%"],
+      ["cleanSheets", ui("En Çok Clean Sheet", "Most Clean Sheets"), row => `${row.cleanSheets} CS`, row => `${row.cleanSheetRate.toFixed(1)}%`, "CS"]
+    ];
+    playerRecordDefinitions.forEach(([recordKey, label, valueFn, detailFn, icon]) => {
+      const row = records[recordKey];
+      if (isPlayer(row)) add(label, valueFn(row), detailFn(row), icon, `record:${recordKey}`);
+    });
+
+    const eligible = analytics.eligiblePlayers || [];
+    const eliteDefs = [
+      ["legacyRating", ui("Legacy Rating Lideri", "Legacy Rating Leader"), false, row => `${row.legacyRating.toFixed(1)}/100`, "LEG"],
+      ["drawRate", ui("En Yüksek Beraberlik Oranı", "Highest Draw Rate"), false, row => `${row.drawRate.toFixed(1)}%`, "D%"],
+      ["unbeatenRate", ui("En Yüksek Yenilmezlik Oranı", "Highest Unbeaten Rate"), false, row => `${row.unbeatenRate.toFixed(1)}%`, "U%"],
+      ["avgGoals", ui("En Yüksek Gol / Maç", "Highest Goals / Match"), false, row => `${row.avgGoals.toFixed(2)} GF/M`, "ATT"],
+      ["gdPerGame", ui("En İyi Averaj / Maç", "Best Goal Difference / Match"), false, row => `${row.gdPerGame > 0 ? "+" : ""}${row.gdPerGame.toFixed(2)}`, "AV/M"],
+      ["cleanSheetRate", ui("En Yüksek Clean Sheet Oranı", "Highest Clean Sheet Rate"), false, row => `${row.cleanSheetRate.toFixed(1)}%`, "CS%"],
+      ["totalGoalsPerGame", ui("En Gollü Manager", "Highest-Scoring Manager"), false, row => `${row.totalGoalsPerGame.toFixed(2)} G/M`, "G/M"],
+      ["longestWinStreak", ui("En Uzun Galibiyet Serisi", "Longest Win Streak"), false, row => `${row.longestWinStreak} ${ui("maç", "matches")}`, "W"],
+      ["longestUnbeatenStreak", ui("En Uzun Yenilmezlik Serisi", "Longest Unbeaten Streak"), false, row => `${row.longestUnbeatenStreak} ${ui("maç", "matches")}`, "U"],
+      ["longestScoringStreak", ui("En Uzun Gol Atma Serisi", "Longest Scoring Streak"), false, row => `${row.longestScoringStreak} ${ui("maç", "matches")}`, "GF"],
+      ["longestCleanSheetStreak", ui("En Uzun Clean Sheet Serisi", "Longest Clean-Sheet Streak"), false, row => `${row.longestCleanSheetStreak} ${ui("maç", "matches")}`, "CS"]
+    ];
+    eliteDefs.forEach(([metric, label, asc, valueFn, icon]) => {
+      const rows = [...eligible].filter(row => Number.isFinite(Number(row[metric]))).sort((a,b) => {
+        const av = Number(a[metric]); const bv = Number(b[metric]);
+        return asc ? av - bv : bv - av || b.games - a.games || a.name.localeCompare(b.name, "tr");
+      });
+      const leader = rows[0];
+      if (isPlayer(leader)) add(label, valueFn(leader), `${leader.games} MP`, icon, `elite:${metric}`);
+    });
+
+    const biggest = records.biggestWin;
+    if (biggest && normalize(biggest.winner) === key) {
+      add(ui("En Farklı Galibiyet", "Biggest Win"), `${biggest.score}`, `${biggest.editionLabel} · ${biggest.stage}`, "↗", "match:biggest-win");
+    }
+    const scoring = records.highestScoringMatch;
+    if (scoring && [normalize(scoring.homeName), normalize(scoring.awayName)].includes(key)) {
+      add(ui("En Gollü Maç", "Highest-Scoring Match"), `${scoring.score} · ${scoring.totalGoals} ${ui("gol", "goals")}`, `${scoring.editionLabel} · ${scoring.stage}`, "◎", "match:highest-scoring");
+    }
+    const draw = analytics.highestScoringDraws?.[0];
+    if (draw && [normalize(draw.homeName), normalize(draw.awayName)].includes(key)) {
+      add(ui("En Gollü Beraberlik", "Highest-Scoring Draw"), `${draw.score} · ${draw.totalGoals} ${ui("gol", "goals")}`, `${draw.editionLabel} · ${draw.stage}`, "=", "match:highest-draw");
+    }
+    const rivalry = records.topRivalry;
+    if (rivalry && [normalize(rivalry.playerA), normalize(rivalry.playerB)].includes(key)) {
+      add(ui("En Çok Oynanan Rekabet", "Most-Played Rivalry"), `${rivalry.meetings} ${ui("maç", "matches")}`, `${rivalry.playerA} vs ${rivalry.playerB}`, "∞", "rivalry:most-played");
+    }
+    return medals;
+  }
+
   function passportPerformanceAnalytics(player, data) {
     const entries = [...(player?.entries || [])];
     const editions = [...(player?.editions || [])].sort((a, b) => a.edition - b.edition).map(edition => {
@@ -355,16 +430,7 @@ function fpiTicker() {
       runnerUps: (data?.honours || []).filter(item => item.competition === "oruc" && normalize(item.runnerUp) === player.key),
       thirds: (data?.honours || []).filter(item => item.competition === "oruc" && normalize(item.third) === player.key)
     };
-    const medals = (data?.records || []).filter(item => normalize(item.player) === player.key).map((item, index) => ({
-      id: `record-${index}`,
-      icon: "◎",
-      label: item.label,
-      value: item.value
-    }));
-    if (!medals.length) {
-      if (Number(player?.ppr || 0) >= 70) medals.push({ id: "impact", icon: "✦", label: ui("Elit Etki", "Elite Impact"), value: `${Number(player.ppr || 0).toFixed(1)} PPR` });
-      if (Number(player?.pressureScore || 0) >= 70) medals.push({ id: "pressure", icon: "◆", label: ui("Baskı Oyuncusu", "Pressure Performer"), value: `${Number(player.pressureScore || 0).toFixed(1)}/100` });
-    }
+    const medals = allTimeRecordMedals(player);
     return {
       aggregate: { attack, defense, bigMatch, games, avgGF, avgGA },
       editions,
@@ -394,7 +460,7 @@ function fpiTicker() {
 
   function passportMuseumSection(player, analytics) {
     const trophyBlock = (title, icon, rows, empty) => `<article class="v2-museum-shelf"><header><span>${icon}</span><h4>${esc(title)}</h4><b>${rows.length}</b></header><div>${rows.length ? rows.map(item => `<button type="button"><strong>FIFA ${item.edition}</strong><small>${esc(item.winner || item.runnerUp || item.third || "")}</small></button>`).join("") : `<p>${esc(empty)}</p>`}</div></article>`;
-    const medalBlock = `<article class="v2-museum-shelf medals"><header><span>◈</span><h4>${ui("Bireysel Rekor Madalyaları", "Individual Record Medals")}</h4><b>${analytics.medals.length}</b></header><div>${analytics.medals.length ? analytics.medals.map(item => `<button type="button"><strong>${esc(item.icon)} ${esc(item.label)}</strong><small>${esc(item.value)}</small></button>`).join("") : `<p>${ui("Henüz resmî bireysel madalya bulunmuyor.", "No official individual medals yet.")}</p>`}</div></article>`;
+    const medalBlock = `<article class="v2-museum-shelf medals"><header><span>◈</span><h4>${ui("Bireysel Rekor Madalyaları", "Individual Record Medals")}</h4><b>${analytics.medals.length}</b></header><div>${analytics.medals.length ? analytics.medals.map(item => `<button type="button"><strong>${esc(item.icon)} ${esc(item.label)}</strong><small>${esc(item.value)}</small>${item.detail ? `<em>${esc(item.detail)}</em>` : ""}</button>`).join("") : `<p>${ui("Bu oyuncu şu anda Tüm Zamanlar Merkezi'nde bir rekorun sahibi değil.", "This player does not currently hold an All-Time Centre record.")}</p>`}</div></article>`;
     return `<section class="v2-player-museum"><header><div><span>PLAYER MUSEUM</span><h3>${esc(player.name)} · ${ui("Müze", "Museum")}</h3><p>${ui("Şampiyonluklar, final kürsüleri ve bireysel rekorlar tek vitrinde.", "Championships, podium finishes and individual records in one display.")}</p></div></header><div class="v2-museum-grid">${trophyBlock(ui("Şampiyonluk Kupaları", "Championship Trophies"), "🏆", analytics.honours.titles, ui("Henüz şampiyonluk yok.", "No championship yet."))}${trophyBlock(ui("İkincilik Kupaları", "Runner-up Trophies"), "🥈", analytics.honours.runnerUps, ui("Henüz ikincilik yok.", "No runner-up finish yet."))}${trophyBlock(ui("Üçüncülük Kupaları", "Third-place Trophies"), "🥉", analytics.honours.thirds, ui("Henüz üçüncülük yok.", "No third-place finish yet."))}${medalBlock}</div></section>`;
   }
 
