@@ -1,0 +1,24 @@
+FIFA UNIVERSE V4.0.4 — PULSE TRIO
+
+BU SÜRÜMDE
+1) POINTS PULSE sıra numarası gösterir:
+   #1 Kerim Özmen · 2.667 PPG
+   #2 ...
+2) Yeni RESULTS PULSE eklendi.
+   Son oynanan 10 resmî FIFA 10 grup maçını sürekli kayan bantta gösterir.
+   Örnek: #54 Oğuzhan Dindar 3–2 Affan Volkan Akbal
+3) Yeni maç sonucu girildiğinde Points Pulse + Results Pulse + Tournament Tree aynı standings watcher üzerinden otomatik yenilenir.
+4) V4.0.3 Result Entry Stability değişiklikleri korunur.
+
+DEPLOY
+- V4_0_4_PULSE_TRIO_DEPLOY_PATCH.zip içindekileri mevcut proje kökünün üzerine yaz.
+- Deploy tamamlanınca:
+  https://fifa9-tournament-hub.vercel.app/?fifa9build=404000
+- Gerekirse Ctrl+Shift+R.
+
+ANA SAYFA SIRASI
+Standing Pulse
+Points Pulse
+Results Pulse
+Hero
+Live Tournament Tree

@@ -1,0 +1,13 @@
+VALIDATION REPORT — FIFA UNIVERSE V4.0.4 PULSE TRIO
+Build: 404000
+
+[OK] live-table-motion-v311.js syntax
+[OK] fifa-universe-v2.js syntax
+[OK] fifa10-draw-engine-v4713.js syntax
+[OK] visual-intelligence-v403.js syntax
+[OK] Points Pulse rank rendering test: #1/#2/#3
+[OK] Results Pulse last-result rendering test: match number + home + score + away
+[OK] Results Pulse sorts by updatedAt then sequence
+[OK] Results Pulse limits display to last 10 completed official fixtures
+[OK] Home integration order: Standing Pulse > Points Pulse > Results Pulse
+[OK] Existing standings watchdog remains active; result save changes draw.updatedAt/signature and refreshes all live pulses.

@@ -1,8 +1,8 @@
 (() => {
   'use strict';
 
-  const VERSION = '4.0.3';
-  const BUILD = '403000';
+  const VERSION = '4.0.4';
+  const BUILD = '404000';
   const ROOT_ID = 'vi402-root';
   const POLL_MS = 5000;
   let lastSignature = '';
@@ -58,7 +58,7 @@
       const alltime = context.buildAllTimeAnalytics?.() || { players: [], legacyTop10: [], records: {}, champions: [], rivalries: [], summary: {} };
       return { state, draw, universe, fpi, alltime };
     } catch (error) {
-      console.warn('[Visual Intelligence V4.0.3] Data adapter skipped:', error);
+      console.warn('[Visual Intelligence V4.0.4] Data adapter skipped:', error);
       return null;
     }
   }
@@ -131,7 +131,7 @@
     const mover = bundle.fpi.summary?.mover;
     return `
       <div class="vi402-dashboard">
-        ${sectionHeader('VISUAL INTELLIGENCE LAB', 'FIFA Universe V4.0 · Güvenli Görsel Katman', 'Mevcut çalışan siteyi değiştirmeden, gerçek uygulama verisini sinematik görsellere çevirir.', 'STABILITY CORE 4.0.3')}
+        ${sectionHeader('VISUAL INTELLIGENCE LAB', 'FIFA Universe V4.0 · Güvenli Görsel Katman', 'Mevcut çalışan siteyi değiştirmeden, gerçek uygulama verisini sinematik görsellere çevirir.', 'STABILITY CORE 4.0.4')}
         <div class="vi402-hero-grid">
           <article class="vi402-hero-card"><span>STANDING CROWN</span><strong>${esc(leader?.name || '—')}</strong><em>${leader ? `${leader.rating} Rating · World #${leader.rank}` : 'Veri bekleniyor'}</em></article>
           <article class="vi402-hero-card"><span>TOP MOVER</span><strong>${esc(mover?.name || '—')}</strong><em>${mover ? `${mover.last5Change >= 0 ? '+' : ''}${mover.last5Change} · ${mover.fpi?.signal || ''}` : 'Veri bekleniyor'}</em></article>

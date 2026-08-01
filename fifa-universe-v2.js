@@ -1,8 +1,8 @@
 (() => {
   "use strict";
 
-  const VERSION = "3.2.1";
-  const BUILD = "403000";
+  const VERSION = "3.2.2";
+  const BUILD = "404000";
   const ROUTES = new Set(["dashboard", "livehub", "tournaments", "playershub", "recordshub", "mediahub", "adminhub"]);
   let mode = localStorage.getItem("fifa-universe-v2-mode") || "spectator";
   let selectedPlayer = localStorage.getItem("fifa-universe-v2-player") || "";
@@ -233,8 +233,9 @@ function fpiTicker() {
     const favorite = (equity?.players || []).map(player => ({ ...player, current: player.points?.at(-1)?.titlePct || 0 })).sort((a, b) => b.current - a.current)[0];
     const currentMode = safeMode();
     const pointsPulse = liveTableMotion()?.renderPointsPulse?.(rows, draw) || "";
+    const resultsPulse = liveTableMotion()?.renderResultsPulse?.(draw) || "";
     const tournamentTree = liveTableMotion()?.renderTournamentTree?.(rows, draw) || "";
-    mount.innerHTML = `<div class="v2-page v2-home">${routeNav("dashboard")}${modeBar(data, "dashboard")}${fpiTicker()}${pointsPulse}
+    mount.innerHTML = `<div class="v2-page v2-home">${routeNav("dashboard")}${modeBar(data, "dashboard")}${fpiTicker()}${pointsPulse}${resultsPulse}
       <section class="v2-home-hero stage-${stage.key}"><div class="copy"><span><i></i>${esc(stage.label)}</span><h2>${currentMode === "admin" ? ui("Turnuvayı yönet.\nOyunu durdurma.", "Run the tournament.\nNever stop play.") : currentMode === "player" ? ui("Sıradaki maçını bil.\nKariyerini gör.", "Know your next match.\nSee your career.") : ui("Şu anda ne oluyor?", "What is happening now?")}</h2><p>${ui("FIFA 01'den canlı FIFA 10'a kadar bütün sonuçlar, oyuncular ve hikâyeler tek ve anlaşılır bir evrende.", "Every result, player and story from FIFA 01 to live FIFA 10 in one clear universe.")}</p><div class="actions"><button type="button" data-nav="livehub">${ui("Canlı merkezi aç", "Open Live Centre")}</button><button type="button" data-nav="tournaments">${ui("Turnuvaya git", "Go to Tournament")}</button></div></div>
       <aside><div class="v2-progress-orbit" style="--progress:${clamp(stage.progress)}"><strong>${stage.completed}</strong><span>/${stage.total}</span><small>${ui("GRUP MAÇI", "GROUP MATCHES")}</small></div><div><article><span>LINEAL CROWN</span><b>${esc(crown.holder || "–")}</b></article><article><span>${ui("ŞAMPİYONLUK FAVORİSİ", "TITLE FAVOURITE")}</span><b>${esc(favorite?.name || "–")}</b><small>${favorite ? pct(favorite.current) : "–"}</small></article></div></aside></section>
       ${currentMode === "admin" ? adminToday(data, draw, true) : currentMode === "player" ? playerCockpit(data, draw) : ""}
