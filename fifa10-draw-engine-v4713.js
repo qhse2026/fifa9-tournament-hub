@@ -2,7 +2,7 @@
   "use strict";
 
   const VERSION = "3.1.1";
-  const BUILD = "402000";
+  const BUILD = "403000";
   const STORAGE_KEY = "fifa-tournament-hub-v1";
   const SYNC_HISTORY_KEY = "fifa10-sync-history-v1";
   const GROUPS = Object.freeze(["A", "B", "C"]);
@@ -34,6 +34,8 @@
   let scheduleMatchMinutes = Math.max(8, Math.min(30, Number(localStorage.getItem("fifa10-schedule-minutes") || 15)));
   let tvModeOpen = false;
   let tvClockTimer = null;
+  let renderDeferredWhileModal = false;
+  let cloudSyncTail = Promise.resolve();
 
   const escapeHTML = value => String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -427,6 +429,45 @@
     };
   }
 
+  function resultModalOpen() {
+    return Boolean(document.getElementById("f10DrawModal"));
+  }
+
+  function cloudSyncWithTimeout(snapshot, message = "") {
+    if (!cloudConfigured() || !isAdmin() || !window.FIFA_CLOUD?.save) return Promise.resolve(false);
+    const run = async () => {
+      let timer = null;
+      try {
+        const timeout = new Promise((_, reject) => {
+          timer = setTimeout(() => reject(new Error("Bulut senkronizasyonu zaman aşımına uğradı; cihaz kaydı güvende.")), 7000);
+        });
+        await Promise.race([window.FIFA_CLOUD.save(deepClone(snapshot)), timeout]);
+        recordSyncEvent(
+          "cloud",
+          message ? `${message} Canlı siteye kaydedildi.` : "Canlı siteye kaydedildi.",
+          message ? "The operation was saved to the live site." : "Saved to the live site."
+        );
+        operationNotice = { type: "success", text: `${message || "İşlem"} Canlı siteye kaydedildi.` };
+        scheduleRender();
+        return true;
+      } catch (error) {
+        recordSyncEvent(
+          "error",
+          `Cihaz kaydı güvende; bulut bekliyor: ${error?.message || error}`,
+          `The device save is safe; cloud sync is pending: ${error?.message || error}`
+        );
+        operationNotice = { type: "warning", text: `${message || "İşlem"} Bu cihazda kaydedildi; bulut senkronizasyonu arka planda bekliyor.` };
+        console.warn("FIFA 10 background cloud sync deferred; local save remains authoritative.", error);
+        scheduleRender();
+        return false;
+      } finally {
+        if (timer) clearTimeout(timer);
+      }
+    };
+    cloudSyncTail = cloudSyncTail.then(run, run);
+    return cloudSyncTail;
+  }
+
   async function savePayload(nextPayload, message = "") {
     const next = ensurePayloadShape(nextPayload);
     const previous = payload ? deepClone(payload) : null;
@@ -442,7 +483,7 @@
     }
     recordBlackBoxTransition(next, previous, message);
     payload = next;
-    // Always commit locally first. The tournament can continue even if the network momentarily fails.
+    // Operational rule: device commit is authoritative and must never wait for the network.
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     recordSyncEvent(
       "local",
@@ -454,43 +495,23 @@
       Object.keys(applicationState).forEach(key => delete applicationState[key]);
       Object.assign(applicationState, deepClone(next));
       window.FIFA_APP_CONTEXT?.cacheState?.();
-      window.FIFA_APP_CONTEXT?.refreshView?.();
+      // Do not repaint the whole page underneath an open result modal.
+      if (!resultModalOpen()) window.FIFA_APP_CONTEXT?.refreshView?.();
+      else renderDeferredWhileModal = true;
     }
-    // Reflect operational changes immediately. Cloud latency must never freeze
-    // manual group assignment or result entry on the tournament device.
-    scheduleRender();
+    if (!resultModalOpen()) scheduleRender();
+    else renderDeferredWhileModal = true;
     if (manualEntryOverlayOpen) syncManualGroupOverlay();
-    let cloudSaved = false;
-    let cloudError = null;
-    if (cloudConfigured() && isAdmin()) {
-      try {
-        await window.FIFA_CLOUD.save(next);
-        cloudSaved = true;
-        recordSyncEvent(
-          "cloud",
-          message ? `${message} Canlı siteye kaydedildi.` : "Canlı siteye kaydedildi.",
-          message ? "The operation was saved to the live site." : "Saved to the live site."
-        );
-      } catch (error) {
-        cloudError = error;
-        recordSyncEvent(
-          "error",
-          `Cihaz kaydı güvende; bulut bekliyor: ${error?.message || error}`,
-          `The device save is safe; cloud sync is pending: ${error?.message || error}`
-        );
-        console.error("FIFA 10 cloud save failed; local operation was preserved.", error);
-      }
-    }
+
     if (message) {
-      if (cloudError) {
-        operationNotice = { type: "warning", text: `${message} Bu cihazda kaydedildi; canlı senkronizasyon başarısız: ${cloudError?.message || cloudError}` };
-        notify("İşlem bu cihazda kaydedildi. Bulut senkronizasyonu bekliyor.", "error");
-      } else {
-        operationNotice = { type: "success", text: `${message}${cloudSaved ? " Canlı siteye kaydedildi." : " Bu cihazda kaydedildi."}` };
-        notify(message, "success");
-      }
+      operationNotice = cloudConfigured() && isAdmin()
+        ? { type: "info", text: `${message} Bu cihazda kaydedildi; bulut senkronizasyonu arka planda sürüyor.` }
+        : { type: "success", text: `${message} Bu cihazda kaydedildi.` };
+      notify("Sonuç cihazda kaydedildi.", "success");
     }
-    scheduleRender();
+
+    // Cloud is intentionally fire-and-forget. It has its own serial queue and timeout.
+    void cloudSyncWithTimeout(next, message);
     return next;
   }
 
@@ -1087,6 +1108,7 @@
       </form>
     </section>`;
     document.body.appendChild(overlay);
+    document.body.classList.add("f10-result-entry-open");
     overlay.addEventListener("click", event => {
       if (event.target === overlay) closeModal();
     });
@@ -1111,6 +1133,12 @@
 
   function closeModal() {
     document.getElementById("f10DrawModal")?.remove();
+    document.body.classList.remove("f10-result-entry-open");
+    if (renderDeferredWhileModal) {
+      renderDeferredWhileModal = false;
+      window.FIFA_APP_CONTEXT?.refreshView?.();
+      scheduleRender();
+    }
   }
 
   function notify(message, type = "info") {
@@ -2153,6 +2181,10 @@
   }
 
   function scheduleRender() {
+    if (resultModalOpen()) {
+      renderDeferredWhileModal = true;
+      return;
+    }
     if (renderQueued) return;
     renderQueued = true;
     requestAnimationFrame(() => {
@@ -2162,6 +2194,8 @@
   }
 
   async function reloadAll() {
+    // Never refresh payload/registration state underneath active result entry.
+    if (resultModalOpen() || moduleBusy) return;
     await Promise.all([fetchPayload(), fetchRegistrations()]);
     subscribeRealtime();
     scheduleRender();
@@ -2413,10 +2447,26 @@
   async function handleSubmit(event) {
     if (!["f10DrawResultForm", "f10AwardsUniverseForm"].includes(event.target?.id)) return;
     event.preventDefault();
+    const form = event.target;
+    if (form.dataset.f10Submitting === "1") return;
+    form.dataset.f10Submitting = "1";
+    const submitter = event.submitter || form.querySelector('button[type="submit"]');
+    const originalText = submitter?.textContent || "";
+    if (submitter) {
+      submitter.disabled = true;
+      submitter.textContent = form.id === "f10DrawResultForm" ? "Kaydediliyor…" : originalText;
+    }
     try {
-      if (event.target.id === "f10AwardsUniverseForm") await saveAwardsUniverse(event.target, event.submitter?.value || "save");
-      else await saveResult(event.target);
-    } catch (error) { notify(String(error?.message || error), "error"); }
+      if (form.id === "f10AwardsUniverseForm") await saveAwardsUniverse(form, event.submitter?.value || "save");
+      else await saveResult(form);
+    } catch (error) {
+      notify(String(error?.message || error), "error");
+      if (form.isConnected) form.dataset.f10Submitting = "0";
+      if (submitter?.isConnected) {
+        submitter.disabled = false;
+        submitter.textContent = originalText;
+      }
+    }
   }
 
   function handleKeydown(event) {
@@ -2459,6 +2509,7 @@
       newPlayerElo: NEW_PLAYER_ELO,
       standings: drawOverride => standings(drawOverride || getDraw()),
       drawState: () => deepClone(getDraw()),
+      isBusy: () => moduleBusy,
       refresh: reloadAll,
       generateFixtures,
       secureShuffle,

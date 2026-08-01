@@ -155,32 +155,42 @@
     let finalError = null;
     for (let attempt = 0; attempt < 2; attempt += 1) {
       const updatedAt = new Date().toISOString();
-      const { data, error } = await client
-        .from("tournament_state")
-        .update({
-          payload,
-          edition: Number(config.edition || 9),
-          updated_at: updatedAt,
-          updated_by: session?.user?.id || null
-        })
-        .eq("id", config.tournamentRowId || "fifa-9")
-        // Returning the complete JSON payload doubled the database work and
-        // made large tournament saves much more likely to exceed Supabase's
-        // statement limit. Only the commit timestamp is needed here.
-        .select("updated_at")
-        .single();
-      if (!error) {
-        lastRemoteUpdatedAt = data?.updated_at || updatedAt;
-        emitStatus("saved", data?.updated_at || updatedAt);
-        setTimeout(() => emitStatus("admin-online"), 900);
-        return data;
+      const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+      const timeoutId = controller ? setTimeout(() => controller.abort(), 6000) : null;
+      try {
+        let query = client
+          .from("tournament_state")
+          .update({
+            payload,
+            edition: Number(config.edition || 9),
+            updated_at: updatedAt,
+            updated_by: session?.user?.id || null
+          })
+          .eq("id", config.tournamentRowId || "fifa-9")
+          .select("updated_at")
+          .single();
+        if (controller && typeof query.abortSignal === "function") query = query.abortSignal(controller.signal);
+        const { data, error } = await Promise.race([
+          query,
+          new Promise((_, reject) => setTimeout(() => reject(new Error("Cloud save timeout")), 6500))
+        ]);
+        if (!error) {
+          lastRemoteUpdatedAt = data?.updated_at || updatedAt;
+          emitStatus("saved", data?.updated_at || updatedAt);
+          setTimeout(() => emitStatus("admin-online"), 900);
+          return data;
+        }
+        finalError = error;
+      } catch (error) {
+        finalError = error;
+      } finally {
+        if (timeoutId) clearTimeout(timeoutId);
       }
-      finalError = error;
-      if (!isStatementTimeout(error) || attempt > 0) break;
-      await wait(350);
+      if ((!isStatementTimeout(finalError) && !/timeout|abort/i.test(String(finalError?.message || finalError || ""))) || attempt > 0) break;
+      await wait(300);
     }
     emitStatus("error", finalError?.message || "Cloud save failed.");
-    throw finalError;
+    throw finalError || new Error("Cloud save failed.");
   }
 
   function save(payload) {
