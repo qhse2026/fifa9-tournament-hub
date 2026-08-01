@@ -1,0 +1,37 @@
+VALIDATION REPORT — FIFA UNIVERSE V4.0.2 VISUAL INTELLIGENCE SAFE CORE
+
+Source base:
+- Clean V3.2.1 full-site archive
+
+Architecture checks:
+[OK] V4.0 / V4.0.1 DOM-scraping overlay removed from index.
+[OK] V4.0.2 uses FIFA_APP_CONTEXT and FIFA_UNIVERSE_INTELLIGENCE APIs.
+[OK] No MutationObserver loop in V4.0.2.
+[OK] V4 root is appended after core view content.
+[OK] Route comes from getActiveView()/data-v2-route, not page text.
+
+Build checks:
+[OK] index cache build = 402000.
+[OK] fifa10-draw-engine build = 402000.
+[OK] fifa-universe-v2 build = 402000.
+[OK] live-table-motion build = 402000.
+[OK] print centre query build = 402000.
+[OK] core intelligence/evolution/championship build constants synchronized.
+
+File checks:
+[OK] All local src/href references in index.html exist.
+[OK] visual-intelligence-v402.css linked.
+[OK] visual-intelligence-v402.js linked after core application scripts.
+[OK] No visual-intelligence-v400/v401 reference in active index.html.
+
+Syntax checks:
+[OK] visual-intelligence-v402.js
+[OK] fifa10-draw-engine-v4713.js
+[OK] fifa-universe-v2.js
+[OK] live-table-motion-v311.js
+[OK] fifa-universe-intelligence-v4719.js
+[OK] fifa-evolution-os-v4719.js
+[OK] fifa-championship-os-v4719.js
+
+Browser automation note:
+Automated Chromium screenshot was attempted but the sandbox Chromium process hit the environment's D-Bus/zygote limitation. This is the same container-level limitation seen in prior builds and is not a JavaScript syntax or missing-asset failure.

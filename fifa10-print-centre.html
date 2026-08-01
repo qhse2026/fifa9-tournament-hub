@@ -80,7 +80,6 @@
       .team-cell:empty:before{content:""}
     }
   </style>
-  <link rel="stylesheet" href="visual-intelligence-v400.css?v=4.0.1" />
 </head>
 <body>
   <header class="toolbar">
@@ -219,7 +218,7 @@
       const url = new URL("index.html", location.href);
       url.search = "";
       url.hash = "";
-      url.searchParams.set("fifa9build", "401000");
+      url.searchParams.set("fifa9build", "402000");
       url.searchParams.set("fifa10player", playerName);
       return url.href;
     }
@@ -254,6 +253,5 @@
     window.addEventListener("afterprint", () => { delete document.body.dataset.printScope; });
   })();
   </script>
-  <script src="visual-intelligence-v400.js?v=4.0.1"></script>
 </body>
 </html>

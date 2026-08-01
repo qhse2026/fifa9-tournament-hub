@@ -1,0 +1,62 @@
+FIFA UNIVERSE V4.0.2 — VISUAL INTELLIGENCE SAFE CORE
+
+BU SÜRÜM NEDEN VAR?
+V4.0 / V4.0.1 görsel katmanında DOM metinlerini tahmin ederek veri toplama yaklaşımı yanlış sayfa ve yanlış sayı üretimine neden oldu.
+V4.0.2 bu yaklaşımı tamamen kaldırır.
+
+TEMEL MİMARİ
+- Visual Intelligence DOM scraping yapmaz.
+- Aktif sayfa doğrudan FIFA_APP_CONTEXT.getActiveView() ile okunur.
+- Player / Standing verisi buildFpiAnalytics() ve FIFA_UNIVERSE_INTELLIGENCE.buildUniverse() üzerinden alınır.
+- Tüm Zamanlar rekorları buildAllTimeAnalytics() üzerinden alınır.
+- FIFA 10 canlı durum getFifa10Draw() üzerinden alınır.
+- V4 panelleri mevcut ana içeriğin ALTINA eklenir; core UI önüne geçmez.
+- MutationObserver kullanılmaz. Hafif, imza kontrollü 1.2 sn sync watcher kullanılır.
+
+DÜZELTİLEN KRİTİK KONULAR
+1. Turnuvalar ekranına Player Passport modülü girmesi engellendi.
+2. Dynasty Map navigasyon metinlerini veri sanmıyor.
+3. World #1500 / Heat 344 / Legacy 489 gibi yanlış DOM okuma değerleri ortadan kaldırıldı.
+4. Route değişiminde yalnız ilgili Visual Intelligence modülü görünür.
+5. Önceki V4 dosyaları index.html tarafından artık çağrılmaz.
+6. 311000 / 321000 build URL ping-pong kaldırıldı.
+7. fifa10-draw-engine dahil aktif URL üreticileri 402000 ile eşitlendi.
+
+KURULUM — ÖNERİLEN
+1. V4_0_2_VISUAL_INTELLIGENCE_SAFE_CORE_DEPLOY_PATCH.zip dosyasını aç.
+2. İçindeki dosyaları mevcut Vercel/GitHub proje KÖK klasörüne kopyala.
+3. Var olan dosyaların üzerine yazılmasına izin ver.
+4. Yeni iki dosyanın da kökte olduğundan emin ol:
+   - visual-intelligence-v402.js
+   - visual-intelligence-v402.css
+5. Deploy et.
+6. Şu adresi aç:
+   https://fifa9-tournament-hub.vercel.app/?fifa9build=402000
+7. Bir kez Ctrl+Shift+R yap.
+
+KRİTİK KONTROL
+Sayfa tamamen açıldıktan sonra URL 402000 olarak KALMALI.
+311000 veya 321000'e dönmemeli.
+
+V4 MODÜL DAĞILIMI
+Ana Sayfa:
+- AI Story Cards
+- Dynasty Map
+- Player Galaxy
+- Standing Crown / Top Mover özetleri
+
+Oyuncular:
+- Living Player Card
+- Gerçek Standing/All-Time tabanlı DNA
+- AI Career Movie Timeline
+- AI Rivalry Poster
+- Mevcut Player Museum için hafif 2.5D polish
+
+Tüm Zamanlar:
+- Record Wall
+- Hall of Immortals
+- Player Galaxy
+
+Canlı / Medya:
+- Matchday Visual Generator
+- Broadcast Director sinyalleri

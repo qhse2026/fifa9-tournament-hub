@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#050d22" />
   <meta name="description" content="FIFA Turnuva Merkezi — canlı skor, Player Standing, Power Exchange, mental baskı analizi, Destiny Path, Live Match Pulse, Broadcast Mode, TV / projektör görünümü, canlı xT, oyuncu ısı rozetleri, AI Tournament Director ve dinamik turnuva simülasyonu." />
-  <meta name="fifa9-build" content="4.0.1-visual-intelligence-hotfix" />
+  <meta name="fifa9-build" content="4.0.2-visual-intelligence-safe-core" />
   <script>
   (()=>{
-    const BUILD="4.0.1-visual-intelligence-hotfix";
+    const BUILD="4.0.2-visual-intelligence-safe-core";
     const KEY="fifa9-active-build";
     if(localStorage.getItem(KEY)===BUILD) return;
     localStorage.setItem(KEY,BUILD);
@@ -17,7 +17,7 @@
     if("serviceWorker" in navigator) cleanup.push(navigator.serviceWorker.getRegistrations().then(regs=>Promise.all(regs.map(reg=>reg.unregister()))));
     Promise.allSettled(cleanup).finally(()=>{
       const url=new URL(location.href);
-      if(url.searchParams.get("fifa9build")!=="401000"){url.searchParams.set("fifa9build","401000");location.replace(url.toString());}
+      if(url.searchParams.get("fifa9build")!=="402000"){url.searchParams.set("fifa9build","402000");location.replace(url.toString());}
     });
   })();
   </script>
@@ -45,7 +45,7 @@
   <link rel="stylesheet" href="player-standing-universe-v300.css?v=3.0.1" />
   <link rel="stylesheet" href="layout-hotfix-v301.css?v=3.0.1" />
   <link rel="stylesheet" href="live-table-motion-v311.css?v=3.1.1" />
-  <link rel="stylesheet" href="visual-intelligence-v400.css?v=4.0.1" />
+  <link rel="stylesheet" href="visual-intelligence-v402.css?v=4.0.2" />
 </head>
 <body>
   <div class="ambient ambient-one"></div>
@@ -126,7 +126,7 @@
 
       <div class="sidebar-footer">
         <div class="save-indicator" id="sidebarCloudStatus"><span class="status-dot"></span> Canlı bağlantı hazırlanıyor</div>
-        <div class="sidebar-version">FIFA Universe · V3.1.1 · Live Table Motion</div>
+        <div class="sidebar-version">FIFA Universe · V4.0.2 · Visual Intelligence Safe Core</div>
       </div>
     </aside>
     <button class="os-sidebar-backdrop" id="sidebarBackdrop" type="button" aria-label="Komuta menüsünü kapat"></button>
@@ -191,7 +191,7 @@
   <div class="hub-launcher-backdrop hidden" id="hubLauncherBackdrop">
     <section class="hub-launcher" role="dialog" aria-modal="true" aria-labelledby="hubLauncherTitle">
       <header>
-        <div><span>FIFA UNIVERSE 3.1.1 · COMMAND CENTRE</span><h2 id="hubLauncherTitle">Nereye gitmek istiyorsun?</h2></div>
+        <div><span>FIFA UNIVERSE 4.0.2 · COMMAND CENTRE</span><h2 id="hubLauncherTitle">Nereye gitmek istiyorsun?</h2></div>
         <button type="button" id="hubLauncherClose" aria-label="Kapat">×</button>
       </header>
       <div class="hub-launcher-grid">
@@ -234,6 +234,6 @@
   <script src="navigation-os-v47-1.js?v=3.0.1-standing-universe"></script>
   <script src="player-standing-universe-v300.js?v=3.0.1"></script>
   <script src="live-table-motion-v311.js?v=3.1.1"></script>
-  <script src="visual-intelligence-v400.js?v=4.0.1"></script>
+  <script src="visual-intelligence-v402.js?v=4.0.2"></script>
 </body>
 </html>
