@@ -2,7 +2,7 @@
   "use strict";
 
   const VERSION = "3.1.2";
-  const BUILD = "404000";
+  const BUILD = "500000";
   const POLL_MS = 2000;
   let lastSignature = "";
   let watcher = 0;

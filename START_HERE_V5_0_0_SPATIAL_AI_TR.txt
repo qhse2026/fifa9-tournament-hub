@@ -1,0 +1,36 @@
+FIFA UNIVERSE V5.0.0 — SPATIAL AI FOUNDATION
+
+BU SÜRÜMÜN AMACI
+V4.0.4 Pulse Trio + Result Entry Stability tabanını koruyarak, çekirdeğe dokunmadan bağımsız bir Spatial AI katmanı eklemek.
+
+YENİ ÖZELLİKLER
+1. 3D Command Universe
+2. ORION AI Companion
+3. Sesli komut (Web Speech Recognition)
+4. Sesli cevap (Speech Synthesis)
+5. Metin komut konsolu
+6. Bağlama duyarlı oyuncu hafızası
+7. Gerçek Player Standing verisiyle sorgular
+8. Gerçek All-Time kayıtlarıyla sorgular
+9. Oyuncu pasaportu / müze / grafik yönlendirmeleri
+10. İki oyuncu karşılaştırma paneli
+11. Sinematik Spatial dönüş modu
+12. Reduced-motion ve mobil 2D fallback
+
+DEPLOY
+1. Mevcut V4.0.4 sitenin köküne V5_0_0_SPATIAL_AI_FOUNDATION_DEPLOY_PATCH.zip içeriğini kopyala.
+2. Dosyaların üzerine yazılmasına izin ver.
+3. Vercel deploy tamamlandıktan sonra şu adresi aç:
+   https://fifa9-tournament-hub.vercel.app/?fifa9build=500000
+4. Bir kez Ctrl+Shift+R yap.
+5. Sağ alttaki ORION küresine bas.
+
+İLK TEST
+- “Puan durumunu göster”
+- “Son 10 maçı göster”
+- “Kerim’in müzesini aç”
+- “Kerim ile Çağlar’ı karşılaştır”
+- Mikrofon düğmesine bas ve aynı komutlardan birini sesli söyle.
+
+GÜVENLİK
+Bu sürüm OpenAI veya başka bir LLM API anahtarını tarayıcıya gömmez. Ses tanıma/konuşma browser API’leriyle, veri cevapları sitenin kendi motorlarıyla çalışır.

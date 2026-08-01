@@ -1,0 +1,17 @@
+VALIDATION REPORT — FIFA UNIVERSE V5.0.0 SPATIAL AI FOUNDATION
+
+[OK] spatial-ai-v500.js syntax check
+[OK] fifa10-draw-engine-v4713.js syntax check
+[OK] fifa-universe-v2.js syntax check
+[OK] live-table-motion-v311.js syntax check
+[OK] visual-intelligence-v403.js syntax check
+[OK] Build chain aligned to 500000
+[OK] Service Worker cache upgraded to V5
+[OK] spatial-ai-v500.css/js included in offline shell
+[OK] index.html local assets resolved
+[OK] service-worker local assets resolved
+[OK] ORION reads structured app APIs, not DOM scraping
+[OK] No LLM API key embedded in browser bundle
+
+Browser runtime note:
+Automated Chromium screenshot is unavailable in this container because the installed Chromium process stalls on the container's D-Bus/zygote environment. Manual deployment smoke-test is therefore required for microphone permission and Web Speech voice availability.

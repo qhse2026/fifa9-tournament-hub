@@ -1,0 +1,15 @@
+{
+  "index_build_500000": true,
+  "spatial_css_linked": true,
+  "spatial_js_linked": true,
+  "service_worker_v5_cache": true,
+  "service_worker_has_spatial_css": true,
+  "service_worker_has_spatial_js": true,
+  "index_missing_local_assets": [],
+  "sw_missing_local_assets": [],
+  "fifa10-draw-engine-v4713.js_build_500000": true,
+  "fifa-universe-v2.js_build_500000": true,
+  "live-table-motion-v311.js_build_500000": true,
+  "visual-intelligence-v403.js_build_500000": true,
+  "fifa10-print-centre.html_build_500000": true
+}
