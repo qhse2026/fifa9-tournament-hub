@@ -1,0 +1,18 @@
+FIFA Universe V3.0.2 — Tournament Cards Hotfix
+
+Bu sürüm Turnuvalar sayfasındaki [object Object] görüntüleme hatasını düzeltir.
+
+DÜZELTİLENLER
+1. FIFA 01–09 kartlarında match array değeri doğrudan yazdırıldığı için [object Object] metni oluşuyordu.
+2. Kart alt bilgisi yeniden tasarlandı:
+   - FIFA 10: tamamlanan/toplam maç + Canlı sezon
+   - FIFA 01–09: maç sayısı + oyuncu sayısı + maç başı gol
+3. Cache yenileme için build parametresi 300002 olarak güncellendi.
+
+DOĞRU ADRES
+https://fifa9-tournament-hub.vercel.app/?fifa9build=300002
+
+KURULUM
+1. Bu paketi mevcut proje üzerine deploy et.
+2. Deployment sonrası yukarıdaki adresi aç.
+3. Gerekirse Ctrl+Shift+R yap.

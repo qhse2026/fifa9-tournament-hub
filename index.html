@@ -17,7 +17,7 @@
     if("serviceWorker" in navigator) cleanup.push(navigator.serviceWorker.getRegistrations().then(regs=>Promise.all(regs.map(reg=>reg.unregister()))));
     Promise.allSettled(cleanup).finally(()=>{
       const url=new URL(location.href);
-      if(url.searchParams.get("fifa9build")!=="300001"){url.searchParams.set("fifa9build","300001");location.replace(url.toString());}
+      if(url.searchParams.get("fifa9build")!=="300002"){url.searchParams.set("fifa9build","300002");location.replace(url.toString());}
     });
   })();
   </script>

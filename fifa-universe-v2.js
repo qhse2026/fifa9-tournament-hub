@@ -1,8 +1,8 @@
 (() => {
   "use strict";
 
-  const VERSION = "2.2.0";
-  const BUILD = "202000";
+  const VERSION = "2.2.1";
+  const BUILD = "202001";
   const ROUTES = new Set(["dashboard", "livehub", "tournaments", "playershub", "recordshub", "mediahub", "adminhub"]);
   let mode = localStorage.getItem("fifa-universe-v2-mode") || "spectator";
   let selectedPlayer = localStorage.getItem("fifa-universe-v2-player") || "";
@@ -63,6 +63,30 @@
     if (!player) player = (data.players || []).find(row => active.has(row.key)) || data.players?.[0] || null;
     if (player) selectedPlayer = player.name;
     return player;
+  }
+  function editionMatchCount(item) {
+    if (!item) return 0;
+    if (Number.isFinite(Number(item.matchCount))) return Number(item.matchCount);
+    if (Array.isArray(item.matches)) return item.matches.length;
+    return Number(item.matches) || 0;
+  }
+  function editionParticipantCount(item) {
+    if (!item) return 0;
+    if (Array.isArray(item.participants)) return item.participants.length;
+    return Number(item.players) || 0;
+  }
+  function editionMeta(item, edition, stage) {
+    if (!item) return ui("Tarihsel kayıt", "Historical record");
+    if (edition === 10) {
+      const total = Number(stage?.total || editionMatchCount(item) || 0);
+      const completed = Number(stage?.completed || 0);
+      return `${completed}/${total} MP · ${ui("Canlı sezon", "Live season")}`;
+    }
+    const matches = editionMatchCount(item);
+    const players = editionParticipantCount(item);
+    const goals = Number(item.totalGoals) || 0;
+    const goalsPerMatch = matches ? (goals / matches).toFixed(1) : "0.0";
+    return `${matches} MP · ${players} ${ui("oyuncu", "players")} · ${goalsPerMatch} G/M`;
   }
   function safeMode() {
     if (mode === "admin" && !app()?.isAdmin?.()) mode = "spectator";
@@ -230,7 +254,7 @@ function fpiTicker() {
     const editionMap = new Map((data.editions || []).map(row => [Number(row.edition), row]));
     mount.innerHTML = `<div class="v2-page">${routeNav("tournaments")}${modeBar(data, "tournaments")}${pageIntro("TOURNAMENTS", ui("On edisyon. Tek standart.", "Ten editions. One standard."), ui("Her turnuva aynı kullanıcı mantığıyla açılır; format değişir, yön bulma değişmez.", "Every tournament opens with the same user logic; the format changes, navigation does not."))}
       <section class="v2-active-tournament"><div><span>ACTIVE · FIFA 10</span><h3>Triple Circuit</h3><p>${esc(stage.label)} · ${stage.completed}/${stage.total} ${ui("grup maçı", "group matches")}</p><div class="v2-progress"><i style="width:${clamp(stage.progress)}%"></i></div></div><aside><button type="button" data-nav="seasonhub">${ui("Turnuva merkezini aç", "Open tournament centre")} ↗</button><button type="button" data-nav="print">${ui("Çıktılar", "Print Centre")}</button></aside></section>
-      <section class="v2-edition-grid">${Array.from({ length: 10 }, (_, index) => index + 1).reverse().map(edition => { const item = editionMap.get(edition); const honour = honours.get(edition); return `<article class="${edition === 10 ? "active" : ""}"><header><span>FIFA</span><b>${String(edition).padStart(2, "0")}</b><em>${edition === 10 ? ui("CANLI", "LIVE") : ui("TAMAMLANDI", "COMPLETE")}</em></header><div><span>${ui("ŞAMPİYON", "CHAMPION")}</span><strong>${esc(honour?.winner || (edition === 10 ? ui("Belirlenecek", "To be decided") : "–"))}</strong><small>${item ? `${item.matches || 0} MP · ${Number(item.difficulty || 0).toFixed(0)} DIFF` : ui("Tarihsel kayıt", "Historical record")}</small></div>${edition === 10 ? `<button type="button" data-nav="seasonhub">${ui("Aç", "Open")} ↗</button>` : edition === 9 ? `<button type="button" data-nav="knockout">${ui("Final Chapter", "Final Chapter")} ↗</button>` : `<button type="button" data-nav="archive">${ui("Arşiv", "Archive")} ↗</button>`}</article>`; }).join("")}</section>
+      <section class="v2-edition-grid">${Array.from({ length: 10 }, (_, index) => index + 1).reverse().map(edition => { const item = editionMap.get(edition); const honour = honours.get(edition); return `<article class="${edition === 10 ? "active" : ""}"><header><span>FIFA</span><b>${String(edition).padStart(2, "0")}</b><em>${edition === 10 ? ui("CANLI", "LIVE") : ui("TAMAMLANDI", "COMPLETE")}</em></header><div><span>${ui("ŞAMPİYON", "CHAMPION")}</span><strong>${esc(honour?.winner || (edition === 10 ? ui("Belirlenecek", "To be decided") : "–"))}</strong><small>${editionMeta(item, edition, stage)}</small></div>${edition === 10 ? `<button type="button" data-nav="seasonhub">${ui("Aç", "Open")} ↗</button>` : edition === 9 ? `<button type="button" data-nav="knockout">${ui("Final Chapter", "Final Chapter")} ↗</button>` : `<button type="button" data-nav="archive">${ui("Arşiv", "Archive")} ↗</button>`}</article>`; }).join("")}</section>
     </div>`;
   }
 
