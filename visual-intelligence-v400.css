@@ -1,0 +1,201 @@
+:root{
+  --vi-bg-1:#060d22;
+  --vi-bg-2:#151846;
+  --vi-cyan:#7bd6ff;
+  --vi-blue:#7da3ff;
+  --vi-violet:#946cff;
+  --vi-magenta:#d36cff;
+  --vi-gold:#ffd877;
+  --vi-red:#ff7397;
+  --vi-panel:linear-gradient(135deg,rgba(9,18,49,.94),rgba(31,23,83,.92));
+  --vi-border:rgba(136,184,255,.18);
+  --vi-shadow:0 28px 80px rgba(3,8,24,.45);
+}
+body.vi-route-dashboard .main-content,
+body.vi-route-players .main-content,
+body.vi-route-alltime .main-content,
+body.vi-route-live .main-content,
+body.vi-route-media .main-content{
+  background-image:
+    radial-gradient(circle at 15% 15%, rgba(82,135,255,.15), transparent 24%),
+    radial-gradient(circle at 85% 18%, rgba(180,92,255,.12), transparent 22%),
+    radial-gradient(circle at 40% 78%, rgba(76,212,255,.08), transparent 24%);
+  background-attachment: fixed;
+}
+body.vi-archetype-dynasty .main-content{--vi-violet:#7f84ff;--vi-magenta:#9d6cff;--vi-gold:#ffd877}
+body.vi-archetype-bigmarch .main-content{--vi-violet:#8b6cff;--vi-magenta:#ff6caa;--vi-gold:#ffd877}
+body.vi-archetype-rising .main-content{--vi-violet:#64a4ff;--vi-magenta:#7bd6ff;--vi-gold:#a5f4ff}
+body.vi-archetype-wall .main-content{--vi-violet:#7ea2ff;--vi-magenta:#6cc7ff;--vi-gold:#ffd877}
+
+.vi-block,.vi-hero,.vi-story-grid,.vi-galaxy-shell,.vi-dynasty-shell,.vi-record-wall,.vi-hall,.vi-matchday-grid,.vi-broadcast-shell,.vi-museum-3d,
+.vi-living-card,.vi-rivalry-poster,.vi-prime-timeline{
+  border:1px solid var(--vi-border);
+  background:var(--vi-panel);
+  box-shadow:var(--vi-shadow);
+  border-radius:26px;
+  overflow:hidden;
+}
+.vi-section-header{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin-bottom:18px}
+.vi-section-header span{display:block;font-size:11px;letter-spacing:.18em;color:#8fb2ff;text-transform:uppercase;margin-bottom:7px}
+.vi-section-header h3{margin:0;color:#f3f7ff;font-size:32px;line-height:1.02}
+.vi-section-header p{margin:8px 0 0;color:#9fb0d4;max-width:740px;line-height:1.58}
+.vi-badge{display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(255,255,255,.12);padding:10px 14px;border-radius:999px;color:#eaf2ff;background:rgba(7,14,37,.42);font-size:12px}
+
+.vi-hero{position:relative;padding:24px;margin-top:20px}
+.vi-hero::before{content:"";position:absolute;inset:0;background:
+ linear-gradient(110deg,rgba(125,163,255,.18),transparent 38%),
+ radial-gradient(circle at 80% 20%, rgba(211,108,255,.16), transparent 25%),
+ radial-gradient(circle at 18% 78%, rgba(123,214,255,.12), transparent 24%);
+pointer-events:none}
+.vi-hero-grid{position:relative;display:grid;grid-template-columns:1.35fr .95fr;gap:18px}
+.vi-hero h2{margin:0;font-size:56px;line-height:.95;color:#f7f9ff;max-width:720px}
+.vi-hero p{margin:14px 0 0;color:#aebce0;font-size:17px;line-height:1.65;max-width:760px}
+.vi-hero-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:18px}
+.vi-hero-actions button,.vi-chip-list button,.vi-rivalry-poster .vi-versus button{border:1px solid rgba(136,184,255,.22);background:rgba(8,15,40,.55);color:#f2f6ff;border-radius:999px;padding:12px 16px;font-weight:700;cursor:pointer}
+.vi-hero-actions button.primary{background:linear-gradient(135deg,var(--vi-blue),var(--vi-violet));border-color:transparent}
+.vi-hero-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-content:start}
+.vi-hero-stats article{padding:16px;border-radius:18px;background:rgba(7,15,41,.54);border:1px solid rgba(255,255,255,.08)}
+.vi-hero-stats span{display:block;font-size:11px;letter-spacing:.15em;color:#8fb2ff;text-transform:uppercase;margin-bottom:8px}
+.vi-hero-stats strong{display:block;font-size:30px;color:#f8fbff;line-height:1}
+.vi-hero-stats small{display:block;margin-top:8px;color:#a2b2d6;line-height:1.4}
+
+.vi-story-grid{padding:24px;margin-top:18px}
+.vi-story-cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.vi-story-card{padding:18px;border-radius:18px;border:1px solid rgba(255,255,255,.08);background:linear-gradient(180deg,rgba(11,21,57,.88),rgba(7,14,36,.88));position:relative;overflow:hidden}
+.vi-story-card::after{content:"";position:absolute;inset:auto -10% -40% auto;width:160px;height:160px;background:radial-gradient(circle,var(--story-color,rgba(123,214,255,.28)),transparent 64%);pointer-events:none}
+.vi-story-card span{display:block;font-size:11px;letter-spacing:.15em;color:#99baff;text-transform:uppercase;margin-bottom:8px}
+.vi-story-card h4{margin:0;color:#f5f8ff;font-size:22px;line-height:1.12}
+.vi-story-card p{margin:10px 0 0;color:#a5b4d9;line-height:1.55}
+
+.vi-galaxy-wrap,.vi-dynasty-wrap{padding:24px;margin-top:18px}
+.vi-galaxy-canvas,.vi-dynasty-track{width:100%;min-height:340px;border-radius:22px;background:linear-gradient(180deg,rgba(7,13,34,.88),rgba(13,19,49,.78));border:1px solid rgba(255,255,255,.08);position:relative;overflow:hidden}
+.vi-galaxy-canvas svg,.vi-dynasty-track svg{display:block;width:100%;height:100%}
+.vi-galaxy-legend,.vi-dynasty-legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+.vi-galaxy-legend .vi-badge,.vi-dynasty-legend .vi-badge{font-size:11px;padding:9px 12px}
+
+.vi-record-wall{padding:24px;margin-top:18px}
+.vi-record-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.vi-record-card{padding:16px 18px;border-radius:18px;background:linear-gradient(180deg,rgba(13,23,58,.88),rgba(8,16,39,.84));border:1px solid rgba(255,255,255,.08)}
+.vi-record-card span{display:block;color:#8fb3ff;font-size:11px;letter-spacing:.15em;text-transform:uppercase;margin-bottom:8px}
+.vi-record-card h4{margin:0;color:#f6f8ff;font-size:18px;line-height:1.2}
+.vi-record-card b{display:block;margin-top:10px;font-size:28px;line-height:1;color:var(--vi-gold)}
+.vi-record-card small{display:block;margin-top:7px;color:#a4b5d7;line-height:1.45}
+
+.vi-hall{padding:24px;margin-top:18px}
+.vi-hall-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.vi-immortal-card{padding:20px;border-radius:22px;background:linear-gradient(165deg,rgba(17,28,69,.96),rgba(14,19,56,.9));border:1px solid rgba(255,215,119,.2);position:relative;overflow:hidden}
+.vi-immortal-card::before{content:"";position:absolute;right:-30px;top:-40px;width:160px;height:160px;background:radial-gradient(circle,rgba(255,216,119,.18),transparent 68%)}
+.vi-immortal-card h4{margin:0;color:#f6f9ff;font-size:26px}
+.vi-immortal-card p{margin:10px 0 0;color:#a5b6d9;line-height:1.55}
+.vi-immortal-meta{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.vi-immortal-meta i{font-style:normal;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03);padding:8px 10px;border-radius:999px;color:#dfe7f8;font-size:12px}
+
+.vi-living-card{padding:22px;margin:0 0 18px}
+.vi-living-card-grid{display:grid;grid-template-columns:280px 1fr;gap:18px;align-items:stretch}
+.vi-player-card{position:relative;padding:24px;border-radius:24px;overflow:hidden;background:
+  radial-gradient(circle at 20% 18%, rgba(123,214,255,.22), transparent 26%),
+  radial-gradient(circle at 84% 16%, rgba(211,108,255,.24), transparent 22%),
+  linear-gradient(160deg,rgba(13,23,60,.94),rgba(17,17,52,.92));
+  border:1px solid rgba(255,255,255,.08);
+}
+.vi-player-card::after{content:"";position:absolute;inset:auto -30px -70px auto;width:210px;height:210px;background:radial-gradient(circle,rgba(255,255,255,.12),transparent 68%)}
+.vi-player-card .vi-card-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.vi-player-card .vi-rating{font-size:68px;line-height:.88;font-weight:900;color:#f9fbff}
+.vi-player-card .vi-tier{display:inline-flex;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.08);font-size:12px;color:#fff;letter-spacing:.08em;text-transform:uppercase}
+.vi-player-card h3{margin:18px 0 0;color:#fff;font-size:34px;line-height:1.02}
+.vi-player-card p{margin:8px 0 0;color:#c6d2ea;line-height:1.55}
+.vi-card-mini{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:18px}
+.vi-card-mini article{padding:12px 10px;border-radius:16px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07)}
+.vi-card-mini span{display:block;font-size:10px;color:#98b5ea;letter-spacing:.14em;text-transform:uppercase;margin-bottom:6px}
+.vi-card-mini b{display:block;color:#fff;font-size:24px;line-height:1}
+.vi-card-right{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.vi-card-right article{padding:18px;border-radius:18px;background:rgba(7,15,41,.54);border:1px solid rgba(255,255,255,.08)}
+.vi-card-right span{display:block;font-size:11px;color:#91b0eb;letter-spacing:.15em;text-transform:uppercase;margin-bottom:8px}
+.vi-card-right strong{display:block;color:#fff;font-size:34px;line-height:1}
+.vi-card-right small{display:block;color:#a2b2d6;line-height:1.45;margin-top:8px}
+.vi-radar{grid-column:1/-1;display:grid;grid-template-columns:1fr 280px;gap:16px}
+.vi-radar-bars{display:grid;gap:12px}
+.vi-radar-bars article{display:grid;grid-template-columns:160px 1fr 54px;gap:10px;align-items:center}
+.vi-radar-bars span{font-size:14px;color:#dce7ff}
+.vi-radar-bars i{display:block;height:12px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden}
+.vi-radar-bars i em{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--vi-blue),var(--vi-magenta))}
+.vi-radar-bars b{justify-self:end;color:#8fd2ff}
+.vi-archetype-card{padding:18px;border-radius:20px;background:linear-gradient(180deg,rgba(15,25,64,.9),rgba(7,15,40,.82));border:1px solid rgba(255,255,255,.08)}
+.vi-archetype-card h4{margin:0;color:#fff;font-size:22px}
+.vi-archetype-card p{margin:10px 0 0;color:#a5b5d7;line-height:1.6}
+.vi-chip-list{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+
+.vi-prime-timeline{padding:22px;margin-top:18px}
+.vi-prime-track{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(180px,1fr);gap:14px;overflow:auto;padding-bottom:4px}
+.vi-prime-node{padding:18px;border-radius:20px;min-height:140px;border:1px solid rgba(255,255,255,.08);background:linear-gradient(180deg,rgba(11,20,53,.88),rgba(8,15,39,.84));position:relative}
+.vi-prime-node.prime{border-color:rgba(255,216,119,.38);box-shadow:0 0 0 1px rgba(255,216,119,.1),0 18px 42px rgba(255,216,119,.12)}
+.vi-prime-node.down{border-color:rgba(255,115,151,.3)}
+.vi-prime-node.rise{border-color:rgba(123,214,255,.28)}
+.vi-prime-node::before{content:"";position:absolute;left:18px;top:16px;width:12px;height:12px;border-radius:50%;background:var(--vi-blue);box-shadow:0 0 0 5px rgba(125,163,255,.14)}
+.vi-prime-node.prime::before{background:var(--vi-gold);box-shadow:0 0 0 5px rgba(255,216,119,.16)}
+.vi-prime-node.down::before{background:var(--vi-red);box-shadow:0 0 0 5px rgba(255,115,151,.12)}
+.vi-prime-node h4{margin:18px 0 0;color:#fff;font-size:22px}
+.vi-prime-node p{margin:8px 0 0;color:#a4b5d7;line-height:1.5}
+.vi-prime-node small{display:block;margin-top:10px;color:#88b2ff}
+
+.vi-rivalry-poster{padding:22px;margin-top:18px;position:relative}
+.vi-rivalry-poster::before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(124,163,255,.16),transparent 32%,transparent 68%,rgba(211,108,255,.18));pointer-events:none}
+.vi-versus{display:grid;grid-template-columns:1fr 140px 1fr;gap:16px;align-items:center}
+.vi-versus .side{padding:18px;border-radius:22px;background:rgba(6,12,34,.46);border:1px solid rgba(255,255,255,.08)}
+.vi-versus .side.right{text-align:right}
+.vi-versus .side h4{margin:0;color:#fff;font-size:28px;line-height:1.06}
+.vi-versus .side p{margin:10px 0 0;color:#a3b6d6;line-height:1.55}
+.vi-versus .center{display:grid;place-items:center;text-align:center}
+.vi-versus .center b{font-size:58px;line-height:.85;color:#fff;text-shadow:0 0 22px rgba(125,163,255,.36)}
+.vi-versus .center span{display:block;margin-top:8px;font-size:12px;letter-spacing:.18em;color:#9db8ef;text-transform:uppercase}
+.vi-versus-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:18px}
+.vi-versus-stats article{padding:14px;border-radius:16px;background:rgba(7,15,41,.52);border:1px solid rgba(255,255,255,.08)}
+.vi-versus-stats span{display:block;font-size:10px;color:#8fb0ea;letter-spacing:.15em;text-transform:uppercase;margin-bottom:6px}
+.vi-versus-stats b{display:block;color:#fff;font-size:24px}
+
+.vi-matchday-grid{padding:24px;margin-top:18px}
+.vi-matchday-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.vi-matchday-card{padding:20px;border-radius:22px;background:linear-gradient(180deg,rgba(11,21,54,.92),rgba(8,15,39,.88));border:1px solid rgba(255,255,255,.08)}
+.vi-matchday-card h4{margin:0;color:#fff;font-size:26px;line-height:1.06}
+.vi-matchday-card p{margin:10px 0 0;color:#a3b5d6;line-height:1.6}
+.vi-matchday-strip{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;margin-top:16px;padding:16px;border-radius:18px;background:rgba(6,13,36,.46);border:1px solid rgba(255,255,255,.08)}
+.vi-matchday-strip .team{font-size:26px;color:#fff;font-weight:800}
+.vi-matchday-strip .vs{font-size:38px;font-weight:900;color:#8fd2ff}
+.vi-matchday-metrics{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.vi-matchday-metrics i{font-style:normal;padding:8px 10px;border-radius:999px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);color:#e5edff;font-size:12px}
+
+.vi-broadcast-shell{padding:24px;margin-top:18px}
+.vi-alert-tape{display:flex;gap:12px;overflow:auto;padding-bottom:2px}
+.vi-alert-chip{flex:0 0 auto;padding:12px 16px;border-radius:999px;border:1px solid rgba(255,255,255,.08);background:linear-gradient(90deg,rgba(11,22,56,.92),rgba(23,18,64,.88));color:#eff5ff;font-weight:700;letter-spacing:.04em}
+.vi-alert-chip strong{color:#8fd1ff}
+
+.vi-museum-3d{position:relative;perspective:1000px}
+.v2-player-museum .v2-museum-shelf,
+.v2-player-museum .v2-museum-shelf button{
+  transform-style:preserve-3d;
+  transition:transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+}
+.v2-player-museum .v2-museum-shelf:hover{transform:rotateX(5deg) rotateY(-5deg) translateY(-4px);box-shadow:0 22px 48px rgba(11,17,42,.34);border-color:rgba(255,216,119,.18)}
+.v2-player-museum .v2-museum-shelf button:hover{transform:translateZ(14px) translateY(-2px);box-shadow:0 14px 34px rgba(7,13,35,.26)}
+
+.vi-galaxy-tooltip,.vi-dynasty-tooltip{position:absolute;pointer-events:none;z-index:20;padding:10px 12px;border-radius:12px;background:rgba(6,12,31,.94);border:1px solid rgba(136,184,255,.2);box-shadow:0 18px 34px rgba(0,0,0,.35);color:#eef5ff;font-size:12px;line-height:1.5;max-width:220px}
+.vi-hidden{display:none!important}
+
+@media (max-width:1280px){
+  .vi-story-cards,.vi-record-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .vi-hall-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .vi-hero-grid,.vi-living-card-grid,.vi-radar,.vi-matchday-cards{grid-template-columns:1fr}
+}
+@media (max-width:860px){
+  .vi-hero h2{font-size:40px}
+  .vi-versus{grid-template-columns:1fr}
+  .vi-versus .side.right{text-align:left}
+  .vi-versus-stats,.vi-hero-stats,.vi-card-right,.vi-record-grid,.vi-story-cards,.vi-hall-grid{grid-template-columns:1fr}
+  .vi-card-mini{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .vi-radar-bars article{grid-template-columns:120px 1fr 44px}
+}
+@media (max-width:560px){
+  .vi-hero h2{font-size:32px}
+  .vi-player-card .vi-rating{font-size:54px}
+  .vi-card-mini{grid-template-columns:1fr}
+}

@@ -1,0 +1,31 @@
+FIFA UNIVERSE V4.0 — VISUAL INTELLIGENCE
+
+Bu paket, V3.2.1 ALL TIME RECORD MEDALS sürümünün üstüne görsel zekâ katmanı ekler.
+
+NE EKLENDİ?
+1) Visual Intelligence Hero (ana sayfa)
+2) AI Story Cards
+3) Player Galaxy
+4) Dynasty Map
+5) Living Player Card
+6) AI Career Movie Timeline
+7) AI Rivalry Poster
+8) 3D / 2.5D Museum polish
+9) Record Wall
+10) Hall of Immortals
+11) Matchday Visual Generator
+12) Broadcast Director alert şeritleri
+13) Dynamic / generative background layer
+
+DEPLOY TALİMATI
+1. Mevcut proje köküne bu paketteki güncel dosyaları yükle.
+2. Özellikle aşağıdaki dosyaları değiştir:
+   - index.html
+   - fifa10-print-centre.html
+   - visual-intelligence-v400.css (yeni)
+   - visual-intelligence-v400.js (yeni)
+3. Deploy sonrası siteyi hard refresh ile aç.
+4. Eğer cache sorunu olursa query build değeri 400000 olduğu için yeni build otomatik tetiklenir.
+
+NOT
+Bu katman mümkün olduğunca mevcut DOM ve veriyi okuyarak çalışır. Dolayısıyla veri blokları görünür oldukça paneller kendini daha zengin doldurur.
