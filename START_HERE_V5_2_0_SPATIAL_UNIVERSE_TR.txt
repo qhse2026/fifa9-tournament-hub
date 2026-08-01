@@ -1,0 +1,82 @@
+FIFA UNIVERSE V5.2.0 — SPATIAL UNIVERSE EXPANSION
+=================================================
+
+BUILD: 520000
+AMAÇ: Konuşma/mikrofon katmanından bağımsız, veriyle çalışan 3D/2.5D FIFA evreni.
+
+YENİ SAHNELER
+1) UNIVERSE CORE
+   - Merkez çekirdeğin etrafında 8 interaktif node.
+   - Mouse sürükle: evreni döndür.
+   - Mouse wheel: yaklaş / uzaklaş.
+   - Node'lar Spatial sahnelere veya normal site ekranlarına açılır.
+
+2) SPATIAL TROPHY MUSEUM
+   - Oyuncu seçimi.
+   - Gerçek Championship / Runner-up / Third Place honours kayıtları.
+   - Gerçek All-Time record medals.
+   - Passport ve Player Galaxy bağlantısı.
+
+3) PLAYER GALAXY
+   - Oyuncular Legacy büyüklüğüne göre yıldızlaşır.
+   - Şampiyonluk sayısı yıldız parlaklığını etkiler.
+   - En yoğun rivalry kayıtları bağlantı çizgileridir.
+   - Oyuncuya tıklayınca detay paneli güncellenir.
+
+4) AI COMPARISON CHAMBER
+   - İki oyuncu seçilir.
+   - Legacy / Prime / PPG / Win Rate / Big Match / Versatility / Longevity / Standing karşılaştırılır.
+   - Spatial Profile Score ile genel fark gösterilir.
+
+5) DYNASTY CORRIDOR
+   - FIFA01 → FIFA10.
+   - Şampiyon / ikinci / üçüncü honours kayıtları.
+   - FIFA10 current era olarak ayrı vurgulanır.
+
+6) RECORD VAULT
+   - All-Time Analytics motorundan canlı rekor sahipleri.
+   - Şampiyonluk, final, galibiyet, gol, PPG, savunma, maç, averaj, win rate, clean sheet.
+   - Biggest Win / Highest Scoring Match / Highest Scoring Draw / Top Rivalry.
+   - Win / Unbeaten / Scoring / Clean Sheet streak liderleri.
+
+7) CINEMATIC TOUR
+   - Spatial sahneler yaklaşık 6.5 saniyede bir otomatik değişir.
+   - C tuşu veya CINEMATIC butonu ile aç/kapat.
+
+KONTROLLER
+- Sağ alt IF küresi: Spatial Universe aç.
+- Ctrl + Shift + Space: Aç / kapat.
+- ESC: Kapat.
+- 1: Universe
+- 2: Museum
+- 3: Galaxy
+- 4: Compare
+- 5: Dynasty
+- 6: Records
+- C: Cinematic Tour.
+
+MOBİL
+- 3D Core otomatik kart/grid fallback kullanır.
+- Tüm sahneler dokunmatik seçilebilir.
+- Normal site her zaman NORMAL SITE butonuyla geri açılır.
+
+MİMARİ KURAL
+- V5.2 ses veya wake-word sistemini yüklemez.
+- Result Entry / FIFA10 / Standing / All-Time core motorları değiştirilmez.
+- Spatial data source: FIFA_APP_CONTEXT, FIFA_UNIVERSE_INTELLIGENCE, FIFA10_DRAW_ENGINE.
+- DOM text scraping yoktur.
+
+DEPLOY
+1) Mevcut repo köküne Deploy Patch içeriğini kopyala ve overwrite et.
+2) Vercel deploy tamamlanınca:
+   https://fifa9-tournament-hub.vercel.app/?fifa9build=520000
+3) Bir kere Ctrl+Shift+R.
+4) Sağ alttaki IF küresine bas.
+
+ÖNERİLEN TEST
+- Museum → Kerim / Çağlar gibi iki farklı oyuncu seç ve kupaların değiştiğini kontrol et.
+- Galaxy → bir yıldız seç, detail panelinin değiştiğini kontrol et.
+- Compare → iki oyuncuyu değiştir.
+- Dynasty → FIFA01–10 kartlarını yatay gez.
+- Records → gerçek rekor sahiplerini kontrol et.
+- Cinematic → sahnelerin otomatik döndüğünü kontrol et.
