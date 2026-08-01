@@ -2,7 +2,7 @@
   "use strict";
 
   const VERSION = "2.2.0";
-  const BUILD = '520000';
+  const BUILD = '530000';
   const MIN_SAMPLE = 8;
   const PRIME_WINDOW = 10;
   const PANELS = Object.freeze([

@@ -1,0 +1,19 @@
+FIFA Universe V5.3.0 Validation Report
+Build: 530000
+
+PASS — index.html references spatial-universe-v530.css and spatial-universe-v530.js.
+PASS — all local script/style/image references parsed from index.html exist in package.
+PASS — all active local JavaScript files referenced by index.html pass node --check.
+PASS — spatial-universe-v530.js passes top-level load test with mocked browser globals.
+PASS — active build-writing modules contain no stale 520000 build value.
+PASS — service-worker.js uses a new v5-3-0 cache key.
+PASS — service-worker app shell caches spatial-universe-v530.css/js instead of v520 assets.
+PASS — voice/wake-word scripts are not referenced by index.html.
+PASS — result entry engine/app.js was not modified for V5.3 spatial features.
+PASS — V5.3 reads data from FIFA_APP_CONTEXT / FIFA_UNIVERSE_INTELLIGENCE / FIFA10_DRAW_ENGINE.
+PASS — Match Theatre uses official universe match rows, not DOM text scraping.
+PASS — Museum/Dynasty archive portals use official honours/edition/match data.
+PASS — proactive visual events defer while the normal result modal is visible.
+
+Runtime note:
+The package was statically and syntactically validated in the build environment. Browser/device-specific 3D rendering performance should be confirmed after Vercel deployment, especially on lower-power mobile devices. Mobile CSS fallback is included.

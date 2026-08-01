@@ -1,0 +1,42 @@
+FIFA UNIVERSE V5.3.0 — SPATIAL MATCH THEATRE
+BUILD: 530000
+
+KURULUM
+1. Mevcut çalışan projenizin üzerine V5_3_0_SPATIAL_MATCH_THEATRE_DEPLOY_PATCH.zip içeriğini kopyalayın.
+2. GitHub/Vercel deploy tamamlandıktan sonra şu adresi kontrol edin:
+   ?fifa9build=530000
+3. İlk açılışta Ctrl + Shift + R yapın.
+
+V5.3 YENİLİKLERİ
+- Prosedürel 3D SVG kupa objeleri
+- Kupaya tıklayınca FIFA edisyon final/kürsü arşivi
+- Player Galaxy kamera uçuşu
+- Rivalry line → Comparison Chamber
+- Spatial Match Theatre: son 10 resmî maç
+- Upset / Final / Record / Dominance / Thriller görsel durumları
+- Holografik maç detay kartı
+- Dynasty Corridor interaktif arşiv kapıları
+- Standing/record/yeni sonuç holografik visual event sistemi
+- Ana sayfa Spatial Universe mini portalı
+
+KISAYOLLAR
+1 = Universe
+2 = Museum
+3 = Galaxy
+4 = Compare
+5 = Dynasty
+6 = Records
+7 = Match Theatre
+C = Cinematic Tour
+ESC = Spatial Universe kapat
+
+TEST
+- Museum > herhangi bir kupaya tıkla: edition archive açılmalı.
+- Galaxy > bir oyuncu yıldızına tıkla: flight animasyonu ve seçili Orbit Profile değişmeli.
+- Galaxy > parlak rivalry çizgisine tıkla: Comparison Chamber açılmalı.
+- Theatre > herhangi bir maç kartına tıkla: match hologram açılmalı.
+- Dynasty > FIFA edisyonuna tıkla: edition archive açılmalı.
+- Normal Ana Sayfa > Spatial Preview görünmeli.
+
+NOT
+Voice / microphone sistemi bu build'de yüklenmez. V5.3 tamamen görsel/spatial geliştirme hattıdır.
