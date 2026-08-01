@@ -1,0 +1,27 @@
+FIFA Universe V3.1.0 — All-Time Records Hub
+
+BU SÜRÜMDE DÜZELTİLEN KRİTİK KONULAR
+1. URL'nin tekrar ?fifa9build=202000 değerine dönmesine neden olan fifa10-draw-engine içindeki zorunlu history.replaceState düzeltildi.
+2. Bütün ana build bağlantıları 310000 ile eşitlendi.
+3. “Tüm Zamanlar” menüsü sade Legacy sayfası yerine tam All-Time Elite Centre ekranına bağlandı.
+4. All-Time ekranında şunlar görünür:
+   - Genel tüm zamanlar puan tablosu (MP/W/D/L/GF/GA/GD/PTS/PPG)
+   - Legacy Rating ve performans Top 10 listeleri
+   - En uzun galibiyet, yenilmezlik, gol atma ve clean-sheet serileri
+   - En farklı 15 maç
+   - En gollü 15 maç
+   - En gollü 15 beraberlik
+   - En çok şampiyonluk, final, galibiyet ve gol
+   - En farklı galibiyet, en gollü maç ve en gollü beraberlik hızlı rekor kartları
+   - Şampiyonlar Kulübü
+   - Oyuncu kartları ve oyuncu derin analizi
+   - Rekabet Merkezi
+5. Turnuvalar sayfasındaki [object Object] düzeltmesi korunur.
+
+DOĞRU ADRES
+https://fifa9-tournament-hub.vercel.app/?fifa9build=310000
+
+DEPLOY SONRASI KONTROL
+- Adres çubuğunda 310000 kalmalı.
+- Menüden “Tüm Zamanlar”a basınca “Tüm Zamanlar Elit Merkezi” açılmalı.
+- Eğer adres tekrar 202000 olursa yeni fifa10-draw-engine-v4713.js dosyası deployment'a gitmemiş demektir.

@@ -5226,13 +5226,13 @@ function renderFifa10EloBlock({limit=10}={}) {
 
     view.innerHTML = `
       <div class="group-banner gold at-hall-hero">
-        <div><div class="eyebrow">FIFA 9 · HALL OF FAME</div><h2>Tüm Zamanlar Elit Merkezi</h2><p>FIFA 1–9 tarihinin performans kalitesi, ortalamaları, seri rekorları ve unutulmaz maçları. Oran sıralamalarında yalnızca en az 20 tamamlanmış maçı bulunan oyuncular değerlendirilir.</p><div class="at-hero-tags"><span>20 MAÇ BARAJI</span><span>İLK 10 SIRALAMALAR</span><span>İLK 15 MAÇ REKORLARI</span><span>LEGACY RATING</span></div></div>
+        <div><div class="eyebrow">FIFA 10 · ALL-TIME UNIVERSE</div><h2>Tüm Zamanlar Elit Merkezi</h2><p>FIFA 1–10 tarihinin resmî puan tablosu, performans kalitesi, seri rekorları ve unutulmaz maçları. Oran sıralamalarında yalnızca en az 20 tamamlanmış maçı bulunan oyuncular değerlendirilir.</p><div class="at-hero-tags"><span>20 MAÇ BARAJI</span><span>İLK 10 SIRALAMALAR</span><span>İLK 15 MAÇ REKORLARI</span><span>LEGACY RATING</span></div></div>
         <div class="at-hero-orb"><strong>${analytics.eligiblePlayers.length}</strong><span>ELİT OYUNCU</span><small>${analytics.players.length} toplam kayıt</small></div>
       </div>
       <div class="kpi-grid">
         ${kpiCard("Kayıtlı Oyuncu", analytics.summary.players, "Tüm turnuvalarda yer alan oyuncular")}
         ${kpiCard("20+ Maç Oyuncusu", analytics.eligiblePlayers.length, "Elit oran listelerine katılanlar")}
-        ${kpiCard("Arşivlenen Maç", analytics.summary.matches, "FIFA 1–9 birleşik maç verisi")}
+        ${kpiCard("Arşivlenen Maç", analytics.summary.matches, "FIFA 1–10 birleşik resmî maç verisi")}
         ${kpiCard("Toplam Gol", analytics.summary.goals, `Maç başı ${analytics.summary.avgGoals.toFixed(2)} gol`)}
       </div>
 
@@ -5266,6 +5266,8 @@ function renderFifa10EloBlock({limit=10}={}) {
             ${renderRecordTile("En İyi PPG · 20+", analytics.records.ppg, row => `${row.ppg.toFixed(2)} PPG · ${row.games} maç`)}
             ${renderRecordTile("En Sağlam Savunma · 20+", analytics.records.defense, row => `Maç başı ${row.gaPerGame.toFixed(2)} gol yedi`)}
             ${renderMatchRecordTile("En Farklı Galibiyet", analytics.records.biggestWin)}
+            ${renderScoringMatchRecordTile("En Gollü Maç", analytics.records.highestScoringMatch)}
+            ${renderScoringMatchRecordTile("En Gollü Beraberlik", analytics.highestScoringDraws?.[0] || null)}
             ${renderRivalryRecordTile("En Çok Oynanan Rekabet", analytics.records.topRivalry)}
           </div>
         </section>
@@ -5359,6 +5361,13 @@ function renderFifa10EloBlock({limit=10}={}) {
   function renderMatchRecordTile(label, record) {
     if (!record) return `<div class="record-tile"><div class="record-label">${escapeHTML(label)}</div><div class="record-value">–</div><div class="record-note">Kayıt oluşmadı.</div></div>`;
     return `<div class="record-tile accent-gold"><div class="record-label">${escapeHTML(label)}</div><div class="record-value">${escapeHTML(record.winner)}</div><div class="record-note">${escapeHTML(record.loser)} karşısında ${record.score} · ${record.margin} fark · ${record.editionLabel}</div></div>`;
+  }
+
+  function renderScoringMatchRecordTile(label, record) {
+    if (!record) return `<div class="record-tile"><div class="record-label">${escapeHTML(label)}</div><div class="record-value">–</div><div class="record-note">Kayıt oluşmadı.</div></div>`;
+    const matchup = `${record.homeName} – ${record.awayName}`;
+    const total = Number(record.totalGoals ?? (Number(record.homeScore || 0) + Number(record.awayScore || 0)));
+    return `<div class="record-tile accent-blue"><div class="record-label">${escapeHTML(label)}</div><div class="record-value">${escapeHTML(matchup)}</div><div class="record-note">${escapeHTML(record.score)} · ${total} gol · ${escapeHTML(record.editionLabel)} · ${escapeHTML(record.stage || "Maç")}</div></div>`;
   }
 
   function renderRivalryRecordTile(label, record) {
