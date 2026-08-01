@@ -66,3 +66,8 @@ body.orion-space-open .orion-launcher{display:none}
   .spatial-stage{perspective:none}.spatial-world{position:relative;left:auto;top:auto;width:auto;height:auto;transform:none!important;padding:84px 14px 560px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.spatial-core{position:relative;left:auto;top:auto;margin:0;grid-column:1/-1;width:150px;height:150px;justify-self:center;transform:none}.spatial-node{position:relative!important;left:auto!important;top:auto!important;margin:0!important;transform:none!important;width:auto;min-height:90px}.spatial-orbit,.spatial-stage-grid{display:none}.spatial-help{top:12px;bottom:auto}.orion-launcher::before,.orion-launcher::after,.spatial-core::before,.spatial-core::after{animation:none}.orion-console{height:min(500px,65vh)}
 }
 @media (max-width:480px){.spatial-ai-topbar{padding:10px}.spatial-ai-brand{min-width:0}.spatial-ai-brand small{display:none}.spatial-ai-status{display:none}.spatial-ai-body{padding:8px}.spatial-stage{border-radius:18px}.orion-console{right:8px;bottom:8px;width:calc(100% - 16px)}.orion-compare-metrics{grid-template-columns:repeat(2,1fr)}}
+
+/* V5.0.1 Mobile Voice Hotfix */
+.orion-keyboard-mic{width:100%;margin-top:8px;border:1px solid rgba(122,184,255,.22);background:rgba(9,18,47,.72);color:#dce9ff;border-radius:14px;padding:10px 12px;font-size:12px;font-weight:700;cursor:pointer}
+.orion-keyboard-mic:active{transform:scale(.99)}
+@media (min-width:900px){.orion-keyboard-mic{display:none}}

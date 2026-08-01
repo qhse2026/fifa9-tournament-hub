@@ -1,0 +1,10 @@
+VALIDATION REPORT — V5.0.1 MOBILE VOICE HOTFIX
+
+[OK] spatial-ai-v500.js syntax check passed.
+[OK] Mobile microphone preflight added.
+[OK] Mobile one-shot recognition configured.
+[OK] interimResults disabled on mobile.
+[OK] Mobile listen timeout added.
+[OK] Detailed SpeechRecognition error handling added.
+[OK] Keyboard microphone fallback added.
+[OK] Build updated to 501000.

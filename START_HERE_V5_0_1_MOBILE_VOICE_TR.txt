@@ -1,0 +1,20 @@
+FIFA UNIVERSE V5.0.1 — MOBILE VOICE HOTFIX
+
+Bu hotfix özellikle Chrome Android sesli komut sorununu hedefler.
+
+DEĞİŞİKLİKLER
+- ORION ses başlatmadan önce getUserMedia ile gerçek mikrofon iznini kontrol eder.
+- Mobilde tek komut / push-to-talk modu kullanılır.
+- Mobilde interimResults kapatıldı.
+- 9 saniyelik mobil dinleme timeout'u eklendi.
+- not-allowed / network / no-speech / audio-capture hataları ayrı açıklanır.
+- Web Speech çalışmazsa ORION yazı kutusunu açar; telefon klavyesinin mikrofonu ile konuşabilirsin.
+
+ANDROID CHROME KONTROLÜ
+1. Android Ayarlar > Uygulamalar > Chrome > İzinler > Mikrofon > İzin Ver.
+2. Chrome > siteyi aç > adres çubuğu site ayarları > Mikrofon > İzin Ver.
+3. Siteyi yeniden yükle.
+4. ORION > mikrofon > komutu tek seferde söyle.
+
+BUILD
+501000

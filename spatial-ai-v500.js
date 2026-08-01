@@ -1,14 +1,16 @@
 (() => {
   'use strict';
 
-  const VERSION = '5.0.0';
-  const BUILD = '500000';
+  const VERSION = '5.0.1';
+  const BUILD = '501000';
   const STATE_KEY = 'orion-spatial-ai-v500';
   const PLAYER_KEY = 'fifa-universe-v2-player';
   const app = () => window.FIFA_APP_CONTEXT || null;
   const drawEngine = () => window.FIFA10_DRAW_ENGINE || null;
   const universeEngine = () => window.FIFA_UNIVERSE_INTELLIGENCE || null;
   const tr = () => (window.FIFA_I18N?.language || document.documentElement.lang || 'tr').toLowerCase().startsWith('tr');
+  const isMobile = () => Boolean(navigator.userAgentData?.mobile) || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+  let listenTimeout = null;
 
   const safeState = (() => {
     try { return JSON.parse(localStorage.getItem(STATE_KEY) || '{}') || {}; }
@@ -424,25 +426,92 @@
     reply(tr() ? `Bu komutu henüz güvenle eşleştiremedim. Şunları deneyebilirsin: ${suggestions.join(', ')}.` : `I couldn't safely map that command yet. Try: ${suggestions.join(', ')}.`);
   }
 
-  function startListening() {
+  async function ensureMicrophonePermission() {
+    if (!navigator.mediaDevices?.getUserMedia) return { ok: true, legacy: true };
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+      });
+      stream.getTracks().forEach(track => track.stop());
+      return { ok: true };
+    } catch (error) {
+      const name = String(error?.name || '');
+      if (/NotAllowedError|SecurityError/i.test(name)) {
+        reply(tr()
+          ? 'Chrome mikrofon erişimini engelliyor. Android Ayarlar > Uygulamalar > Chrome > İzinler > Mikrofon bölümünü İzin Ver yap; sonra Chrome içinde site ayarlarından Mikrofonu da İzin Ver seç.'
+          : 'Chrome is blocking microphone access. Allow microphone access for Chrome in system settings and for this site in Chrome site settings.', [], { speak: false });
+      } else if (/NotFoundError|DevicesNotFoundError/i.test(name)) {
+        reply(tr() ? 'Telefonda kullanılabilir mikrofon bulunamadı.' : 'No usable microphone was found on this device.', [], { speak: false });
+      } else {
+        reply(tr() ? `Mikrofon ön kontrolü başarısız: ${name || 'unknown'}.` : `Microphone preflight failed: ${name || 'unknown'}.`, [], { speak: false });
+      }
+      return { ok: false, error };
+    }
+  }
+
+  function speechErrorMessage(code) {
+    const c = String(code || 'unknown');
+    if (c === 'not-allowed' || c === 'service-not-allowed') return tr()
+      ? 'Ses tanıma izni reddedildi. Chrome site ayarlarında Mikrofon = İzin ver olmalı.'
+      : 'Speech recognition permission was denied. Set Microphone to Allow in Chrome site settings.';
+    if (c === 'audio-capture') return tr() ? 'Chrome mikrofondan ses alamıyor. Telefonun Chrome mikrofon iznini kontrol et.' : 'Chrome cannot capture microphone audio. Check Chrome microphone permission.';
+    if (c === 'network') return tr()
+      ? 'Chrome ses tanıma servisine bağlanamadı. İnternet bağlantısını ve Android’de Google / Speech Services güncellemelerini kontrol et.'
+      : 'Chrome could not reach the speech recognition service. Check your connection and speech services.';
+    if (c === 'no-speech') return tr() ? 'Seni duyamadım. Mikrofona biraz daha yakın konuşup tekrar dokun.' : 'I did not hear speech. Try again closer to the microphone.';
+    if (c === 'language-not-supported') return tr() ? 'Türkçe ses tanıma bu cihazda hazır değil.' : 'This speech-recognition language is not available on the device.';
+    if (c === 'aborted') return '';
+    return tr() ? `Ses tanıma hatası: ${c}.` : `Speech recognition error: ${c}.`;
+  }
+
+  async function startListening() {
     if (!state.recognitionSupported) {
-      reply(tr() ? 'Bu tarayıcı Speech Recognition desteklemiyor. Yazılı komut alanını kullanabilirsin.' : 'Speech Recognition is not supported in this browser. You can use the text command field.', [], { speak: false });
+      reply(tr() ? 'Bu Chrome sürümünde Web Speech Recognition hazır değil. Yazı kutusuna dokunup telefon klavyesindeki mikrofonu kullanabilirsin.' : 'Web Speech Recognition is not available in this Chrome build. Focus the text field and use the keyboard microphone.', [], { speak: false });
+      document.querySelector('#orionCommandInput')?.focus();
       return;
     }
     if (state.listening) { try { state.recognition?.stop?.(); } catch (_) {} return; }
+
+    // Mobile Chrome behaves more reliably if microphone permission is explicitly
+    // established by getUserMedia before SpeechRecognition starts.
+    if (isMobile()) {
+      const permission = await ensureMicrophonePermission();
+      if (!permission.ok) return;
+      await sleep(120);
+    }
+
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     const recognition = new SR();
     state.recognition = recognition;
     recognition.lang = tr() ? 'tr-TR' : 'en-US';
     recognition.continuous = false;
-    recognition.interimResults = true;
+    // Chrome Android has partial Web Speech support. One-shot final results are
+    // substantially more stable than interim streaming on mobile.
+    recognition.interimResults = !isMobile();
     recognition.maxAlternatives = 1;
-    recognition.onstart = () => setListening(true);
-    recognition.onend = () => setListening(false);
-    recognition.onerror = event => {
+    recognition.onstart = () => {
+      setListening(true);
+      clearTimeout(listenTimeout);
+      listenTimeout = setTimeout(() => {
+        try { recognition.stop(); } catch (_) {}
+      }, isMobile() ? 9000 : 14000);
+    };
+    recognition.onend = () => {
+      clearTimeout(listenTimeout);
       setListening(false);
-      const message = event.error === 'not-allowed' ? (tr() ? 'Mikrofon izni verilmedi.' : 'Microphone permission was denied.') : (tr() ? `Ses tanıma hatası: ${event.error}.` : `Speech recognition error: ${event.error}.`);
-      reply(message, [], { speak: false });
+    };
+    recognition.onerror = event => {
+      clearTimeout(listenTimeout);
+      setListening(false);
+      const message = speechErrorMessage(event.error);
+      if (message) reply(message, [], { speak: false });
+      if (isMobile() && ['network','not-allowed','service-not-allowed','audio-capture'].includes(String(event.error))) {
+        const input = document.querySelector('#orionCommandInput');
+        if (input) {
+          input.focus();
+          input.placeholder = tr() ? 'Alternatif: klavyedeki 🎤 mikrofonuna dokun…' : 'Fallback: tap the 🎤 microphone on your keyboard…';
+        }
+      }
     };
     recognition.onresult = event => {
       let interim = ''; let finalText = '';
@@ -454,7 +523,14 @@
       if (input) input.value = finalText || interim;
       if (finalText.trim()) executeCommand(finalText.trim());
     };
-    try { recognition.start(); } catch (_) { setListening(false); }
+    try {
+      recognition.start();
+    } catch (error) {
+      clearTimeout(listenTimeout);
+      setListening(false);
+      reply(tr() ? `Ses motoru başlatılamadı: ${error?.name || 'unknown'}. Klavye mikrofonunu kullanabilirsin.` : `Speech engine could not start: ${error?.name || 'unknown'}. You can use the keyboard microphone.`, [], { speak: false });
+      document.querySelector('#orionCommandInput')?.focus();
+    }
   }
 
   function setListening(value) {
@@ -537,7 +613,7 @@
         <header><div class="orb" id="orionConsoleOrb"></div><div><strong>ORION</strong><small><span id="orionListenStatus">${tr()?'HAZIR':'READY'}</span> · ${state.recognitionSupported ? (tr()?'SES AKTİF':'VOICE READY') : (tr()?'YAZILI MOD':'TEXT MODE')}</small></div><button type="button" data-orion-clear>⌫</button></header>
         <div class="orion-context"><span id="orionContextView"></span><span id="orionContextPlayer"></span></div>
         <div class="orion-transcript" id="orionTranscript"></div>
-        <div class="orion-input-zone"><form id="orionCommandForm"><div class="orion-input-row"><button type="button" class="listen" data-orion-listen>◉</button><input id="orionCommandInput" autocomplete="off" placeholder="${tr()?'ORION’a bir şey söyle veya yaz…':'Tell ORION what you need…'}"/><button type="submit">↗</button></div></form>
+        <div class="orion-input-zone"><form id="orionCommandForm"><div class="orion-input-row"><button type="button" class="listen" data-orion-listen>◉</button><input id="orionCommandInput" autocomplete="off" placeholder="${tr()?'ORION’a bir şey söyle veya yaz…':'Tell ORION what you need…'}"/><button type="submit">↗</button></div></form><button type="button" class="orion-keyboard-mic" data-orion-keyboard-mic>${tr()?'⌨️ Telefon klavyesi mikrofonu':'⌨️ Keyboard microphone'}</button>
           <div class="orion-quick"><button data-orion-command="puan durumunu göster">${tr()?'Puan durumu':'Standings'}</button><button data-orion-command="son 10 maçı göster">${tr()?'Son 10':'Last 10'}</button><button data-orion-command="kim lider">${tr()?'Lider kim?':'Leader?'}</button><button data-orion-command="en farklı galibiyet">${tr()?'Rekor':'Record'}</button><button data-orion-command="turnuva ağacını göster">${tr()?'Ağaç':'Bracket'}</button></div>
           <div class="orion-wave" id="orionWave">${'<i></i>'.repeat(7)}</div>
         </div>
@@ -608,6 +684,7 @@
     document.querySelector('[data-orion-close]')?.addEventListener('click', closeSpatial);
     document.querySelector('[data-orion-mute]')?.addEventListener('click', () => { state.muted = !state.muted; savePrefs(); updateMuteButton(); if (state.muted && 'speechSynthesis' in window) speechSynthesis.cancel(); });
     document.querySelector('[data-orion-listen]')?.addEventListener('click', startListening);
+    document.querySelector('[data-orion-keyboard-mic]')?.addEventListener('click', () => { const input=document.querySelector('#orionCommandInput'); input?.focus(); if(input) input.placeholder=tr()?'Klavyedeki 🎤 simgesine dokun ve konuş…':'Tap the 🎤 icon on your keyboard and speak…'; });
     document.querySelector('[data-orion-cinematic]')?.addEventListener('click', toggleCinematic);
     document.querySelector('[data-orion-clear]')?.addEventListener('click', () => { state.messages = []; addMessage('ai', tr() ? 'Yeni oturum hazır.' : 'New session ready.'); });
     document.querySelector('#orionCommandForm')?.addEventListener('submit', event => { event.preventDefault(); const input = document.querySelector('#orionCommandInput'); const value = input?.value?.trim(); if (value) { input.value = ''; executeCommand(value); } });

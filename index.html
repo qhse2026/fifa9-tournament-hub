@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#050d22" />
   <meta name="description" content="FIFA Turnuva Merkezi — canlı skor, Player Standing, Power Exchange, mental baskı analizi, Destiny Path, Live Match Pulse, Broadcast Mode, TV / projektör görünümü, canlı xT, oyuncu ısı rozetleri, AI Tournament Director ve dinamik turnuva simülasyonu." />
-  <meta name="fifa9-build" content="5.0.0-spatial-ai" />
+  <meta name="fifa9-build" content="5.0.1-mobile-voice" />
   <script>
   (()=>{
-    const BUILD="5.0.0-spatial-ai";
+    const BUILD="5.0.1-mobile-voice";
     const KEY="fifa9-active-build";
     if(localStorage.getItem(KEY)===BUILD) return;
     localStorage.setItem(KEY,BUILD);
@@ -17,7 +17,7 @@
     if("serviceWorker" in navigator) cleanup.push(navigator.serviceWorker.getRegistrations().then(regs=>Promise.all(regs.map(reg=>reg.unregister()))));
     Promise.allSettled(cleanup).finally(()=>{
       const url=new URL(location.href);
-      if(url.searchParams.get("fifa9build")!=="500000"){url.searchParams.set("fifa9build","500000");location.replace(url.toString());}
+      if(url.searchParams.get("fifa9build")!=="501000"){url.searchParams.set("fifa9build","501000");location.replace(url.toString());}
     });
   })();
   </script>
@@ -47,7 +47,7 @@
   <link rel="stylesheet" href="live-table-motion-v311.css?v=4.0.4" />
   <link rel="stylesheet" href="visual-intelligence-v403.css?v=4.0.4" />
   <link rel="stylesheet" href="result-entry-stability-v403.css?v=4.0.4" />
-  <link rel="stylesheet" href="spatial-ai-v500.css?v=5.0.0" />
+  <link rel="stylesheet" href="spatial-ai-v500.css?v=5.0.1" />
 </head>
 <body>
   <div class="ambient ambient-one"></div>
@@ -237,6 +237,6 @@
   <script src="player-standing-universe-v300.js?v=3.0.1"></script>
   <script src="live-table-motion-v311.js?v=4.0.4"></script>
   <script src="visual-intelligence-v403.js?v=4.0.4"></script>
-  <script src="spatial-ai-v500.js?v=5.0.0"></script>
+  <script src="spatial-ai-v500.js?v=5.0.1"></script>
 </body>
 </html>
