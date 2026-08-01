@@ -1,0 +1,36 @@
+FIFA UNIVERSE V4.0.3 — RESULT ENTRY STABILITY
+
+AMAÇ
+Maç sonucu girişinde görülen ekran titremesi, uzun süren "Önceki işlem hâlâ devam ediyor" kilidi ve sonuç modalının kapanmaması düzeltilmiştir.
+
+KÖK NEDEN
+- Sonuç önce cihaza yazılıyordu ancak işlem bulut kaydını da await ettiği için moduleBusy kilidi açık kalıyordu.
+- Supabase yazımı geciktiğinde ikinci tıklama "Önceki işlem..." hatasına düşüyordu.
+- Sonuç modalı açıkken arka plan reload/render işlemleri devam ettiği için ekran titremesi oluşabiliyordu.
+
+V4.0.3 DAVRANIŞI
+1. Sonuç önce cihazda anında kesinleşir.
+2. Modal ağ bağlantısını beklemeden kapanır.
+3. Bulut kaydı arka planda seri kuyrukta çalışır.
+4. Cloud işlemi 6–7 saniyelik güvenli timeout ile sınırlandırılır.
+5. Bulut başarısız olsa bile cihaz kaydı korunur.
+6. Sonuç modalı açıkken arka plan render/reload dondurulur.
+7. Submit butonu çift tıklamaya karşı kilitlenir.
+8. Modal kapanınca tek kontrollü refresh yapılır.
+9. Visual Intelligence sonucu girerken render yapmaz.
+
+DEPLOY
+Mevcut sitenin üzerine V4_0_3_RESULT_ENTRY_STABILITY_DEPLOY_PATCH.zip içeriğini yükleyin.
+
+DOĞRU URL
+https://fifa9-tournament-hub.vercel.app/?fifa9build=403000
+
+İLK TEST
+1. Bir grup maçı aç.
+2. Takımları ve skoru seç.
+3. Sonucu Kaydet'e bir kez bas.
+4. Buton kısa süre "Kaydediliyor…" olmalı.
+5. Modal hızlı şekilde kapanmalı.
+6. Sonuç puan tablosuna işlenmeli.
+7. Bulut yavaşsa bu cihazdaki kayıt yine korunmalı.
+8. İkinci bir maç hemen açılabilmeli.

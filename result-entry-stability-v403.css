@@ -1,0 +1,19 @@
+/* V4.0.3 Result Entry Stability Layer */
+body.f10-result-entry-open{overflow:hidden!important}
+body.f10-result-entry-open #view{pointer-events:none;contain:paint}
+body.f10-result-entry-open #view *,
+body.f10-result-entry-open .ambient,
+body.f10-result-entry-open #vi402-root,
+body.f10-result-entry-open #vi403-root{
+  animation-play-state:paused!important;
+  transition-duration:0s!important;
+}
+body.f10-result-entry-open #f10DrawModal,
+body.f10-result-entry-open #f10DrawModal *{pointer-events:auto}
+#f10DrawModal.f10-draw-modal-backdrop{
+  z-index:20000!important;
+  isolation:isolate;
+  overscroll-behavior:contain;
+}
+#f10DrawModal .f10-draw-modal{transform:translateZ(0);backface-visibility:hidden;will-change:auto}
+#f10DrawResultForm button[type="submit"]:disabled{opacity:.72;cursor:wait;filter:saturate(.8)}
