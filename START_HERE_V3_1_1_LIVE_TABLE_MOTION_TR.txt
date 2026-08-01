@@ -1,0 +1,33 @@
+FIFA Universe V3.1.1 — LIVE TABLE MOTION
+
+YENİ MODÜLLER
+1. POINTS PULSE
+   - Ana sayfada Standing Pulse altında ikinci kayan bant.
+   - Yalnız oyuncu adı + güncel PPG gösterir.
+   - Sıralama motorunun güncel sırasını kullanır.
+
+2. LIVE TOURNAMENT TREE
+   - Grup aşaması sürerken: “Sezon şimdi bitse” provisional bracket.
+   - Play-In: 5–12, 6–11, 7–10, 8–9.
+   - QF: #1 vs Winner 8–9; #4 vs Winner 5–12; #2 vs Winner 7–10; #3 vs Winner 6–11.
+   - Semi Final, Grand Final ve Third Place yolu gösterilir.
+   - Championship resmileşince otomatik olarak locked/resmî bracket verisini okur.
+
+3. QUALIFICATION WATCH
+   - İlk 4 Direct QF.
+   - 5–12 Play-In.
+   - Matematiksel qualificationOutlook sonucu mevcutsa CLINCHED / PATH OPEN durumlarını gösterir.
+
+4. LIVE AUTO REFRESH
+   - Standings imzası 2 saniyede bir kontrol edilir.
+   - Rank, MP, PTS, PPG veya GD/M değişirse ana sayfa kendini yeniler.
+   - focus, storage, visibility ve fifa-cloud-ready olaylarında da kontrol edilir.
+
+BUILD
+311000
+
+DOĞRU ADRES
+https://fifa9-tournament-hub.vercel.app/?fifa9build=311000
+
+DEPLOY
+Paketi mevcut Vercel proje kökünün üzerine yükle. Deployment sonrası yukarıdaki URL’yi aç ve gerekirse Ctrl+Shift+R yap.

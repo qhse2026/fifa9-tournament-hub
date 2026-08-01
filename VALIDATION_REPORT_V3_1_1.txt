@@ -1,0 +1,32 @@
+FIFA UNIVERSE V3.1.1 — LIVE TABLE MOTION VALIDATION
+====================================================
+
+PASS  New live-table-motion-v311.js syntax
+PASS  fifa-universe-v2.js syntax after integration
+PASS  FIFA10 draw engine syntax
+PASS  Championship OS syntax
+PASS  Universe Intelligence syntax
+PASS  Evolution OS syntax
+PASS  Points Pulse renders player name + PPG only
+PASS  Points Pulse duplicates track for continuous ticker loop
+PASS  Live Tournament Tree renders Play-In 5-12 / 6-11 / 7-10 / 8-9
+PASS  QF mapping preserved from Championship OS
+      QF1 #1 vs Winner 8-9
+      QF2 #4 vs Winner 5-12
+      QF3 #2 vs Winner 7-10
+      QF4 #3 vs Winner 6-11
+PASS  Semi Final / Grand Final / Third Place path rendered
+PASS  Provisional journey uses current live standings
+PASS  Official journey uses persisted Championship state when locked
+PASS  Qualification Watch uses qualificationOutlook when available
+PASS  Auto-refresh signature includes rank, MP, points, PPG and GD/M
+PASS  Auto-refresh interval = 2000 ms
+PASS  Focus / storage / visibility / fifa-cloud-ready refresh hooks present
+PASS  Service worker caches new JS/CSS module
+PASS  Active HTML/JS build references updated to 311000
+PASS  No active 310000 references remain in JS/HTML/CSS/webmanifest files
+PASS  Existing V3.1.0 All-Time Records Hub retained
+PASS  Existing Player Standing Universe retained
+
+BUILD: 311000
+VERSION: 3.1.1
