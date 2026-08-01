@@ -1,0 +1,33 @@
+FIFA UNIVERSE V3.2.0 — PLAYER PASSPORT ATLAS
+
+HIZLI KURULUM
+1) Eğer mevcut sitenin üstüne güncelleme yapacaksan, V3_2_0_PLAYER_PASSPORT_ATLAS_DEPLOY_PATCH.zip içindeki dosyaları mevcut proje kök klasörüne at.
+2) Eski dosyaların üzerine yazılmasına izin ver:
+   - index.html
+   - fifa-universe-v2.js
+   - fifa-universe-v2.css
+   - fifa10-print-centre.html
+3) Vercel / hosting tarafında yeniden deploy et.
+4) Açılış adresi:
+   https://fifa9-tournament-hub.vercel.app/?fifa9build=320000
+5) Tarayıcı önbelleği takılırsa Ctrl+F5 yap.
+
+BU SÜRÜMDE GELENLER
+- Player Passport içine Performance Strip eklendi.
+- Yeni metrikler:
+  * Hücum puanı
+  * Savunma puanı
+  * Büyük maç performans puanı
+  * Oynadığı maç sayısı
+  * Ortalama attığı gol
+  * Ortalama yediği gol
+- Bu kartlar tıklanabilir. Tıklayınca turnuva bazlı dinamik grafik açılır.
+- Tournament Performance Matrix eklendi.
+- Player Museum eklendi:
+  * Şampiyonluk kupaları
+  * İkincilik kupaları
+  * Üçüncülük kupaları
+  * Bireysel rekor madalyaları
+
+NOT
+Bu sürüm yalnız oyuncu pasaportunu güçlendirmek için hazırlanmıştır. Mevcut Standing, All-Time ve Live modülleri korunur.

@@ -1,0 +1,23 @@
+VALIDATION REPORT — FIFA UNIVERSE V3.2.0 PLAYER PASSPORT ATLAS
+
+Checked files:
+- index.html
+- fifa-universe-v2.js
+- fifa-universe-v2.css
+- fifa10-print-centre.html
+
+Validation summary:
+[OK] Build query updated to 320000.
+[OK] fifa-universe-v2.js syntax check passed with node --check.
+[OK] Player Passport performance strip added.
+[OK] Dynamic chart selector added.
+[OK] Tournament Performance Matrix added.
+[OK] Player Museum shelves added.
+[OK] Click handlers for chart switching added.
+
+Manual spot-check recommended after deploy:
+1) Open Oyuncular page.
+2) Select at least 3 different players.
+3) Click Avg Goals For / Avg Goals Against / Attack / Defence / Big Match / Matches.
+4) Confirm chart and matrix update.
+5) Confirm museum counts are consistent with honours and records.

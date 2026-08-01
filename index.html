@@ -17,7 +17,7 @@
     if("serviceWorker" in navigator) cleanup.push(navigator.serviceWorker.getRegistrations().then(regs=>Promise.all(regs.map(reg=>reg.unregister()))));
     Promise.allSettled(cleanup).finally(()=>{
       const url=new URL(location.href);
-      if(url.searchParams.get("fifa9build")!=="311000"){url.searchParams.set("fifa9build","311000");location.replace(url.toString());}
+      if(url.searchParams.get("fifa9build")!=="320000"){url.searchParams.set("fifa9build","320000");location.replace(url.toString());}
     });
   })();
   </script>
@@ -40,7 +40,7 @@
   <link rel="stylesheet" href="fifa-universe-intelligence-v4719.css?v=3.0.0" />
   <link rel="stylesheet" href="fifa-championship-os-v4719.css?v=3.0.1" />
   <link rel="stylesheet" href="fifa-evolution-os-v4719.css?v=3.0.0" />
-  <link rel="stylesheet" href="fifa-universe-v2.css?v=3.0.1" />
+  <link rel="stylesheet" href="fifa-universe-v2.css?v=3.2.0" />
   <link rel="stylesheet" href="player-standing-v220.css?v=3.0.0" />
   <link rel="stylesheet" href="player-standing-universe-v300.css?v=3.0.1" />
   <link rel="stylesheet" href="layout-hotfix-v301.css?v=3.0.1" />
@@ -223,7 +223,7 @@
   <script src="fifa-universe-intelligence-v4719.js?v=3.0.0"></script>
   <script src="fifa-championship-os-v4719.js?v=3.0.0"></script>
   <script src="fifa-evolution-os-v4719.js?v=3.0.0"></script>
-  <script src="fifa-universe-v2.js?v=3.0.0"></script>
+  <script src="fifa-universe-v2.js?v=3.2.0"></script>
   <script id="fifa10DrawEngineScript" src="fifa10-draw-engine-v4713.js?v=3.0.1"></script>
   <script src="chat.js?v=44.5.0"></script>
   <script src="community.js?v=44.5.0"></script>

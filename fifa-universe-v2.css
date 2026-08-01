@@ -57,3 +57,48 @@ body[data-v2-route] #view{padding:0;max-width:none}
 @media(prefers-reduced-motion:reduce){.v2-fpi-track{animation:none}.v2-fpi-viewport{overflow-x:auto}.v2-fpi-repeat{display:none}}
 @media(max-width:430px){.v2-route-nav{grid-template-columns:repeat(6,64px)}.v2-home-hero h2{font-size:41px}.v2-home-hero>aside>div:last-child{grid-template-columns:1fr}.v2-universe-snapshot>div,.v2-edition-grid,.v2-passport-hero .metrics,.v2-milestone-section>div,.v2-record-cards,.v2-admin-actions{grid-template-columns:1fr}.v2-crown-hero{grid-template-columns:1fr}.v2-crown-hero>div{grid-column:auto}.v2-story-grid,.v2-milestone-section,.v2-player-history{padding:13px}}
 @media print{.v2-route-nav,.v2-modebar{display:none!important}.v2-page{padding:0;background:#fff;color:#111}.v2-page *{box-shadow:none!important}}
+
+/* V3.2.0 Passport Performance Atlas */
+.v2-passport-performance-strip{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:14px;margin-top:18px}
+.v2-passport-performance-strip button{border:1px solid rgba(98,191,255,.2);background:linear-gradient(180deg,rgba(9,23,58,.94),rgba(9,20,52,.84));border-radius:20px;padding:18px 16px;text-align:left;color:#eef5ff;cursor:pointer;transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease}
+.v2-passport-performance-strip button:hover,.v2-passport-performance-strip button.active{transform:translateY(-2px);border-color:rgba(130,153,255,.65);box-shadow:0 16px 34px rgba(38,62,130,.22)}
+.v2-passport-performance-strip span{display:block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#8fb6ff;margin-bottom:8px}
+.v2-passport-performance-strip b{display:block;font-size:37px;line-height:1;font-weight:850;margin-bottom:8px}
+.v2-passport-performance-strip small{display:block;color:#9fb1d7;font-size:12px;line-height:1.45}
+.v2-passport-chart,.v2-passport-performance-table,.v2-player-museum{margin-top:18px;padding:22px;border:1px solid rgba(98,191,255,.18);border-radius:24px;background:linear-gradient(135deg,rgba(9,18,49,.94),rgba(32,24,84,.92))}
+.v2-passport-chart header,.v2-passport-performance-table header,.v2-player-museum header{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:18px}
+.v2-passport-chart header span,.v2-passport-performance-table header span,.v2-player-museum header span{display:block;font-size:11px;letter-spacing:.18em;color:#89b0ff;text-transform:uppercase;margin-bottom:6px}
+.v2-passport-chart header h3,.v2-passport-performance-table header h3,.v2-player-museum header h3{margin:0;font-size:34px;line-height:1.05;color:#f4f8ff}
+.v2-passport-chart header p,.v2-passport-performance-table header p,.v2-player-museum header p{margin:8px 0 0;color:#a7b6d8;max-width:760px;line-height:1.6}
+.v2-passport-chart-actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end}
+.v2-passport-chart-actions button{border:1px solid rgba(130,153,255,.3);background:rgba(7,15,41,.56);color:#dfe9ff;padding:10px 14px;border-radius:999px;cursor:pointer}
+.v2-passport-chart-actions button.active{background:linear-gradient(135deg,#6a88ff,#8a60ff);border-color:transparent;color:#fff;box-shadow:0 8px 22px rgba(103,117,255,.26)}
+.v2-passport-bars{display:grid;gap:12px}
+.v2-passport-bars article{display:grid;grid-template-columns:190px 1fr;gap:16px;align-items:center}
+.v2-passport-bars article div{display:flex;justify-content:space-between;gap:10px;color:#eef4ff;font-size:15px}
+.v2-passport-bars article div span{font-weight:700;color:#d9e6ff}
+.v2-passport-bars article div strong{color:#9fd2ff}
+.v2-passport-bars article i{display:block;height:16px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden}
+.v2-passport-bars article i em{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#68b8ff,#8f71ff)}
+.v2-passport-performance-table aside{display:grid;gap:4px;padding:12px 14px;border-radius:16px;background:rgba(6,14,40,.52);min-width:180px}
+.v2-passport-performance-table aside strong{font-size:15px;color:#f5f9ff}
+.v2-passport-performance-table aside small{color:#9fb1d7;line-height:1.45}
+.v2-passport-table-wrap{overflow:auto}
+.v2-passport-table-wrap table{width:100%;border-collapse:collapse;min-width:780px}
+.v2-passport-table-wrap th,.v2-passport-table-wrap td{padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.08);text-align:left;color:#dbe6ff;font-size:14px}
+.v2-passport-table-wrap th{color:#8fb3f7;font-size:12px;letter-spacing:.14em;text-transform:uppercase}
+.v2-passport-table-wrap tbody tr:hover{background:rgba(255,255,255,.03)}
+.v2-museum-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.v2-museum-shelf{border:1px solid rgba(255,255,255,.09);background:rgba(7,15,40,.46);border-radius:20px;padding:16px}
+.v2-museum-shelf header{display:flex;align-items:center;gap:10px;justify-content:space-between;margin:0 0 14px}
+.v2-museum-shelf header span{font-size:22px;line-height:1;color:#ffd76f;margin:0}
+.v2-museum-shelf header h4{margin:0;font-size:18px;color:#f5f8ff;flex:1}
+.v2-museum-shelf header b{font-size:24px;color:#8fc7ff}
+.v2-museum-shelf div{display:grid;gap:10px}
+.v2-museum-shelf button{width:100%;border:1px solid rgba(130,153,255,.18);background:linear-gradient(180deg,rgba(17,27,67,.86),rgba(8,16,41,.82));border-radius:16px;padding:12px 14px;text-align:left;color:#eef5ff}
+.v2-museum-shelf button strong{display:block;font-size:15px;margin-bottom:4px}
+.v2-museum-shelf button small,.v2-museum-shelf p{display:block;color:#9db0d7;line-height:1.45}
+.v2-museum-shelf.medals header span{color:#8fc7ff}
+@media (max-width:1280px){.v2-passport-performance-strip{grid-template-columns:repeat(3,minmax(0,1fr))}.v2-museum-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:860px){.v2-passport-performance-strip{grid-template-columns:repeat(2,minmax(0,1fr))}.v2-passport-bars article{grid-template-columns:1fr}.v2-passport-chart header,.v2-passport-performance-table header,.v2-player-museum header{flex-direction:column}.v2-museum-grid{grid-template-columns:1fr}}
+@media (max-width:560px){.v2-passport-performance-strip{grid-template-columns:1fr}.v2-passport-chart header h3,.v2-passport-performance-table header h3,.v2-player-museum header h3{font-size:28px}.v2-passport-performance-strip b{font-size:30px}}
