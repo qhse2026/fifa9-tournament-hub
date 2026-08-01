@@ -1,8 +1,8 @@
 (() => {
   "use strict";
 
-  const VERSION = "3.1.0";
-  const BUILD = "310000";
+  const VERSION = "3.1.1";
+  const BUILD = "311000";
   const ROUTES = new Set(["dashboard", "livehub", "tournaments", "playershub", "recordshub", "mediahub", "adminhub"]);
   let mode = localStorage.getItem("fifa-universe-v2-mode") || "spectator";
   let selectedPlayer = localStorage.getItem("fifa-universe-v2-player") || "";
@@ -14,6 +14,7 @@
   const universe = () => window.FIFA_UNIVERSE_INTELLIGENCE || null;
   const evolution = () => window.FIFA_EVOLUTION_OS || null;
   const championship = () => window.FIFA_CHAMPIONSHIP_OS || null;
+  const liveTableMotion = () => window.FIFA_LIVE_TABLE_MOTION || null;
   const ui = (tr, en) => window.FIFA_I18N?.language === "en" ? en : tr;
   const esc = value => String(value ?? "")
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
@@ -230,10 +231,13 @@ function fpiTicker() {
     const equity = evolution()?.equityTimeline?.(currentPayload(), draw);
     const favorite = (equity?.players || []).map(player => ({ ...player, current: player.points?.at(-1)?.titlePct || 0 })).sort((a, b) => b.current - a.current)[0];
     const currentMode = safeMode();
-    mount.innerHTML = `<div class="v2-page v2-home">${routeNav("dashboard")}${modeBar(data, "dashboard")}${fpiTicker()}
+    const pointsPulse = liveTableMotion()?.renderPointsPulse?.(rows, draw) || "";
+    const tournamentTree = liveTableMotion()?.renderTournamentTree?.(rows, draw) || "";
+    mount.innerHTML = `<div class="v2-page v2-home">${routeNav("dashboard")}${modeBar(data, "dashboard")}${fpiTicker()}${pointsPulse}
       <section class="v2-home-hero stage-${stage.key}"><div class="copy"><span><i></i>${esc(stage.label)}</span><h2>${currentMode === "admin" ? ui("Turnuvayı yönet.\nOyunu durdurma.", "Run the tournament.\nNever stop play.") : currentMode === "player" ? ui("Sıradaki maçını bil.\nKariyerini gör.", "Know your next match.\nSee your career.") : ui("Şu anda ne oluyor?", "What is happening now?")}</h2><p>${ui("FIFA 01'den canlı FIFA 10'a kadar bütün sonuçlar, oyuncular ve hikâyeler tek ve anlaşılır bir evrende.", "Every result, player and story from FIFA 01 to live FIFA 10 in one clear universe.")}</p><div class="actions"><button type="button" data-nav="livehub">${ui("Canlı merkezi aç", "Open Live Centre")}</button><button type="button" data-nav="tournaments">${ui("Turnuvaya git", "Go to Tournament")}</button></div></div>
       <aside><div class="v2-progress-orbit" style="--progress:${clamp(stage.progress)}"><strong>${stage.completed}</strong><span>/${stage.total}</span><small>${ui("GRUP MAÇI", "GROUP MATCHES")}</small></div><div><article><span>LINEAL CROWN</span><b>${esc(crown.holder || "–")}</b></article><article><span>${ui("ŞAMPİYONLUK FAVORİSİ", "TITLE FAVOURITE")}</span><b>${esc(favorite?.name || "–")}</b><small>${favorite ? pct(favorite.current) : "–"}</small></article></div></aside></section>
       ${currentMode === "admin" ? adminToday(data, draw, true) : currentMode === "player" ? playerCockpit(data, draw) : ""}
+      ${tournamentTree}
       <section class="v2-now-grid"><div class="v2-live-table"><header><div><span>LIVE TABLE</span><h3>${ui("Şampiyonluk yarışı", "Championship race")}</h3></div><button type="button" data-nav="seasonhub">${ui("Tam tablo", "Full table")} ↗</button></header>${compactTable(rows, 8)}</div><div class="v2-match-stack"><header><span>NOW</span><h3>${ui("Sonuç ve sıradaki maç", "Latest and next")}</h3></header>${latest ? matchCard(latest, draw, "latest") : `<p>${ui("Henüz sonuç girilmedi.", "No result recorded yet.")}</p>`}${next ? matchCard(next, draw, "upcoming") : `<p>${ui("Bekleyen grup maçı yok.", "No group fixture pending.")}</p>`}</div></section>
       <section class="v2-universe-snapshot"><header><div><span>ONE UNIVERSE</span><h3>${ui("Geçmiş ayrı bir arşiv değil; bugünün temelidir.", "History is not a separate archive; it powers today.")}</h3></div><button type="button" data-nav="alltime">${ui("Tüm zamanları aç", "Open all-time")} ↗</button></header><div><article><b>${data.editions?.length || 10}</b><span>${ui("EDİSYON", "EDITIONS")}</span></article><article><b>${data.matches?.length || 0}</b><span>${ui("RESMÎ MAÇ", "OFFICIAL MATCHES")}</span></article><article><b>${data.players?.length || 0}</b><span>${ui("OYUNCU", "PLAYERS")}</span></article><article><b>${data.rivalries?.length || 0}</b><span>${ui("REKABET", "RIVALRIES")}</span></article></div></section>
     </div>`;

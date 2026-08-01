@@ -1,4 +1,4 @@
-const CACHE = "oruc-reis-fifa-universe-v3-1-0-all-time-records-hub";
+const CACHE = "oruc-reis-fifa-universe-v3-1-1-live-table-motion";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -25,7 +25,9 @@ const APP_SHELL = [
   "./player-standing-v220.css",
   "./player-standing-universe-v300.css",
   "./layout-hotfix-v301.css",
+  "./live-table-motion-v311.css",
   "./player-standing-universe-v300.js",
+  "./live-table-motion-v311.js",
   "./fifa-universe-v2.js",
   "./fifa10-draw-engine-v4713.js",
   "./fifa10-fixture-center.html",

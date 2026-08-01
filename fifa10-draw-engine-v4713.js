@@ -1,8 +1,8 @@
 (() => {
   "use strict";
 
-  const VERSION = "3.1.0";
-  const BUILD = "310000";
+  const VERSION = "3.1.1";
+  const BUILD = "311000";
   const STORAGE_KEY = "fifa-tournament-hub-v1";
   const SYNC_HISTORY_KEY = "fifa10-sync-history-v1";
   const GROUPS = Object.freeze(["A", "B", "C"]);
