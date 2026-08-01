@@ -1,0 +1,44 @@
+FIFA UNIVERSE V5.1.0 — INFANTINO AI VALIDATION
+==============================================
+Build: 510000
+
+PASS — spatial-ai-v510.js Node syntax check
+PASS — service-worker.js Node syntax check
+PASS — BUILD constants synchronized to 510000 in:
+       fifa10-draw-engine-v4713.js
+       fifa-universe-v2.js
+       fifa-championship-os-v4719.js
+       fifa-universe-intelligence-v4719.js
+       fifa-evolution-os-v4719.js
+       live-table-motion-v311.js
+       visual-intelligence-v403.js
+PASS — index.html build query = 510000
+PASS — fifa10-print-centre.html build query = 510000
+PASS — index references spatial-ai-v510.css / spatial-ai-v510.js
+PASS — service worker cache version updated to V5.1.0
+PASS — service worker references spatial-ai-v510 assets
+PASS — index local script/link asset existence check: 0 missing assets
+PASS — Wake-word normalization smoke test:
+       Infantino -> detected
+       Infantino, puan durumunu göster -> detected + command extracted
+       Hey Infantino son 10 maçı göster -> detected + command extracted
+       Infanteno Kerim müzesini aç -> tolerated + command extracted
+PASS — Admin transition watcher implemented
+PASS — Admin greeting = “Hoş geldiniz Çağlar Bey. Infantino çevrimiçi.”
+PASS — Wake activation response = “Buyurun Çağlar Bey.”
+PASS — 30-second conversation session implemented
+PASS — automatic listen-resume after TTS response implemented
+PASS — automatic return to wake standby implemented
+PASS — page visibility pause/resume protection implemented
+PASS — hands-free on/off control implemented
+PASS — premium/native voice preference scoring implemented
+PASS — external neural voice provider adapter implemented
+PASS — existing ORION global retained only as backward-compatible alias to INFANTINO
+
+ENVIRONMENT LIMITATION
+----------------------
+Headless Chromium in this container cannot complete a full microphone/browser audio test because the runtime has no usable DBus/audio input stack. Wake-word and microphone behavior must therefore be verified on the target Android Chrome / desktop Chrome device after deployment.
+
+IMPORTANT PRODUCT LIMIT
+-----------------------
+V5.1 uses browser Web Speech Recognition for wake-word detection. Browser/OS policies can suspend microphone recognition when the page is backgrounded or the phone is locked. A native Android companion or dedicated on-device wake engine is required for true lock-screen/background hotword behavior.

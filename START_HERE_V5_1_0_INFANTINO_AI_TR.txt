@@ -1,0 +1,100 @@
+FIFA UNIVERSE V5.1.0 — INFANTINO AI
+===================================
+Build: 510000
+
+AMAÇ
+----
+Bu sürüm V5.0.1 üzerindeki push-to-talk yaklaşımını ana deneyim olmaktan çıkarır.
+Yönetici oturumu açıldığında Infantino eller-serbest moda hazırlanır.
+
+YENİ AKIŞ
+---------
+1. Yönetici girişi yap.
+2. Infantino: “Hoş geldiniz Çağlar Bey. Infantino çevrimiçi.” der.
+3. İlk kullanımda Chrome mikrofon izni ister. Bir kez İzin Ver seç.
+4. Infantino STANDBY modunda “Infantino” wake word'ünü bekler.
+5. “Infantino” de.
+6. 3D Spatial AI ekranı otomatik açılır.
+7. Infantino: “Buyurun Çağlar Bey.” der.
+8. Yaklaşık 30 saniyelik eller-serbest conversation session başlar.
+9. Komut ver; Infantino cevapladıktan sonra tekrar otomatik dinlemeye döner.
+10. 30 saniye sessizlikten sonra yeniden STANDBY / wake-word moduna geçer.
+
+ÖRNEK
+-----
+Sen: Infantino.
+Infantino: Buyurun Çağlar Bey.
+Sen: Puan durumunda kim lider?
+Infantino: ...
+Sen: Kerim ile beni karşılaştır.
+Infantino: ...
+
+KONUŞMA OTURUMUNU BİTİR
+-----------------------
+“Infantino dur”
+“Bekle”
+“Uyku”
+“Standby”
+
+ELLER-SERBEST MOD
+-----------------
+Spatial AI üst çubuğundaki HANDS-FREE butonu ile açılıp kapatılabilir.
+Sesli komut olarak:
+- “Hands free aç”
+- “Hands free kapat”
+
+YÖNETİCİ HİTABI
+----------------
+Varsayılan hitap: Çağlar Bey
+Teknik konsoldan değiştirilebilir:
+INFANTINO.setAddress('Yeni Hitap')
+
+SES MOTORU
+----------
+V5.1 cihazda/tarayıcıda bulunan Türkçe sesler arasından premium/natural/google/microsoft/samsung
+etiketlerini önceliklendirerek en iyi sesi otomatik seçer.
+
+Bu sürüm gerçek bir üçüncü taraf neural TTS servisine gizli API anahtarı gömmez.
+Gelecek sürüm için güvenli provider bağlantısı hazırdır:
+INFANTINO.setVoiceProvider(provider)
+
+Bu sayede daha sonra server-side OpenAI/ElevenLabs/Azure vb. neural voice katmanı eklenirken
+mevcut wake-word ve conversation engine yeniden yazılmayacaktır.
+
+MOBİL CHROME SINIRI
+-------------------
+- Sayfa ön plandayken eller-serbest çalışma hedeflenir.
+- Telefon ekranı kilitlenirse veya Chrome arka plana alınırsa mobil işletim sistemi mikrofonu durdurabilir.
+- Sayfaya geri dönüldüğünde Infantino otomatik olarak wake-word dinlemeyi yeniden başlatır.
+- İlk mikrofon izni tarayıcı güvenliği nedeniyle kullanıcı onayı gerektirir.
+
+WAKE WORD TEKNİĞİ
+-----------------
+Bu build “Infantino” kelimesini Chrome Web Speech Recognition üzerinden döngüsel tek-atımlık dinleme ile algılar.
+“Infanteno / Infantinu” gibi yaygın tanıma varyasyonları da toleranslıdır.
+Bu yöntem platforma göre Google ses hizmetine ve internet bağlantısına ihtiyaç duyabilir.
+Tamamen cihaz-içi özel wake-word modeli sonraki aşamada ayrı bir motor olarak eklenebilir.
+
+DEPLOY
+------
+Deploy patch içindeki dosyaları mevcut repository root'una kopyala ve üzerine yaz.
+Vercel deploy tamamlandıktan sonra:
+https://fifa9-tournament-hub.vercel.app/?fifa9build=510000
+
+İlk seferde Ctrl + Shift + R yap.
+
+TEST SIRASI
+-----------
+A. Admin login
+B. “Hoş geldiniz Çağlar Bey” sesini doğrula
+C. Mikrofon = İzin Ver
+D. Ekranda STANDBY · “INFANTINO” DEYİN durumunu doğrula
+E. “Infantino” de
+F. “Buyurun Çağlar Bey” yanıtını doğrula
+G. “Puan durumunu göster” de
+H. Infantino yanıtından sonra tekrar otomatik dinlemeye geçtiğini doğrula
+I. “Infantino dur” de ve wake standby'a dönüşünü doğrula
+
+ROLLBACK
+--------
+Sorun olması halinde V5.0.1 Mobile Voice Hotfix paketine geri dönebilirsin.

@@ -2,7 +2,7 @@
   "use strict";
 
   const VERSION = "3.2.2";
-  const BUILD = "500000";
+  const BUILD = '510000';
   const ROUTES = new Set(["dashboard", "livehub", "tournaments", "playershub", "recordshub", "mediahub", "adminhub"]);
   let mode = localStorage.getItem("fifa-universe-v2-mode") || "spectator";
   let selectedPlayer = localStorage.getItem("fifa-universe-v2-player") || "";
