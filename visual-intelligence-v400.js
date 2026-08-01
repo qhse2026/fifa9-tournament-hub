@@ -1,6 +1,6 @@
 (() => {
-  const BUILD = '4.0.0-visual-intelligence';
-  const BUILD_QUERY = '400000';
+  const BUILD = '4.0.1-visual-intelligence-hotfix';
+  const BUILD_QUERY = '401000';
   const NS = 'vi400';
   let raf = 0;
   let observer;
@@ -39,10 +39,27 @@
     document.documentElement.style.setProperty('--vi-build-query', BUILD_QUERY);
   }
 
+  const ROUTE_BLOCKS = {
+    dashboard: new Set(['dashboard-hero', 'story-grid', 'galaxy', 'dynasty-map']),
+    players: new Set(['living-card', 'prime-timeline', 'rivalry-poster']),
+    alltime: new Set(['record-wall', 'hall-of-immortals', 'alltime-galaxy']),
+    live: new Set(['matchday-live']),
+    media: new Set(['matchday-media']),
+    tournaments: new Set(),
+    admin: new Set()
+  };
+
   function attachObserver() {
     if (observer) observer.disconnect();
-    observer = new MutationObserver(scheduleHydrate);
-    observer.observe(document.body, { childList: true, subtree: true, attributes: true, characterData: false });
+    const target = $('#view') || document.body;
+    observer = new MutationObserver((records) => {
+      const externalChange = records.some((record) => {
+        const node = record.target?.nodeType === 1 ? record.target : record.target?.parentElement;
+        return !node?.closest?.(`[data-${NS}]`);
+      });
+      if (externalChange) scheduleHydrate();
+    });
+    observer.observe(target, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'data-v2-route'] });
   }
 
   function scheduleHydrate() {
@@ -50,29 +67,64 @@
     raf = requestAnimationFrame(hydrate);
   }
 
+  function routeFromId(value) {
+    const id = String(value || '').toLowerCase();
+    if (['dashboard', 'home'].includes(id)) return 'dashboard';
+    if (['playershub', 'players', 'player'].includes(id)) return 'players';
+    if (['recordshub', 'alltime', 'records', 'archive'].includes(id)) return 'alltime';
+    if (['livehub', 'livematch', 'livestats'].includes(id)) return 'live';
+    if (['mediahub', 'media', 'print'].includes(id)) return 'media';
+    if (['tournaments', 'seasonhub', 'knockout', 'benchmark'].includes(id)) return 'tournaments';
+    if (['adminhub', 'backup', 'teams'].includes(id)) return 'admin';
+    return '';
+  }
+
+  function cleanupRouteBlocks(route) {
+    const allowed = ROUTE_BLOCKS[route] || new Set();
+    $$(`[data-${NS}]`).forEach((node) => {
+      const id = node.dataset[NS];
+      if (!allowed.has(id)) node.remove();
+    });
+  }
+
   function hydrate() {
-    setBuildIndicators();
-    const route = detectRoute();
-    document.body.classList.remove('vi-route-dashboard', 'vi-route-players', 'vi-route-alltime', 'vi-route-live', 'vi-route-media');
-    document.body.classList.add(`vi-route-${route}`);
-    if (route === 'dashboard') enhanceDashboard();
-    if (route === 'players') enhancePlayers();
-    if (route === 'alltime') enhanceAllTime();
-    if (route === 'live' || route === 'media') enhanceMatchday(route);
+    if (observer) observer.disconnect();
+    try {
+      setBuildIndicators();
+      const route = detectRoute();
+      cleanupRouteBlocks(route);
+      document.body.classList.remove('vi-route-dashboard', 'vi-route-players', 'vi-route-alltime', 'vi-route-live', 'vi-route-media', 'vi-route-tournaments', 'vi-route-admin');
+      document.body.classList.add(`vi-route-${route}`);
+      if (route === 'dashboard') enhanceDashboard();
+      else if (route === 'players') enhancePlayers();
+      else if (route === 'alltime') enhanceAllTime();
+      else if (route === 'live' || route === 'media') enhanceMatchday(route);
+    } finally {
+      requestAnimationFrame(attachObserver);
+    }
   }
 
   function detectRoute() {
-    const active = $$('.os-primary-nav button, .v2-primary-nav button, .hub-nav .nav-item.active, .main-nav .nav-item.active')
-      .map(txt)
-      .join(' | ')
-      .toLowerCase();
-    const title = txt($('#pageTitle')).toLowerCase();
-    const body = txt($('#view')).slice(0, 1200).toLowerCase();
-    const probe = `${active} ${title} ${body}`;
-    if (/oyuncular|passport|player museum|standing identity|career timeline|rivalry/.test(probe)) return 'players';
-    if (/tüm zamanlar|all time|record wall|lineal crown|legacy/.test(probe)) return 'alltime';
-    if (/canlı|live|match centre|broadcast|score/.test(probe)) return 'live';
-    if (/medya|media|print|çıktı/.test(probe)) return 'media';
+    const bodyRoute = routeFromId(document.body.dataset.v2Route);
+    if (bodyRoute) return bodyRoute;
+
+    const activeButton = document.querySelector([
+      '.os-primary-nav button.active',
+      '.v2-primary-nav button.active',
+      '.hub-nav .nav-item.active',
+      '.main-nav .nav-item.active',
+      '[data-nav][aria-current="page"]'
+    ].join(','));
+    const navRoute = routeFromId(activeButton?.dataset?.nav);
+    if (navRoute) return navRoute;
+
+    const pageTitle = txt($('#pageTitle')).toLowerCase();
+    if (/oyuncu|player/.test(pageTitle)) return 'players';
+    if (/tüm zaman|all[- ]?time|record|miras|legacy/.test(pageTitle)) return 'alltime';
+    if (/turnuva|tournament|championship|final chapter/.test(pageTitle)) return 'tournaments';
+    if (/canlı|live/.test(pageTitle)) return 'live';
+    if (/medya|media|broadcast|print/.test(pageTitle)) return 'media';
+    if (/admin|yönetim|operation/.test(pageTitle)) return 'admin';
     return 'dashboard';
   }
 
@@ -113,39 +165,51 @@
     return target ? parseNum(txt(target)) : null;
   }
 
+  function metricValueByLabel(root, selector, label) {
+    const wanted = label.toLowerCase();
+    const node = $$(selector, root).find((el) => {
+      const labelNode = el.querySelector('span');
+      return txt(labelNode).toLowerCase() === wanted || txt(labelNode).toLowerCase().includes(wanted);
+    });
+    if (!node) return null;
+    return parseNum(txt(node.querySelector('b,strong')));
+  }
+
   function parsePlayerContext() {
     const root = $('#view') || document.body;
-    const selected = $('select option:checked, [aria-selected="true"]', root);
+    const selected = $('select#v2PlayerSelect option:checked, .v2-player-picker select option:checked', root);
     let name = txt(selected);
-    if (!name || /oyuncu|select|player/i.test(name)) {
-      const titleMatch = txt(root).match(/([A-ZÇĞİÖŞÜ][a-zçğıöşü]+\s+[A-ZÇĞİÖŞÜ][a-zçğıöşü]+)\s*[·\-]\s*World/i);
-      if (titleMatch) name = titleMatch[1];
-    }
     if (!name) {
-      const candidates = $$('h1,h2,h3', root).map(txt).filter((t) => /^[A-ZÇĞİÖŞÜ][\wÇĞİÖŞÜçğıöşü'.-]+\s+[A-ZÇĞİÖŞÜ][\wÇĞİÖŞÜçğıöşü'.-]+/.test(t));
-      name = candidates[0] || 'Seçili Oyuncu';
+      const identity = $('.v2-passport-hero .identity h3', root) || $('.v2-standing-identity h3', root);
+      name = txt(identity).replace(/\s*·\s*World\s*#\d+.*/i, '').trim();
     }
+    if (!name) name = 'Seçili Oyuncu';
 
-    const worldRank = findTextNumber(root, 'standing') ?? parseNum((txt(root).match(/World\s*#(\d+)/i) || [])[1]) ?? 0;
-    const liveRank = findTextNumber(root, 'canlı') ?? parseNum((txt(root).match(/Canlı\s*#(\d+)/i) || [])[1]) ?? 0;
-    const standingRating = findTextNumber(root, 'standing rating') ?? 1500;
-    const standingIndex = findTextNumber(root, 'standing index') ?? 50;
-    const momentum = findTextNumber(root, 'momentum') ?? 55;
-    const consistency = findTextNumber(root, 'consistency') ?? 55;
-    const dominance = findTextNumber(root, 'dominance') ?? 55;
-    const pressure = findTextNumber(root, 'pressure') ?? 55;
-    const attack = findTextNumber(root, 'hücum') ?? findTextNumber(root, 'attack') ?? Math.round((dominance + pressure) / 2);
-    const defense = findTextNumber(root, 'savunma') ?? findTextNumber(root, 'defence') ?? Math.round((consistency + (100 - Math.min(90, pressure))) / 2);
-    const bigMatch = findTextNumber(root, 'büyük maç') ?? findTextNumber(root, 'big match') ?? Math.round((pressure + momentum) / 2);
-    const matches = findTextNumber(root, 'maç') ?? findTextNumber(root, 'mp') ?? 0;
-    const gfPerMatch = findTextNumber(root, 'attığı gol') ?? findTextNumber(root, 'goals for') ?? null;
-    const gaPerMatch = findTextNumber(root, 'yediği gol') ?? findTextNumber(root, 'goals against') ?? null;
-    const titles = findTextNumber(root, 'şampiyonluk kupaları') ?? findTextNumber(root, 'en fazla şampiyonluk') ?? 0;
-    const legacy = findTextNumber(root, 'miras') ?? findTextNumber(root, 'legacy') ?? standingIndex;
-    const prime = findTextNumber(root, 'prime') ?? standingRating / 20;
+    const heroMetrics = $('.v2-passport-hero .metrics', root);
+    const standingMetrics = $('.v2-standing-identity-metrics', root);
+    const standingDna = $('.v2-standing-dna', root);
+    const performanceStrip = $('.v2-passport-performance-strip', root);
+    const worldRank = parseNum((txt($('.v2-standing-identity h3', root)).match(/World\s*#(\d+)/i) || [])[1]) || 0;
+    const liveRank = heroMetrics ? metricValueByLabel(heroMetrics, 'article', 'LIVE') : 0;
+    const standingRating = standingMetrics ? metricValueByLabel(standingMetrics, 'article', 'STANDING RATING') : 1500;
+    const standingIndex = standingMetrics ? metricValueByLabel(standingMetrics, 'article', 'STANDING INDEX') : 50;
+    const momentum = standingDna ? (metricValueByLabel(standingDna, 'article', 'Momentum') ?? 55) : 55;
+    const consistency = standingDna ? (metricValueByLabel(standingDna, 'article', 'Consistency') ?? 55) : 55;
+    const dominance = standingDna ? (metricValueByLabel(standingDna, 'article', 'Dominance') ?? 55) : 55;
+    const pressure = standingDna ? (metricValueByLabel(standingDna, 'article', 'Pressure Index') ?? 55) : 55;
+    const attack = performanceStrip ? (metricValueByLabel(performanceStrip, 'button', 'Hücum') ?? metricValueByLabel(performanceStrip, 'button', 'Attack') ?? Math.round((dominance + pressure) / 2)) : Math.round((dominance + pressure) / 2);
+    const defense = performanceStrip ? (metricValueByLabel(performanceStrip, 'button', 'Savunma') ?? metricValueByLabel(performanceStrip, 'button', 'Defence') ?? Math.round((consistency + (100 - Math.min(90, pressure))) / 2)) : Math.round((consistency + (100 - Math.min(90, pressure))) / 2);
+    const bigMatch = performanceStrip ? (metricValueByLabel(performanceStrip, 'button', 'Büyük Maç') ?? metricValueByLabel(performanceStrip, 'button', 'Big Match') ?? Math.round((pressure + momentum) / 2)) : Math.round((pressure + momentum) / 2);
+    const matches = performanceStrip ? (metricValueByLabel(performanceStrip, 'button', 'Oynadığı Maç') ?? metricValueByLabel(performanceStrip, 'button', 'Matches Played') ?? 0) : 0;
+    const gfPerMatch = performanceStrip ? (metricValueByLabel(performanceStrip, 'button', 'Ort. Attığı Gol') ?? metricValueByLabel(performanceStrip, 'button', 'Avg Goals For')) : null;
+    const gaPerMatch = performanceStrip ? (metricValueByLabel(performanceStrip, 'button', 'Ort. Yediği Gol') ?? metricValueByLabel(performanceStrip, 'button', 'Avg Goals Against')) : null;
+    const legacy = heroMetrics ? (metricValueByLabel(heroMetrics, 'article', 'LEGACY') ?? 50) : 50;
+    const prime = heroMetrics ? (metricValueByLabel(heroMetrics, 'article', 'PRIME') ?? 50) : 50;
+    const titleShelf = $$('.v2-museum-shelf', root).find((el) => /şampiyonluk kupaları|championship trophies/i.test(txt(el.querySelector('h4'))));
+    const titles = titleShelf ? (parseNum(txt(titleShelf.querySelector('header b'))) || 0) : 0;
 
-    const ratingBase = [attack, defense, bigMatch, consistency, dominance, pressure].filter((n) => typeof n === 'number');
-    const overall = Math.round(ratingBase.reduce((a, b) => a + b, 0) / ratingBase.length);
+    const ratingBase = [attack, defense, bigMatch, consistency, dominance, pressure].filter(Number.isFinite);
+    const overall = Math.round(ratingBase.reduce((a, b) => a + b, 0) / Math.max(1, ratingBase.length));
     const tier = overall >= 86 ? 'ICON' : overall >= 78 ? 'ELITE' : overall >= 70 ? 'CONTENDER' : overall >= 60 ? 'CHALLENGER' : 'RISING';
     const archetype = deriveArchetype({ attack, defense, bigMatch, momentum, titles });
     return { name, worldRank, liveRank, standingRating, standingIndex, momentum, consistency, dominance, pressure, attack, defense, bigMatch, matches, gfPerMatch, gaPerMatch, titles, legacy, prime, overall, tier, archetype };
@@ -153,53 +217,55 @@
 
   function parsePrimeTimeline() {
     const root = $('#view') || document.body;
-    const blocks = $$('*', root).map(txt).filter(Boolean);
-    const nodes = [];
-    const seen = new Set();
-    blocks.forEach((t) => {
-      const m = t.match(/FIFA\s*(\d{1,2})\s*(.*)/i);
-      if (!m) return;
-      const key = `FIFA ${m[1]}`;
-      if (seen.has(key)) return;
-      seen.add(key);
-      const extra = t.replace(/FIFA\s*\d{1,2}/i, '').trim();
-      const status = /şampiyon|zirve|prime/i.test(extra) ? 'prime' : /düşüş|drop|loss/i.test(extra) ? 'down' : /yükseliş|rise|reborn|yeniden/i.test(extra) ? 'rise' : 'base';
-      nodes.push({ title: key, desc: extra || 'Kariyer durağı', status });
-    });
-    return nodes.slice(0, 10);
+    const cards = $$('.v2-career-line article', root);
+    if (cards.length) {
+      return cards.slice(0, 12).map((card) => {
+        const title = txt(card.querySelector('b')) || 'FIFA';
+        const desc = txt(card.querySelector('span')) || 'Kariyer durağı';
+        const score = txt(card.querySelector('small'));
+        const cls = card.className.toLowerCase();
+        const status = /prime|peak|zirve/.test(`${cls} ${desc.toLowerCase()}`) ? 'prime' : /decline|down|düşüş/.test(`${cls} ${desc.toLowerCase()}`) ? 'down' : /rise|reborn|yükseliş|yeniden/.test(`${cls} ${desc.toLowerCase()}`) ? 'rise' : 'base';
+        return { title, desc: score ? `${desc} · ${score}` : desc, status };
+      });
+    }
+    return [];
   }
 
   function parseRivalries(playerName) {
     const root = $('#view') || document.body;
-    const textBlocks = $$('li,article,div', root).map((el) => txt(el)).filter((t) => t && t.length < 120);
-    const rivals = [];
-    textBlocks.forEach((t) => {
-      if (t === playerName) return;
-      const nameMatch = t.match(/^([A-ZÇĞİÖŞÜ][a-zçğıöşü]+(?:\s+[A-ZÇĞİÖŞÜ][a-zçğıöşü]+)+)/);
-      if (!nameMatch) return;
-      const name = nameMatch[1];
-      if (name === playerName) return;
-      const score = parseNum(t.match(/(\d+(?:\.\d+)?)(?!.*\d)/)?.[1]) ?? null;
-      const mp = parseNum(t.match(/(\d+)\s*MP/i)?.[1]) ?? null;
-      rivals.push({ key: `${name}-${score}-${mp}`, name, score, mp, source: t });
-    });
-    return uniq(rivals).slice(0, 6);
+    const cards = $$('.v2-rival-list article', root);
+    return cards.slice(0, 6).map((card) => ({
+      key: `${txt(card.querySelector('strong'))}-${txt(card.querySelector('b'))}`,
+      name: txt(card.querySelector('strong')) || 'Rakip',
+      score: clamp(parseNum(txt(card.querySelector('b'))) || 0, 0, 100),
+      mp: parseNum(txt(card.querySelector('span'))) || 0,
+      source: txt(card)
+    })).filter((row) => row.name && row.name !== playerName);
   }
 
   function parseStandings() {
     const root = $('#view') || document.body;
-    const results = [];
-    const rowTexts = $$('article,div,li,tr', root).map((el) => txt(el)).filter((t) => t && t.length < 200);
-    rowTexts.forEach((t) => {
-      const nameMatch = t.match(/([A-ZÇĞİÖŞÜ][a-zçğıöşü]+(?:\s+[A-ZÇĞİÖŞÜ][a-zçğıöşü]+)+)/);
-      if (!nameMatch) return;
-      const name = nameMatch[1];
-      const score = parseNum(t.match(/(\d{3,4}(?:\.\d+)?|\d+\.\d{2,3}|\d+)(?!.*\d)/)?.[1]);
-      const rank = parseNum(t.match(/#\s?(\d+)/)?.[1]);
-      if (score == null && rank == null) return;
-      results.push({ key: `${name}-${rank}-${score}`, name, score: score ?? 0, rank: rank ?? 0 });
-    });
-    return uniq(results).slice(0, 16);
+    const tickerRows = $$('.v2-fpi-ticker .v2-fpi-track > button, .v2-standing-pulse .v2-fpi-track > button', root);
+    if (tickerRows.length) {
+      return tickerRows.slice(0, 16).map((row) => ({
+        key: `${txt(row.querySelector('strong'))}-${txt(row.querySelector('i'))}`,
+        name: txt(row.querySelector('strong')) || 'Oyuncu',
+        score: parseNum(txt(row.querySelector('b'))) || 0,
+        rank: parseNum(txt(row.querySelector('i'))) || 0
+      }));
+    }
+    const tableRows = $$('.v2-live-table tbody tr, .v2-live-table table tr', root).filter((tr) => tr.querySelectorAll('td').length >= 2);
+    if (tableRows.length) {
+      return tableRows.slice(0, 16).map((tr, index) => {
+        const cells = Array.from(tr.querySelectorAll('td'));
+        const raw = cells.map(txt);
+        const name = raw.find((v) => /[A-Za-zÇĞİÖŞÜçğıöşü]+\s+[A-Za-zÇĞİÖŞÜçğıöşü]+/.test(v)) || `Oyuncu ${index + 1}`;
+        const score = raw.map(parseNum).filter(Number.isFinite).at(-1) || 0;
+        const rank = parseNum(raw[0]) || index + 1;
+        return { key: `${name}-${rank}`, name, score, rank };
+      });
+    }
+    return [];
   }
 
   function parseAllTimeRecords() {

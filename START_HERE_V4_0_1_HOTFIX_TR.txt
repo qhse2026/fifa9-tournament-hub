@@ -1,0 +1,31 @@
+FIFA Universe V4.0.1 — Visual Intelligence Hotfix
+
+Bu hotfix V4.0'da görülen yanlış sayfaya görsel modül enjekte edilmesi problemini düzeltir.
+
+DÜZELTİLEN KRİTİK HATALAR
+1. Route detection artık tüm menü metinlerini taramaz.
+2. Öncelik sırası:
+   - body[data-v2-route]
+   - active data-nav butonu
+   - pageTitle fallback
+3. Turnuvalar sayfasına Player Passport / Rivalry / Career Movie blokları eklenmez.
+4. Sayfa değiştiğinde önceki route'a ait V4 blokları temizlenir.
+5. MutationObserver artık kendi ürettiği V4 DOM değişikliklerini yeniden render nedeni olarak kullanmaz.
+6. Player Passport değerleri serbest metin taramasından değil spesifik bileşenlerden okunur.
+7. World #1500 / Rivalry Heat 344 / Legacy 489 gibi yanlış okumalar engellenir.
+8. Rivalry Heat 0–100 aralığına sabitlenmiştir.
+
+BUILD
+401000
+
+DEPLOY
+Bu patch içindeki 4 dosyayı mevcut proje köküne kopyala ve üzerine yaz:
+- index.html
+- fifa10-print-centre.html
+- visual-intelligence-v400.css
+- visual-intelligence-v400.js
+
+Sonra:
+https://fifa9-tournament-hub.vercel.app/?fifa9build=401000
+
+adresini aç ve Ctrl+Shift+R yap.

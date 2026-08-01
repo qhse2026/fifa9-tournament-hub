@@ -1,0 +1,20 @@
+VALIDATION REPORT — FIFA Universe V4.0.1 Visual Intelligence Hotfix
+
+[OK] visual-intelligence-v400.js passes node --check
+[OK] build query updated to 401000
+[OK] active route lookup no longer reads all primary-nav labels
+[OK] body[data-v2-route] is authoritative when available
+[OK] tournament/admin routes have no V4 player injection blocks
+[OK] route-specific cleanup implemented
+[OK] observer self-feedback protection implemented
+[OK] player metrics parse specific V2 components
+[OK] rivalry parser uses .v2-rival-list and clamps heat 0–100
+[OK] career timeline parser uses .v2-career-line article nodes
+[OK] standings parser prefers Standing Pulse ticker rows
+
+Manual test matrix after deploy:
+1. Turnuvalar -> no Rivalry Poster / Career Movie
+2. Oyuncular -> Living Card + Career Movie + Rivalry Poster only
+3. Tüm Zamanlar -> Record Wall + Hall of Immortals + Player Galaxy
+4. Ana Sayfa -> V4 Hero + Story Cards + Galaxy + Dynasty Map
+5. Rapidly switch routes 10x -> no duplicate V4 panels
