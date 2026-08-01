@@ -1,0 +1,46 @@
+FIFA UNIVERSE V5.4.0 — SPATIAL STADIUM & LIVING HISTORY
+========================================================
+
+BUILD: 540000
+
+DEPLOY SONRASI URL:
+https://fifa9-tournament-hub.vercel.app/?fifa9build=540000
+
+1) V5_4_0_SPATIAL_STADIUM_LIVING_HISTORY_DEPLOY_PATCH.zip içeriğini mevcut proje root'una yükle.
+2) Vercel deployment tamamlandıktan sonra Ctrl + Shift + R yap.
+3) Adres çubuğunda fifa9build=540000 kaldığını doğrula.
+4) Sağ alttaki IF küresinden Spatial Universe'ü aç.
+
+YENİ KONTROLLER
+---------------
+8 = Spatial Stadium
+9 = Living History Centre
+D = Director 2.0 aç/kapat
+C = V5.3 Cinematic Tour
+ESC = Spatial Universe'den çık
+
+SPATIAL STADIUM TESTİ
+---------------------
+- Match Theatre'a gir.
+- Bir resmî sonuç kartına dokun.
+- Hologram içinde "SPATIAL STADIUM'DA AÇ" kapısını seç.
+- Stadyumda final skorunun doğru olduğunu kontrol et.
+- AI RECONSTRUCTION etiketi varsa dakika olayları resmî olay kaydı değildir; görsel rekonstrüksiyondur.
+- Gerçek source event log varsa etiket OFFICIAL EVENT LOG olur.
+
+LIVING HISTORY TESTİ
+--------------------
+- 9 tuşuna bas veya HISTORY sekmesine gir.
+- Yeni bir resmî sonuç sonrası event arşivine yeni satır eklenir.
+- Standing lideri veya Record Vault değişirse ayrı event kaydı oluşur.
+- Bu arşiv localStorage'dadır; resmî maç datasına yazmaz.
+
+TV MODU
+-------
+Spatial üst menüde TV MODU butonuna bas.
+Tarayıcı destekliyorsa fullscreen açılır ve Director 2.0 otomatik rotasyona başlar.
+
+ÖNEMLİ
+------
+V5.4 konuşma/mikrofon sistemini kullanmaz.
+Result-entry modalı ve cloud save akışı değiştirilmemiştir.
