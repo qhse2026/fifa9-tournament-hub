@@ -1,0 +1,30 @@
+FIFA UNIVERSE V5.5 — SPATIAL RIVALRY ARENA
+
+DEPLOY
+1. Mevcut stabil V5.4.1 projenizin köküne Deploy Patch içindeki dosyaları kopyalayın.
+2. Vercel/GitHub deploy işlemini tamamlayın.
+3. Açılış adresi:
+   https://fifa9-tournament-hub.vercel.app/?fifa9build=550000
+4. İlk açılışta Ctrl + Shift + R yapın.
+
+YENİ SPATIAL ALANLAR
+- RIVALRY: İki oyuncunun H2H ve kariyer duel arenası.
+- PRE-MATCH: Bekleyen FIFA 10 maçlarının maç-öncesi spatial sahnesi.
+- CEREMONY: Resmî şampiyon/finalist/üçüncü verisinden 3D kupa seremonisi.
+
+KISAYOLLAR
+R = Spatial Rivalry Arena
+P = Pre-Match Arena
+T = Trophy Ceremony
+D veya X = Director 3.0
+8 = Spatial Stadium (V5.4)
+9 = Living History (V5.4)
+ESC = Spatial Universe'ten çık
+
+STADIUM CAMERA
+Spatial Stadium açıldığında üst bölümde:
+BROADCAST / TACTICAL / ORBIT / TUNNEL / TROPHY / WIDE
+kamera presetleri görünür.
+
+ÖNEMLİ
+V5.5 sonuç giriş modalını değiştirmez. Pre-Match Arena içindeki "FIFA 10 Sonuç Merkezine Git" komutu normal Turnuva Sistemi ekranına döner; sonucu yine mevcut stabil sistemden girersiniz.

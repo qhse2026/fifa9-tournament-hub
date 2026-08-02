@@ -2,7 +2,7 @@
   'use strict';
 
   const VERSION = '5.4.1';
-  const BUILD = '540000';
+  const BUILD = '550000';
   const STATE_KEY = 'fifa-spatial-stadium-v540';
   const HISTORY_KEY = 'fifa-living-history-v540';
   const SNAPSHOT_KEY = 'fifa-living-history-snapshot-v540';
@@ -381,7 +381,7 @@
       if(!document.body.classList.contains('su-open'))return;
       if(event.key==='8' && !/input|select|textarea/i.test(document.activeElement?.tagName||'')){event.preventDefault();renderStadium();}
       if(event.key==='9' && !/input|select|textarea/i.test(document.activeElement?.tagName||'')){event.preventDefault();renderHistory();}
-      if((event.key==='d'||event.key==='D') && !/input|select|textarea/i.test(document.activeElement?.tagName||'')){event.preventDefault();startDirector(false);}
+      if((event.key==='d'||event.key==='D') && !window.__FIFA_SPATIAL_RIVALRY_V550__ && !/input|select|textarea/i.test(document.activeElement?.tagName||'')){event.preventDefault();startDirector(false);}
     });
 
     const sync=()=>{

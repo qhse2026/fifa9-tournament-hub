@@ -2,7 +2,7 @@
   "use strict";
 
   const VERSION = "3.1.1";
-  const BUILD = '540000';
+  const BUILD = '550000';
   const STORAGE_KEY = "fifa-tournament-hub-v1";
   const SYNC_HISTORY_KEY = "fifa10-sync-history-v1";
   const GROUPS = Object.freeze(["A", "B", "C"]);
