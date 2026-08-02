@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#050d22" />
   <meta name="description" content="FIFA Turnuva Merkezi — canlı skor, Player Standing, Power Exchange, mental baskı analizi, Destiny Path, Live Match Pulse, Broadcast Mode, TV / projektör görünümü, canlı xT, oyuncu ısı rozetleri, AI Tournament Director ve dinamik turnuva simülasyonu." />
-  <meta name="fifa9-build" content="5.6.0-immersive-tournament-night" />
+  <meta name="fifa9-build" content="5.7.0-broadcast-command-deck" />
   <script>
   (()=>{
-    const BUILD="5.6.0-immersive-tournament-night";
+    const BUILD="5.7.0-broadcast-command-deck";
     const KEY="fifa9-active-build";
     if(localStorage.getItem(KEY)===BUILD) return;
     localStorage.setItem(KEY,BUILD);
@@ -17,7 +17,7 @@
     if("serviceWorker" in navigator) cleanup.push(navigator.serviceWorker.getRegistrations().then(regs=>Promise.all(regs.map(reg=>reg.unregister()))));
     Promise.allSettled(cleanup).finally(()=>{
       const url=new URL(location.href);
-      if(url.searchParams.get("fifa9build")!=="560000"){url.searchParams.set("fifa9build","560000");location.replace(url.toString());}
+      if(url.searchParams.get("fifa9build")!=="570000"){url.searchParams.set("fifa9build","570000");location.replace(url.toString());}
     });
   })();
   </script>
@@ -47,10 +47,11 @@
   <link rel="stylesheet" href="live-table-motion-v311.css?v=4.0.4" />
   <link rel="stylesheet" href="visual-intelligence-v403.css?v=4.0.4" />
   <link rel="stylesheet" href="result-entry-stability-v403.css?v=4.0.4" />
-  <link rel="stylesheet" href="spatial-universe-v530.css?v=5.6.0" />
-  <link rel="stylesheet" href="spatial-stadium-v540.css?v=5.6.0" />
-  <link rel="stylesheet" href="spatial-rivalry-v550.css?v=5.6.0" />
-  <link rel="stylesheet" href="spatial-night-v560.css?v=5.6.0" />
+  <link rel="stylesheet" href="spatial-universe-v530.css?v=5.7.0" />
+  <link rel="stylesheet" href="spatial-stadium-v540.css?v=5.7.0" />
+  <link rel="stylesheet" href="spatial-rivalry-v550.css?v=5.7.0" />
+  <link rel="stylesheet" href="spatial-night-v560.css?v=5.7.0" />
+  <link rel="stylesheet" href="spatial-broadcast-v570.css?v=5.7.0" />
 </head>
 <body>
   <div class="ambient ambient-one"></div>
@@ -131,7 +132,7 @@
 
       <div class="sidebar-footer">
         <div class="save-indicator" id="sidebarCloudStatus"><span class="status-dot"></span> Canlı bağlantı hazırlanıyor</div>
-        <div class="sidebar-version">FIFA Universe · V5.5 · Rivalry Arena</div>
+        <div class="sidebar-version">FIFA Universe · V5.7 · Broadcast Command</div>
       </div>
     </aside>
     <button class="os-sidebar-backdrop" id="sidebarBackdrop" type="button" aria-label="Komuta menüsünü kapat"></button>
@@ -156,8 +157,8 @@
         </nav>
 
         <div class="os-context-zone">
-          <div class="hub-breadcrumb" id="hubBreadcrumb"><span>FIFA UNIVERSE</span><i>/</i><b>VERSION 5.5</b></div>
-          <h1 id="pageTitle">FIFA Universe 5.5</h1>
+          <div class="hub-breadcrumb" id="hubBreadcrumb"><span>FIFA UNIVERSE</span><i>/</i><b>VERSION 5.7</b></div>
+          <h1 id="pageTitle">FIFA Universe 5.7</h1>
         </div>
 
         <div class="topbar-actions os-utility-zone">
@@ -196,7 +197,7 @@
   <div class="hub-launcher-backdrop hidden" id="hubLauncherBackdrop">
     <section class="hub-launcher" role="dialog" aria-modal="true" aria-labelledby="hubLauncherTitle">
       <header>
-        <div><span>FIFA UNIVERSE 5.6 · IMMERSIVE TOURNAMENT NIGHT</span><h2 id="hubLauncherTitle">Nereye gitmek istiyorsun?</h2></div>
+        <div><span>FIFA UNIVERSE 5.7 · BROADCAST COMMAND DECK</span><h2 id="hubLauncherTitle">Nereye gitmek istiyorsun?</h2></div>
         <button type="button" id="hubLauncherClose" aria-label="Kapat">×</button>
       </header>
       <div class="hub-launcher-grid">
@@ -226,11 +227,11 @@
   <script src="fifa10-team-pools.js?v=3.0.0"></script>
   <script src="fifa10-registration-cloud.js?v=3.0.0"></script>
   <script src="qrcode-generator-2.0.4.js?v=3.0.0"></script>
-  <script src="fifa-universe-intelligence-v4719.js?v=5.6.0"></script>
-  <script src="fifa-championship-os-v4719.js?v=5.6.0"></script>
-  <script src="fifa-evolution-os-v4719.js?v=5.6.0"></script>
-  <script src="fifa-universe-v2.js?v=5.6.0"></script>
-  <script id="fifa10DrawEngineScript" src="fifa10-draw-engine-v4713.js?v=5.6.0"></script>
+  <script src="fifa-universe-intelligence-v4719.js?v=5.7.0"></script>
+  <script src="fifa-championship-os-v4719.js?v=5.7.0"></script>
+  <script src="fifa-evolution-os-v4719.js?v=5.7.0"></script>
+  <script src="fifa-universe-v2.js?v=5.7.0"></script>
+  <script id="fifa10DrawEngineScript" src="fifa10-draw-engine-v4713.js?v=5.7.0"></script>
   <script src="chat.js?v=44.5.0"></script>
   <script src="community.js?v=44.5.0"></script>
   <script src="app.js?v=3.0.1-standing-universe"></script>
@@ -238,11 +239,12 @@
   <script src="horizon-os-v47.js?v=3.0.1-standing-universe"></script>
   <script src="navigation-os-v47-1.js?v=3.0.1-standing-universe"></script>
   <script src="player-standing-universe-v300.js?v=3.0.1"></script>
-  <script src="live-table-motion-v311.js?v=5.6.0"></script>
-  <script src="visual-intelligence-v403.js?v=5.6.0"></script>
-  <script src="spatial-universe-v530.js?v=5.6.0"></script>
-  <script src="spatial-stadium-v540.js?v=5.6.0"></script>
-  <script src="spatial-rivalry-v550.js?v=5.6.0"></script>
-  <script src="spatial-night-v560.js?v=5.6.0"></script>
+  <script src="live-table-motion-v311.js?v=5.7.0"></script>
+  <script src="visual-intelligence-v403.js?v=5.7.0"></script>
+  <script src="spatial-universe-v530.js?v=5.7.0"></script>
+  <script src="spatial-stadium-v540.js?v=5.7.0"></script>
+  <script src="spatial-rivalry-v550.js?v=5.7.0"></script>
+  <script src="spatial-night-v560.js?v=5.7.0"></script>
+  <script src="spatial-broadcast-v570.js?v=5.7.0"></script>
 </body>
 </html>

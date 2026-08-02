@@ -2,7 +2,7 @@
   'use strict';
 
   const VERSION = '5.5.0';
-  const BUILD = '560000';
+  const BUILD = '570000';
   const STATE_KEY = 'fifa-spatial-rivalry-v550';
   const RECORD_SNAPSHOT_KEY = 'fifa-spatial-record-snapshot-v550';
   const isTR = () => (window.FIFA_I18N?.language || document.documentElement.lang || 'tr').toLowerCase().startsWith('tr');
@@ -143,7 +143,7 @@
 
   function ensureScenes(){
     const shell=document.querySelector('#suShell'); if(!shell)return false;
-    const brandSmall=shell.querySelector('.su-brand small'); if(brandSmall)brandSmall.textContent='FIFA UNIVERSE V5.5 · RIVALRY ARENA & CEREMONY';
+    const brandSmall=shell.querySelector('.su-brand small'); if(brandSmall)brandSmall.textContent='FIFA UNIVERSE V5.7 · BROADCAST COMMAND DECK';
     const tabs=shell.querySelector('.su-scene-tabs');
     if(tabs&&!tabs.querySelector('[data-rf-tab="arena"]')){
       tabs.insertAdjacentHTML('beforeend','<button type="button" data-rf-tab="arena">⚔ RIVALRY</button><button type="button" data-rf-tab="prematch">◈ PRE-MATCH</button><button type="button" data-rf-tab="ceremony">♛ CEREMONY</button>');

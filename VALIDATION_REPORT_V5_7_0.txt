@@ -1,0 +1,35 @@
+FIFA UNIVERSE V5.7.0 — VALIDATION REPORT
+========================================
+
+BUILD
+- Expected URL build: 570000
+- index.html meta: 5.7.0-broadcast-command-deck
+- Core URL writers aligned: fifa-championship-os-v4719.js, fifa-universe-v2.js, fifa10-draw-engine-v4713.js, fifa10-print-centre.html
+
+NEW FILES
+- spatial-broadcast-v570.js
+- spatial-broadcast-v570.css
+
+STATIC CHECKS
+- spatial-broadcast-v570.js: node --check PASSED
+- Active V5 spatial layers contain no `new MutationObserver`: PASSED
+- V5.7 extension contains no result-entry / cloud-write API calls: PASSED
+- index.html loads spatial-broadcast-v570 after V5.6 spatial-night: PASSED
+- Local asset reference existence check: PASSED
+
+TRUTH / DATA CONTRACT
+- Play-In pairings: #5–#12, #6–#11, #7–#10, #8–#9 from current/final table.
+- Direct QF seeds: #1–#4.
+- Downstream QF opponents are not fabricated without official knockout bracket data.
+- Leader-change stories require an observed prior local snapshot.
+- Champion-seal story requires official FIFA 10 honours record.
+- Story Engine never fabricates match minutes or official outcomes.
+
+PERFORMANCE
+- No DOM observer feedback loop.
+- Maintenance poll: 4.5 seconds, data-key gated; active V5.7 scene rerenders only if source-of-truth key changes.
+- Auto Broadcast is opt-in and uses one 11-second timer.
+- Mobile performance governor selects SAFE/BALANCED/BOOST; CSS/SVG fallback remains available.
+
+NOTE
+A full interactive browser smoke test is environment-dependent. Static syntax, build-chain, asset and safety checks were completed locally before packaging.

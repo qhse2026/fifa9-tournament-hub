@@ -2,7 +2,7 @@
   'use strict';
 
   const VERSION = '5.6.0';
-  const BUILD = '560000';
+  const BUILD = '570000';
   const STATE_KEY = 'fifa-spatial-night-v560';
   const SCENES = ['controlroom','warroom','corridor','walkout','championship'];
   let syncTimer = null;
@@ -177,7 +177,7 @@
 
   function ensureScenes(){
     const shell=document.querySelector('#suShell');if(!shell)return false;
-    const brandSmall=shell.querySelector('.su-brand small');if(brandSmall)brandSmall.textContent='FIFA UNIVERSE V5.6 · IMMERSIVE TOURNAMENT NIGHT';
+    const brandSmall=shell.querySelector('.su-brand small');if(brandSmall)brandSmall.textContent='FIFA UNIVERSE V5.7 · BROADCAST COMMAND DECK';
     const tabs=shell.querySelector('.su-scene-tabs');
     if(tabs&&!tabs.querySelector('[data-tn-tab="controlroom"]')){
       tabs.insertAdjacentHTML('beforeend','<button type="button" data-tn-tab="controlroom">◉ NIGHT OPS</button><button type="button" data-tn-tab="warroom">⌬ QUALIFY</button><button type="button" data-tn-tab="corridor">∞ H2H</button><button type="button" data-tn-tab="walkout">▰ WALKOUT</button>');

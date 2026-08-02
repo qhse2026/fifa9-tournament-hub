@@ -1,0 +1,41 @@
+FIFA UNIVERSE V5.7.0 — BROADCAST COMMAND DECK
+================================================
+
+ÖNERİLEN DEPLOY
+1. V5_7_0_BROADCAST_COMMAND_DECK_DEPLOY_PATCH.zip dosyasını mevcut çalışan proje köküne açın.
+2. Aynı isimli dosyaların üzerine yazılmasına izin verin.
+3. Vercel/GitHub deploy tamamlandıktan sonra şu adresi açın:
+   https://fifa9-tournament-hub.vercel.app/?fifa9build=570000
+4. Bir kez Ctrl + Shift + R yapın.
+
+YENİ SPATIAL KISAYOLLAR
+B = Broadcast Command Deck
+J = Spatial Bracket Chamber
+Y = Tournament Story Engine
+A = Auto Broadcast
+ESC = Auto Broadcast'i durdur / mevcut Spatial davranışa dön
+
+V5.6 KISAYOLLARI KORUNUR
+0 = Tournament Night Control Room
+Q = Qualification War Room
+H = Rivalry History Corridor
+W = Walkout
+N = Championship Ceremony 2.0
+Z = Night Director
+
+İLK TEST
+1. Normal sitede sonuç girişinin hâlâ çalıştığını doğrulayın.
+2. IF / Spatial Universe'ü açın.
+3. B'ye basın: Broadcast Command Deck açılmalı.
+4. J'ye basın: Bracket Chamber açılmalı.
+5. Grup maçları devam ediyorsa üstte LIVE PROVISIONAL TREE / SEZON ŞİMDİ BİTSE ifadesi görünmeli.
+6. QF tarafındaki rakip slotları resmî knockout bracket yoksa açık kalmalı.
+7. Y'ye basın: Story Engine yalnız mevcut gerçek veri sinyallerini göstermeli.
+8. A'ya basın: Auto Broadcast yaklaşık 11 saniyede bir uygun spatial sahneler arasında ilerlemeli.
+9. ESC ile Auto Broadcast durmalı.
+
+STABİLİTE
+- V5.7 yeni MutationObserver eklemez.
+- Result-entry modalına handler eklemez.
+- Cloud save fonksiyonlarını çağırmaz.
+- Resmî olmayan QF/final sonucu üretmez.
