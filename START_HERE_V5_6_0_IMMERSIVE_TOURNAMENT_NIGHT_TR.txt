@@ -1,0 +1,34 @@
+FIFA UNIVERSE V5.6.0 — IMMERSIVE TOURNAMENT NIGHT
+=================================================
+
+ÖNERİLEN KURULUM
+1. Mevcut çalışan projenizin yedeğini alın.
+2. V5_6_0_IMMERSIVE_TOURNAMENT_NIGHT_DEPLOY_PATCH.zip içeriğini proje köküne kopyalayın.
+3. Aynı isimli dosyaların üzerine yazılmasını onaylayın.
+4. GitHub/Vercel deploy tamamlandıktan sonra şu adresi açın:
+   https://fifa9-tournament-hub.vercel.app/?fifa9build=560000
+5. Bir kez Ctrl + Shift + R yapın.
+
+İLK TEST SIRASI
+A. Normal sitede bir FIFA 10 maç sonucu girin. Sonuç kaydı ve modal kapanışı V5.4.1/V5.5 gibi stabil kalmalı.
+B. Sağ alttaki IF / Spatial Universe kapısını açın.
+C. NIGHT OPS sekmesini açın.
+D. QUALIFY ile Qualification War Room'u kontrol edin.
+E. WALKOUT ile bekleyen bir FIFA 10 fikstürünün iki oyuncu kimliğini kontrol edin.
+F. H2H ile Rivalry History Corridor'a girin ve bir maça tıklayarak Spatial Stadium'a geçin.
+G. N ile Ceremony 2.0'ı açın. FIFA 10 resmen tamamlanmadıysa sistem podyum uydurmamalı, standby göstermeli.
+
+KLAVYE
+0  Night Control Room
+Q  Qualification War Room
+H  Rivalry History Corridor
+W  Dynamic Walkout Identity
+N  Championship Ceremony 2.0
+Z  Night Director
+ESC normal site / spatial kapatma akışı
+
+ÖNEMLİ
+- V5.6 sonuç kaydetmez. Sonuç girişi mevcut FIFA 10 stabil modalında kalır.
+- Qualification War Room olasılık yüzdesi üretmez; yalnız gerçek sıra, PPG, kalan fikstür ve kesme çizgilerini gösterir.
+- FIFA 10 şampiyonluk podyumu yalnız resmi honours verisi oluştuğunda açılır.
+- Stadium atmosferi yalnız görseldir ve gerçek dakika/event uydurmaz.

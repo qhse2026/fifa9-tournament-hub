@@ -2,7 +2,7 @@
   'use strict';
 
   const VERSION = '5.4.1';
-  const BUILD = '550000';
+  const BUILD = '560000';
   const STATE_KEY = 'fifa-spatial-stadium-v540';
   const HISTORY_KEY = 'fifa-living-history-v540';
   const SNAPSHOT_KEY = 'fifa-living-history-snapshot-v540';
