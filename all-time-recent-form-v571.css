@@ -1,0 +1,38 @@
+/* FIFA Universe V5.7.1 — All-Time Recent Form Ranking */
+.at-recent-form-section{position:relative;overflow:hidden;border:1px solid rgba(120,170,255,.18);background:linear-gradient(145deg,rgba(7,17,42,.96),rgba(11,24,58,.93));box-shadow:0 24px 60px rgba(0,0,0,.24)}
+.at-recent-form-section:before{content:"";position:absolute;inset:-35% auto auto -10%;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle,rgba(46,136,255,.16),transparent 68%);pointer-events:none}
+.at-recent-window-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:18px 0 20px;position:relative;z-index:1}
+.at-recent-window-tabs button{appearance:none;border:1px solid rgba(143,178,255,.16);background:rgba(7,17,39,.72);color:#dfe9ff;border-radius:16px;padding:13px 16px;display:grid;grid-template-columns:auto auto 1fr;gap:7px;align-items:baseline;cursor:pointer;transition:.2s ease;text-align:left}
+.at-recent-window-tabs button:hover{transform:translateY(-1px);border-color:rgba(111,176,255,.42);background:rgba(13,31,71,.84)}
+.at-recent-window-tabs button.active{border-color:rgba(75,169,255,.78);background:linear-gradient(135deg,rgba(26,80,164,.72),rgba(19,43,96,.86));box-shadow:0 0 0 1px rgba(82,166,255,.16),0 14px 30px rgba(0,36,92,.28)}
+.at-recent-window-tabs span,.at-recent-window-tabs small{font-size:10px;font-weight:800;letter-spacing:.12em;color:#8fa7d4}
+.at-recent-window-tabs strong{font-size:26px;line-height:1;color:#fff}
+.at-recent-window-tabs button.active span,.at-recent-window-tabs button.active small{color:#a9d3ff}
+.at-recent-summary{display:grid;grid-template-columns:1.35fr .8fr .85fr;gap:12px;margin-bottom:18px}
+.at-recent-summary article{border:1px solid rgba(145,178,255,.13);background:rgba(4,12,30,.66);border-radius:16px;padding:15px 16px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.at-recent-summary article:first-child{background:linear-gradient(135deg,rgba(95,65,15,.28),rgba(6,18,42,.7));border-color:rgba(240,193,72,.24)}
+.at-recent-summary span{font-size:9px;font-weight:900;letter-spacing:.15em;color:#8da2c8}
+.at-recent-summary strong{font-size:18px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.at-recent-summary small{font-size:11px;color:#9fb0d0}
+.at-recent-table{border:1px solid rgba(145,178,255,.1);border-radius:17px;overflow:auto;background:rgba(3,9,24,.54)}
+.at-recent-table table{min-width:920px}
+.at-recent-table tbody tr{transition:.16s ease}
+.at-recent-table tbody tr:hover{background:rgba(52,112,205,.10)}
+.at-recent-table .recent-top-1{background:linear-gradient(90deg,rgba(229,176,45,.12),transparent 66%)}
+.at-recent-table .recent-top-2{background:linear-gradient(90deg,rgba(173,188,213,.09),transparent 66%)}
+.at-recent-table .recent-top-3{background:linear-gradient(90deg,rgba(182,112,54,.09),transparent 66%)}
+.at-recent-rank{display:inline-flex;width:29px;height:29px;border-radius:10px;align-items:center;justify-content:center;background:rgba(87,128,195,.14);border:1px solid rgba(134,172,232,.14);font-weight:900;color:#dce8ff}
+.recent-top-1 .at-recent-rank{background:rgba(218,167,43,.17);border-color:rgba(236,194,82,.32);color:#ffd66b}
+.at-recent-era{display:block;margin-top:3px;font-size:9px;letter-spacing:.06em;color:#7185aa;text-transform:uppercase}
+.at-recent-coverage{margin-top:14px;border:1px solid rgba(135,163,212,.12);border-radius:14px;background:rgba(4,11,27,.48);overflow:hidden}
+.at-recent-coverage summary{cursor:pointer;padding:12px 14px;font-size:11px;font-weight:800;color:#9eb0d2;list-style:none}
+.at-recent-coverage summary::-webkit-details-marker{display:none}
+.at-recent-coverage summary:after{content:"＋";float:right;color:#6e9de8}
+.at-recent-coverage[open] summary:after{content:"−"}
+.at-recent-coverage>div{display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:8px;padding:0 12px 12px}
+.at-recent-coverage>div>span{display:flex;justify-content:space-between;gap:10px;align-items:center;border-radius:10px;background:rgba(10,23,50,.62);padding:9px 10px}
+.at-recent-coverage b{font-size:11px;color:#dce6fa;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.at-recent-coverage small{font-size:9px;color:#7f94ba;white-space:nowrap}
+.at-recent-empty{padding:28px;border:1px dashed rgba(120,160,226,.18);border-radius:16px;text-align:center;background:rgba(3,11,27,.48);display:flex;flex-direction:column;gap:6px}
+.at-recent-empty strong{color:#e6eeff}.at-recent-empty span{font-size:12px;color:#8195ba}
+@media(max-width:760px){.at-recent-window-tabs{grid-template-columns:1fr 1fr 1fr;gap:6px}.at-recent-window-tabs button{padding:11px 10px;grid-template-columns:1fr;text-align:center;gap:2px}.at-recent-window-tabs strong{font-size:22px}.at-recent-summary{grid-template-columns:1fr}.at-recent-summary article{padding:13px 14px}.at-recent-form-section .panel-header{align-items:flex-start}.at-recent-form-section .badge{margin-top:8px}}

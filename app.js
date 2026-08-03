@@ -125,6 +125,7 @@
   let allTimeRivalryB = "";
   let allTimeEliteCategory = "legacy";
   let allTimeMatchRecordCategory = "biggest";
+  let allTimeRecentWindow = 10;
   let tournamentBenchmarkMetric = "benchmark";
   let tournamentBenchmarkSelectedPlayer = "";
   let tournamentBenchmarkSection = "report-card";
@@ -5210,6 +5211,100 @@ function renderFifa10EloBlock({limit=10}={}) {
     view.innerHTML = tournamentBenchmarkSection === "player-atlas" ? renderTournamentPlayerAtlas(analytics) : renderTournamentReportCard(analytics);
   }
 
+  function buildAllTimeRecentRanking(windowSize = 10) {
+    const allowedWindows = [10, 20, 50];
+    const size = allowedWindows.includes(Number(windowSize)) ? Number(windowSize) : 10;
+    const matches = buildUnifiedAllTimeMatches();
+    const appearances = new Map();
+
+    function ensure(name) {
+      const key = String(name || "").trim();
+      if (!key || /^P\d+$/i.test(key)) return null;
+      if (!appearances.has(key)) appearances.set(key, []);
+      return appearances.get(key);
+    }
+
+    matches.forEach((match, order) => {
+      const homeName = String(match.homeName || "").trim();
+      const awayName = String(match.awayName || "").trim();
+      const homeScore = Number(match.homeScore);
+      const awayScore = Number(match.awayScore);
+      if (!homeName || !awayName || !Number.isFinite(homeScore) || !Number.isFinite(awayScore)) return;
+
+      let winner = "";
+      if (homeScore > awayScore) winner = homeName;
+      else if (awayScore > homeScore) winner = awayName;
+      else if (match.allowDraw === false && match.winnerName) winner = String(match.winnerName || "").trim();
+
+      const homeList = ensure(homeName);
+      const awayList = ensure(awayName);
+      if (!homeList || !awayList) return;
+
+      const homeResult = !winner ? "D" : winner === homeName ? "W" : "L";
+      const awayResult = !winner ? "D" : winner === awayName ? "W" : "L";
+      homeList.push({ order, result: homeResult, gf: homeScore, ga: awayScore, points: homeResult === "W" ? 3 : homeResult === "D" ? 1 : 0, opponent: awayName, edition: Number(match.edition) || 0, editionLabel: match.editionLabel || "", stage: match.stage || "" });
+      awayList.push({ order, result: awayResult, gf: awayScore, ga: homeScore, points: awayResult === "W" ? 3 : awayResult === "D" ? 1 : 0, opponent: homeName, edition: Number(match.edition) || 0, editionLabel: match.editionLabel || "", stage: match.stage || "" });
+    });
+
+    const rows = [];
+    const insufficient = [];
+    for (const [name, list] of appearances.entries()) {
+      if (list.length < size) {
+        insufficient.push({ name, games: list.length, missing: size - list.length });
+        continue;
+      }
+      const sample = list.slice(-size);
+      const wins = sample.filter(item => item.result === "W").length;
+      const draws = sample.filter(item => item.result === "D").length;
+      const losses = sample.filter(item => item.result === "L").length;
+      const gf = sample.reduce((sum, item) => sum + item.gf, 0);
+      const ga = sample.reduce((sum, item) => sum + item.ga, 0);
+      const points = sample.reduce((sum, item) => sum + item.points, 0);
+      rows.push({
+        name,
+        games: size,
+        wins,
+        draws,
+        losses,
+        gf,
+        ga,
+        gd: gf - ga,
+        points,
+        ppg: points / size,
+        winRate: wins / size * 100,
+        gfPerGame: gf / size,
+        gaPerGame: ga / size,
+        form: sample.slice(-5).map(item => item.result),
+        sample,
+        fromEdition: sample[0]?.edition || 0,
+        toEdition: sample[sample.length - 1]?.edition || 0
+      });
+    }
+
+    rows.sort((a, b) => b.points - a.points || b.gd - a.gd || b.gf - a.gf || b.wins - a.wins || a.ga - b.ga || a.name.localeCompare(b.name, "tr"));
+    rows.forEach((row, index) => { row.rank = index + 1; });
+    insufficient.sort((a, b) => b.games - a.games || a.name.localeCompare(b.name, "tr"));
+
+    return {
+      windowSize: size,
+      rows,
+      insufficient,
+      qualified: rows.length,
+      totalPlayers: appearances.size,
+      leader: rows[0] || null,
+      maxPoints: size * 3
+    };
+  }
+
+  function renderAllTimeRecentRanking(recent) {
+    const leader = recent.leader;
+    const coverage = recent.totalPlayers ? Math.round(recent.qualified / recent.totalPlayers * 100) : 0;
+    const tabs = [10, 20, 50].map(size => `<button type="button" class="${recent.windowSize === size ? "active" : ""}" data-action="set-alltime-recent-window" data-recent-window="${size}"><span>SON</span><strong>${size}</strong><small>MAÇ</small></button>`).join("");
+    const table = recent.rows.length ? `<div class="table-wrap at-recent-table"><table><thead><tr><th>#</th><th class="player-col">Oyuncu</th><th>O</th><th>G</th><th>B</th><th>M</th><th>AG</th><th>YG</th><th>AV</th><th>P</th><th>PPG</th><th>G%</th><th>FORM</th></tr></thead><tbody>${recent.rows.map(row => `<tr class="${row.rank <= 3 ? `recent-top-${row.rank}` : ""}"><td class="rank-cell"><span class="at-recent-rank">${row.rank}</span></td><td class="player-col"><span class="player-name">${escapeHTML(row.name)}</span><small class="at-recent-era">FIFA ${row.fromEdition || "–"} → ${row.toEdition || "–"}</small></td><td>${row.games}</td><td>${row.wins}</td><td>${row.draws}</td><td>${row.losses}</td><td>${row.gf}</td><td>${row.ga}</td><td class="${row.gd > 0 ? "gd-positive" : row.gd < 0 ? "gd-negative" : ""}">${formatGD(row.gd)}</td><td class="points-cell">${row.points}</td><td>${row.ppg.toFixed(2)}</td><td>${row.winRate.toFixed(1)}%</td><td>${formHTML(row.form)}</td></tr>`).join("")}</tbody></table></div>` : `<div class="at-recent-empty"><strong>${recent.windowSize} maçlık tam pencereye ulaşan oyuncu yok.</strong><span>Daha fazla resmî sonuç geldikçe bu sıralama otomatik açılacak.</span></div>`;
+    const missing = recent.insufficient.length ? `<details class="at-recent-coverage"><summary>${recent.insufficient.length} oyuncu ${recent.windowSize} maç barajının altında</summary><div>${recent.insufficient.map(row => `<span><b>${escapeHTML(row.name)}</b><small>${row.games}/${recent.windowSize} · ${row.missing} maç eksik</small></span>`).join("")}</div></details>` : "";
+    return `<section class="panel mt-24 at-recent-form-section"><div class="panel-header"><div><div class="eyebrow">RECENT FORM RANKING</div><h3 class="panel-title">Son ${recent.windowSize} Maç Sıralaması</h3><div class="panel-subtitle">Her oyuncunun kariyerindeki en son ${recent.windowSize} resmî maçı aynı örneklem büyüklüğüyle karşılaştırılır. Sıralama: Puan → Averaj → Atılan Gol → Galibiyet → Daha Az Yenilen Gol.</div></div><span class="badge badge-blue">EXACT ${recent.windowSize} MATCH WINDOW</span></div><div class="at-recent-window-tabs">${tabs}</div><div class="at-recent-summary"><article><span>LİDER</span><strong>${leader ? escapeHTML(leader.name) : "–"}</strong><small>${leader ? `${leader.points}/${recent.maxPoints} puan · ${leader.ppg.toFixed(2)} PPG` : "Yeterli veri yok"}</small></article><article><span>QUALIFIED</span><strong>${recent.qualified}/${recent.totalPlayers}</strong><small>%${coverage} oyuncu kapsamı</small></article><article><span>FORM WINDOW</span><strong>${recent.windowSize}</strong><small>Her oyuncu için aynı maç sayısı</small></article></div>${table}${missing}</section>`;
+  }
+
   function renderAllTime() {
     const analytics = buildAllTimeAnalytics();
     if (!analytics.players.length) {
@@ -5223,6 +5318,7 @@ function renderFifa10EloBlock({limit=10}={}) {
     const eliteDefinitions=allTimeEliteCategoryDefinitions(analytics);
     if(!eliteDefinitions[allTimeEliteCategory])allTimeEliteCategory="legacy";
     const selectedElite=eliteDefinitions[allTimeEliteCategory];
+    const recentRanking = buildAllTimeRecentRanking(allTimeRecentWindow);
 
     view.innerHTML = `
       <div class="group-banner gold at-hall-hero">
@@ -5235,6 +5331,8 @@ function renderFifa10EloBlock({limit=10}={}) {
         ${kpiCard("Arşivlenen Maç", analytics.summary.matches, "FIFA 1–10 birleşik resmî maç verisi")}
         ${kpiCard("Toplam Gol", analytics.summary.goals, `Maç başı ${analytics.summary.avgGoals.toFixed(2)} gol`)}
       </div>
+
+      ${renderAllTimeRecentRanking(recentRanking)}
 
       <section class="panel mt-24 at-legacy-section">
         <div class="panel-header"><div><div class="eyebrow">THE DEFINITIVE RANKING</div><h3 class="panel-title">FIFA 9 Legacy Rating</h3><div class="panel-subtitle">PPG %25 · Galibiyet %20 · Averaj %15 · Hücum %10 · Savunma %10 · Yenilmezlik %10 · Kupa %5 · Tecrübe %5.</div></div><span class="badge badge-gold">MIN. 20 MAÇ</span></div>
@@ -11729,6 +11827,12 @@ ${shareData.url}`)}`;
       if (activeView === "alltime") renderAllTime();
       return;
     }
+    if (type === "set-alltime-recent-window") {
+      const size = Number(action.dataset.recentWindow);
+      allTimeRecentWindow = [10, 20, 50].includes(size) ? size : 10;
+      if (activeView === "alltime") renderAllTime();
+      return;
+    }
     if (type === "set-alltime-match-record") {
       allTimeMatchRecordCategory = action.dataset.matchRecord || "biggest";
       if (activeView === "alltime") renderAllTime();
@@ -11976,6 +12080,7 @@ ${shareData.url}`)}`;
     getFifa10TeamPools: () => Object.fromEntries(FIFA10_LEG_STARS.map(stars => [String(stars), fifa10TeamPool(stars)])),
     buildUnifiedAllTimeMatches: () => buildUnifiedAllTimeMatches(),
     buildAllTimeAnalytics: () => buildAllTimeAnalytics(),
+    buildAllTimeRecentRanking: (windowSize = 10) => buildAllTimeRecentRanking(windowSize),
     buildFormAnalytics: (windowSize = 20, scope = "current") => buildFormAnalytics(windowSize, scope),
     buildOddsAnalytics: () => buildOddsAnalytics(),
     buildFpiAnalytics: () => buildEloAnalytics(),

@@ -1,0 +1,14 @@
+FIFA Universe V5.7.1 — All-Time Recent Form Ranking
+
+1) Paketi mevcut proje kök dizininin üzerine kopyalayın.
+2) Vercel/GitHub deployment tamamlandıktan sonra:
+   https://fifa9-tournament-hub.vercel.app/?fifa9build=571000
+3) Bir kez Ctrl + Shift + R yapın.
+4) Tüm Zamanlar menüsünü açın.
+5) "Son Maç Performans Sıralaması" panelinde SON 10 / SON 20 / SON 50 butonlarını test edin.
+
+Sıralama kuralı:
+Puan > Averaj > Atılan Gol > Galibiyet > Daha Az Yenilen Gol.
+
+Adillik kuralı:
+Seçilen pencere kadar resmî maçı olmayan oyuncu ana sıralamaya dahil edilmez; Coverage bölümünde gösterilir.

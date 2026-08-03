@@ -1,4 +1,4 @@
-const CACHE = "oruc-reis-fifa-universe-v5-5-0-spatial-rivalry-arena";
+const CACHE = "oruc-reis-fifa-universe-v5-7-1-all-time-recent-form";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -45,6 +45,7 @@ const APP_SHELL = [
   "./fifa9-experience-hub.js",
   "./final-chapter-progression.css",
   "./all-time-elite.css",
+  "./all-time-recent-form-v571.css",
   "./tournament-benchmark.css",
   "./app.js",
   "./language.js",

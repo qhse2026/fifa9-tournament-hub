@@ -2,7 +2,7 @@
   'use strict';
 
   const VERSION = '4.0.4';
-  const BUILD = '570000';
+  const BUILD = '571000';
   const ROOT_ID = 'vi402-root';
   const POLL_MS = 5000;
   let lastSignature = '';

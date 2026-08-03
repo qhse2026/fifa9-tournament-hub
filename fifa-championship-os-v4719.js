@@ -2,7 +2,7 @@
   "use strict";
 
   const VERSION = "2.2.0";
-  const BUILD = '570000';
+  const BUILD = '571000';
   const ROUND_ORDER = ["playin", "quarterfinal", "semifinal", "bronze", "final"];
   const SERIES_STARS = Object.freeze([4, 4.5, 5]);
   const STORAGE_KEY = "fifa-tournament-hub-v1";
