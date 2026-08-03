@@ -1,0 +1,40 @@
+FIFA Universe V5.7.2 — Validation Report
+==========================================
+
+STATIC VALIDATION
+[PASS] app.js syntax
+[PASS] fifa10-draw-engine-v4713.js syntax
+[PASS] fifa-championship-os-v4719.js syntax
+[PASS] fifa10-player-result-desk-v572.js syntax
+[PASS] index.html inline script syntax
+[PASS] fifa10-print-centre.html inline script syntax
+[PASS] index.html local assets present
+[PASS] print centre local assets present
+[PASS] active core build references use 572000
+[PASS] new Championship/Result Desk files contain no MutationObserver
+
+FUNCTIONAL MODEL TEST
+[PASS] 14-player / 78-match completed group dataset creates Championship journey
+[PASS] Championship command page order verified:
+       1. Match Operations
+       2. Live Tournament Tree
+       3. Official Standings
+[PASS] Play-In 5–12 route visible
+[PASS] official standings visible
+
+PLAYER RESULT DESK CONTRACT
+[PASS] authenticated linked player required
+[PASS] player identity matched against official home/away participant
+[PASS] non-tied knockout score required
+[PASS] both teams required
+[PASS] same club on both sides rejected
+[PASS] prior FIFA 10 team reuse rejected
+[PASS] earlier series match must be complete
+[PASS] exact opponent confirmation required
+[PASS] official tournament_state update occurs only after both confirmations
+[PASS] fixed downstream bracket propagation encoded
+
+LIMITATION
+A real Supabase execution test cannot be performed inside this offline container. The SQL migration must be run once in the project's Supabase SQL Editor and verified using two linked player accounts. Static SQL structure checks passed: balanced function blocks, dollar quotes and parentheses.
+
+Chromium headless rendering could not complete in this container because the installed Chromium process hangs under the container's D-Bus/zygote environment. This is an environment limitation; syntax, asset and Championship render-model tests passed.

@@ -1,0 +1,29 @@
+FIFA 10 OYUNCU SONUÇ MASASI — HIZLI KULLANIM
+================================================
+
+OYUNCU 1
+1. fifa10-print-centre.html sayfasını açar.
+2. Kendi oyuncu hesabıyla giriş yapar.
+3. Aktif eleme maçında iki kullanılan takımı ve skoru girer.
+4. “SONUCU GÖNDER” düğmesine basar.
+5. Durum “RAKİP TEYİDİ BEKLENİYOR” olur.
+
+OYUNCU 2
+1. Aynı sayfayı kendi hesabıyla açar.
+2. Gönderilen skor ve takımları kontrol eder.
+3. Bilgiler doğruysa “AYNI SONUCU TEYİT ET” düğmesine basar.
+4. İkinci teyitle sonuç otomatik resmîleşir.
+
+SONUÇ
+- Maç Championship OS'ye işlenir.
+- Seri skoru güncellenir.
+- İki galibiyete ulaşan oyuncu otomatik sonraki tura taşınır.
+- M3, seri 2-0 bittiyse “Gerekmedi” olur.
+
+UYUŞMAZLIK
+- Oyuncu 2 farklı skor/takım girerse sistem bunu resmîleştirmez.
+- Mevcut teyitli kayıtla çelişen sonuç reddedilir.
+- Uyuşmazlıkta yöneticiye bilgi verilir.
+
+BAĞLANTI
+https://fifa9-tournament-hub.vercel.app/fifa10-print-centre.html?fifa9build=572000

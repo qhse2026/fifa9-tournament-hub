@@ -1,8 +1,8 @@
 (() => {
   "use strict";
 
-  const VERSION = "2.2.0";
-  const BUILD = '571000';
+  const VERSION = "2.3.0";
+  const BUILD = '572000';
   const ROUND_ORDER = ["playin", "quarterfinal", "semifinal", "bronze", "final"];
   const SERIES_STARS = Object.freeze([4, 4.5, 5]);
   const STORAGE_KEY = "fifa-tournament-hub-v1";
@@ -17,6 +17,7 @@
   let lastDraw = null;
   let notice = { type: "info", text: "" };
   let listenersInstalled = false;
+  let autoLockInProgress = false;
 
   const ui = (tr, en) => window.FIFA_I18N?.language === "en" ? en : tr;
   const clamp = (value, min = 0, max = 100) => Math.max(min, Math.min(max, Number(value) || 0));
@@ -784,6 +785,39 @@
     return `<article><span>${esc(title)}</span><small>${esc(text)}</small></article>`;
   }
 
+  function renderBracketSeries(draw, series) {
+    const home = playerName(draw, series.homeId);
+    const away = playerName(draw, series.awayId);
+    const waiting = !series.homeId || !series.awayId;
+    const completedMatches = (series.matches || []).filter(match => match.completed && !match.notRequired);
+    const nextMatch = (series.matches || []).find(match => !match.completed && !match.notRequired);
+    return `<article class="fco-bracket-series status-${series.status}">
+      <header><span>${esc(series.label)}</span><b>${series.bestOf === 3 ? "BO3" : "1 MATCH"}</b></header>
+      <div><strong>${esc(home)}</strong><b>${series.homeWins || 0}<i>–</i>${series.awayWins || 0}</b><strong>${esc(away)}</strong></div>
+      <footer>${waiting ? `<span>${ui("Önceki tur bekleniyor", "Waiting for prior round")}</span>` : series.winnerId ? `<span>${ui("Kazanan", "Winner")}: <b>${esc(playerName(draw, series.winnerId))}</b></span>` : nextMatch ? `<span>${nextMatch.stars}★ · M${nextMatch.number} · ${ui("Sonuç bekleniyor", "Result pending")}</span>` : `<span>${completedMatches.length} ${ui("maç işlendi", "matches recorded")}</span>`}</footer>
+    </article>`;
+  }
+
+  function officialStandings(state, draw) {
+    const live = drawStandings(draw);
+    if (!Array.isArray(state?.seedSnapshot) || !state.seedSnapshot.length) return live;
+    const liveById = new Map(live.map(row => [String(row.id), row]));
+    return state.seedSnapshot.map(seed => ({ ...liveById.get(String(seed.id)), ...seed, rank: Number(seed.rank) })).filter(row => row.id);
+  }
+
+  function activeOperationalSeries(state) {
+    for (const round of ROUND_ORDER) {
+      const ready = (state.rounds?.[round] || []).filter(series => series.homeId && series.awayId && series.status !== "completed");
+      if (ready.length) return ready;
+    }
+    return [];
+  }
+
+  function renderOfficialStandings(state, draw) {
+    const rows = officialStandings(state, draw);
+    return `<section class="fco-official-standings" id="championshipOfficialStandings"><header><div><span>FIFA 10 · OFFICIAL GROUP LEAGUE TABLE</span><h4>${ui("Resmî Puan Tablosu", "Official Standings")}</h4><p>${ui("Eleme seribaşları bu mühürlenmiş sıralamaya göre belirlenmiştir.", "Knockout seeds are based on this sealed table.")}</p></div><b>${rows.length} ${ui("OYUNCU", "PLAYERS")}</b></header><div class="fco-table-wrap"><table><thead><tr><th>#</th><th>${ui("Oyuncu", "Player")}</th><th>O</th><th>G</th><th>B</th><th>M</th><th>AG</th><th>YG</th><th>AV</th><th>P</th><th>PPG</th><th>${ui("Yol", "Path")}</th></tr></thead><tbody>${rows.map(row => `<tr class="path-${pathForRank(row.rank)}"><td><b>${row.rank}</b></td><td><strong>${esc(row.name)}</strong></td><td>${row.mp ?? "–"}</td><td>${row.w ?? "–"}</td><td>${row.d ?? "–"}</td><td>${row.l ?? "–"}</td><td>${row.gf ?? "–"}</td><td>${row.ga ?? "–"}</td><td>${Number(row.gd ?? ((row.gf || 0)-(row.ga || 0))) > 0 ? "+" : ""}${row.gd ?? ((row.gf || 0)-(row.ga || 0))}</td><td>${row.pts ?? "–"}</td><td>${Number(row.ppg || 0).toFixed(3)}</td><td><span>${esc(pathLabel(row.rank))}</span></td></tr>`).join("")}</tbody></table></div></section>`;
+  }
+
   function renderJourney(payload, draw) {
     const state = journeyState(payload, draw);
     const locked = state.status !== "preview";
@@ -796,15 +830,25 @@
       bronze: ui("ÜÇÜNCÜLÜK · 4.5★", "THIRD PLACE · 4.5★"),
       final: ui("BÜYÜK FİNAL · 5★", "GRAND FINAL · 5★")
     };
-    return `<section class="fco-panel" data-fco-panel="command">
-      <div class="fco-module-strip">
+    const operational = activeOperationalSeries(state);
+    const completedKnockout = allSeries(state).flatMap(series => series.matches || []).filter(match => match.completed).length;
+    return `<section class="fco-panel championship-frontline" data-fco-panel="command">
+      <section class="fco-frontline-status"><div><span>FIFA 10 · CHAMPIONSHIP FRONTLINE</span><h3>${ui("Elemeler başladı.", "Knockouts are live.")} <em>${ui("Maçlar burada yönetilir.", "Matches are operated here.")}</em></h3><p>${locked ? ui("Resmî eleme ağacı mühürlendi. Sonuç girildikçe kazananlar otomatik sonraki tura taşınır.", "The official bracket is sealed. Winners advance automatically as results are entered.") : ui("Grup ligi tamamlandı. Resmî eleme ağacını başlatmak için Championship'i mühürleyin.", "The group league is complete. Seal the Championship to start the official bracket.")}</p></div><aside><b>${completedKnockout}</b><small>${ui("ELEME MAÇI İŞLENDİ", "KNOCKOUT MATCHES RECORDED")}</small><button type="button" data-fco-action="open-player-result-desk">${ui("OYUNCU SONUÇ MASASI", "PLAYER RESULT DESK")} ↗</button></aside></section>
+
+      <section class="fco-match-operations" id="championshipMatchOperations"><header><div><span>01 · MATCH OPERATIONS</span><h4>${ui("Maçlar ve Sonuç Girişi", "Matches & Result Entry")}</h4><p>${ui("Aktif turdaki oynanabilir seriler en önde. Yönetici burada doğrudan kaydeder; oyuncular Çıktı Merkezi'nden karşılıklı teyitle gönderebilir.", "Playable series in the active round come first. Admins record here; players submit with mutual confirmation from the Print Centre.")}</p></div><b>${operational.length} ${ui("AKTİF SERİ", "ACTIVE SERIES")}</b></header>
+        ${!locked ? `<div class="fco-frontline-lock"><strong>${ui("Resmî eleme ağacı henüz oluşturulmadı.", "The official bracket has not been created yet.")}</strong>${admin ? `<button type="button" data-fco-action="lock-journey" ${groupComplete ? "" : "disabled"}>${ui("ELEMELERİ RESMÎLEŞTİR", "MAKE KNOCKOUTS OFFICIAL")}</button>` : `<span>${ui("Yönetici girişi bekleniyor.", "Waiting for administrator.")}</span>`}</div>` : operational.length ? `<div class="fco-operation-grid">${operational.map(series => renderSeries(draw, state, series, admin)).join("")}</div>` : state.championId ? `<div class="fco-operation-complete"><strong>${ui("Turnuva tamamlandı.", "Tournament complete.")}</strong><span>FIFA 10 Champion · ${esc(playerName(draw, state.championId))}</span></div>` : `<div class="fco-operation-complete"><strong>${ui("Aktif tur tamamlandı.", "The active round is complete.")}</strong><span>${ui("Sonraki eşleşmeler otomatik çözülüyor.", "The next pairings are being resolved automatically.")}</span></div>`}
+      </section>
+
+      <section class="fco-live-bracket" id="championshipLiveBracket"><header><div><span>02 · LIVE TOURNAMENT TREE</span><h4>${ui("Canlı Turnuva Ağacı", "Live Tournament Bracket")}</h4><p>${ui("Play-In'den Büyük Final'e bütün yol tek ekranda.", "The complete route from Play-In to the Grand Final.")}</p></div><b>${locked ? ui("RESMÎ", "OFFICIAL") : ui("ÖNİZLEME", "PREVIEW")}</b></header><div class="fco-bracket compact">${ROUND_ORDER.map(round => `<section class="round-${round}"><header><span>${roundTitle[round]}</span><b>${(state.rounds?.[round] || []).length}</b></header><div>${(state.rounds?.[round] || []).map(series => renderBracketSeries(draw, series)).join("")}</div></section>`).join("")}</div></section>
+
+      ${renderOfficialStandings(state, draw)}
+
+      <div class="fco-module-strip frontline-secondary">
         ${moduleBadge("CHAMPIONSHIP JOURNEY OS", ui("Play-in'den kupaya otomatik omurga", "Automatic journey from Play-in to the trophy"))}
         ${moduleBadge("BEST-OF-3 SERIES ENGINE", "4★ → 4.5★ → 5★")}
         ${moduleBadge("TEAM PASSPORT GUARD", ui("Turnuva boyunca takım tekrarı yok", "No player team repeats across the tournament"))}
-        ${moduleBadge("RESULT CONFIRMATION DESK", ui("İki oyuncu teyidi + yönetici kaydı", "Two player acknowledgements + admin record"))}
+        ${moduleBadge("PLAYER RESULT DESK", ui("İki oyuncu teyidiyle güvenli sonuç", "Secure result with two-player confirmation"))}
       </div>
-      <section class="fco-command-head"><div><span>CHAMPIONSHIP JOURNEY OS</span><h4>${locked ? ui("Resmî Şampiyonluk Omurgası", "Official Championship Journey") : ui("Canlı Bracket Önizlemesi", "Live Bracket Preview")}</h4><p>${locked ? ui("Seri sonuçları otomatik olarak sonraki tura oyuncu taşır.", "Series results automatically advance players to the next round.") : ui("Sıralama değiştikçe eşleşmeler canlı güncellenir. 78 maç bitmeden resmî kayıt oluşturulmaz.", "Pairings update with the live table. No official journey is created until all 78 matches are complete.")}</p></div><div><b>${draw?.fixtures?.filter(match => match.completed).length || 0}/${draw?.fixtures?.length || 78}</b><small>${ui("GRUP MAÇI", "GROUP MATCHES")}</small>${!locked && admin ? `<button type="button" data-fco-action="lock-journey" ${groupComplete ? "" : "disabled"}>${ui("CHAMPIONSHIP'I RESMÎLEŞTİR", "MAKE CHAMPIONSHIP OFFICIAL")}</button>` : ""}</div></section>
-      <div class="fco-bracket">${ROUND_ORDER.map(round => `<section class="round-${round}"><header><span>${roundTitle[round]}</span><b>${(state.rounds?.[round] || []).length}</b></header><div>${(state.rounds?.[round] || []).map(series => renderSeries(draw, state, series, locked && admin)).join("")}</div></section>`).join("")}</div>
       ${state.championId ? `<section class="fco-champion"><span>FIFA 10 CHAMPION</span><strong>${esc(playerName(draw, state.championId))}</strong><small>${ui("Şampiyonluk omurgası tamamlandı", "Championship journey complete")}</small></section>` : ""}
     </section>`;
   }
@@ -947,10 +991,20 @@
     lastDraw = currentDraw(draw);
     if (new URL(location.href).searchParams.get("fifa10pass")) activePanel = "pass";
     const journey = journeyState(lastPayload, lastDraw);
+    const groupComplete = Boolean(lastDraw?.fixtures?.length && lastDraw.fixtures.every(match => match.completed));
+    const admin = Boolean(app()?.isAdmin?.() || app()?.canEdit?.());
+    if (groupComplete && journey.status === "preview" && admin && !autoLockInProgress && !sessionStorage.getItem(`fco-autolock:${lastDraw?.drawId}:${BUILD}`)) {
+      autoLockInProgress = true;
+      sessionStorage.setItem(`fco-autolock:${lastDraw?.drawId}:${BUILD}`, "attempted");
+      setTimeout(() => perform(async () => {
+        await lockJourney();
+        sessionStorage.setItem(`fco-autolock:${lastDraw?.drawId}:${BUILD}`, "done");
+      }).finally(() => { autoLockInProgress = false; rerender(); }), 120);
+    }
     const completedGroup = lastDraw?.fixtures?.filter(match => match.completed).length || 0;
-    mount.innerHTML = `<section class="fco-root"><header class="fco-hero"><div><span>FIFA CHAMPIONSHIP OPERATING SYSTEM · V${VERSION}</span><h3>${ui("Turnuvayı yönet.", "Operate the tournament.")}<br><em>${ui("Evreni kanıtla.", "Prove the universe.")}</em></h3><p>${ui("Play-in'den kupaya resmî operasyon, matematiksel yol sertifikaları, veri kara kutusu, oyuncu Match Pass, rating bilimi ve Final Night Director.", "Official operations from Play-in to the trophy, mathematical path certificates, tournament black box, Player Match Pass, rating science and Final Night Director.")}</p></div><aside><article><span>${ui("Grup Aşaması", "Group Stage")}</span><b>${completedGroup}/${lastDraw?.fixtures?.length || 78}</b></article><article><span>Championship</span><b>${journey.status === "preview" ? ui("ÖNİZLEME", "PREVIEW") : journey.status === "completed" ? ui("TAMAMLANDI", "COMPLETE") : ui("RESMÎ", "OFFICIAL")}</b></article><article><span>${ui("Black Box", "Black Box")}</span><b>${draft(lastPayload).blackBox?.length || 0}</b></article><article><span>${ui("Tahmin Anı", "Forecasts")}</span><b>${draft(lastPayload).forecastLedger?.length || 0}</b></article></aside></header>
+    mount.innerHTML = `<section class="fco-root"><header class="fco-hero"><div><span>FIFA CHAMPIONSHIP OPERATING SYSTEM · V${VERSION}</span><h3>${ui("Elemeleri yönet.", "Operate the tournament.")}<br><em>${ui("Kupaya giden yolu işlet.", "Prove the universe.")}</em></h3><p>${ui("Play-in'den kupaya resmî operasyon, matematiksel yol sertifikaları, veri kara kutusu, oyuncu Match Pass, rating bilimi ve Final Night Director.", "Official operations from Play-in to the trophy, mathematical path certificates, tournament black box, Player Match Pass, rating science and Final Night Director.")}</p></div><aside><article><span>${ui("Grup Aşaması", "Group Stage")}</span><b>${completedGroup}/${lastDraw?.fixtures?.length || 78}</b></article><article><span>Championship</span><b>${journey.status === "preview" ? ui("ÖNİZLEME", "PREVIEW") : journey.status === "completed" ? ui("TAMAMLANDI", "COMPLETE") : ui("RESMÎ", "OFFICIAL")}</b></article><article><span>${ui("Black Box", "Black Box")}</span><b>${draft(lastPayload).blackBox?.length || 0}</b></article><article><span>${ui("Tahmin Anı", "Forecasts")}</span><b>${draft(lastPayload).forecastLedger?.length || 0}</b></article></aside></header>
       <nav class="fco-nav">${[
-        ["command", ui("CHAMPIONSHIP", "CHAMPIONSHIP")],
+        ["command", ui("MAÇLAR · AĞAÇ · PUAN", "MATCHES · BRACKET · TABLE")],
         ["stakes", ui("YOL & MAÇ DEĞERİ", "STAKES & MATCH VALUE")],
         ["trust", ui("BLACK BOX & GÜVEN", "BLACK BOX & TRUST")],
         ["pass", "PLAYER MATCH PASS"],
@@ -998,6 +1052,10 @@
       const button = event.target.closest?.("[data-fco-action]");
       if (!button || button.disabled) return;
       const action = button.dataset.fcoAction;
+      if (action === "open-player-result-desk") {
+        window.open(`fifa10-print-centre.html?fifa9build=${BUILD}`, "_blank", "noopener,noreferrer");
+        return;
+      }
       if (action === "panel") {
         activePanel = button.dataset.panel || "command";
         notice = { type: "info", text: "" };

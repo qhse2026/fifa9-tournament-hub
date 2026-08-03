@@ -1,8 +1,8 @@
 (() => {
   "use strict";
 
-  const VERSION = "3.1.1";
-  const BUILD = '571000';
+  const VERSION = "3.2.0";
+  const BUILD = '572000';
   const STORAGE_KEY = "fifa-tournament-hub-v1";
   const SYNC_HISTORY_KEY = "fifa10-sync-history-v1";
   const GROUPS = Object.freeze(["A", "B", "C"]);
@@ -18,7 +18,7 @@
   let renderQueued = false;
   let moduleBusy = false;
   let autoDrawing = false;
-  let activeTab = sessionStorage.getItem("fifa10-draw-active-tab") || "draw";
+  let activeTab = sessionStorage.getItem("fifa10-draw-active-tab") || "championship";
   let fixtureGroupFilter = sessionStorage.getItem("fifa10-fixture-group") || "A";
   let fixtureLegFilter = Number(sessionStorage.getItem("fifa10-fixture-leg") || 0);
   let lastLoadAt = 0;
@@ -1987,9 +1987,10 @@
     const draft = getDraft();
     const draw = draft.draw || null;
     const status = statusMeta(draw);
-    if (draw?.status === "completed" && activeTab === "draw" && sessionStorage.getItem("fifa10-draw-tab-autoset") !== draw.drawId) {
-      activeTab = (draw.fixtures || []).some(match => match.completed) ? "fixtures" : "groups";
-      sessionStorage.setItem("fifa10-draw-tab-autoset", draw.drawId);
+    if (draw?.status === "completed" && sessionStorage.getItem("fifa10-draw-tab-autoset") !== `${draw.drawId}:${BUILD}`) {
+      const groupLeagueSealed = Boolean((draw.fixtures || []).length) && (draw.fixtures || []).every(match => match.completed);
+      activeTab = groupLeagueSealed ? "championship" : ((draw.fixtures || []).some(match => match.completed) ? "fixtures" : "groups");
+      sessionStorage.setItem("fifa10-draw-tab-autoset", `${draw.drawId}:${BUILD}`);
       persistViewState();
     }
     let section = existing;
@@ -2006,18 +2007,18 @@
       operationsMount.append(section);
     }
     const tabs = [
+      ["championship", uiCopy("MAÇLAR · AĞAÇ · PUAN", "MATCHES · BRACKET · TABLE")],
+      ["fixtures", uiCopy("MAÇLAR & SONUÇLAR", "MATCHES & RESULTS")],
+      ["standings", uiCopy("RESMÎ PUAN TABLOSU", "OFFICIAL STANDINGS")],
+      ["qualification", uiCopy("ELEME YOLU", "QUALIFICATION PATH")],
       ["draw", uiCopy("KURA", "DRAW")],
       ["groups", uiCopy("GRUPLAR", "GROUPS")],
-      ["standings", uiCopy("GENEL PUAN", "STANDINGS")],
-      ["qualification", uiCopy("YOL MATEMATİĞİ", "QUALIFICATION")],
-      ["fixtures", uiCopy("FİKSTÜR", "FIXTURES")],
       ["schedule", uiCopy("TAKVİM", "SCHEDULE")],
       ["teams", uiCopy("TAKIMLAR", "TEAMS")],
       ["players", uiCopy("OYUNCU MERKEZİ", "PLAYER CENTRE")],
       ["dna", "DNA & H2H"],
       ["broadcast", uiCopy("YAYIN", "BROADCAST")],
       ["awards", uiCopy("ÖDÜLLER & EVREN", "AWARDS & UNIVERSE")],
-      ["championship", "CHAMPIONSHIP OS"],
       ["evolution", "EVOLUTION OS"],
       ["universe", uiCopy("EVREN ZEKÂSI", "UNIVERSE INTELLIGENCE")]
     ];
@@ -2026,7 +2027,7 @@
     const fixedGroups = draw?.entryMode === "official-fixed-groups";
     const completedCount = draw?.fixtures?.filter(match => match.completed).length || 0;
     const html = `<header class="f10-draw-hero"><div><span>FIFA 10 · TOURNAMENT OPERATIONS</span><h3>${fixedGroups ? uiCopy("Resmî fikstür.", "Official fixtures.") : uiCopy("Kura çekimi.", "Group draw.")}<br><em>${uiCopy("Üç grup, tek sıralama.", "Three groups, one table.")}</em></h3><p>${fixedGroups ? uiCopy(`A, B ve C grupları kesinleşti. ${draw.fixtures?.length || 78} maçlık 4★, 4.5★ ve 5★ devreleri bu merkezden yönetilir; her sonuç bütün FIFA evrenine aynı anda işlenir.`, `Groups A, B and C are confirmed. The ${draw.fixtures?.length || 78}-match 4★, 4.5★ and 5★ circuits are managed here; every result updates the entire FIFA universe at once.`) : uiCopy(`${participantCount} katılımcı Standing torbalarından canlı kurayla A, B ve C gruplarına dağıtılır. Beklenen grup dağılımı ${sizeText}; hangi grupların büyük olacağı yalnızca kura sırasında belirlenir.`, `${participantCount} participants are assigned from Standing pots to Groups A, B and C in the live draw. The projected group distribution is ${sizeText}; the larger groups are determined only by the draw.`)}</p></div><aside class="status-${status.key}"><i></i><strong>${status.label}</strong><small>${fixedGroups ? uiCopy(`${completedCount}/${draw.fixtures?.length || 78} sonuç işlendi`, `${completedCount}/${draw.fixtures?.length || 78} results recorded`) : status.note}</small>${draw?.fivePlayerGroups?.length ? `<b>${uiCopy(`5 OYUNCULU GRUP${draw.fivePlayerGroups.length > 1 ? "LAR" : ""}`, `5-PLAYER GROUP${draw.fivePlayerGroups.length > 1 ? "S" : ""}`)} · ${draw.fivePlayerGroups.join(" / ")}</b>` : `<b>${uiCopy("GRUP BÜYÜKLÜKLERİ · KURADA", "GROUP SIZES · DECIDED IN DRAW")}</b>`}</aside></header>
-      <nav class="f10-draw-tabs">${tabs.map(([id, label]) => `<button type="button" class="${activeTab === id ? "active" : ""}" data-f10draw-action="tab" data-tab="${id}" ${!draw && id !== "draw" ? "disabled" : ""}>${label}</button>`).join("")}${draw?.status === "completed" ? `<button type="button" class="f10-tv-launch" data-f10draw-action="open-tv">${uiCopy("TV MODU", "TV MODE")} ↗</button><button type="button" class="f10-print-launch" data-f10draw-action="print-centre">${uiCopy("YAZDIRMA MERKEZİ", "PRINT CENTRE")} ↗</button>` : ""}</nav>
+      <nav class="f10-draw-tabs">${tabs.map(([id, label]) => `<button type="button" class="${activeTab === id ? "active" : ""} ${id === "championship" ? "championship-primary-tab" : ""}" data-f10draw-action="tab" data-tab="${id}" ${!draw && id !== "draw" ? "disabled" : ""}>${label}</button>`).join("")}${draw?.status === "completed" ? `<button type="button" class="f10-tv-launch" data-f10draw-action="open-tv">${uiCopy("TV MODU", "TV MODE")} ↗</button><button type="button" class="f10-print-launch" data-f10draw-action="print-centre">${uiCopy("YAZDIRMA MERKEZİ", "PRINT CENTRE")} ↗</button>` : ""}</nav>
       <div class="f10-operation-notice ${operationNotice.type || "info"}"><strong>${operationNotice.type === "success" ? "✓" : operationNotice.type === "warning" ? "!" : "i"}</strong><span>${escapeHTML(operationNotice.text || "")}</span></div>
       ${draw?.status === "completed" ? renderSyncStatus() : ""}
       ${draw?.status === "completed" ? `<section class="f10-connected-universe"><div><span>ONE SOURCE · CONNECTED UNIVERSE</span><strong>${uiCopy("Bir sonucu gir; bütün merkezler birlikte güncellensin.", "Enter one result; update every centre together.")}</strong><small>${uiCopy("Form, oran, Zekâ, canlı maç, takımlar ve tüm zamanlar aynı resmî FIFA 10 maç kaydını okur.", "Form, odds, Intelligence, live matches, teams and all-time records read the same official FIFA 10 match record.")}</small></div><nav><button type="button" data-f10draw-action="universe-nav" data-target="livestats">${uiCopy("Canlı İstatistik", "Live Stats")}</button><button type="button" data-f10draw-action="universe-nav" data-target="form">${uiCopy("Form", "Form")}</button><button type="button" data-f10draw-action="universe-nav" data-target="odds">${uiCopy("Oranlar", "Odds")}</button><button type="button" data-f10draw-action="universe-nav" data-target="intelligence">${uiCopy("Zekâ", "Intelligence")}</button><button type="button" data-f10draw-action="universe-nav" data-target="teams">${uiCopy("Takımlar", "Teams")}</button><button type="button" data-f10draw-action="universe-nav" data-target="alltime">${uiCopy("Tüm Zamanlar", "All-Time")}</button></nav></section>` : ""}
@@ -2115,12 +2116,12 @@
 
   function patchExistingInterface() {
     const navLabel = document.querySelector('.os-primary-nav [data-nav="seasonhub"] span');
-    if (navLabel && navLabel.textContent !== "Format & Kura") navLabel.textContent = "Format & Kura";
+    if (navLabel && navLabel.textContent !== "FIFA 10 Elemeler") navLabel.textContent = "FIFA 10 Elemeler";
     const version = document.querySelector(".sidebar-version");
-    const versionText = `Football Universe · V${VERSION} · Evolution OS`;
+    const versionText = `Football Universe · V${VERSION} · Championship Frontline`;
     if (version && version.textContent !== versionText) version.textContent = versionText;
     const meta = document.querySelector('meta[name="fifa9-build"]');
-    const metaValue = `${VERSION}-evolution-os`;
+    const metaValue = `${VERSION}-championship-frontline`;
     if (meta && meta.content !== metaValue) meta.content = metaValue;
     const url = new URL(location.href);
     if (url.searchParams.get("fifa9build") !== BUILD) {

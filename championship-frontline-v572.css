@@ -1,0 +1,44 @@
+/* FIFA Universe V5.7.2 · Championship Frontline */
+.championship-top-link,.championship-priority-link{position:relative;overflow:hidden}
+.championship-top-link{display:inline-flex;align-items:center;gap:.55rem;padding:.72rem 1rem;border:1px solid rgba(244,197,82,.58);border-radius:999px;background:linear-gradient(135deg,rgba(177,124,23,.22),rgba(25,70,163,.25));color:#fff;font-weight:900;letter-spacing:.02em}
+.championship-top-link i,.nav-live-chip{padding:.18rem .42rem;border-radius:999px;background:#d9a72b;color:#071126;font-size:.62rem;font-style:normal;font-weight:950;letter-spacing:.08em}
+.championship-priority-link:before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(244,197,82,.13),transparent);transform:translateX(-110%);animation:champFrontlineSweep 4.5s ease-in-out infinite}
+@keyframes champFrontlineSweep{50%,100%{transform:translateX(110%)}}
+.championship-frontline-page{display:grid;gap:1.15rem}
+.championship-frontline-hero{min-height:420px!important}
+.championship-frontline-hero>div>div{display:flex;flex-wrap:wrap;gap:.65rem;margin-top:1.25rem}
+.championship-frontline-hero aside{display:grid;gap:.7rem;align-content:center}
+.championship-frontline-hero aside>strong{font-size:clamp(3rem,7vw,6rem);line-height:.85;color:#f2ca62}
+.championship-frontline-hero aside>span{color:#9fb3d7;font-weight:800}
+.championship-frontline-hero aside>div{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.7rem .85rem;border:1px solid rgba(146,173,218,.2);border-radius:13px;background:rgba(6,18,43,.52)}
+.championship-frontline-hero aside b{color:#fff}.championship-frontline-hero aside em{color:#9fb3d7;font-style:normal}
+.f10-operations-mount{min-width:0;scroll-margin-top:92px}
+.championship-support-layer{border:1px solid rgba(126,151,196,.22);border-radius:22px;background:rgba(5,14,34,.55);overflow:hidden}
+.championship-support-layer summary{cursor:pointer;padding:1rem 1.15rem;color:#cfdaee;font-weight:900;letter-spacing:.04em}
+.championship-support-layer details[open] summary{border-bottom:1px solid rgba(126,151,196,.18)}
+.championship-registration-archive{opacity:.88}
+.f10-draw-tabs .championship-primary-tab{order:-20!important;border-color:rgba(240,193,73,.75)!important;background:linear-gradient(135deg,#b37b18,#223f87)!important;color:white!important;box-shadow:0 8px 24px rgba(180,126,24,.24)}
+.f10-draw-tabs .championship-primary-tab:before{content:"LIVE";margin-right:.38rem;padding:.12rem .34rem;border-radius:999px;background:#f0c44f;color:#071126;font-size:.57rem}
+.fco-frontline-status,.fco-match-operations,.fco-live-bracket,.fco-official-standings{scroll-margin-top:100px}
+.fco-frontline-status{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:1rem;padding:1.35rem;border:1px solid rgba(236,191,75,.38);border-radius:22px;background:radial-gradient(circle at 85% 15%,rgba(214,166,47,.18),transparent 38%),linear-gradient(135deg,rgba(8,25,61,.95),rgba(5,12,30,.98));box-shadow:0 20px 56px rgba(1,6,18,.32)}
+.fco-frontline-status span,.fco-match-operations header span,.fco-live-bracket header span,.fco-official-standings header span{color:#e5b94a;font-size:.72rem;font-weight:950;letter-spacing:.12em}
+.fco-frontline-status h3{margin:.35rem 0 .55rem;font-size:clamp(1.8rem,4vw,3.5rem);line-height:.95;color:#fff}.fco-frontline-status h3 em{color:#84aef7;font-style:normal}
+.fco-frontline-status p{max-width:850px;margin:0;color:#aebed9}
+.fco-frontline-status aside{display:grid;min-width:190px;align-content:center;text-align:center;padding:1rem;border-left:1px solid rgba(255,255,255,.12)}
+.fco-frontline-status aside>b{font-size:3.4rem;color:#fff}.fco-frontline-status aside small{color:#9caecc;font-weight:900}.fco-frontline-status aside button{margin-top:.8rem}
+.fco-match-operations,.fco-live-bracket,.fco-official-standings{margin-top:1rem;padding:1rem;border:1px solid rgba(112,144,199,.22);border-radius:20px;background:rgba(5,14,34,.82)}
+.fco-match-operations>header,.fco-live-bracket>header,.fco-official-standings>header{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;margin-bottom:1rem;padding-bottom:.8rem;border-bottom:1px solid rgba(136,163,209,.18)}
+.fco-match-operations h4,.fco-live-bracket h4,.fco-official-standings h4{margin:.2rem 0;color:#fff;font-size:1.55rem}.fco-match-operations p,.fco-live-bracket p,.fco-official-standings p{margin:0;color:#91a5c7}
+.fco-operation-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.9rem}
+.fco-frontline-lock,.fco-operation-complete{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1.15rem;border:1px dashed rgba(234,190,77,.5);border-radius:15px;background:rgba(202,147,27,.08)}
+.fco-frontline-lock strong,.fco-operation-complete strong{color:#fff}.fco-frontline-lock span,.fco-operation-complete span{color:#a7b7d3}
+.fco-bracket.compact{display:grid;grid-template-columns:repeat(5,minmax(210px,1fr));gap:.7rem;overflow-x:auto;padding-bottom:.45rem}
+.fco-bracket.compact>section{min-width:210px}
+.fco-bracket-series{display:grid;gap:.45rem;padding:.72rem;border:1px solid rgba(116,145,195,.24);border-radius:13px;background:linear-gradient(145deg,rgba(16,34,70,.94),rgba(5,13,32,.96))}
+.fco-bracket-series>header,.fco-bracket-series>div,.fco-bracket-series>footer{display:flex;align-items:center;justify-content:space-between;gap:.55rem}.fco-bracket-series>header span{color:#e4ba51;font-size:.68rem}.fco-bracket-series>header b{font-size:.62rem;color:#9eafd0}
+.fco-bracket-series>div strong{max-width:42%;color:#fff;font-size:.78rem}.fco-bracket-series>div>b{color:#fff;font-size:1.2rem}.fco-bracket-series>div i{color:#6f87b1;font-style:normal}.fco-bracket-series footer{min-height:26px;color:#93a8c9;font-size:.68rem}
+.fco-bracket-series.status-completed{border-color:rgba(222,177,57,.5);box-shadow:inset 0 0 25px rgba(204,150,30,.08)}
+.fco-table-wrap{overflow:auto}.fco-official-standings table{min-width:980px}.fco-official-standings th{position:sticky;top:0;background:#101f40}.fco-official-standings td span{display:inline-flex;padding:.22rem .45rem;border-radius:999px;background:rgba(94,125,182,.16);font-size:.68rem;font-weight:850}.fco-official-standings tr.path-direct td:first-child b{color:#efc65f}.fco-official-standings tr.path-playin td:first-child b{color:#7ea9f5}.fco-official-standings tr.path-eliminated{opacity:.62}
+.frontline-secondary{margin-top:1rem;opacity:.78}
+@media(max-width:900px){.fco-frontline-status{grid-template-columns:1fr}.fco-frontline-status aside{border-left:0;border-top:1px solid rgba(255,255,255,.1)}.fco-operation-grid{grid-template-columns:1fr}.championship-frontline-hero{min-height:auto!important}.fco-match-operations>header,.fco-live-bracket>header,.fco-official-standings>header{align-items:flex-start;flex-direction:column}}
+@media(max-width:620px){.championship-frontline-hero>div>div .btn{width:100%}.fco-frontline-lock,.fco-operation-complete{align-items:flex-start;flex-direction:column}.fco-bracket.compact{grid-template-columns:repeat(5,82vw)}.championship-top-link span{font-size:.72rem}}

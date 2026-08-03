@@ -1,0 +1,53 @@
+FIFA UNIVERSE V5.7.2 — CHAMPIONSHIP FRONTLINE
+================================================
+
+1) DEPLOY
+- En güvenli yöntem: V5_7_2_CHAMPIONSHIP_FRONTLINE_DEPLOY_PATCH.zip içeriğini mevcut proje köküne yükleyin.
+- Vercel deploy tamamlandıktan sonra şu adresi açın:
+  https://fifa9-tournament-hub.vercel.app/?fifa9build=572000
+- Bir kez Ctrl + Shift + R yapın.
+
+2) SUPABASE KURULUMU — ZORUNLU
+- Supabase Dashboard > SQL Editor açın.
+- SUPABASE_V5_7_2_PLAYER_RESULT_DESK.sql dosyasının tamamını çalıştırın.
+- Bu işlem oyuncu sonuç gönderim tablosunu ve iki oyuncu teyidiyle resmîleştirme RPC'lerini kurar.
+
+3) CHAMPIONSHIP'I BAŞLATMA
+- Yönetici hesabıyla giriş yapın.
+- Üst menüden “FIFA 10 Elemeler” sayfasını açın.
+- Grup maçlarının 78/78 olduğu doğrulanır.
+- Resmî Championship Journey ilk yönetici açılışında otomatik oluşturulur.
+- Otomatik oluşmazsa “ELEMELERİ RESMÎLEŞTİR” düğmesine bir kez basın.
+
+4) YENİ SAYFA SIRASI
+- Maçlar ve Sonuç Girişi
+- Canlı Turnuva Ağacı
+- Resmî Puan Tablosu
+- Diğer Championship Intelligence modülleri
+
+5) OYUNCULARIN SONUÇ GİRMESİ
+- Oyuncu şu sayfayı açar:
+  https://fifa9-tournament-hub.vercel.app/fifa10-print-centre.html?fifa9build=572000
+- Kendi oyuncu hesabıyla giriş yapar.
+- Yalnızca kendisine ait aktif eleme maçı görünür.
+- Skoru ve iki kullanılan takımı girip gönderir.
+- Rakip aynı sayfadan aynı skor ve takımları teyit eder.
+- İki teyit eşleştiğinde sonuç otomatik resmî ağaca işlenir ve kazanan sonraki tura taşınır.
+
+6) GÜVENLİK
+- Oyuncu başka bir oyuncunun maçını göremez/gönderemez.
+- Beraberlik skoru eleme maçında kabul edilmez.
+- Aynı kulüp iki rakip tarafından aynı maçta kullanılamaz.
+- Daha önce kullanılmış takım tekrar kabul edilmez.
+- Seride Maç 1 tamamlanmadan Maç 2; Maç 2 gerekliyse tamamlanmadan Maç 3 işlenemez.
+- Çelişen rakip teyidi reddedilir.
+
+7) HIZLI TEST
+A. Yönetici olarak FIFA 10 Elemeler'i açın.
+B. Play-In eşleşmelerinin resmî sıralamaya göre oluştuğunu kontrol edin.
+C. İki farklı oyuncu hesabıyla aynı test sonucunu gönderin.
+D. İkinci teyitten sonra maçın Championship OS'de resmî göründüğünü kontrol edin.
+E. Seri iki galibiyete ulaşınca kazananın doğru QF slotuna taşındığını kontrol edin.
+
+Build: 572000
+Release: V5.7.2 Championship Frontline

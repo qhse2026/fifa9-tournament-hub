@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#071228">
-  <title>FIFA 10 Yazdırma Merkezi</title>
+  <title>FIFA 10 Çıktı & Oyuncu Sonuç Merkezi</title>
   <style>
     :root{--navy:#071228;--blue:#245cca;--gold:#b98213;--line:#b9c2cf;--soft:#edf2f8;--ink:#101827}
     *{box-sizing:border-box}
@@ -80,10 +80,11 @@
       .team-cell:empty:before{content:""}
     }
   </style>
+  <link rel="stylesheet" href="fifa10-player-result-desk-v572.css?v=5.7.2">
 </head>
 <body>
   <header class="toolbar">
-    <div><strong>FIFA 10 Yazdırma Merkezi</strong><small>Fikstür · takım kuralları · oyuncu takım çizelgeleri</small></div>
+    <div><strong>FIFA 10 Çıktı & Oyuncu Sonuç Merkezi</strong><small>Eleme sonucu gönder · fikstür · takım kuralları · oyuncu çizelgeleri</small></div>
     <div>
       <button data-print-scope="fixtures">Grup Fikstürleri</button>
       <button data-print-scope="rules">Takım Kuralları</button>
@@ -91,11 +92,16 @@
       <button class="primary" data-print-scope="all">Tümünü Yazdır</button>
     </div>
   </header>
-  <div class="screen-note"><strong>Doğru çıktı ayarı:</strong> A4 · Yatay · Ölçek %100. Tarayıcının “Daha fazla ayar” bölümünde <strong>Üstbilgiler ve altbilgiler</strong> seçeneğini kapatın. Takım hücrelerine bilgisayardan veya telefondan yazabilirsiniz; manuel girişler bu cihazda korunur.</div>
+  <div id="printPlayerResultDesk" class="print-player-desk-only"></div>
+  <div class="screen-note"><strong>Oyuncu Sonuç Masası:</strong> Eleme maçında iki rakip aynı skor ve takımları teyit ettiğinde sonuç otomatik resmî ağaca işlenir. <strong>Yazdırma:</strong> A4 · Yatay · Ölçek %100; üstbilgi ve altbilgileri kapatın.</div>
   <main id="printRoot"></main>
-  <script src="fifa10-team-pools.js?v=2.2.0"></script>
-  <script src="language.js?v=2.2.0"></script>
-  <script src="qrcode-generator-2.0.4.js?v=2.2.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="cloud-config.js?v=5.7.2"></script>
+  <script src="cloud.js?v=5.7.2"></script>
+  <script src="fifa10-team-pools.js?v=5.7.2"></script>
+  <script src="language.js?v=5.7.2"></script>
+  <script src="qrcode-generator-2.0.4.js?v=5.7.2"></script>
+  <script src="fifa10-player-result-desk-v572.js?v=5.7.2"></script>
   <script>
   (() => {
     "use strict";
@@ -149,7 +155,7 @@
     const complete = match => Boolean(match.completed) && Number.isFinite(Number(match.homeScore)) && Number.isFinite(Number(match.awayScore));
     const score = match => complete(match) ? `${Number(match.homeScore)}–${Number(match.awayScore)}` : "___–___";
     const groupPlayerCount = group => groups[group].length;
-    const footer = () => `<div class="footer-line"><span>ORUÇ REİS FIFA UNIVERSE · FIFA 10</span><span>V2.2.0 · ${new Date().toLocaleDateString(window.FIFA_I18N?.language === "en" ? "en-GB" : "tr-TR")}</span></div>`;
+    const footer = () => `<div class="footer-line"><span>ORUÇ REİS FIFA UNIVERSE · FIFA 10</span><span>V5.7.2 · ${new Date().toLocaleDateString(window.FIFA_I18N?.language === "en" ? "en-GB" : "tr-TR")}</span></div>`;
     function fixturePage(group) {
       const rows = fixtures.filter(match => match.group === group);
       const counts = Object.fromEntries(STARS.map(stars => [String(stars), rows.filter(match => match.stars === stars).length]));
@@ -218,7 +224,7 @@
       const url = new URL("index.html", location.href);
       url.search = "";
       url.hash = "";
-      url.searchParams.set("fifa9build", "571000");
+      url.searchParams.set("fifa9build", "572000");
       url.searchParams.set("fifa10player", playerName);
       return url.href;
     }

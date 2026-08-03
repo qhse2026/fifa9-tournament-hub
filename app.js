@@ -103,7 +103,7 @@
     backup: "Veri & Yedek",
     playeraccess: "Oyuncu Girişi",
     finalpoll: "FIFA09 Final Chapter Kararı",
-    seasonhub: "FIFA 10 Turnuva Sistemi"
+    seasonhub: "FIFA 10 Eleme Merkezi"
   };
 
   const REMOVED_GAME_ROUTES = new Set(["managerroom", "managerhall", "museum", "formula1"]);
@@ -2955,13 +2955,19 @@ function renderFifa10EloBlock({limit=10}={}) {
     const draft=fifa10RegistrationState();
     const assignment=fifa10AssignPots();
     const honour=allMuseumHonours().find(item=>Number(item.edition)===9&&item.competition==="oruc")||currentFifa9Honour();
-    view.innerHTML=`<div class="f10-page f10-triple-page">
-      <section class="f10-triple-hero"><div><span>FIFA 10 · TRIPLE CIRCUIT</span><h2>Three circuits.<br><em>One table.</em><br>One champion.</h2><p>FIFA 10'un resmî omurgası; Standing seri başları, üç gruplu üç devre, genel sıralama ve Best of 3 şampiyonluk yolu üzerine kuruludur.</p><div><button class="btn btn-blue" data-nav="dashboard">Ana dashboard</button><a class="btn btn-gold" href="#fifa10Registration">Kayıt merkezine git</a></div></div><aside><small>FIFA 09 LEGACY CHAMPION</small><strong>${escapeHTML(honour?.winner||"Çağlar Can Tatar")}</strong><span>Yeni çağın FIFA Player Standing hiyerarşisi hazır.</span><div><b>${assignment.rows.length}</b><em>Kayıtlı oyuncu</em></div><div><b>5</b><em>Standing torbası</em></div></aside></section>
+    const integrated=ensureFifa10IntegratedTournament();
+    const draw=integrated?.draw || draft?.draw || null;
+    const completed=draw?.fixtures?.filter(match=>match.completed).length || 0;
+    const total=draw?.fixtures?.length || 78;
+    const groupSealed=Boolean(total && completed===total);
+    const championship=draft?.championshipOS || null;
+    view.innerHTML=`<div class="f10-page f10-triple-page championship-frontline-page">
+      <section class="f10-triple-hero championship-frontline-hero"><div><span>FIFA 10 · ${groupSealed?"KNOCKOUT PHASE LIVE":"TRIPLE CIRCUIT"}</span><h2>${groupSealed?"Group league sealed.<br><em>Championship begins.</em><br>Every match matters.":"Three circuits.<br><em>One table.</em><br>One champion."}</h2><p>${groupSealed?"Grup ligi tamamlandı. Maçlar, sonuç girişi, canlı turnuva ağacı ve resmî puan tablosu artık bu sayfanın en üstünde tek operasyon akışında.":"FIFA 10'un resmî omurgası; Standing seri başları, üç gruplu üç devre, genel sıralama ve Best of 3 şampiyonluk yolu üzerine kuruludur."}</p><div><button class="btn btn-gold" data-championship-jump="operations">Maçlar ve Sonuçlar</button><button class="btn btn-blue" data-championship-jump="bracket">Turnuva Ağacı</button><button class="btn btn-ghost" data-championship-jump="standings">Resmî Puan Tablosu</button><button class="btn btn-ghost" data-action="open-fifa10-print-centre">Oyuncu Sonuç Girişi ↗</button></div></div><aside><small>GROUP LEAGUE STATUS</small><strong>${completed}/${total}</strong><span>${groupSealed?"GRUP LİGİ MÜHÜRLENDİ · ELEMELER AKTİF":"Grup aşaması devam ediyor"}</span><div><b>${championship?.status==="official"||championship?.status==="completed"?"RESMÎ":"HAZIR"}</b><em>Championship OS</em></div><div><b>${assignment.rows.length}</b><em>Oyuncu</em></div></aside></section>
       <div class="f10-operations-mount" id="fifa10OperationsMount"></div>
-      ${renderFifa10EloBlock({limit:20})}
-      ${renderFifa10FormatSpine({detailed:true})}
-      ${renderFifa10RegistrationBlock()}
+      <section class="championship-support-layer"><details><summary>Standing ve format referanslarını göster</summary>${renderFifa10EloBlock({limit:20})}${renderFifa10FormatSpine({detailed:true})}</details></section>
+      <div class="championship-registration-archive">${renderFifa10RegistrationBlock()}</div>
     </div>`;
+    setTimeout(()=>window.FIFA10_DRAW_ENGINE?.refresh?.(),0);
   }
 
   function renderSeasonWorkspace() {
@@ -4232,11 +4238,24 @@ function renderFifa10EloBlock({limit=10}={}) {
     const availableSections = [leagueReady, goldReady, silverReady, knockoutReady].filter(Boolean).length;
     const currentUrl = location.protocol.startsWith("http") ? location.href : "Yerel önizleme";
 
+    const fifa10Draw = ensureFifa10IntegratedTournament()?.draw || fifa10RegistrationState()?.draw || null;
+    const fifa10Completed = fifa10Draw?.fixtures?.filter(match => match.completed).length || 0;
+    const fifa10Total = fifa10Draw?.fixtures?.length || 78;
+    const fifa10Journey = fifa10RegistrationState()?.championshipOS || null;
+
     view.innerHTML = `
-      <div class="group-banner gold">
-        <div><div class="eyebrow">PRINT CONTROL</div><h2>Çıktı Merkezi</h2><p>Kura ve fikstür verilerini otomatik olarak baskıya hazır maç föylerine dönüştür. Oyun masasına asılacak A3 panodan tur bazlı skor kâğıtlarına kadar bütün dokümanlar mevcut canlı veriden üretilir.</p></div>
-        <div class="group-emblem">▤</div>
+      <div class="group-banner gold championship-print-banner">
+        <div><div class="eyebrow">FIFA 10 · MATCH OPERATIONS</div><h2>Çıktı ve Oyuncu Sonuç Merkezi</h2><p>Oyuncular giriş yaparak kendi eleme maçlarının skorunu ve takımlarını buradan işleyebilir. İki rakibin aynı sonucu onaylamasıyla kayıt resmîleşir ve turnuva ağacı otomatik ilerler.</p><div class="championship-print-actions"><button class="btn btn-gold" data-nav="seasonhub">Eleme Merkezini Aç</button><button class="btn btn-blue" data-action="open-fifa10-print-centre">FIFA 10 Yazdırma Merkezi</button></div></div>
+        <div class="group-emblem">KO</div>
       </div>
+      <div class="kpi-grid championship-print-kpis">
+        ${kpiCard("Grup Ligi", `${fifa10Completed}/${fifa10Total}`, fifa10Completed===fifa10Total?"Tamamlandı ve mühürlendi":"Resmî FIFA 10 grup maçları")}
+        ${kpiCard("Championship", fifa10Journey?.status==="official"||fifa10Journey?.status==="completed"?"RESMÎ":"Hazırlanıyor", "Play-In → QF → SF → Final")}
+        ${kpiCard("Oyuncu Girişi", cloudPlayerProfile?.player_name||cloudPlayerProfile?.playerName||"Açık", cloudPlayerProfile?"Bağlı oyuncu hesabı":"Oyuncu hesabıyla giriş yapılabilir")}
+        ${kpiCard("Sonuç Güvencesi", "2× ONAY", "İki oyuncu aynı sonucu teyit eder")}
+      </div>
+      <div id="fifa10PlayerResultDeskMount" class="fifa10-player-result-desk-mount"></div>
+      <div class="legacy-print-divider"><span>FİZİKSEL VE ARŞİV ÇIKTILARI</span></div>
       <div class="kpi-grid">
         ${kpiCard("League Phase", leagueReady ? "48 Maç" : "Bekliyor", leagueReady ? "6 tur · oyuncu başına 6 maç" : "Önce kura çekilmelidir")}
         ${kpiCard("İkinci Aşama", goldReady && silverReady ? "30 Maç" : "Bekliyor", goldReady && silverReady ? "Altın + Gümüş grupları" : "League Phase tamamlanmalıdır")}
@@ -4264,12 +4283,12 @@ function renderFifa10EloBlock({limit=10}={}) {
 
       <div class="grid-2 mt-24">
         <section class="panel">
-          <div class="panel-header"><div><h3 class="panel-title">Fiziksel Skor Kontrol Sistemi</h3><div class="panel-subtitle">Sen gemide veya oyun alanında olmadığında kullanılacak standart.</div></div></div>
+          <div class="panel-header"><div><h3 class="panel-title">Fiziksel Skor Kontrol Sistemi</h3><div class="panel-subtitle">Dijital oyuncu girişi kullanılamadığında uygulanacak fiziksel yedek standart.</div></div></div>
           <div class="format-list">
             <div class="format-row"><div class="format-icon">1</div><div><div class="format-title">Maç oynandıktan sonra skor yazılır</div><div class="format-desc">Her iki oyuncu skoru kontrol eder; beraberlik veya penaltı bilgisi not alanına eklenir.</div></div></div>
             <div class="format-row"><div class="format-icon">2</div><div><div class="format-title">“Oynandı” kutusu işaretlenir</div><div class="format-desc">Maçın fiziksel kaydı tamamlanır ve sonuç kâğıdı oyun masasında bırakılır.</div></div></div>
-            <div class="format-row"><div class="format-icon">3</div><div><div class="format-title">Sonuç website'e girilir</div><div class="format-desc">Yönetici sonucu sisteme kaydettikten sonra “Site” kutusunu işaretler.</div></div></div>
-            <div class="format-row"><div class="format-icon">4</div><div><div class="format-title">Doğrulama tamamlanır</div><div class="format-desc">Fiziksel kâğıt ile canlı site aynıysa “Doğrulandı” kutusu işaretlenir.</div></div></div>
+            <div class="format-row"><div class="format-icon">3</div><div><div class="format-title">Sonuç website'e girilir</div><div class="format-desc">Oyunculardan biri dijital Sonuç Merkezi’ne girer; rakibi aynı sonucu teyit eder.</div></div></div>
+            <div class="format-row"><div class="format-icon">4</div><div><div class="format-title">Doğrulama tamamlanır</div><div class="format-desc">İki oyuncu teyidi tamamlanınca sonuç resmîleşir; fiziksel kâğıt yedek kanıt olarak saklanır.</div></div></div>
           </div>
         </section>
         <section class="panel">
@@ -4278,6 +4297,7 @@ function renderFifa10EloBlock({limit=10}={}) {
           <div class="info-box mt-16">Kâğıdın üst kısmında turnuva adı, baskı tarihi, edisyon, canlı site adresi ve sonuç sorumlusu alanı otomatik yer alır.</div>
         </section>
       </div>`;
+    setTimeout(() => window.FIFA10_PLAYER_RESULT_DESK?.render?.(document.getElementById("fifa10PlayerResultDeskMount")), 0);
   }
 
   function printCenterCard(icon, title, description, action, ready, format) {
@@ -11629,9 +11649,17 @@ ${shareData.url}`)}`;
     if (window.FIFA_CHAT_UI?.handleClick?.(event)) return;
     const nav = event.target.closest("[data-nav]");
     if (nav) { navTo(nav.dataset.nav); return; }
+    const championshipJump = event.target.closest("[data-championship-jump]");
+    if (championshipJump) {
+      const targets = { operations: "championshipMatchOperations", bracket: "championshipLiveBracket", standings: "championshipOfficialStandings" };
+      const target = document.getElementById(targets[championshipJump.dataset.championshipJump]);
+      target?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+      return;
+    }
     const action = event.target.closest("[data-action]");
     if (!action) return;
     const type = action.dataset.action;
+    if (type === "open-fifa10-print-centre") { window.open(`fifa10-print-centre.html?fifa9build=572000`, "_blank", "noopener"); return; }
     if (type === "open-fifa10-player-picker") { openFifa10PlayerPicker(); return; }
     if (type === "select-fifa10-registration-player") { selectFifa10RegistrationPlayer(action.dataset.playerName || ""); return; }
     if (type === "toggle-fifa10-registration") { toggleFifa10Registration(); return; }

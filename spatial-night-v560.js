@@ -2,7 +2,7 @@
   'use strict';
 
   const VERSION = '5.6.0';
-  const BUILD = '571000';
+  const BUILD = '572000';
   const STATE_KEY = 'fifa-spatial-night-v560';
   const SCENES = ['controlroom','warroom','corridor','walkout','championship'];
   let syncTimer = null;

@@ -2,7 +2,7 @@
   'use strict';
 
   const VERSION = '5.3.0';
-  const BUILD = '530000';
+  const BUILD = '572000';
   const STATE_KEY = 'fifa-spatial-universe-v530';
   const PLAYER_KEY = 'fifa-universe-v2-player';
   const SCENES = ['core', 'museum', 'galaxy', 'compare', 'dynasty', 'records', 'theatre'];
