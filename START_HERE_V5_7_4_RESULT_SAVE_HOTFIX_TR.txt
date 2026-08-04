@@ -1,0 +1,13 @@
+FIFA UNIVERSE V5.7.4 — RESULT SAVE HOTFIX
+
+1) Deploy patch dosyalarını mevcut projenin köküne kopyalayın.
+2) Deploy tamamlandıktan sonra şu adresi açın:
+   https://fifa9-tournament-hub.vercel.app/?fifa9build=574000
+3) Ctrl + Shift + R yapın.
+4) Championship OS > Maçlar ve Sonuç Girişi bölümünde bir Play-In maçı açın.
+5) Her iki takımı ve eşit olmayan skoru girin, KAYDET'e basın.
+6) Sonuç satırının tamamlandı görünmesi ve seri skorunun güncellenmesi gerekir.
+7) BO3 seri 2 galibiyete ulaştığında üçüncü maç gerekiyorsa açık kalır, gerekmiyorsa Gerekmedi olur.
+8) Dört Play-In tamamlandığında QF eşleşmeleri otomatik yaratılmaz; Çeyrek Final Kurası açılır.
+
+Not: Bu hotfix için yeni Supabase SQL gerekmez.

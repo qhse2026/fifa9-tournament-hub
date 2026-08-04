@@ -17,7 +17,7 @@
     if("serviceWorker" in navigator) cleanup.push(navigator.serviceWorker.getRegistrations().then(regs=>Promise.all(regs.map(reg=>reg.unregister()))));
     Promise.allSettled(cleanup).finally(()=>{
       const url=new URL(location.href);
-      if(url.searchParams.get("fifa9build")!=="573000"){url.searchParams.set("fifa9build","573000");location.replace(url.toString());}
+      if(url.searchParams.get("fifa9build")!=="574000"){url.searchParams.set("fifa9build","574000");location.replace(url.toString());}
     });
   })();
   </script>
@@ -232,10 +232,10 @@
   <script src="fifa10-registration-cloud.js?v=3.0.0"></script>
   <script src="qrcode-generator-2.0.4.js?v=3.0.0"></script>
   <script src="fifa-universe-intelligence-v4719.js?v=5.7.2"></script>
-  <script src="fifa-championship-os-v4719.js?v=5.7.3"></script>
+  <script src="fifa-championship-os-v4719.js?v=5.7.4"></script>
   <script src="fifa-evolution-os-v4719.js?v=5.7.2"></script>
   <script src="fifa-universe-v2.js?v=5.7.2"></script>
-  <script id="fifa10DrawEngineScript" src="fifa10-draw-engine-v4713.js?v=5.7.2"></script>
+  <script id="fifa10DrawEngineScript" src="fifa10-draw-engine-v4713.js?v=5.7.4"></script>
   <script src="chat.js?v=44.5.0"></script>
   <script src="community.js?v=44.5.0"></script>
   <script src="app.js?v=5.7.2-championship-frontline"></script>
@@ -250,6 +250,6 @@
   <script src="spatial-rivalry-v550.js?v=5.7.2"></script>
   <script src="spatial-night-v560.js?v=5.7.2"></script>
   <script src="spatial-broadcast-v570.js?v=5.7.2"></script>
-  <script src="fifa10-player-result-desk-v572.js?v=5.7.3"></script>
+  <script src="fifa10-player-result-desk-v572.js?v=5.7.4"></script>
 </body>
 </html>

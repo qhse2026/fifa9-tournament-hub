@@ -2,7 +2,7 @@
   "use strict";
 
   const VERSION = "3.2.0";
-  const BUILD = '573000';
+  const BUILD = '574000';
   const STORAGE_KEY = "fifa-tournament-hub-v1";
   const SYNC_HISTORY_KEY = "fifa10-sync-history-v1";
   const GROUPS = Object.freeze(["A", "B", "C"]);
@@ -535,7 +535,8 @@
   }
 
   function validateChampionshipState(state, draw = getDraw()) {
-    if (!state || typeof state !== "object" || Number(state.version) !== 1) {
+    const schemaVersion = Number(state?.version);
+    if (!state || typeof state !== "object" || ![1, 2].includes(schemaVersion)) {
       throw new Error(uiCopy("Championship verisi geçerli değil.", "The Championship state is invalid."));
     }
     const serialized = JSON.stringify(state);

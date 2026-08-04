@@ -2,7 +2,7 @@
   'use strict';
 
   const VERSION = '5.7.3';
-  const BUILD = '573000';
+  const BUILD = '574000';
   const STATE_KEY = 'fifa-spatial-broadcast-v570';
   const SNAPSHOT_KEY = 'fifa-spatial-broadcast-snapshot-v570';
   const EVENT_KEY = 'fifa-spatial-story-events-v570';
