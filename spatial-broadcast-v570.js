@@ -1,8 +1,8 @@
 (() => {
   'use strict';
 
-  const VERSION = '5.7.1';
-  const BUILD = '572000';
+  const VERSION = '5.7.3';
+  const BUILD = '573000';
   const STATE_KEY = 'fifa-spatial-broadcast-v570';
   const SNAPSHOT_KEY = 'fifa-spatial-broadcast-snapshot-v570';
   const EVENT_KEY = 'fifa-spatial-story-events-v570';
@@ -229,7 +229,13 @@
     const locked=p.total>0&&p.pending===0;
     const direct=[1,2,3,4].map(rank=>t[rank-1]||null);
     const pairs=[[5,12],[6,11],[7,10],[8,9]].map(([a,b],i)=>({id:i+1,aRank:a,bRank:b,a:t[a-1]||null,b:t[b-1]||null}));
-    return {locked,direct,pairs,status:draw.status||'',completed:p.done,total:p.total,pct:p.pct};
+    let journey=null;
+    try{journey=window.FIFA_APP_CONTEXT?.getState?.()?.seasonSystem?.fifa10Draft?.championshipOS||null;}catch(_){journey=null;}
+    const byId=new Map(t.map(row=>[String(row.id),row]));
+    const qfOfficial=journey?.draws?.quarterfinal?.status==='official';
+    const qfPairs=qfOfficial?(journey?.rounds?.quarterfinal||[]).map((series,i)=>({id:i+1,home:byId.get(String(series.homeId))||null,away:byId.get(String(series.awayId))||null,status:series.status||'waiting'})):[];
+    const sfOfficial=journey?.draws?.semifinal?.status==='official';
+    return {locked,direct,pairs,status:draw.status||'',completed:p.done,total:p.total,pct:p.pct,qfOfficial,qfPairs,sfOfficial};
   }
 
   function ensureScenes(){
@@ -310,10 +316,10 @@
       <section class="bc-bracket-stage ${b.locked?'locked':'provisional'}">
         <div class="bc-bracket-column playin"><header><span>CHAMPIONSHIP PLAY-IN</span><b>BEST OF 3</b></header>${b.pairs.map(pair=>`<article><em>PI-${pair.id}</em>${bracketPlayer(pair.a,`#${pair.aRank}`)}<i>VS</i>${bracketPlayer(pair.b,`#${pair.bRank}`)}<footer>${b.locked?(isTR()?'Katılımcılar final grup tablosundan kilitlendi.':'Participants locked from final group table.'):(isTR()?'Canlı sıralamaya göre provizyonel.':'Provisional from live standings.')}</footer></article>`).join('')}</div>
         <div class="bc-bracket-flow"><i></i><i></i><i></i><i></i></div>
-        <div class="bc-bracket-column qf"><header><span>DIRECT QUARTER-FINALISTS</span><b>#1–#4</b></header>${b.direct.map((row,i)=>`<article>${bracketPlayer(row,`#${i+1} DIRECT QF`)}<div class="bc-open-slot"><small>${isTR()?'RAKİP':'OPPONENT'}</small><strong>${isTR()?'Resmî QF eşleşmesi bekleniyor':'Awaiting official QF pairing'}</strong><span>${isTR()?'Play-In kazananı burada resmî bracket mühürlenince yer alacak.':'A Play-In winner will appear only when the official bracket is sealed.'}</span></div></article>`).join('')}</div>
+        <div class="bc-bracket-column qf"><header><span>${b.qfOfficial?'QUARTER-FINAL DRAW':'DIRECT QUARTER-FINALISTS'}</span><b>${b.qfOfficial?(isTR()?'KURA RESMÎ':'DRAW OFFICIAL'):'#1–#4'}</b></header>${b.qfOfficial?b.qfPairs.map(pair=>`<article><em>QF-${pair.id}</em>${bracketPlayer(pair.home,isTR()?'SERİ BAŞI':'SEEDED')}<i>VS</i>${bracketPlayer(pair.away,'PLAY-IN WINNER')}<footer>${isTR()?'Resmî çeyrek final kurası':'Official quarter-final draw'}</footer></article>`).join(''):b.direct.map((row,i)=>`<article>${bracketPlayer(row,`#${i+1} DIRECT QF`)}<div class="bc-open-slot"><small>${isTR()?'RAKİP':'OPPONENT'}</small><strong>${isTR()?'Çeyrek final kurası bekleniyor':'Awaiting quarter-final draw'}</strong><span>${isTR()?'Dört Play-In galibi belli olduktan sonra Top 4 ile kura çekilecek.':'After all four Play-In winners are known, they will be drawn against the seeded Top 4.'}</span></div></article>`).join('')}</div>
         <div class="bc-bracket-final-vault"><span>FINAL PATH</span>${honour?`<div class="bc-final-seal"><b>♛</b><strong>${esc(honour.winner)}</strong><small>FIFA 10 CHAMPION · OFFICIAL</small><button data-bc-final>OPEN FINAL NIGHT</button></div>`:`<div class="bc-final-seal pending"><b>◇</b><strong>${isTR()?'SONUÇ BEKLENİYOR':'OUTCOME PENDING'}</strong><small>${isTR()?'Knockout sonuçları resmî olarak girilmeden finalist/şampiyon üretilmez.':'No finalist or champion is generated before official knockout outcomes exist.'}</small></div>`}</div>
       </section>
-      <footer class="bc-bracket-disclaimer"><b>${b.completed}/${b.total||0}</b><span>${isTR()?'grup fikstürü tamamlandı':'group fixtures completed'}</span><i>•</i><span>${isTR()?'Play-In eşleşmeleri 5–12, 6–11, 7–10, 8–9 kuralından gelir. QF bağlantısı resmî veri yoksa uydurulmaz.':'Play-In pairings follow 5–12, 6–11, 7–10, 8–9. QF links are never invented without official data.'}</span></footer>
+      <footer class="bc-bracket-disclaimer"><b>${b.completed}/${b.total||0}</b><span>${isTR()?'grup fikstürü tamamlandı':'group fixtures completed'}</span><i>•</i><span>${isTR()?'Play-In eşleşmeleri 5–12, 6–11, 7–10, 8–9 kuralından gelir. QF eşleşmeleri yalnız resmî seri başı-vs-Play-In kurasıyla oluşur; yarı finalde yeni açık kura çekilir.':'Play-In pairings follow 5–12, 6–11, 7–10, 8–9. QF pairings appear only after the official seeded-vs-Play-In draw; semi-finals require a new open draw.'}</span></footer>
     </div>`;
   }
 

@@ -1,8 +1,8 @@
 (() => {
   "use strict";
 
-  const VERSION = "2.3.0";
-  const BUILD = '572000';
+  const VERSION = "2.4.0";
+  const BUILD = '573000';
   const ROUND_ORDER = ["playin", "quarterfinal", "semifinal", "bronze", "final"];
   const SERIES_STARS = Object.freeze([4, 4.5, 5]);
   const STORAGE_KEY = "fifa-tournament-hub-v1";
@@ -18,6 +18,7 @@
   let notice = { type: "info", text: "" };
   let listenersInstalled = false;
   let autoLockInProgress = false;
+  let autoMigrationInProgress = false;
 
   const ui = (tr, en) => window.FIFA_I18N?.language === "en" ? en : tr;
   const clamp = (value, min = 0, max = 100) => Math.max(min, Math.min(max, Number(value) || 0));
@@ -153,7 +154,7 @@
     const table = drawStandings(draw);
     const seedIds = Object.fromEntries(table.map(row => [String(row.rank), row.id]));
     return {
-      version: 1,
+      version: 2,
       build: BUILD,
       status: locked ? "official" : "preview",
       createdAt: nowISO(),
@@ -165,6 +166,10 @@
         rank: row.rank, id: row.id, name: row.name, ppg: row.ppg, gdPerMatch: row.gdPerMatch, gf: row.gf
       })),
       seedIds,
+      draws: {
+        quarterfinal: { status: "pending", mode: null, drawnAt: null, pairings: [] },
+        semifinal: { status: "pending", mode: null, drawnAt: null, pairings: [] }
+      },
       rounds: {
         playin: [
           seriesTemplate("F10-PI-1", "playin", "5–12", 3, { type: "seed", rank: 5 }, { type: "seed", rank: 12 }),
@@ -173,14 +178,14 @@
           seriesTemplate("F10-PI-4", "playin", "8–9", 3, { type: "seed", rank: 8 }, { type: "seed", rank: 9 })
         ],
         quarterfinal: [
-          seriesTemplate("F10-QF-1", "quarterfinal", "QF 1", 3, { type: "seed", rank: 1 }, { type: "winner", seriesId: "F10-PI-4" }),
-          seriesTemplate("F10-QF-2", "quarterfinal", "QF 2", 3, { type: "seed", rank: 4 }, { type: "winner", seriesId: "F10-PI-1" }),
-          seriesTemplate("F10-QF-3", "quarterfinal", "QF 3", 3, { type: "seed", rank: 2 }, { type: "winner", seriesId: "F10-PI-3" }),
-          seriesTemplate("F10-QF-4", "quarterfinal", "QF 4", 3, { type: "seed", rank: 3 }, { type: "winner", seriesId: "F10-PI-2" })
+          seriesTemplate("F10-QF-1", "quarterfinal", "QF 1", 3, { type: "draw-pending", draw: "quarterfinal" }, { type: "draw-pending", draw: "quarterfinal" }),
+          seriesTemplate("F10-QF-2", "quarterfinal", "QF 2", 3, { type: "draw-pending", draw: "quarterfinal" }, { type: "draw-pending", draw: "quarterfinal" }),
+          seriesTemplate("F10-QF-3", "quarterfinal", "QF 3", 3, { type: "draw-pending", draw: "quarterfinal" }, { type: "draw-pending", draw: "quarterfinal" }),
+          seriesTemplate("F10-QF-4", "quarterfinal", "QF 4", 3, { type: "draw-pending", draw: "quarterfinal" }, { type: "draw-pending", draw: "quarterfinal" })
         ],
         semifinal: [
-          seriesTemplate("F10-SF-1", "semifinal", "SF 1", 3, { type: "winner", seriesId: "F10-QF-1" }, { type: "winner", seriesId: "F10-QF-2" }),
-          seriesTemplate("F10-SF-2", "semifinal", "SF 2", 3, { type: "winner", seriesId: "F10-QF-3" }, { type: "winner", seriesId: "F10-QF-4" })
+          seriesTemplate("F10-SF-1", "semifinal", "SF 1", 3, { type: "draw-pending", draw: "semifinal" }, { type: "draw-pending", draw: "semifinal" }),
+          seriesTemplate("F10-SF-2", "semifinal", "SF 2", 3, { type: "draw-pending", draw: "semifinal" }, { type: "draw-pending", draw: "semifinal" })
         ],
         bronze: [
           seriesTemplate("F10-BR-1", "bronze", "THIRD PLACE", 1, { type: "loser", seriesId: "F10-SF-1" }, { type: "loser", seriesId: "F10-SF-2" })
@@ -240,6 +245,8 @@
     const resolveSource = source => {
       if (!source) return null;
       if (source.type === "seed") return state.seedIds?.[String(source.rank)] || null;
+      if (source.type === "player") return source.playerId || null;
+      if (source.type === "draw-pending") return null;
       const parent = seriesMap.get(source.seriesId);
       return source.type === "loser" ? parent?.loserId || null : parent?.winnerId || null;
     };
@@ -257,10 +264,160 @@
     return state;
   }
 
+  function hasCompletedRoundMatches(state, rounds) {
+    return rounds.some(round => (state?.rounds?.[round] || []).some(series => (series.matches || []).some(match => match.completed)));
+  }
+
+  function migrateLegacyJourney(stored, draw) {
+    if (!stored || stored.version !== 1) return stored;
+    if (hasCompletedRoundMatches(stored, ["quarterfinal", "semifinal", "bronze", "final"])) {
+      const legacy = resolveJourney(stored);
+      legacy.migrationBlocked = true;
+      return legacy;
+    }
+    const upgraded = createJourney(draw, stored.status !== "preview");
+    upgraded.createdAt = stored.createdAt || upgraded.createdAt;
+    upgraded.updatedAt = stored.updatedAt || upgraded.updatedAt;
+    upgraded.lockedAt = stored.lockedAt || upgraded.lockedAt;
+    upgraded.seedSnapshot = deepClone(stored.seedSnapshot || upgraded.seedSnapshot);
+    upgraded.seedIds = deepClone(stored.seedIds || upgraded.seedIds);
+    upgraded.rounds.playin = deepClone(stored.rounds?.playin || upgraded.rounds.playin);
+    upgraded.migratedFromVersion = 1;
+    return resolveJourney(upgraded);
+  }
+
   function journeyState(payload, draw) {
     const stored = draft(payload).championshipOS;
-    if (stored?.version === 1 && stored.basedOnDrawId === draw?.drawId) return resolveJourney(stored);
+    if (stored?.basedOnDrawId !== draw?.drawId) return resolveJourney(createJourney(draw, false));
+    if (stored?.version === 2) return resolveJourney(stored);
+    if (stored?.version === 1) return migrateLegacyJourney(stored, draw);
     return resolveJourney(createJourney(draw, false));
+  }
+
+  function roundComplete(state, round) {
+    const list = state?.rounds?.[round] || [];
+    return Boolean(list.length && list.every(series => series.status === "completed" && series.winnerId));
+  }
+
+  function drawState(state, round) {
+    return state?.draws?.[round] || { status: "pending", pairings: [] };
+  }
+
+  function secureShuffle(values) {
+    const array = [...values];
+    for (let index = array.length - 1; index > 0; index -= 1) {
+      let randomValue;
+      if (window.crypto?.getRandomValues) {
+        const buffer = new Uint32Array(1);
+        window.crypto.getRandomValues(buffer);
+        randomValue = buffer[0] / 4294967296;
+      } else randomValue = Math.random();
+      const swap = Math.floor(randomValue * (index + 1));
+      [array[index], array[swap]] = [array[swap], array[index]];
+    }
+    return array;
+  }
+
+  function validatePairings(pairings, potA, potB, round) {
+    if (!Array.isArray(pairings) || pairings.length !== potA.length || pairings.length !== potB.length) {
+      throw new Error(ui("Kura eşleşmeleri eksik.", "Draw pairings are incomplete."));
+    }
+    const expectedA = new Set(potA.map(String));
+    const expectedB = new Set(potB.map(String));
+    const usedA = new Set();
+    const usedB = new Set();
+    pairings.forEach(pair => {
+      const home = String(pair?.homeId || "");
+      const away = String(pair?.awayId || "");
+      if (!expectedA.has(home) || !expectedB.has(away) || usedA.has(home) || usedB.has(away) || home === away) {
+        throw new Error(round === "quarterfinal"
+          ? ui("Çeyrek final kurasında her seri başı tam bir Play-In galibiyle bir kez eşleşmelidir.", "Each seeded player must be paired exactly once with one Play-In winner.")
+          : ui("Yarı final kurasında dört çeyrek final galibi birer kez kullanılmalıdır.", "All four quarter-final winners must be used exactly once."));
+      }
+      usedA.add(home); usedB.add(away);
+    });
+  }
+
+  function semifinalPairingsFromOrder(order) {
+    if (!Array.isArray(order) || order.length !== 4 || new Set(order.map(String)).size !== 4) {
+      throw new Error(ui("Yarı final kura sırası dört farklı oyuncu içermelidir.", "Semi-final draw order must contain four different players."));
+    }
+    return [
+      { homeId: String(order[0]), awayId: String(order[1]) },
+      { homeId: String(order[2]), awayId: String(order[3]) }
+    ];
+  }
+
+  function applyRoundDraw(state, round, pairings, mode) {
+    const series = state.rounds?.[round] || [];
+    pairings.forEach((pair, index) => {
+      if (!series[index]) return;
+      series[index].homeSource = { type: "player", playerId: String(pair.homeId) };
+      series[index].awaySource = { type: "player", playerId: String(pair.awayId) };
+    });
+    state.draws ||= {};
+    state.draws[round] = {
+      status: "official",
+      mode,
+      drawnAt: nowISO(),
+      pairings: pairings.map((pair, index) => ({ seriesId: series[index]?.id || `${round}-${index + 1}`, homeId: String(pair.homeId), awayId: String(pair.awayId) }))
+    };
+    state.updatedAt = nowISO();
+    return resolveJourney(state);
+  }
+
+  async function saveQuarterfinalDraw(pairings, mode = "manual") {
+    const draw = currentDraw(lastDraw);
+    const persisted = draft(app()?.getState?.()).championshipOS;
+    if (!persisted || persisted.status === "preview") throw new Error(ui("Önce Championship'i resmîleştirin.", "Make the Championship official first."));
+    let state = journeyState(app()?.getState?.(), draw);
+    if (state.migrationBlocked) throw new Error(ui("Eski sabit bracket üzerinde çeyrek final sonucu var. Otomatik kura dönüşümü güvenli değil.", "Quarter-final results exist on the legacy fixed bracket; automatic draw migration is unsafe."));
+    if (!roundComplete(state, "playin")) throw new Error(ui("Çeyrek final kurası için dört Play-In serisinin de tamamlanması gerekir.", "All four Play-In series must be complete before the quarter-final draw."));
+    if (hasCompletedRoundMatches(state, ["quarterfinal", "semifinal", "bronze", "final"])) throw new Error(ui("Çeyrek final veya sonraki tur sonucu varken kura değiştirilemez.", "The draw cannot be changed after quarter-final or later results exist."));
+    const pot1 = [1,2,3,4].map(rank => state.seedIds?.[String(rank)]).filter(Boolean).map(String);
+    const pot2 = (state.rounds?.playin || []).map(series => series.winnerId).filter(Boolean).map(String);
+    validatePairings(pairings, pot1, pot2, "quarterfinal");
+    state = applyRoundDraw(state, "quarterfinal", pairings, mode);
+    await engine()?.saveChampionshipState?.(state, ui("Çeyrek final kurası resmîleştirildi.", "Quarter-final draw made official."));
+  }
+
+  async function saveSemifinalDraw(pairings, mode = "manual") {
+    const draw = currentDraw(lastDraw);
+    const persisted = draft(app()?.getState?.()).championshipOS;
+    if (!persisted || persisted.status === "preview") throw new Error(ui("Önce Championship'i resmîleştirin.", "Make the Championship official first."));
+    let state = journeyState(app()?.getState?.(), draw);
+    if (!roundComplete(state, "quarterfinal")) throw new Error(ui("Yarı final kurası için dört çeyrek final serisinin de tamamlanması gerekir.", "All four quarter-final series must be complete before the semi-final draw."));
+    if (hasCompletedRoundMatches(state, ["semifinal", "bronze", "final"])) throw new Error(ui("Yarı final veya sonraki tur sonucu varken kura değiştirilemez.", "The draw cannot be changed after semi-final or later results exist."));
+    const winners = (state.rounds?.quarterfinal || []).map(series => series.winnerId).filter(Boolean).map(String);
+    const flat = pairings.flatMap(pair => [String(pair.homeId), String(pair.awayId)]);
+    if (pairings.length !== 2 || flat.length !== 4 || new Set(flat).size !== 4 || winners.some(id => !flat.includes(id))) {
+      throw new Error(ui("Yarı final kurasında dört çeyrek final galibi birer kez kullanılmalıdır.", "All four quarter-final winners must appear exactly once in the semi-final draw."));
+    }
+    state = applyRoundDraw(state, "semifinal", pairings, mode);
+    await engine()?.saveChampionshipState?.(state, ui("Yarı final kurası resmîleştirildi.", "Semi-final draw made official."));
+  }
+
+  async function resetRoundDraw(round) {
+    const draw = currentDraw(lastDraw);
+    let state = journeyState(app()?.getState?.(), draw);
+    const affected = round === "quarterfinal" ? ["quarterfinal", "semifinal", "bronze", "final"] : ["semifinal", "bronze", "final"];
+    if (hasCompletedRoundMatches(state, affected)) throw new Error(ui("Bu kuraya bağlı maç sonucu bulunduğu için kura sıfırlanamaz.", "This draw cannot be reset because dependent match results exist."));
+    (state.rounds?.[round] || []).forEach(series => {
+      series.homeSource = { type: "draw-pending", draw: round };
+      series.awaySource = { type: "draw-pending", draw: round };
+      series.homeId = null; series.awayId = null; series.winnerId = null; series.loserId = null; series.status = "waiting";
+    });
+    state.draws ||= {};
+    state.draws[round] = { status: "pending", mode: null, drawnAt: null, pairings: [] };
+    if (round === "quarterfinal") {
+      (state.rounds?.semifinal || []).forEach(series => {
+        series.homeSource = { type: "draw-pending", draw: "semifinal" };
+        series.awaySource = { type: "draw-pending", draw: "semifinal" };
+      });
+      state.draws.semifinal = { status: "pending", mode: null, drawnAt: null, pairings: [] };
+    }
+    state.updatedAt = nowISO();
+    await engine()?.saveChampionshipState?.(resolveJourney(state), ui("Kura sıfırlandı.", "Draw reset."));
   }
 
   function usedTeamsForPlayer(draw, state, playerId, excludedMatchId = "") {
@@ -308,18 +465,26 @@
       throw new Error(ui("Championship omurgası yalnızca 78 grup maçı tamamlandıktan sonra resmîleştirilebilir.", "The Championship journey can be made official only after all 78 group matches are complete."));
     }
     const state = resolveJourney(createJourney(draw, true));
-    await engine()?.saveChampionshipState?.(state, ui("Championship Journey resmîleştirildi.", "Championship Journey made official."));
+    await engine()?.saveChampionshipState?.(state, ui("Championship seedleri ve Play-In omurgası resmîleştirildi.", "Championship seeds and Play-In route made official."));
   }
 
   async function saveSeriesMatch(seriesId, matchId, form) {
     const draw = currentDraw(lastDraw);
     const persisted = draft(app()?.getState?.()).championshipOS;
     if (!persisted || persisted.status === "preview") throw new Error(ui("Önce Championship Journey'yi resmîleştirin.", "Make the Championship Journey official first."));
-    const state = resolveJourney(persisted);
+    const state = journeyState(app()?.getState?.(), draw);
     const series = findSeries(state, seriesId);
     const match = series?.matches?.find(item => item.id === matchId);
     if (!series || !match || !series.homeId || !series.awayId || match.notRequired) {
       throw new Error(ui("Bu maç henüz sonuç girişine hazır değil.", "This match is not ready for result entry."));
+    }
+    const lockedDraw = series.round === "playin" && drawState(state, "quarterfinal").status === "official"
+      ? "quarterfinal"
+      : series.round === "quarterfinal" && drawState(state, "semifinal").status === "official" ? "semifinal" : null;
+    if (match.completed && lockedDraw) {
+      throw new Error(lockedDraw === "quarterfinal"
+        ? ui("Çeyrek final kurası çekildi. Önce QF kurasını sıfırlamadan Play-In sonucu değiştirilemez.", "The quarter-final draw is locked. Reset it before changing a Play-In result.")
+        : ui("Yarı final kurası çekildi. Önce SF kurasını sıfırlamadan çeyrek final sonucu değiştirilemez.", "The semi-final draw is locked. Reset it before changing a quarter-final result."));
     }
     if (match.completed && downstreamSeries(state, seriesId).some(item => item.matches.some(game => game.completed))) {
       throw new Error(ui("Bu sonucu değiştirmek sonraki tamamlanmış serileri etkiler. Önce sonraki sonuçları temizleyin.", "Changing this result would affect completed downstream series. Clear the later results first."));
@@ -351,11 +516,20 @@
   }
 
   async function clearSeriesMatch(seriesId, matchId) {
+    const draw = currentDraw(lastDraw);
     const persisted = draft(app()?.getState?.()).championshipOS;
-    const state = resolveJourney(persisted);
+    const state = journeyState(app()?.getState?.(), draw);
     const series = findSeries(state, seriesId);
     const match = series?.matches?.find(item => item.id === matchId);
     if (!match?.completed) return;
+    const lockedDraw = series.round === "playin" && drawState(state, "quarterfinal").status === "official"
+      ? "quarterfinal"
+      : series.round === "quarterfinal" && drawState(state, "semifinal").status === "official" ? "semifinal" : null;
+    if (lockedDraw) {
+      throw new Error(lockedDraw === "quarterfinal"
+        ? ui("Çeyrek final kurası çekildi. Önce QF kurasını sıfırlayın.", "Quarter-final draw is locked. Reset the QF draw first.")
+        : ui("Yarı final kurası çekildi. Önce SF kurasını sıfırlayın.", "Semi-final draw is locked. Reset the SF draw first."));
+    }
     if (downstreamSeries(state, seriesId).some(item => item.matches.some(game => game.completed))) {
       throw new Error(ui("Önce bu seriye bağlı sonraki tur sonuçlarını temizleyin.", "Clear the dependent later-round results first."));
     }
@@ -369,8 +543,9 @@
   }
 
   async function acknowledgeResult(seriesId, matchId, side) {
+    const draw = currentDraw(lastDraw);
     const persisted = draft(app()?.getState?.()).championshipOS;
-    const state = resolveJourney(persisted);
+    const state = journeyState(app()?.getState?.(), draw);
     const series = findSeries(state, seriesId);
     const match = series?.matches?.find(item => item.id === matchId);
     if (!match?.completed || !["home", "away"].includes(side)) return;
@@ -794,7 +969,7 @@
     return `<article class="fco-bracket-series status-${series.status}">
       <header><span>${esc(series.label)}</span><b>${series.bestOf === 3 ? "BO3" : "1 MATCH"}</b></header>
       <div><strong>${esc(home)}</strong><b>${series.homeWins || 0}<i>–</i>${series.awayWins || 0}</b><strong>${esc(away)}</strong></div>
-      <footer>${waiting ? `<span>${ui("Önceki tur bekleniyor", "Waiting for prior round")}</span>` : series.winnerId ? `<span>${ui("Kazanan", "Winner")}: <b>${esc(playerName(draw, series.winnerId))}</b></span>` : nextMatch ? `<span>${nextMatch.stars}★ · M${nextMatch.number} · ${ui("Sonuç bekleniyor", "Result pending")}</span>` : `<span>${completedMatches.length} ${ui("maç işlendi", "matches recorded")}</span>`}</footer>
+      <footer>${waiting ? `<span>${series.homeSource?.type === "draw-pending" || series.awaySource?.type === "draw-pending" ? ui("Kura bekleniyor", "Waiting for draw") : ui("Önceki tur bekleniyor", "Waiting for prior round")}</span>` : series.winnerId ? `<span>${ui("Kazanan", "Winner")}: <b>${esc(playerName(draw, series.winnerId))}</b></span>` : nextMatch ? `<span>${nextMatch.stars}★ · M${nextMatch.number} · ${ui("Sonuç bekleniyor", "Result pending")}</span>` : `<span>${completedMatches.length} ${ui("maç işlendi", "matches recorded")}</span>`}</footer>
     </article>`;
   }
 
@@ -818,6 +993,35 @@
     return `<section class="fco-official-standings" id="championshipOfficialStandings"><header><div><span>FIFA 10 · OFFICIAL GROUP LEAGUE TABLE</span><h4>${ui("Resmî Puan Tablosu", "Official Standings")}</h4><p>${ui("Eleme seribaşları bu mühürlenmiş sıralamaya göre belirlenmiştir.", "Knockout seeds are based on this sealed table.")}</p></div><b>${rows.length} ${ui("OYUNCU", "PLAYERS")}</b></header><div class="fco-table-wrap"><table><thead><tr><th>#</th><th>${ui("Oyuncu", "Player")}</th><th>O</th><th>G</th><th>B</th><th>M</th><th>AG</th><th>YG</th><th>AV</th><th>P</th><th>PPG</th><th>${ui("Yol", "Path")}</th></tr></thead><tbody>${rows.map(row => `<tr class="path-${pathForRank(row.rank)}"><td><b>${row.rank}</b></td><td><strong>${esc(row.name)}</strong></td><td>${row.mp ?? "–"}</td><td>${row.w ?? "–"}</td><td>${row.d ?? "–"}</td><td>${row.l ?? "–"}</td><td>${row.gf ?? "–"}</td><td>${row.ga ?? "–"}</td><td>${Number(row.gd ?? ((row.gf || 0)-(row.ga || 0))) > 0 ? "+" : ""}${row.gd ?? ((row.gf || 0)-(row.ga || 0))}</td><td>${row.pts ?? "–"}</td><td>${Number(row.ppg || 0).toFixed(3)}</td><td><span>${esc(pathLabel(row.rank))}</span></td></tr>`).join("")}</tbody></table></div></section>`;
   }
 
+  function renderDrawControl(state, draw, admin) {
+    const qfReady = roundComplete(state, "playin");
+    const sfReady = roundComplete(state, "quarterfinal");
+    const qf = drawState(state, "quarterfinal");
+    const sf = drawState(state, "semifinal");
+    const players = playerMap(draw);
+    const name = id => players.get(String(id))?.name || ui("Bekleniyor", "TBD");
+    if (qfReady && qf.status !== "official") {
+      const seeds = [1,2,3,4].map(rank => ({ rank, id: state.seedIds?.[String(rank)] })).filter(item => item.id);
+      const winners = (state.rounds?.playin || []).map((series, index) => ({ id: series.winnerId, label: `PI ${index + 1}`, name: name(series.winnerId) })).filter(item => item.id);
+      return `<section class="fco-draw-control qf-draw"><header><div><span>QUARTER-FINAL DRAW</span><h4>${ui("Çeyrek Final Kurası", "Quarter-final Draw")}</h4><p>${ui("Lig ilk 4 seri başı. Dört Play-In galibi ikinci torbada. Sabit bracket yok.", "League Top 4 are seeded. The four Play-In winners form Pot 2. There is no fixed bracket path.")}</p></div><b>${ui("KURA BEKLENİYOR", "DRAW PENDING")}</b></header><div class="fco-draw-pots"><section><h5>POT 1 · ${ui("SERİ BAŞI", "SEEDED")}</h5>${seeds.map(item => `<article><i>#${item.rank}</i><strong>${esc(name(item.id))}</strong></article>`).join("")}</section><section><h5>POT 2 · PLAY-IN WINNERS</h5>${winners.map(item => `<article><i>${item.label}</i><strong>${esc(item.name)}</strong></article>`).join("")}</section></div>${admin ? `<div class="fco-manual-draw" data-draw-round="quarterfinal">${seeds.map((seed,index) => `<label><span>QF ${index+1} · #${seed.rank} ${esc(name(seed.id))}</span><select data-qf-seed="${esc(seed.id)}"><option value="">${ui("Rakibi seç", "Select opponent")}</option>${winners.map(w => `<option value="${esc(w.id)}">${esc(w.name)}</option>`).join("")}</select></label>`).join("")}</div><div class="fco-draw-actions"><button type="button" data-fco-action="draw-qf-random">◈ ${ui("DİJİTAL KURA ÇEK", "RUN DIGITAL DRAW")}</button><button type="button" class="secondary" data-fco-action="draw-qf-manual">✓ ${ui("MANUEL KURAYI KAYDET", "SAVE MANUAL DRAW")}</button></div>` : `<div class="fco-draw-wait">${ui("Kura yönetici tarafından çekilecek.", "The administrator will conduct the draw.")}</div>`}</section>`;
+    }
+    if (sfReady && sf.status !== "official") {
+      const winners = (state.rounds?.quarterfinal || []).map((series,index) => ({ id: series.winnerId, label: `QF ${index+1}`, name: name(series.winnerId) })).filter(item => item.id);
+      return `<section class="fco-draw-control sf-draw"><header><div><span>SEMI-FINAL OPEN DRAW</span><h4>${ui("Yarı Final Kurası", "Semi-final Draw")}</h4><p>${ui("Dört çeyrek final galibi tek torbada. Seri başı yok; tamamen yeni kura.", "All four quarter-final winners enter one pot. No seeding; a completely new draw.")}</p></div><b>${ui("AÇIK KURA", "OPEN DRAW")}</b></header><div class="fco-draw-pots single"><section><h5>${ui("TEK TORBA · 4 QF GALİBİ", "ONE POT · 4 QF WINNERS")}</h5>${winners.map(item => `<article><i>${item.label}</i><strong>${esc(item.name)}</strong></article>`).join("")}</section></div>${admin ? `<div class="fco-manual-sf" data-draw-round="semifinal"><label><span>SF 1 · A</span><select data-sf-slot="0">${winners.map(w => `<option value="${esc(w.id)}">${esc(w.name)}</option>`).join("")}</select></label><label><span>SF 1 · B</span><select data-sf-slot="1">${winners.map(w => `<option value="${esc(w.id)}">${esc(w.name)}</option>`).join("")}</select></label><label><span>SF 2 · A</span><select data-sf-slot="2">${winners.map(w => `<option value="${esc(w.id)}">${esc(w.name)}</option>`).join("")}</select></label><label><span>SF 2 · B</span><select data-sf-slot="3">${winners.map(w => `<option value="${esc(w.id)}">${esc(w.name)}</option>`).join("")}</select></label></div><div class="fco-draw-actions"><button type="button" data-fco-action="draw-sf-random">◈ ${ui("DİJİTAL KURA ÇEK", "RUN DIGITAL DRAW")}</button><button type="button" class="secondary" data-fco-action="draw-sf-manual">✓ ${ui("MANUEL KURAYI KAYDET", "SAVE MANUAL DRAW")}</button></div>` : `<div class="fco-draw-wait">${ui("Yarı final kurası yönetici tarafından çekilecek.", "The semi-final draw will be conducted by the administrator.")}</div>`}</section>`;
+    }
+    return "";
+  }
+
+  function renderDrawStatus(state, draw, admin) {
+    const qf = drawState(state, "quarterfinal");
+    const sf = drawState(state, "semifinal");
+    if (qf.status !== "official" && sf.status !== "official") return "";
+    const players = playerMap(draw);
+    const name = id => players.get(String(id))?.name || ui("Bekleniyor", "TBD");
+    const block = (round, record, label) => record.status === "official" ? `<article><span>${label}</span><strong>${record.mode === "digital" ? ui("DİJİTAL KURA", "DIGITAL DRAW") : ui("MANUEL KURA", "MANUAL DRAW")}</strong><small>${record.drawnAt ? new Date(record.drawnAt).toLocaleString() : ""}</small><div>${(record.pairings || []).map((pair,index) => `<p><b>${round === "quarterfinal" ? `QF ${index+1}` : `SF ${index+1}`}</b> ${esc(name(pair.homeId))} <i>VS</i> ${esc(name(pair.awayId))}</p>`).join("")}</div>${admin && !hasCompletedRoundMatches(state, [round, ...(round === "quarterfinal" ? ["semifinal","bronze","final"] : ["bronze","final"])]) ? `<button type="button" class="danger" data-fco-action="reset-${round === "quarterfinal" ? "qf" : "sf"}-draw">${ui("KURAYI SIFIRLA", "RESET DRAW")}</button>` : ""}</article>` : "";
+    return `<section class="fco-draw-status">${block("quarterfinal", qf, "QUARTER-FINAL DRAW")}${block("semifinal", sf, "SEMI-FINAL DRAW")}</section>`;
+  }
+
   function renderJourney(payload, draw) {
     const state = journeyState(payload, draw);
     const locked = state.status !== "preview";
@@ -825,26 +1029,29 @@
     const admin = Boolean(app()?.isAdmin?.() || app()?.canEdit?.());
     const roundTitle = {
       playin: "CHAMPIONSHIP PLAY-IN · BEST OF 3",
-      quarterfinal: ui("ÇEYREK FİNAL · BEST OF 3", "QUARTER-FINAL · BEST OF 3"),
-      semifinal: ui("YARI FİNAL · BEST OF 3", "SEMI-FINAL · BEST OF 3"),
+      quarterfinal: ui("ÇEYREK FİNAL · KURA · BEST OF 3", "QUARTER-FINAL · DRAW · BEST OF 3"),
+      semifinal: ui("YARI FİNAL · YENİ KURA · BEST OF 3", "SEMI-FINAL · NEW DRAW · BEST OF 3"),
       bronze: ui("ÜÇÜNCÜLÜK · 4.5★", "THIRD PLACE · 4.5★"),
       final: ui("BÜYÜK FİNAL · 5★", "GRAND FINAL · 5★")
     };
     const operational = activeOperationalSeries(state);
     const completedKnockout = allSeries(state).flatMap(series => series.matches || []).filter(match => match.completed).length;
+    const pendingDraw = renderDrawControl(state, draw, admin);
+    const migrationWarning = state.migrationBlocked ? `<div class="fco-notice error"><b>!</b><span>${ui("Eski sabit bracket üzerinde QF veya sonrası sonucu bulundu. Yeni kura sistemine otomatik dönüşüm yapılmadı; veri korunuyor.", "Quarter-final or later results exist on the legacy fixed bracket. Automatic migration to the new draw system was blocked to protect data.")}</span></div>` : "";
     return `<section class="fco-panel championship-frontline" data-fco-panel="command">
-      <section class="fco-frontline-status"><div><span>FIFA 10 · CHAMPIONSHIP FRONTLINE</span><h3>${ui("Elemeler başladı.", "Knockouts are live.")} <em>${ui("Maçlar burada yönetilir.", "Matches are operated here.")}</em></h3><p>${locked ? ui("Resmî eleme ağacı mühürlendi. Sonuç girildikçe kazananlar otomatik sonraki tura taşınır.", "The official bracket is sealed. Winners advance automatically as results are entered.") : ui("Grup ligi tamamlandı. Resmî eleme ağacını başlatmak için Championship'i mühürleyin.", "The group league is complete. Seal the Championship to start the official bracket.")}</p></div><aside><b>${completedKnockout}</b><small>${ui("ELEME MAÇI İŞLENDİ", "KNOCKOUT MATCHES RECORDED")}</small><button type="button" data-fco-action="open-player-result-desk">${ui("OYUNCU SONUÇ MASASI", "PLAYER RESULT DESK")} ↗</button></aside></section>
+      <section class="fco-frontline-status"><div><span>FIFA 10 · CHAMPIONSHIP FRONTLINE</span><h3>${ui("Elemeler başladı.", "Knockouts are live.")} <em>${ui("Play-In sabit; QF ve SF kura ile.", "Play-In is fixed; QF and SF are drawn.")}</em></h3><p>${locked ? ui("Play-In eşleşmeleri resmî. Dört Play-In galibi belli olunca çeyrek final kurası; dört QF galibi belli olunca yeni yarı final kurası çekilir.", "Play-In pairings are official. The quarter-final draw follows the four Play-In winners; a new semi-final draw follows the four QF winners.") : ui("Grup ligi tamamlandı. Önce Championship seedlerini ve Play-In'i resmîleştirin.", "The group league is complete. First seal the Championship seeds and Play-In.")}</p></div><aside><b>${completedKnockout}</b><small>${ui("ELEME MAÇI İŞLENDİ", "KNOCKOUT MATCHES RECORDED")}</small><button type="button" data-fco-action="open-player-result-desk">${ui("OYUNCU SONUÇ MASASI", "PLAYER RESULT DESK")} ↗</button></aside></section>
+      ${migrationWarning}
 
-      <section class="fco-match-operations" id="championshipMatchOperations"><header><div><span>01 · MATCH OPERATIONS</span><h4>${ui("Maçlar ve Sonuç Girişi", "Matches & Result Entry")}</h4><p>${ui("Aktif turdaki oynanabilir seriler en önde. Yönetici burada doğrudan kaydeder; oyuncular Çıktı Merkezi'nden karşılıklı teyitle gönderebilir.", "Playable series in the active round come first. Admins record here; players submit with mutual confirmation from the Print Centre.")}</p></div><b>${operational.length} ${ui("AKTİF SERİ", "ACTIVE SERIES")}</b></header>
-        ${!locked ? `<div class="fco-frontline-lock"><strong>${ui("Resmî eleme ağacı henüz oluşturulmadı.", "The official bracket has not been created yet.")}</strong>${admin ? `<button type="button" data-fco-action="lock-journey" ${groupComplete ? "" : "disabled"}>${ui("ELEMELERİ RESMÎLEŞTİR", "MAKE KNOCKOUTS OFFICIAL")}</button>` : `<span>${ui("Yönetici girişi bekleniyor.", "Waiting for administrator.")}</span>`}</div>` : operational.length ? `<div class="fco-operation-grid">${operational.map(series => renderSeries(draw, state, series, admin)).join("")}</div>` : state.championId ? `<div class="fco-operation-complete"><strong>${ui("Turnuva tamamlandı.", "Tournament complete.")}</strong><span>FIFA 10 Champion · ${esc(playerName(draw, state.championId))}</span></div>` : `<div class="fco-operation-complete"><strong>${ui("Aktif tur tamamlandı.", "The active round is complete.")}</strong><span>${ui("Sonraki eşleşmeler otomatik çözülüyor.", "The next pairings are being resolved automatically.")}</span></div>`}
+      <section class="fco-match-operations" id="championshipMatchOperations"><header><div><span>01 · MATCH OPERATIONS</span><h4>${ui("Maçlar ve Sonuç Girişi", "Matches & Result Entry")}</h4><p>${ui("Aktif turdaki oynanabilir seriler burada. Kura gereken aşamada sistem sonuç girişini durdurur ve kura merkezini açar.", "Playable series are shown here. When a draw is required, result entry pauses and the draw centre opens.")}</p></div><b>${operational.length} ${ui("AKTİF SERİ", "ACTIVE SERIES")}</b></header>
+        ${!locked ? `<div class="fco-frontline-lock"><strong>${ui("Resmî Play-In omurgası henüz oluşturulmadı.", "The official Play-In route has not been created yet.")}</strong>${admin ? `<button type="button" data-fco-action="lock-journey" ${groupComplete ? "" : "disabled"}>${ui("SEEDLERİ & PLAY-IN'İ RESMÎLEŞTİR", "SEAL SEEDS & PLAY-IN")}</button>` : `<span>${ui("Yönetici girişi bekleniyor.", "Waiting for administrator.")}</span>`}</div>` : operational.length ? `<div class="fco-operation-grid">${operational.map(series => renderSeries(draw, state, series, admin)).join("")}</div>` : pendingDraw || (state.championId ? `<div class="fco-operation-complete"><strong>${ui("Turnuva tamamlandı.", "Tournament complete.")}</strong><span>FIFA 10 Champion · ${esc(playerName(draw, state.championId))}</span></div>` : `<div class="fco-operation-complete"><strong>${ui("Aktif tur tamamlandı.", "The active round is complete.")}</strong><span>${ui("Bir sonraki operasyon için kura veya eşleşme bekleniyor.", "Waiting for the next draw or pairing operation.")}</span></div>`)}
       </section>
 
-      <section class="fco-live-bracket" id="championshipLiveBracket"><header><div><span>02 · LIVE TOURNAMENT TREE</span><h4>${ui("Canlı Turnuva Ağacı", "Live Tournament Bracket")}</h4><p>${ui("Play-In'den Büyük Final'e bütün yol tek ekranda.", "The complete route from Play-In to the Grand Final.")}</p></div><b>${locked ? ui("RESMÎ", "OFFICIAL") : ui("ÖNİZLEME", "PREVIEW")}</b></header><div class="fco-bracket compact">${ROUND_ORDER.map(round => `<section class="round-${round}"><header><span>${roundTitle[round]}</span><b>${(state.rounds?.[round] || []).length}</b></header><div>${(state.rounds?.[round] || []).map(series => renderBracketSeries(draw, series)).join("")}</div></section>`).join("")}</div></section>
+      <section class="fco-live-bracket" id="championshipLiveBracket"><header><div><span>02 · LIVE TOURNAMENT TREE</span><h4>${ui("Canlı Turnuva Ağacı", "Live Tournament Bracket")}</h4><p>${ui("Play-In sabittir. Çeyrek final ve yarı final yolları yalnız resmî kura çekildikten sonra oluşur.", "Play-In is fixed. Quarter-final and semi-final paths appear only after their official draws.")}</p></div><b>${locked ? ui("RESMÎ", "OFFICIAL") : ui("ÖNİZLEME", "PREVIEW")}</b></header>${renderDrawStatus(state, draw, admin)}<div class="fco-bracket compact">${ROUND_ORDER.map(round => `<section class="round-${round}"><header><span>${roundTitle[round]}</span><b>${(state.rounds?.[round] || []).length}</b></header><div>${(state.rounds?.[round] || []).map(series => renderBracketSeries(draw, series)).join("")}</div></section>`).join("")}</div></section>
 
       ${renderOfficialStandings(state, draw)}
 
       <div class="fco-module-strip frontline-secondary">
-        ${moduleBadge("CHAMPIONSHIP JOURNEY OS", ui("Play-in'den kupaya otomatik omurga", "Automatic journey from Play-in to the trophy"))}
+        ${moduleBadge("DRAW-GATED CHAMPIONSHIP", ui("Play-In → QF Kurası → QF → SF Kurası → Finaller", "Play-In → QF Draw → QF → SF Draw → Finals"))}
         ${moduleBadge("BEST-OF-3 SERIES ENGINE", "4★ → 4.5★ → 5★")}
         ${moduleBadge("TEAM PASSPORT GUARD", ui("Turnuva boyunca takım tekrarı yok", "No player team repeats across the tournament"))}
         ${moduleBadge("PLAYER RESULT DESK", ui("İki oyuncu teyidiyle güvenli sonuç", "Secure result with two-player confirmation"))}
@@ -993,6 +1200,13 @@
     const journey = journeyState(lastPayload, lastDraw);
     const groupComplete = Boolean(lastDraw?.fixtures?.length && lastDraw.fixtures.every(match => match.completed));
     const admin = Boolean(app()?.isAdmin?.() || app()?.canEdit?.());
+    if (journey.migratedFromVersion === 1 && !journey.migrationBlocked && admin && !autoMigrationInProgress && !sessionStorage.getItem(`fco-draw-migration:${lastDraw?.drawId}:${BUILD}`)) {
+      autoMigrationInProgress = true;
+      sessionStorage.setItem(`fco-draw-migration:${lastDraw?.drawId}:${BUILD}`, "attempted");
+      setTimeout(() => engine()?.saveChampionshipState?.(journey, ui("Championship yeni kura sistemine geçirildi.", "Championship migrated to the new draw system.")).then(() => {
+        sessionStorage.setItem(`fco-draw-migration:${lastDraw?.drawId}:${BUILD}`, "done");
+      }).finally(() => { autoMigrationInProgress = false; rerender(); }), 80);
+    }
     if (groupComplete && journey.status === "preview" && admin && !autoLockInProgress && !sessionStorage.getItem(`fco-autolock:${lastDraw?.drawId}:${BUILD}`)) {
       autoLockInProgress = true;
       sessionStorage.setItem(`fco-autolock:${lastDraw?.drawId}:${BUILD}`, "attempted");
@@ -1061,7 +1275,7 @@
         notice = { type: "info", text: "" };
         rerender();
       } else if (action === "lock-journey") {
-        if (confirm(ui("78 grup maçı tamamlandı. Championship eşleşmeleri bu sıralamayla resmîleştirilsin mi?", "All 78 group matches are complete. Lock the Championship pairings from this table?"))) perform(lockJourney);
+        if (confirm(ui("78 grup maçı tamamlandı. İlk 4 seri başı ve Play-In 5–12 / 6–11 / 7–10 / 8–9 eşleşmeleri resmîleştirilsin mi? QF ve SF daha sonra kura ile belirlenecek.", "All 78 group matches are complete. Seal the Top 4 seeds and Play-In pairings? QF and SF will be decided later by draw."))) perform(lockJourney);
       } else if (action === "save-series-match") {
         const row = button.closest("[data-series-id][data-match-id]");
         perform(() => saveSeriesMatch(row.dataset.seriesId, row.dataset.matchId, {
@@ -1076,6 +1290,27 @@
       } else if (action === "ack-result") {
         const row = button.closest("[data-series-id][data-match-id]");
         perform(() => acknowledgeResult(row.dataset.seriesId, row.dataset.matchId, button.dataset.side));
+      } else if (action === "draw-qf-random") {
+        const state = journeyState(app()?.getState?.(), currentDraw());
+        const seeds = [1,2,3,4].map(rank => state.seedIds?.[String(rank)]).filter(Boolean).map(String);
+        const winners = secureShuffle((state.rounds?.playin || []).map(series => series.winnerId).filter(Boolean).map(String));
+        perform(() => saveQuarterfinalDraw(seeds.map((id,index) => ({ homeId: id, awayId: winners[index] })), "digital"));
+      } else if (action === "draw-qf-manual") {
+        const root = button.closest(".fco-draw-control");
+        const pairings = [...root.querySelectorAll("[data-qf-seed]")].map(select => ({ homeId: select.dataset.qfSeed, awayId: select.value }));
+        perform(() => saveQuarterfinalDraw(pairings, "manual"));
+      } else if (action === "reset-qf-draw") {
+        if (confirm(ui("Çeyrek final kurası sıfırlansın mı? Henüz oynanmış QF maçı yoksa yeni kura çekilebilir.", "Reset the quarter-final draw? A new draw can be conducted if no QF match has been played."))) perform(() => resetRoundDraw("quarterfinal"));
+      } else if (action === "draw-sf-random") {
+        const state = journeyState(app()?.getState?.(), currentDraw());
+        const order = secureShuffle((state.rounds?.quarterfinal || []).map(series => series.winnerId).filter(Boolean).map(String));
+        perform(() => saveSemifinalDraw(semifinalPairingsFromOrder(order), "digital"));
+      } else if (action === "draw-sf-manual") {
+        const root = button.closest(".fco-draw-control");
+        const order = [...root.querySelectorAll("[data-sf-slot]")].sort((a,b) => Number(a.dataset.sfSlot)-Number(b.dataset.sfSlot)).map(select => select.value);
+        perform(() => saveSemifinalDraw(semifinalPairingsFromOrder(order), "manual"));
+      } else if (action === "reset-sf-draw") {
+        if (confirm(ui("Yarı final kurası sıfırlansın mı? Henüz oynanmış SF maçı yoksa yeni kura çekilebilir.", "Reset the semi-final draw? A new draw can be conducted if no SF match has been played."))) perform(() => resetRoundDraw("semifinal"));
       } else if (action === "export-black-box") {
         downloadFile(`FIFA10_TOURNAMENT_BLACK_BOX_${Date.now()}.json`, JSON.stringify({
           version: VERSION, exportedAt: nowISO(), drawId: currentDraw()?.drawId,
@@ -1129,6 +1364,9 @@
     render,
     createJourney: draw => resolveJourney(createJourney(currentDraw(draw), false)),
     resolveJourney,
+    saveQuarterfinalDraw,
+    saveSemifinalDraw,
+    resetRoundDraw,
     standings: draw => drawStandings(currentDraw(draw)),
     clinch: draw => clinchEngine(currentDraw(draw)),
     requiredResults: draw => requiredResultRows(currentDraw(draw)),

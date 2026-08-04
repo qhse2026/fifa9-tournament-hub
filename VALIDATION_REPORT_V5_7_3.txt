@@ -1,0 +1,20 @@
+FIFA Universe V5.7.3 — Championship Draw System Validation
+
+[PASS] Main Championship OS JavaScript syntax
+[PASS] Player Result Desk JavaScript syntax
+[PASS] Draw Engine / spatial active JavaScript syntax
+[PASS] index.html and Print Centre local assets exist
+[PASS] Active build chain moved to 573000
+[PASS] Legacy fixed PI→QF mapping removed from client
+[PASS] Legacy fixed PI→QF and QF→SF advancement removed from Supabase result function
+[PASS] Quarter-final draw gate: Top 4 seeded vs four Play-In winners
+[PASS] Semi-final draw gate: four QF winners, one open pot
+[PASS] Manual draw recording supported
+[PASS] Digital draw supported
+[PASS] Draw reset protected after dependent results
+[PASS] V1→V2 legacy state migration preserves Play-In and blocks unsafe migration if QF+ result exists
+[PASS] Synthetic QF draw test: QF remains empty before draw and fills only after official draw
+[PASS] Synthetic SF draw test: SF remains empty before draw and fills only after new official draw
+
+Operational requirement:
+Run SUPABASE_V5_7_3_CHAMPIONSHIP_DRAW_SYSTEM.sql once so player mutual-confirmation submissions obey the new draw-gated knockout rules.

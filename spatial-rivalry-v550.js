@@ -2,7 +2,7 @@
   'use strict';
 
   const VERSION = '5.5.0';
-  const BUILD = '572000';
+  const BUILD = '573000';
   const STATE_KEY = 'fifa-spatial-rivalry-v550';
   const RECORD_SNAPSHOT_KEY = 'fifa-spatial-record-snapshot-v550';
   const isTR = () => (window.FIFA_I18N?.language || document.documentElement.lang || 'tr').toLowerCase().startsWith('tr');

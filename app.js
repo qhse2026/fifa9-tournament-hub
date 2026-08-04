@@ -11659,7 +11659,7 @@ ${shareData.url}`)}`;
     const action = event.target.closest("[data-action]");
     if (!action) return;
     const type = action.dataset.action;
-    if (type === "open-fifa10-print-centre") { window.open(`fifa10-print-centre.html?fifa9build=572000`, "_blank", "noopener"); return; }
+    if (type === "open-fifa10-print-centre") { window.open(`fifa10-print-centre.html?fifa9build=573000`, "_blank", "noopener"); return; }
     if (type === "open-fifa10-player-picker") { openFifa10PlayerPicker(); return; }
     if (type === "select-fifa10-registration-player") { selectFifa10RegistrationPlayer(action.dataset.playerName || ""); return; }
     if (type === "toggle-fifa10-registration") { toggleFifa10Registration(); return; }

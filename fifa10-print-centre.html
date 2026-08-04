@@ -80,7 +80,7 @@
       .team-cell:empty:before{content:""}
     }
   </style>
-  <link rel="stylesheet" href="fifa10-player-result-desk-v572.css?v=5.7.2">
+  <link rel="stylesheet" href="fifa10-player-result-desk-v572.css?v=5.7.3">
 </head>
 <body>
   <header class="toolbar">
@@ -101,7 +101,7 @@
   <script src="fifa10-team-pools.js?v=5.7.2"></script>
   <script src="language.js?v=5.7.2"></script>
   <script src="qrcode-generator-2.0.4.js?v=5.7.2"></script>
-  <script src="fifa10-player-result-desk-v572.js?v=5.7.2"></script>
+  <script src="fifa10-player-result-desk-v572.js?v=5.7.3"></script>
   <script>
   (() => {
     "use strict";
@@ -224,7 +224,7 @@
       const url = new URL("index.html", location.href);
       url.search = "";
       url.hash = "";
-      url.searchParams.set("fifa9build", "572000");
+      url.searchParams.set("fifa9build", "573000");
       url.searchParams.set("fifa10player", playerName);
       return url.href;
     }

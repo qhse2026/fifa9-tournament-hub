@@ -1,0 +1,20 @@
+FIFA UNIVERSE V5.7.3 — CHAMPIONSHIP DRAW SYSTEM
+
+1) Deploy patch dosyalarını mevcut projenin kök dizinine kopyalayın.
+2) V5.7.2 Player Result Desk kurulmuşsa bile SUPABASE_V5_7_3_CHAMPIONSHIP_DRAW_SYSTEM.sql dosyasını Supabase SQL Editor'da bir kez çalıştırın. Bu dosya fonksiyonu günceller ve güvenliyse eski sabit QF/SF rotasını yeni kura modeline taşır.
+3) Deploy sonrası /?fifa9build=573000 adresini açın ve Ctrl+Shift+R yapın.
+
+RESMÎ AKIŞ
+- Play-In: #5–#12 / #6–#11 / #7–#10 / #8–#9
+- Dört Play-In serisi tamamlanınca CHAMPIONSHIP OS içinde ÇEYREK FİNAL KURASI görünür.
+- Pot 1: #1, #2, #3, #4 seri başı.
+- Pot 2: dört Play-In galibi.
+- Fiziksel kura çekiyorsanız rakipleri dropdown'lardan seçip MANUEL KURAYI KAYDET.
+- İsterseniz DİJİTAL KURA ÇEK kullanabilirsiniz.
+- Dört QF tamamlanınca YARI FİNAL KURASI açılır. Dört QF galibi tek torbadadır; seri başı yoktur.
+- SF galipleri Final'e, SF mağlupları 3.lük maçına gider.
+
+KORUMA
+- QF kurası çekildikten sonra Play-In sonucu kura sıfırlanmadan değiştirilemez.
+- SF kurası çekildikten sonra QF sonucu kura sıfırlanmadan değiştirilemez.
+- İlgili turda maç oynandıysa kura sıfırlanamaz.
