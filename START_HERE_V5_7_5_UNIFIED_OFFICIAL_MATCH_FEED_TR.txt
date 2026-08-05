@@ -1,0 +1,36 @@
+FIFA UNIVERSE V5.7.5 — UNIFIED OFFICIAL MATCH FEED
+=================================================
+
+AMAÇ
+FIFA 10 eleme maçlarını sistemin bütün istatistik motorlarına entegre etmek.
+
+YENİ RESMÎ İSTATİSTİK HAVUZU
+- 78 grup/lig maçı
+- Championship Play-In
+- Çeyrek Final
+- Yarı Final
+- 3. Lük
+- Büyük Final
+
+KORUNAN FORMAT
+Resmî grup puan tablosu ve Top 4 / Play-In seed sıralaması yalnız 78 grup maçından oluşmaya devam eder. Eleme maçları bu tabloyu geriye dönük değiştirmez.
+
+DEPLOY
+1. Deploy Patch ZIP içeriğini mevcut proje root'una yazın.
+2. Vercel deployment tamamlandıktan sonra şu adresi açın:
+   https://fifa9-tournament-hub.vercel.app/?fifa9build=575000
+3. Bir kez Ctrl + Shift + R yapın.
+4. Gerekirse Chrome site cache'ini temizleyip tekrar açın. V5.7.5 build değişimi service worker cache'ini de yeniler.
+
+SAHA TESTİ
+Örnek: Ersin Darıcı grup aşamasında 12, Championship'te 3 resmî maç oynadıysa:
+- Live Performance MP = 15
+- Player Card FIFA 10 MP = 15
+- All-Time kariyer MP toplamı +3 artmalı
+- Player Standing son 3 eleme sonucunu işlemeli
+- Form ve seri son maçlarda eleme sonuçlarını göstermeli
+- kullanılan 3 eleme takımı Team Usage / Player Passport tarafında görünmeli
+- Last 10 Results Pulse eleme maçlarını göstermeli
+
+EK SQL GEREKMEZ.
+Bu sürüm yalnız frontend/statistics integration hotfix'idir. Championship sonuç kayıt şemasını değiştirmez.

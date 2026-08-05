@@ -1016,6 +1016,7 @@
   }
 
   function seriesEndedUnused(match) {
+    if (match?.phase === "fifa10-championship") return Boolean(match.notRequired);
     const series = genericSeriesForMatch(match);
     return Boolean(series && seriesWinner(series) && !matchComplete(match));
   }
@@ -5736,7 +5737,7 @@ function renderFifa10EloBlock({limit=10}={}) {
     const currentEdition = Number(seasonSystem().activeEdition || 10);
     const historicalEditions = new Set((historical.editions || []).map(item => Number(item.edition)));
     const archivedMatches = archivedSeasonMatches().filter(match => Number(match.edition) !== currentEdition && !historicalEditions.has(Number(match.edition)));
-    const currentMatches = allCurrentMatches().filter(matchComplete).map(match => ({
+    const currentMatches = allOfficialCurrentMatches().filter(match => !seriesEndedUnused(match) && matchComplete(match)).map(match => ({
       id: match.id,
       edition: Number(match.edition || currentEdition),
       editionLabel: `FIFA ${Number(match.edition || currentEdition)}`,
@@ -5748,6 +5749,12 @@ function renderFifa10EloBlock({limit=10}={}) {
       homeScore: Number(match.homeScore),
       awayScore: Number(match.awayScore),
       allowDraw: match.allowDraw,
+      stars: Number(match.stars) || null,
+      phase: match.phase || "",
+      championshipRound: match.championshipRound || "",
+      seriesId: match.seriesId || "",
+      seriesLabel: match.seriesLabel || "",
+      updatedAt: match.updatedAt || null,
       winnerName: matchWinnerId(match) ? playerName(matchWinnerId(match)) : ""
     }));
     return [...historicalMatches, ...archivedMatches, ...currentMatches];
@@ -5761,6 +5768,18 @@ function renderFifa10EloBlock({limit=10}={}) {
 
   function currentMatchStageLabel(match) {
     if (match?.phase === "fifa10-group") return `FIFA 10 · Grup ${match.group || "–"} · ${match.legLabel || `${match.leg || match.round || 1}. Devre`} · ${match.stars || "–"}★`;
+    if (match?.phase === "fifa10-championship") {
+      const roundLabels = {
+        playin: intelligenceCopy("Championship Play-In", "Championship Play-In"),
+        quarterfinal: intelligenceCopy("Çeyrek Final", "Quarter-final"),
+        semifinal: intelligenceCopy("Yarı Final", "Semi-final"),
+        bronze: intelligenceCopy("Üçüncülük", "Third Place"),
+        final: intelligenceCopy("Büyük Final", "Grand Final")
+      };
+      const round = match.championshipRound || "championship";
+      const base = `FIFA 10 · ${roundLabels[round] || "Championship"} · ${match.seriesLabel || match.seriesId || ""}`;
+      return match.bestOf === 1 ? `${base} · ${match.stars || "–"}★` : `${base} · ${intelligenceCopy("Maç", "Match")} ${match.seriesGame || match.round || 1} · ${match.stars || "–"}★`;
+    }
     const chapter = finalChapterMatchContext(match);
     if (chapter) return ["thirdPlace", "final"].includes(chapter.stage) ? `FIFA 09 Final Chapter · ${chapter.label}` : `FIFA 09 Final Chapter · ${chapter.label} · ${intelligenceCopy("Maç", "Match")} ${chapter.gameNumber}`;
     const seriesMap = { qf1: "Quarter-final 1", qf2: "Quarter-final 2", qf3: "Quarter-final 3", sf1: "Semi-final 1", sf2: "Semi-final 2" };
@@ -5944,7 +5963,7 @@ function renderFifa10EloBlock({limit=10}={}) {
   }
 
   function buildLiveTournamentAnalytics(scope = liveStatsScope) {
-    const allMatches = scope === "all" ? allCurrentMatches() : finalChapterMatchesForScope(scope);
+    const allMatches = scope === "all" ? allOfficialCurrentMatches().filter(match => !seriesEndedUnused(match)) : finalChapterMatchesForScope(scope);
     const completed = allMatches.filter(matchComplete);
     const playerRows = new Map();
     const teamRows = new Map();
@@ -5965,7 +5984,11 @@ function renderFifa10EloBlock({limit=10}={}) {
     function matchOrder(match, index = 0) {
       const timestamp = match.updatedAt ? Date.parse(match.updatedAt) : 0;
       const chapter = finalChapterMatchContext(match);
-      const structural = chapter ? 400000 + chapter.stageOrder * 10000 + chapter.gameNumber * 100 + index : (phaseOrder[match.phase] || 9) * 100000 + (Number(match.round) || 0) * 100 + index;
+      const structural = chapter
+        ? 400000 + chapter.stageOrder * 10000 + chapter.gameNumber * 100 + index
+        : match.phase === "fifa10-championship"
+          ? 700000 + Number(match.sequence || 0) + index
+          : (phaseOrder[match.phase] || 9) * 100000 + (Number(match.round) || 0) * 100 + index;
       return timestamp ? 1000000000000 + timestamp : structural;
     }
 
@@ -6081,11 +6104,24 @@ function renderFifa10EloBlock({limit=10}={}) {
     const recentMatches = completedDecorated.sort((a,b)=>b.order-a.order).slice(0,10);
 
     const stageSource = scope === "all" && fifa10Active
-      ? FIFA10_LEG_STARS.map((stars, index) => ({
-          key: `fifa10-leg-${index + 1}`,
-          label: `${index + 1}. Devre · ${stars}★`,
-          matches: allMatches.filter(match => Number(match.leg) === index + 1)
-        }))
+      ? [
+          ...FIFA10_LEG_STARS.map((stars, index) => ({
+            key: `fifa10-leg-${index + 1}`,
+            label: `${index + 1}. Devre · ${stars}★`,
+            matches: allMatches.filter(match => match.phase === "fifa10-group" && Number(match.leg) === index + 1)
+          })),
+          ...[
+            ["playin", intelligenceCopy("Championship Play-In", "Championship Play-In")],
+            ["quarterfinal", intelligenceCopy("Çeyrek Final", "Quarter-final")],
+            ["semifinal", intelligenceCopy("Yarı Final", "Semi-final")],
+            ["bronze", intelligenceCopy("Üçüncülük", "Third Place")],
+            ["final", intelligenceCopy("Büyük Final", "Grand Final")]
+          ].map(([round, label]) => ({
+            key: `fifa10-${round}`,
+            label,
+            matches: allMatches.filter(match => match.phase === "fifa10-championship" && match.championshipRound === round)
+          }))
+        ]
       : scope === "all" ? [
           { key:"league", label:"League Phase", matches:leagueMatches() },
           { key:"gold", label:"Altın Grup", matches:goldMatches() },
@@ -6433,11 +6469,13 @@ function renderFifa10EloBlock({limit=10}={}) {
         chapterStage: "",
         order: Number(match.edition) * 1000000 + 500000 + index + 1
       }));
-    const currentCompleted = allCurrentMatches().filter(matchComplete);
-    const phaseOrder = { league:1,gold:2,silver:3,knockout:4,final:5 };
+    const currentCompleted = allOfficialCurrentMatches().filter(match => !seriesEndedUnused(match) && matchComplete(match));
+    const phaseOrder = { "fifa10-group":1, league:1,gold:2,silver:3,knockout:4,final:5,"fifa10-championship":7 };
     const currentMatches = currentCompleted.map((match,index) => {
       const time = match.updatedAt ? Date.parse(match.updatedAt) : 0;
-      const structural = (phaseOrder[match.phase] || 9) * 100000 + (Number(match.round)||0) * 100 + index;
+      const structural = match.phase === "fifa10-championship"
+        ? (phaseOrder[match.phase] || 9) * 100000 + Number(match.sequence || 0) + index
+        : (phaseOrder[match.phase] || 9) * 100000 + (Number(match.round)||0) * 100 + index;
       return {
         id:match.id,
         edition:Number(match.edition || seasonSystem().activeEdition || 10),
@@ -6937,7 +6975,7 @@ function renderFifa10EloBlock({limit=10}={}) {
 
   function archivedMatchRows() {
     const archive = getMatchArchiveState();
-    return allCurrentMatches().filter(matchComplete).map(match => {
+    return allOfficialCurrentMatches().filter(match => !seriesEndedUnused(match) && matchComplete(match)).map(match => {
       const saved = archive[match.id] || null;
       return {
         match,
@@ -7977,8 +8015,11 @@ function renderEloSection() {
     const elo = buildEloAnalytics();
     const pressure = buildPressureChamber();
     const teamAnalytics = buildTeamAnalytics();
-    const currentCompleted = allCurrentMatches().filter(matchComplete);
-    const currentChampionId = state.current.knockout?.final && matchComplete(state.current.knockout.final) ? matchWinnerId(state.current.knockout.final) : null;
+    const currentCompleted = allOfficialCurrentMatches().filter(match => !seriesEndedUnused(match) && matchComplete(match));
+    const fifa10ChampionId = state?.seasonSystem?.fifa10Draft?.championshipOS?.championId || null;
+    const currentChampionId = Number(seasonSystem().activeEdition || 10) >= 10
+      ? fifa10ChampionId
+      : state.current.knockout?.final && matchComplete(state.current.knockout.final) ? matchWinnerId(state.current.knockout.final) : null;
     const currentChampionName = currentChampionId ? playerName(currentChampionId) : "";
     const currentResultsByName = new Map(names.map(name => [name, { games:0,wins:0,draws:0,losses:0 }]));
     currentCompleted.forEach(match => {
@@ -9804,7 +9845,7 @@ function renderEloSection() {
     const names = intelligenceNames();
     const elo = buildEloAnalytics();
     const form = buildFormAnalytics(20, "all");
-    const currentCompleted = allCurrentMatches().filter(matchComplete);
+    const currentCompleted = allOfficialCurrentMatches().filter(match => !seriesEndedUnused(match) && matchComplete(match));
 
     const players = names.map(name => {
       const records = elo.records.filter(record => record.home === name || record.away === name);
@@ -11062,8 +11103,68 @@ ${shareData.url}`)}`;
     });
   }
 
+  // V5.7.5: Normalize every official FIFA 10 Championship match into the same
+  // read-only match shape used by the analytics universe. Championship OS remains
+  // the source of truth; these objects are copies and are never written back.
+  function fifa10ChampionshipMatches() {
+    const championship = state?.seasonSystem?.fifa10Draft?.championshipOS;
+    if (!championship?.rounds) return [];
+    const roundOrder = { playin: 1, quarterfinal: 2, semifinal: 3, bronze: 4, final: 5 };
+    const rows = [];
+    Object.entries(championship.rounds).forEach(([roundKey, seriesList]) => {
+      (Array.isArray(seriesList) ? seriesList : []).forEach((series, seriesIndex) => {
+        const round = series?.round || roundKey;
+        (Array.isArray(series?.matches) ? series.matches : []).forEach((game, gameIndex) => {
+          const completed = Boolean(game?.completed) && !game?.notRequired;
+          rows.push({
+            id: `F10-KO-${game?.id || `${series?.id || round}-${gameIndex + 1}`}`,
+            championshipMatchId: game?.id || "",
+            seriesId: series?.id || "",
+            seriesLabel: series?.label || series?.id || "Championship",
+            championshipRound: round,
+            edition: 10,
+            phase: "fifa10-championship",
+            round: Number(game?.number || gameIndex + 1),
+            seriesGame: Number(game?.number || gameIndex + 1),
+            bestOf: Number(series?.bestOf || (round === "bronze" || round === "final" ? 1 : 3)),
+            stars: Number(game?.stars) || null,
+            sequence: 1000 + (roundOrder[round] || 9) * 100 + seriesIndex * 10 + Number(game?.number || gameIndex + 1),
+            allowDraw: false,
+            homeId: series?.homeId || null,
+            awayId: series?.awayId || null,
+            homeScore: completed && Number.isFinite(Number(game?.homeScore)) ? Number(game.homeScore) : null,
+            awayScore: completed && Number.isFinite(Number(game?.awayScore)) ? Number(game.awayScore) : null,
+            homeTeam: String(game?.homeTeam || ""),
+            awayTeam: String(game?.awayTeam || ""),
+            completed,
+            notRequired: Boolean(game?.notRequired),
+            updatedAt: game?.updatedAt || series?.updatedAt || championship?.updatedAt || null,
+            note: `FIFA 10 Championship · ${series?.label || round}`
+          });
+        });
+      });
+    });
+    return rows.sort((a, b) => {
+      const ta = a.completed ? Date.parse(a.updatedAt || "") : NaN;
+      const tb = b.completed ? Date.parse(b.updatedAt || "") : NaN;
+      if (Number.isFinite(ta) && Number.isFinite(tb) && ta !== tb) return ta - tb;
+      if (a.completed !== b.completed) return a.completed ? -1 : 1;
+      return Number(a.sequence || 0) - Number(b.sequence || 0);
+    });
+  }
+
   function allCurrentMatches() {
+    // Operational/format feed. Keep FIFA 10 group fixtures isolated because draw,
+    // standings, simulator and result-entry code depend on the 78-match league model.
     return Number(seasonSystem().activeEdition || 10) >= 10 ? fifa10CurrentMatches() : fifa9CurrentMatches();
+  }
+
+  function allOfficialCurrentMatches() {
+    // Statistical feed. Every completed/available official tournament match belongs
+    // here, including FIFA 10 Play-In, QF, SF, 3rd Place and Grand Final.
+    return Number(seasonSystem().activeEdition || 10) >= 10
+      ? [...fifa10CurrentMatches(), ...fifa10ChampionshipMatches()]
+      : fifa9CurrentMatches();
   }
 
   function combinedAllTime() {
@@ -11078,7 +11179,7 @@ ${shareData.url}`)}`;
     const currentEdition = Number(seasonSystem().activeEdition || 10);
     const historicalEditions = new Set((historical.editions || []).map(item => Number(item.edition)));
     const extraArchived = archivedSeasonMatches().filter(match => Number(match.edition) !== currentEdition && !historicalEditions.has(Number(match.edition)));
-    const liveCurrent = allCurrentMatches().filter(matchComplete).map(match => ({
+    const liveCurrent = allOfficialCurrentMatches().filter(match => !seriesEndedUnused(match) && matchComplete(match)).map(match => ({
       homeName: playerName(match.homeId), awayName: playerName(match.awayId),
       homeScore: Number(match.homeScore), awayScore: Number(match.awayScore),
       allowDraw: match.allowDraw, winnerName: matchWinnerId(match) ? playerName(matchWinnerId(match)) : ""
@@ -11135,7 +11236,7 @@ ${shareData.url}`)}`;
 
   function exportCSV() {
     const header = ["Phase","Round","Home Player","Home Team","Home Score","Away Score","Away Team","Away Player","Tiebreak Winner","Note"];
-    const lines = [header, ...allCurrentMatches().filter(matchComplete).map(m => [m.phase,m.round,playerName(m.homeId),m.homeTeam,m.homeScore,m.awayScore,m.awayTeam,playerName(m.awayId),m.tiebreakWinnerId ? playerName(m.tiebreakWinnerId) : "",m.note || ""])];
+    const lines = [header, ...allOfficialCurrentMatches().filter(match => !seriesEndedUnused(match) && matchComplete(match)).map(m => [m.phase,m.round,playerName(m.homeId),m.homeTeam,m.homeScore,m.awayScore,m.awayTeam,playerName(m.awayId),m.tiebreakWinnerId ? playerName(m.tiebreakWinnerId) : "",m.note || ""])];
     const csv = "\ufeff" + lines.map(row => row.map(value => `"${String(value ?? "").replaceAll('"','""')}"`).join(";")).join("\r\n");
     download("FIFA_9_Mac_Sonuclari.csv", csv, "text/csv;charset=utf-8");
     toast("Maç sonuçları CSV olarak indirildi.", "success");
@@ -11659,7 +11760,7 @@ ${shareData.url}`)}`;
     const action = event.target.closest("[data-action]");
     if (!action) return;
     const type = action.dataset.action;
-    if (type === "open-fifa10-print-centre") { window.open(`fifa10-print-centre.html?fifa9build=574000`, "_blank", "noopener"); return; }
+    if (type === "open-fifa10-print-centre") { window.open(`fifa10-print-centre.html?fifa9build=575000`, "_blank", "noopener"); return; }
     if (type === "open-fifa10-player-picker") { openFifa10PlayerPicker(); return; }
     if (type === "select-fifa10-registration-player") { selectFifa10RegistrationPlayer(action.dataset.playerName || ""); return; }
     if (type === "toggle-fifa10-registration") { toggleFifa10Registration(); return; }
@@ -12104,6 +12205,8 @@ ${shareData.url}`)}`;
     navigate: target => navTo(target),
     buildTournamentBenchmarkAnalytics: () => buildTournamentBenchmarkAnalytics(),
     getCurrentMatches: () => allCurrentMatches(),
+    getOfficialCurrentMatches: () => allOfficialCurrentMatches(),
+    getFifa10ChampionshipMatches: () => fifa10ChampionshipMatches(),
     getFifa10Draw: () => ensureFifa10IntegratedTournament().draw,
     getFifa10TeamPools: () => Object.fromEntries(FIFA10_LEG_STARS.map(stars => [String(stars), fifa10TeamPool(stars)])),
     buildUnifiedAllTimeMatches: () => buildUnifiedAllTimeMatches(),

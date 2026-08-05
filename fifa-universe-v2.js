@@ -2,7 +2,7 @@
   "use strict";
 
   const VERSION = "3.2.2";
-  const BUILD = '571000';
+  const BUILD = '575000';
   const ROUTES = new Set(["dashboard", "livehub", "tournaments", "playershub", "recordshub", "mediahub", "adminhub"]);
   let mode = localStorage.getItem("fifa-universe-v2-mode") || "spectator";
   let selectedPlayer = localStorage.getItem("fifa-universe-v2-player") || "";
@@ -38,15 +38,27 @@
   function playerName(id, draw = currentDraw()) { return playerMap(draw).get(String(id))?.name || "–"; }
   function completedMatches(draw = currentDraw()) { return (draw?.fixtures || []).filter(match => match.completed); }
   function pendingMatches(draw = currentDraw()) { return (draw?.fixtures || []).filter(match => !match.completed); }
+  function officialCurrentMatches(draw = currentDraw()) {
+    const rows = app()?.getOfficialCurrentMatches?.();
+    return Array.isArray(rows) && rows.length ? rows : (draw?.fixtures || []);
+  }
+  function officialCompletedMatches(draw = currentDraw()) {
+    return officialCurrentMatches(draw).filter(match => match.completed && !match.notRequired && Number.isFinite(Number(match.homeScore)) && Number.isFinite(Number(match.awayScore)));
+  }
+  function officialPendingMatches(draw = currentDraw()) {
+    return officialCurrentMatches(draw).filter(match => !match.completed && !match.notRequired && match.homeId && match.awayId);
+  }
   function standings(draw = currentDraw()) {
     if (!draw) return [];
     return engine()?.standings?.(draw) || championship()?.standings?.(draw) || [];
   }
   function latestMatches(draw = currentDraw()) {
-    return completedMatches(draw).sort((a, b) => Date.parse(b.updatedAt || "") - Date.parse(a.updatedAt || "") || Number(b.sequence || 0) - Number(a.sequence || 0));
+    return officialCompletedMatches(draw).sort((a, b) => Date.parse(b.updatedAt || "") - Date.parse(a.updatedAt || "") || Number(b.sequence || 0) - Number(a.sequence || 0));
   }
   function schedule(draw = currentDraw()) {
-    return evolution()?.optimizedSchedule?.(draw, currentPayload()) || pendingMatches(draw);
+    const groupPending = pendingMatches(draw);
+    if (groupPending.length) return evolution()?.optimizedSchedule?.(draw, currentPayload()) || groupPending;
+    return officialPendingMatches(draw).sort((a, b) => Number(a.sequence || 0) - Number(b.sequence || 0));
   }
   function stageInfo(draw = currentDraw()) {
     const total = draw?.fixtures?.length || 78;
@@ -184,8 +196,12 @@ function fpiTicker() {
   function matchCard(match, draw = currentDraw(), type = "upcoming") {
     if (!match) return "";
     const completed = Boolean(match.completed);
+    const roundMap = { playin:"PLAY-IN", quarterfinal:ui("ÇEYREK FİNAL","QUARTER FINAL"), semifinal:ui("YARI FİNAL","SEMI FINAL"), bronze:ui("3. LÜK","3RD PLACE"), final:ui("BÜYÜK FİNAL","GRAND FINAL") };
+    const stageLabel = match.phase === "fifa10-championship"
+      ? `${roundMap[match.championshipRound] || "CHAMPIONSHIP"} · ${esc(match.seriesLabel || "")} · ${Number(match.stars || 0)}★`
+      : `${ui("GRUP", "GROUP")} ${esc(match.group || "–")} · ${Number(match.stars || 0)}★`;
     return `<article class="v2-match-card ${completed ? "completed" : type}">
-      <header><span>${ui("GRUP", "GROUP")} ${esc(match.group || "–")} · ${Number(match.stars || 0)}★</span><small>${completed ? ui("RESMÎ SONUÇ", "OFFICIAL RESULT") : `MD ${match.matchday || "–"}`}</small></header>
+      <header><span>${stageLabel}</span><small>${completed ? ui("RESMÎ SONUÇ", "OFFICIAL RESULT") : match.phase === "fifa10-championship" ? `${ui("MAÇ", "MATCH")} ${match.seriesGame || match.round || 1}` : `MD ${match.matchday || "–"}`}</small></header>
       <div><strong>${esc(playerName(match.homeId, draw))}</strong><b>${completed ? `${match.homeScore}–${match.awayScore}` : "VS"}</b><strong>${esc(playerName(match.awayId, draw))}</strong></div>
       <footer><span>${esc(match.homeTeam || ui("Takım bekleniyor", "Team pending"))}</span><i>${esc(match.evolution?.why || "")}</i><span>${esc(match.awayTeam || ui("Takım bekleniyor", "Team pending"))}</span></footer>
     </article>`;
@@ -213,7 +229,7 @@ function fpiTicker() {
     if (!app()?.isAdmin?.()) return "";
     const audit = evolution()?.integrity?.(currentPayload(), draw) || { score: 100, issues: [], counts: {} };
     const ordered = schedule(draw);
-    const missingTeams = completedMatches(draw).filter(match => !match.homeTeam || !match.awayTeam).length;
+    const missingTeams = officialCompletedMatches(draw).filter(match => !match.homeTeam || !match.awayTeam).length;
     return `<section class="v2-admin-today ${compact ? "compact" : ""}"><header><div><span>ADMIN · TODAY</span><h3>${ui("Şimdi ne yapmalıyım?", "What should I do now?")}</h3></div><button type="button" data-nav="adminhub">${ui("Operasyon merkezini aç", "Open operations centre")} ↗</button></header><div>
       <article class="priority"><span>${ui("ÖNERİLEN SIRADAKİ MAÇ", "RECOMMENDED NEXT MATCH")}</span><strong>${ordered[0] ? `${esc(playerName(ordered[0].homeId, draw))} vs ${esc(playerName(ordered[0].awayId, draw))}` : ui("Grup aşaması tamamlandı", "Group stage complete")}</strong><small>${ordered[0]?.evolution?.why || ui("Championship operasyonuna geç", "Continue to Championship operations")}</small></article>
       <article><span>INTEGRITY</span><b>${Number(audit.score || 0).toFixed(0)}</b><small>${audit.issues?.length || 0} ${ui("bulgu", "findings")}</small></article>
@@ -232,7 +248,8 @@ function fpiTicker() {
     const equity = evolution()?.equityTimeline?.(currentPayload(), draw);
     const favorite = (equity?.players || []).map(player => ({ ...player, current: player.points?.at(-1)?.titlePct || 0 })).sort((a, b) => b.current - a.current)[0];
     const currentMode = safeMode();
-    const pointsPulse = liveTableMotion()?.renderPointsPulse?.(rows, draw) || "";
+    const performanceRows = app()?.buildLiveTournamentAnalytics?.("all")?.players || rows;
+    const pointsPulse = liveTableMotion()?.renderPointsPulse?.(performanceRows, draw) || "";
     const resultsPulse = liveTableMotion()?.renderResultsPulse?.(draw) || "";
     const tournamentTree = liveTableMotion()?.renderTournamentTree?.(rows, draw) || "";
     mount.innerHTML = `<div class="v2-page v2-home">${routeNav("dashboard")}${modeBar(data, "dashboard")}${fpiTicker()}${pointsPulse}${resultsPulse}
@@ -519,7 +536,7 @@ function fpiTicker() {
     }
     const audit = evolution()?.integrity?.(currentPayload(), draw) || { score: 100, issues: [], counts: {} };
     const ordered = schedule(draw); const stage = stageInfo(draw);
-    const missingTeams = completedMatches(draw).filter(match => !match.homeTeam || !match.awayTeam);
+    const missingTeams = officialCompletedMatches(draw).filter(match => !match.homeTeam || !match.awayTeam);
     mount.innerHTML = `<div class="v2-page">${routeNav("adminhub")}${modeBar(data, "adminhub")}${pageIntro("ADMIN · TODAY", ui("Bir bakışta bugünün işi.", "Today's work at a glance."), ui("Yalnız işlem gerektiren konular gösterilir. Analizler ve arşivler operasyon ekranını işgal etmez.", "Only actionable items are shown. Analytics and archives do not occupy the operating screen."), `<aside><strong>${stage.completed}/${stage.total}</strong><span>${esc(stage.label)}</span></aside>`)}
       ${adminToday(data, draw)}
       <section class="v2-admin-grid"><div class="v2-admin-queue"><header><span>${ui("ÖNERİLEN MAÇ SIRASI", "RECOMMENDED MATCH ORDER")}</span><b>${ordered.length}</b></header>${ordered.slice(0, 10).map((match, index) => `<button type="button" data-nav="seasonhub"><i>${String(index + 1).padStart(2, "0")}</i><div><strong>${esc(playerName(match.homeId, draw))} <em>VS</em> ${esc(playerName(match.awayId, draw))}</strong><span>${ui("Grup", "Group")} ${match.group} · ${match.stars}★ · ${esc(match.evolution?.why || "")}</span></div><b>${Number(match.evolution?.priority || 0).toFixed(0)}</b></button>`).join("") || `<p>${ui("Bekleyen grup maçı yok.", "No group match pending.")}</p>`}</div><div class="v2-admin-findings"><header><span>INTEGRITY SENTINEL</span><b>${Number(audit.score || 0).toFixed(0)}</b></header>${audit.issues.slice(0, 10).map(issue => `<article class="${issue.severity}"><i>${issue.severity.toUpperCase()}</i><div><strong>${esc(issue.title)}</strong><small>${esc(issue.detail)}</small></div></article>`).join("") || `<p>✓ ${ui("İşlem gerektiren veri sorunu bulunmuyor.", "No actionable data issue found.")}</p>`}${missingTeams.length ? `<footer>${missingTeams.length} ${ui("sonuçta kullanılan takım eksik.", "results have missing used teams.")}</footer>` : ""}</div></section>

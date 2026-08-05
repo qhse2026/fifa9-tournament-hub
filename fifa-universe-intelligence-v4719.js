@@ -2,7 +2,7 @@
   "use strict";
 
   const VERSION = "2.2.0";
-  const BUILD = '571000';
+  const BUILD = '575000';
   const MIN_SAMPLE = 8;
   const PRIME_WINDOW = 10;
   const PANELS = Object.freeze([
@@ -592,8 +592,11 @@
     if (iconic) stories.push({ type: "iconic", eyebrow: "ICONIC MATCH INDEX", title: `${iconic.homeName} ${iconic.homeScore}–${iconic.awayScore} ${iconic.awayName}`, subtitle: `FIFA ${iconic.edition} · ${iconic.stage} · ${iconic.iconicScore.toFixed(0)}/100`, accent: "#ff9d5c" });
     if (data.lineage.holder) stories.push({ type: "lineage", eyebrow: "LINEAL CHAMPIONSHIP", title: data.lineage.holder, subtitle: ui(`${data.lineage.changes.length - 1} devir sonrası güncel kemer sahibi.`, `Current belt holder after ${data.lineage.changes.length - 1} transfers.`), accent: "#f0c95d" });
     if (draw) {
-      const completed = (draw.fixtures || []).filter(match => match.completed).length;
-      stories.push({ type: "live", eyebrow: "FIFA 10 LIVE", title: `${completed}/${draw.fixtures?.length || 78}`, subtitle: ui("Resmî grup maçı tamamlandı.", "Official group matches completed."), accent: "#5ca9ff" });
+      const groupCompleted = (draw.fixtures || []).filter(match => match.completed).length;
+      const official = appContext()?.getOfficialCurrentMatches?.() || draw.fixtures || [];
+      const officialCompleted = official.filter(match => match.completed && !match.notRequired).length;
+      const knockoutCompleted = Math.max(0, officialCompleted - groupCompleted);
+      stories.push({ type: "live", eyebrow: "FIFA 10 LIVE", title: `${officialCompleted} MP`, subtitle: ui(`${groupCompleted}/${draw.fixtures?.length || 78} grup · ${knockoutCompleted} eleme maçı resmî istatistiklere işlendi.`, `${groupCompleted}/${draw.fixtures?.length || 78} group · ${knockoutCompleted} knockout matches integrated into official statistics.`), accent: "#5ca9ff" });
     }
     return stories;
   }

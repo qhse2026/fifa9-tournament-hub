@@ -1,4 +1,4 @@
-const CACHE = "oruc-reis-fifa-universe-v5-7-2-championship-frontline";
+const CACHE = "oruc-reis-fifa-universe-v5-7-5-unified-official-match-feed";
 const APP_SHELL = [
   "./",
   "./index.html",

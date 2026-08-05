@@ -2,7 +2,7 @@
   "use strict";
 
   const VERSION = "3.1.2";
-  const BUILD = '574000';
+  const BUILD = '575000';
   const POLL_MS = 2000;
   let lastSignature = "";
   let watcher = 0;
@@ -58,18 +58,18 @@
       const rank = Number(row.rank || index + 1);
       return `<span class="ltm-points-item"><i>#${rank}</i><strong>${esc(row.name)}</strong><b>${ppg(row.ppg)} PPG</b></span>`;
     }).join("");
-    const completed = (draw?.fixtures || []).filter(match => match.completed).length;
-    const total = draw?.fixtures?.length || 78;
+    const official = app()?.getOfficialCurrentMatches?.() || draw?.fixtures || [];
+    const completed = official.filter(match => match.completed && !match.notRequired).length;
     return `<section class="ltm-points-pulse" aria-label="${tr("Mevcut turnuva puan ortalaması", "Current tournament points per game")}">
-      <header><span><i></i> POINTS PULSE</span><strong>${tr("CURRENT TOURNAMENT TABLE", "CURRENT TOURNAMENT TABLE")}</strong><small>${completed}/${total} MP</small></header>
+      <header><span><i></i> POINTS PULSE</span><strong>${tr("CURRENT TOURNAMENT PERFORMANCE", "CURRENT TOURNAMENT PERFORMANCE")}</strong><small>${completed} OFFICIAL MP</small></header>
       <div class="ltm-points-viewport"><div class="ltm-points-track">${items}<div class="ltm-points-repeat" aria-hidden="true">${items}</div></div></div>
     </section>`;
   }
 
   function recentOfficialResults(draw = null, limit = 10) {
-    if (!draw) return [];
-    return (draw.fixtures || [])
-      .filter(match => match.completed && Number.isFinite(Number(match.homeScore)) && Number.isFinite(Number(match.awayScore)))
+    const source = app()?.getOfficialCurrentMatches?.() || draw?.fixtures || [];
+    return source
+      .filter(match => match.completed && !match.notRequired && Number.isFinite(Number(match.homeScore)) && Number.isFinite(Number(match.awayScore)))
       .sort((a, b) => {
         const timeA = Date.parse(a.updatedAt || a.completedAt || a.playedAt || "") || 0;
         const timeB = Date.parse(b.updatedAt || b.completedAt || b.playedAt || "") || 0;
@@ -86,7 +86,10 @@
       const home = playerName(draw, match.homeId) || match.homeName || tr("Oyuncu", "Player");
       const away = playerName(draw, match.awayId) || match.awayName || tr("Oyuncu", "Player");
       const number = Number(match.sequence || match.matchNo || match.round || 0);
-      const label = number ? `#${number}` : `#${index + 1}`;
+      const koRound = { playin:"PI", quarterfinal:"QF", semifinal:"SF", bronze:"3RD", final:"FINAL" };
+      const label = match.phase === "fifa10-championship"
+        ? `${koRound[match.championshipRound] || "KO"}${match.seriesLabel ? ` · ${esc(match.seriesLabel)}` : ""}${match.bestOf === 1 ? "" : ` · M${match.seriesGame || match.round || 1}`}`
+        : number ? `#${number}` : `#${index + 1}`;
       return `<span class="ltm-results-item"><i>${label}</i><strong>${esc(home)}</strong><b>${Number(match.homeScore)}–${Number(match.awayScore)}</b><strong>${esc(away)}</strong></span>`;
     }).join("");
     return `<section class="ltm-results-pulse" aria-label="${tr("Oynanan son on resmî maç sonucu", "Last ten official match results")}">
