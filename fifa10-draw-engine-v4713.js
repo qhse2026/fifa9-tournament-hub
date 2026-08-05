@@ -2,7 +2,7 @@
   "use strict";
 
   const VERSION = "3.2.0";
-  const BUILD = '575000';
+  const BUILD = '576000';
   const STORAGE_KEY = "fifa-tournament-hub-v1";
   const SYNC_HISTORY_KEY = "fifa10-sync-history-v1";
   const GROUPS = Object.freeze(["A", "B", "C"]);
@@ -923,6 +923,79 @@
     return (draw?.fixtures || []).filter(match => match.completed && Number.isFinite(Number(match.homeScore)) && Number.isFinite(Number(match.awayScore)));
   }
 
+  function championshipStatFixtures(draw = getDraw()) {
+    const state = getDraft()?.championshipOS || null;
+    if (!state?.rounds) return [];
+    const roundOrder = { playin: 1, quarterfinal: 2, semifinal: 3, bronze: 4, final: 5 };
+    const output = [];
+    Object.entries(state.rounds).forEach(([roundKey, seriesRows]) => {
+      (Array.isArray(seriesRows) ? seriesRows : []).forEach((series, seriesIndex) => {
+        (series?.matches || []).forEach((match, matchIndex) => {
+          const completed = Boolean(match?.completed)
+            && !match?.notRequired
+            && Number.isFinite(Number(match?.homeScore))
+            && Number.isFinite(Number(match?.awayScore));
+          if (!completed || !series?.homeId || !series?.awayId) return;
+          output.push({
+            ...match,
+            id: match.id || `F10-KO-${series.id || roundKey}-${matchIndex + 1}`,
+            phase: "fifa10-championship",
+            championshipRound: series.round || roundKey,
+            seriesId: series.id || "",
+            seriesLabel: series.label || series.id || roundKey,
+            seriesGame: Number(match.number || matchIndex + 1),
+            sequence: 1000 + (roundOrder[series.round || roundKey] || 9) * 100 + seriesIndex * 10 + Number(match.number || matchIndex + 1),
+            homeId: series.homeId,
+            awayId: series.awayId,
+            homeScore: Number(match.homeScore),
+            awayScore: Number(match.awayScore),
+            homeTeam: String(match.homeTeam || "").trim(),
+            awayTeam: String(match.awayTeam || "").trim(),
+            stars: Number(match.stars) || null,
+            bestOf: Number(series.bestOf || 3),
+            completed: true,
+            updatedAt: match.updatedAt || series.updatedAt || state.updatedAt || null
+          });
+        });
+      });
+    });
+    return output;
+  }
+
+  function officialStatFixtures(draw = getDraw()) {
+    const output = [];
+    const seen = new Set();
+    [...completedFixtures(draw), ...championshipStatFixtures(draw)].forEach(match => {
+      const key = String(match?.id || `${match?.phase || "match"}-${match?.homeId}-${match?.awayId}-${match?.sequence || output.length}`);
+      if (seen.has(key)) return;
+      seen.add(key);
+      output.push(match);
+    });
+    return output.sort((a, b) => {
+      const ta = Date.parse(a?.updatedAt || "");
+      const tb = Date.parse(b?.updatedAt || "");
+      if (Number.isFinite(ta) && Number.isFinite(tb) && ta !== tb) return ta - tb;
+      return Number(a?.sequence || 0) - Number(b?.sequence || 0);
+    });
+  }
+
+  function teamPassportStageLabel(match) {
+    if (match?.phase === "fifa10-championship") {
+      const labels = {
+        playin: "PLAY-IN",
+        quarterfinal: "ÇEYREK FİNAL",
+        semifinal: "YARI FİNAL",
+        bronze: "3. LÜK",
+        final: "FİNAL"
+      };
+      const round = match.championshipRound || "championship";
+      const game = Number(match.seriesGame || match.number || 1);
+      const singleMatch = Number(match.bestOf) === 1 || round === "bronze" || round === "final";
+      return `${labels[round] || "CHAMPIONSHIP"}${match.seriesLabel ? ` · ${match.seriesLabel}` : ""}${singleMatch ? "" : ` · M${game}`}`;
+    }
+    return `GRUP ${match?.group || "–"} · ${match?.legLabel || `${match?.leg || "–"}. DEVRE`}`;
+  }
+
   function standings(draw = getDraw()) {
     if (!draw) return [];
     const players = snapshotPlayers(draw);
@@ -990,21 +1063,21 @@
   function teamUsedBy(draw, playerId, team, excludeMatchId = "") {
     const target = normalize(team);
     if (!target) return false;
-    return (draw.fixtures || []).some(match => {
-      if (match.id === excludeMatchId || !match.completed) return false;
-      if (match.homeId === playerId && normalize(match.homeTeam) === target) return true;
-      if (match.awayId === playerId && normalize(match.awayTeam) === target) return true;
+    return officialStatFixtures(draw).some(match => {
+      if (match.id === excludeMatchId) return false;
+      if (String(match.homeId) === String(playerId) && normalize(match.homeTeam) === target) return true;
+      if (String(match.awayId) === String(playerId) && normalize(match.awayTeam) === target) return true;
       return false;
     });
   }
 
   function usedTeamsForPlayer(draw, playerId, stars = null, excludeMatchId = "") {
     const used = new Set();
-    (draw?.fixtures || []).forEach(match => {
-      if (match.id === excludeMatchId || !match.completed) return;
+    officialStatFixtures(draw).forEach(match => {
+      if (match.id === excludeMatchId) return;
       if (stars !== null && Number(match.stars) !== Number(stars)) return;
-      if (match.homeId === playerId && match.homeTeam) used.add(normalize(match.homeTeam));
-      if (match.awayId === playerId && match.awayTeam) used.add(normalize(match.awayTeam));
+      if (String(match.homeId) === String(playerId) && match.homeTeam) used.add(normalize(match.homeTeam));
+      if (String(match.awayId) === String(playerId) && match.awayTeam) used.add(normalize(match.awayTeam));
     });
     return used;
   }
@@ -1539,11 +1612,10 @@
   function playerTeamPassport(draw, player) {
     const selections = [];
     let missing = 0;
-    (draw.fixtures || [])
-      .filter(match => match.completed && (match.homeId === player.id || match.awayId === player.id))
-      .sort((a, b) => a.leg - b.leg || a.matchday - b.matchday || a.sequence - b.sequence)
+    officialStatFixtures(draw)
+      .filter(match => String(match.homeId) === String(player.id) || String(match.awayId) === String(player.id))
       .forEach(match => {
-        const isHome = match.homeId === player.id;
+        const isHome = String(match.homeId) === String(player.id);
         const team = String(isHome ? match.homeTeam || "" : match.awayTeam || "").trim();
         if (!team) {
           missing += 1;
@@ -1551,8 +1623,13 @@
         }
         selections.push({
           team,
+          teamKey: normalize(team),
           stars: Number(match.stars),
-          opponent: playerName(isHome ? match.awayId : match.homeId, draw)
+          opponent: playerName(isHome ? match.awayId : match.homeId, draw),
+          stage: teamPassportStageLabel(match),
+          source: match.phase === "fifa10-championship" ? "championship" : "group",
+          matchId: match.id || "",
+          updatedAt: match.updatedAt || null
         });
       });
     return { ...player, selections, missing };
@@ -1568,7 +1645,7 @@
       });
       return records.get(key);
     };
-    completedFixtures(draw).forEach(match => {
+    officialStatFixtures(draw).forEach(match => {
       const homeTeam = String(match.homeTeam || "").trim();
       const awayTeam = String(match.awayTeam || "").trim();
       if (!homeTeam || !awayTeam) return;
@@ -1594,8 +1671,8 @@
   }
 
   function playerTierStats(draw, playerId, stars = null) {
-    const fixtures = completedFixtures(draw).filter(match =>
-      (match.homeId === playerId || match.awayId === playerId)
+    const fixtures = officialStatFixtures(draw).filter(match =>
+      (String(match.homeId) === String(playerId) || String(match.awayId) === String(playerId))
       && (stars === null || Number(match.stars) === Number(stars))
     );
     const stats = { mp: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0, gd: 0, ppg: 0, gdPerMatch: 0, gfPerMatch: 0, gaPerMatch: 0, closeMatches: 0, closeWins: 0 };
@@ -1641,9 +1718,9 @@
   }
 
   function headToHead(draw, playerId, rivalId) {
-    const fixtures = completedFixtures(draw).filter(match =>
-      (match.homeId === playerId && match.awayId === rivalId)
-      || (match.homeId === rivalId && match.awayId === playerId)
+    const fixtures = officialStatFixtures(draw).filter(match =>
+      (String(match.homeId) === String(playerId) && String(match.awayId) === String(rivalId))
+      || (String(match.homeId) === String(rivalId) && String(match.awayId) === String(playerId))
     );
     const row = { mp: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0, ppg: 0, gd: 0, fixtures };
     fixtures.forEach(match => {
@@ -1666,7 +1743,7 @@
     const passport = selected ? playerTeamPassport(draw, selected) : null;
     const next = selected ? playerFixtures(draw, selected.id).find(match => !match.completed) : null;
     const nextRemaining = next && passport
-      ? Math.max(0, teamPool(next.stars).length - passport.selections.filter(item => Number(item.stars) === Number(next.stars)).length)
+      ? Math.max(0, teamPool(next.stars).length - new Set(passport.selections.filter(item => Number(item.stars) === Number(next.stars)).map(item => item.teamKey || normalize(item.team))).size)
       : 0;
     const topByTier = LEG_STARS.map(stars => {
       const rows = intelligence.filter(row => Number(row.stars) === Number(stars)).slice(0, 5);
@@ -1674,8 +1751,8 @@
       return `<article><header><b>${stars}★</b><span>${totalUses} ${uiCopy("kullanım", "uses")}</span></header><div>${rows.map((row, index) => `<div><i>${index + 1}</i><strong>${escapeHTML(row.team)}</strong><span>${row.ppg.toFixed(3)} PPG</span><small>${row.mp} ${uiCopy("maç", "MP")} · ${row.gdPerMatch > 0 ? "+" : ""}${row.gdPerMatch.toFixed(2)} ${uiCopy("AV/M", "GD/M")}</small></div>`).join("") || `<p>${uiCopy("Henüz yeterli maç verisi yok.", "There is no match data yet.")}</p>`}</div></article>`;
     }).join("");
     return `<section class="f10-team-intelligence"><header><div><span>TEAM POOL INTELLIGENCE</span><h4>${uiCopy("Takım Havuzu Zekâsı", "Team Pool Intelligence")}</h4><p>${uiCopy("Kulüplerin resmî FIFA 10 sonuçlarından kullanım ve performans eğilimleri. Küçük örneklemler özellikle işaretlenir; bu bölüm kural değil karar desteğidir.", "Usage and performance trends from official FIFA 10 results. Small samples remain visible; this is decision support, not a rule.")}</p></div><b>${intelligence.length} ${uiCopy("AKTİF KULÜP", "ACTIVE CLUBS")}</b></header>
-      ${selected && passport ? `<div class="f10-team-scarcity"><div><span>${uiCopy("SEÇİLİ OYUNCU", "SELECTED PLAYER")}</span><strong>${escapeHTML(selected.name)}</strong><small>${passport.selections.length} ${uiCopy("farklı takım kullanıldı", "different teams used")}</small></div>${LEG_STARS.map(stars => {
-        const used = passport.selections.filter(item => Number(item.stars) === Number(stars)).length;
+      ${selected && passport ? `<div class="f10-team-scarcity"><div><span>${uiCopy("SEÇİLİ OYUNCU", "SELECTED PLAYER")}</span><strong>${escapeHTML(selected.name)}</strong><small>${new Set(passport.selections.map(item => item.teamKey || normalize(item.team))).size} ${uiCopy("farklı takım kullanıldı", "different teams used")}</small></div>${LEG_STARS.map(stars => {
+        const used = new Set(passport.selections.filter(item => Number(item.stars) === Number(stars)).map(item => item.teamKey || normalize(item.team))).size;
         return `<article><b>${stars}★</b><strong>${Math.max(0, teamPool(stars).length - used)}</strong><small>${uiCopy("uygun kaldı", "eligible left")}</small></article>`;
       }).join("")}<div class="next"><span>${uiCopy("SIRADAKİ HAVUZ", "NEXT POOL")}</span><strong>${next ? `${next.stars}★ · ${nextRemaining} ${uiCopy("seçenek", "options")}` : uiCopy("Maçlar tamamlandı", "Matches complete")}</strong></div></div>` : ""}
       <div class="f10-team-intel-grid">${topByTier}</div>
@@ -1706,7 +1783,7 @@
       <div class="f10-dna-tiers">${dna.tiers.map(row => `<article><header><b>${row.stars}★</b><strong>${row.ppg.toFixed(3)} PPG</strong></header><div><span>${row.mp} ${uiCopy("maç", "MP")}</span><span>${row.w}-${row.d}-${row.l}</span><span>${row.gdPerMatch > 0 ? "+" : ""}${row.gdPerMatch.toFixed(3)} ${uiCopy("AV/M", "GD/M")}</span></div></article>`).join("")}</div>
       ${rival && h2h ? `<section class="f10-h2h"><header><div><span>HEAD TO HEAD</span><h5>${escapeHTML(selected.name)} <i>VS</i> ${escapeHTML(rival.name)}</h5></div><b>${h2h.mp} ${uiCopy("MAÇ", "MATCHES")}</b></header><div class="summary"><article><span>${uiCopy("Galibiyet", "Wins")}</span><b>${h2h.w}</b></article><article><span>${uiCopy("Beraberlik", "Draws")}</span><b>${h2h.d}</b></article><article><span>${uiCopy("Mağlubiyet", "Losses")}</span><b>${h2h.l}</b></article><article><span>PPG</span><b>${h2h.ppg.toFixed(3)}</b></article><article><span>${uiCopy("Averaj", "Goal Difference")}</span><b>${h2h.gd > 0 ? "+" : ""}${h2h.gd}</b></article></div><div class="matches">${h2h.fixtures.map(match => {
         const home = match.homeId === selected.id;
-        return `<article><span>${match.stars}★ · ${uiCopy("GRUP", "GROUP")} ${match.group}</span><strong>${escapeHTML(selected.name)} <b>${home ? match.homeScore : match.awayScore}–${home ? match.awayScore : match.homeScore}</b> ${escapeHTML(rival.name)}</strong><small>${escapeHTML(home ? match.homeTeam : match.awayTeam)} · ${escapeHTML(home ? match.awayTeam : match.homeTeam)}</small></article>`;
+        return `<article><span>${match.stars}★ · ${escapeHTML(teamPassportStageLabel(match))}</span><strong>${escapeHTML(selected.name)} <b>${home ? match.homeScore : match.awayScore}–${home ? match.awayScore : match.homeScore}</b> ${escapeHTML(rival.name)}</strong><small>${escapeHTML(home ? match.homeTeam : match.awayTeam)} · ${escapeHTML(home ? match.awayTeam : match.homeTeam)}</small></article>`;
       }).join("") || `<p>${uiCopy("Bu iki oyuncu henüz karşılaşmadı.", "These players have not met yet.")}</p>`}</div></section>` : ""}
     </section>`;
   }
@@ -1724,12 +1801,24 @@
     }).join("");
     const passportCards = players.map(player => {
       const byStars = LEG_STARS.map(stars => {
-        const entries = player.selections.filter(item => item.stars === stars);
-        return `<section><header><b>${stars}★</b><small>${entries.length} kullanıldı · ${Math.max(0, teamPool(stars).length - entries.length)} uygun takım kaldı</small></header><div>${entries.length ? entries.map(item => `<span title="${escapeHTML(item.opponent)}">${escapeHTML(item.team)}</span>`).join("") : `<em>Henüz takım kullanılmadı</em>`}</div></section>`;
+        const entries = player.selections.filter(item => Number(item.stars) === Number(stars));
+        const usedKeys = new Set(entries.map(item => item.teamKey || normalize(item.team)));
+        const remaining = teamPool(stars).filter(team => !usedKeys.has(normalize(team)));
+        const groupUses = entries.filter(item => item.source === "group").length;
+        const knockoutUses = entries.filter(item => item.source === "championship").length;
+        const usedMarkup = entries.length ? entries.map(item => `<span class="f10-passport-team ${item.source === "championship" ? "is-knockout" : "is-group"}" title="${escapeHTML(`${item.stage} · ${item.opponent}`)}"><b>${escapeHTML(item.team)}</b><small>${escapeHTML(item.stage)}</small></span>`).join("") : `<em>${uiCopy("Henüz takım kullanılmadı", "No team used yet")}</em>`;
+        const remainingMarkup = remaining.length
+          ? `<details class="f10-passport-eligible"><summary><span>${remaining.length} ${uiCopy("uygun takımın tamamını göster", "show all eligible teams")}</span><b>＋</b></summary><div>${remaining.map(team => `<span>${escapeHTML(team)}</span>`).join("")}</div></details>`
+          : `<div class="f10-passport-none">${uiCopy("Bu yıldız seviyesinde uygun takım kalmadı.", "No eligible team remains at this star tier.")}</div>`;
+        return `<section class="f10-passport-tier"><header><b>${stars}★</b><small>${usedKeys.size} ${uiCopy("kullanıldı", "used")} · ${remaining.length} ${uiCopy("uygun takım kaldı", "eligible teams remaining")}</small></header><div class="f10-passport-source-counts"><span>${uiCopy("Grup", "Group")}: ${groupUses}</span><span>${uiCopy("Eleme", "Knockout")}: ${knockoutUses}</span></div><div class="f10-passport-used">${usedMarkup}</div>${remainingMarkup}</section>`;
       }).join("");
-      return `<article class="f10-passport-card"><header><div><span>GRUP ${escapeHTML(player.group || "–")}</span><strong>${escapeHTML(player.name)}</strong></div><b>${player.selections.length} TAKIM</b></header>${byStars}${player.missing ? `<p>${player.missing} sonuçta takım bilgisi eksik; fikstürden maçı açıp tamamlayabilirsiniz.</p>` : ""}</article>`;
+      const distinctTeams = new Set(player.selections.map(item => item.teamKey || normalize(item.team))).size;
+      const knockoutTotal = player.selections.filter(item => item.source === "championship").length;
+      return `<article class="f10-passport-card"><header><div><span>GRUP ${escapeHTML(player.group || "–")}</span><strong>${escapeHTML(player.name)}</strong><small>${knockoutTotal ? `${knockoutTotal} ${uiCopy("eleme seçimi dahil", "knockout selections included")}` : uiCopy("Grup aşaması", "Group stage")}</small></div><b>${distinctTeams} TAKIM</b></header>${byStars}${player.missing ? `<p>${player.missing} ${uiCopy("resmî sonuçta takım bilgisi eksik; ilgili maçı açıp tamamlayın.", "official results have missing team data; open and complete the relevant match.")}</p>` : ""}</article>`;
     }).join("");
-    return `<section class="f10-team-centre">${renderTeamPoolIntelligence(draw, players)}<header><div><span>FIFA 10 TEAM PASSPORT</span><h4>${uiCopy("Oyuncu Takım Listeleri", "Player Team Lists")}</h4><p>${uiCopy("Her oyuncunun kullandığı takım burada devre bazında izlenir. Kullanılmış takım aynı oyuncunun açılır listesinde otomatik kilitlenir.", "Every player’s used teams are tracked by circuit. A used club is automatically locked in that player’s result-entry list.")}</p></div><b>${players.reduce((sum, player) => sum + player.selections.length, 0)} ${uiCopy("SEÇİM", "SELECTIONS")}</b></header>
+    const totalSelections = players.reduce((sum, player) => sum + player.selections.length, 0);
+    const knockoutSelections = players.reduce((sum, player) => sum + player.selections.filter(item => item.source === "championship").length, 0);
+    return `<section class="f10-team-centre">${renderTeamPoolIntelligence(draw, players)}<header><div><span>FIFA 10 TEAM PASSPORT · UNIFIED</span><h4>${uiCopy("Oyuncu Takım Listeleri", "Player Team Lists")}</h4><p>${uiCopy("Grup ve eleme maçlarında kullanılan bütün takımlar tek pasaportta izlenir. Kullanılmış kulüpler otomatik kilitlenir; her yıldız seviyesinde kalan uygun kulüpler aynı karttan açılabilir.", "Every team used in group and knockout matches is tracked in one passport. Used clubs are locked automatically, and remaining eligible clubs can be opened from the same card.")}</p></div><b>${totalSelections} ${uiCopy("SEÇİM", "SELECTIONS")} · ${knockoutSelections} KO</b></header>
       <div class="f10-passport-grid">${passportCards}</div>
       <header class="pool-heading"><div><span>LOCKED CLUB CATALOGUE</span><h4>Sabit Takım Havuzu</h4><p>Fikstür sonucu girerken sadece maçın yıldız seviyesine ait bu kulüpler seçilebilir; havuz dışı serbest takım girişi kapatılmıştır.</p></div><b>${LEG_STARS.reduce((sum, stars) => sum + teamPool(stars).length, 0)} TAKIM</b></header>
       <div class="f10-pool-grid">${poolCards}</div>

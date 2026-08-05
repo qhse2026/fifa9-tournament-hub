@@ -167,7 +167,7 @@
     const complete = match => Boolean(match.completed) && Number.isFinite(Number(match.homeScore)) && Number.isFinite(Number(match.awayScore));
     const score = match => complete(match) ? `${Number(match.homeScore)}–${Number(match.awayScore)}` : "___–___";
     const groupPlayerCount = group => groups[group].length;
-    const footer = () => `<div class="footer-line"><span>ORUÇ REİS FIFA UNIVERSE · FIFA 10</span><span>V5.7.5 · ${new Date().toLocaleDateString(window.FIFA_I18N?.language === "en" ? "en-GB" : "tr-TR")}</span></div>`;
+    const footer = () => `<div class="footer-line"><span>ORUÇ REİS FIFA UNIVERSE · FIFA 10</span><span>V5.7.6 · ${new Date().toLocaleDateString(window.FIFA_I18N?.language === "en" ? "en-GB" : "tr-TR")}</span></div>`;
     function fixturePage(group) {
       const rows = fixtures.filter(match => match.group === group);
       const counts = Object.fromEntries(STARS.map(stars => [String(stars), rows.filter(match => match.stars === stars).length]));
@@ -236,7 +236,7 @@
       const url = new URL("index.html", location.href);
       url.search = "";
       url.hash = "";
-      url.searchParams.set("fifa9build", "575000");
+      url.searchParams.set("fifa9build", "576000");
       url.searchParams.set("fifa10player", playerName);
       return url.href;
     }

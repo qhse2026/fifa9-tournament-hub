@@ -2,7 +2,7 @@
   "use strict";
 
   const VERSION = "2.2.0";
-  const BUILD = '575000';
+  const BUILD = '576000';
   const PANELS = ["equity", "twin", "operations", "legacy"];
   const MILESTONE_THRESHOLDS = Object.freeze({
     games: [25, 50, 75, 100, 150, 200],

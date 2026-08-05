@@ -1,0 +1,14 @@
+FIFA UNIVERSE V5.7.6 — UNIFIED TEAM PASSPORT
+
+1. Deploy Patch içindeki dosyaları mevcut proje köküne yükleyin ve aynı adlı dosyaların üzerine yazın.
+2. Vercel deploy tamamlandıktan sonra şu adresi açın:
+   https://fifa9-tournament-hub.vercel.app/?fifa9build=576000
+3. Ctrl + Shift + R ile sert yenileme yapın.
+4. FIFA 10 Elemeleri > Takımlar bölümünü açın.
+5. Eleme maçı oynayan bir oyuncuda şunları kontrol edin:
+   - Takım toplamı grup maçlarından yüksek olmalı.
+   - Elemede kullanılan takım altın renkli ELEME etiketiyle görünmeli.
+   - İlgili takım uygun kalan takım listesinden çıkarılmış olmalı.
+   - 4★ / 4.5★ / 5★ bazında Grup ve Eleme kullanım sayıları görünmeli.
+
+Yeni Supabase SQL kurulumu gerekmez.
