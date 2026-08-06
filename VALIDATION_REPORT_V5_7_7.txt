@@ -1,0 +1,20 @@
+FIFA Universe V5.7.7 — SF Draw Reset Hotfix Validation
+
+PASS — Championship OS syntax valid
+PASS — Draw Engine syntax valid
+PASS — Build chain set to 577000
+PASS — Blocking native confirm() removed from QF/SF reset handlers
+PASS — Duplicate reset clicks guarded by drawResetInProgress
+PASS — SF reset gate checks completed semifinal matches only
+PASS — SF reset preserves Play-In and Quarter-Final results
+PASS — SF pairings, mode, timestamp and participants are cleared
+PASS — Third Place / Final dependent transient state is cleared
+PASS — QF reset preserves Play-In and clears dependent QF/SF/Final state
+PASS — Unified Official Match Feed retained
+PASS — Unified Team Passport retained
+
+Expected live behaviour:
+- With zero completed SF matches, RESET DRAW immediately returns SF to pending draw state.
+- QF results remain exactly as recorded.
+- New manual/open SF draw can be saved afterward.
+- Once any SF match is completed, reset is blocked with an explicit error.

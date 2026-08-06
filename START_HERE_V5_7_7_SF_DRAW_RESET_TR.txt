@@ -1,0 +1,14 @@
+FIFA Universe V5.7.7 — SF Draw Reset Hotfix
+
+Deploy patch dosyalarını mevcut projedeki aynı dosyaların üzerine yazın.
+Deploy sonrası: https://fifa9-tournament-hub.vercel.app/?fifa9build=577000
+Bir kez Ctrl+Shift+R yapın.
+
+Test:
+1. FIFA 10 Elemeler > Canlı Turnuva Ağacı.
+2. Henüz SF sonucu yokken KURAYI SIFIRLA'ya basın.
+3. SF1/SF2 oyuncuları boşalmalı ve Yarı Final Kurası yeniden açılmalı.
+4. QF sonuçları kesinlikle korunmalı.
+5. Yeni manuel SF kurasını girip kaydedin.
+
+Not: Herhangi bir SF maçı gerçekten kaydedilmişse reset engellenir ve açık hata mesajı gösterilir.

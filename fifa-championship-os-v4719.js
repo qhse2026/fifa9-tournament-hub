@@ -1,8 +1,8 @@
 (() => {
   "use strict";
 
-  const VERSION = "2.4.0";
-  const BUILD = '576000';
+  const VERSION = "2.4.1";
+  const BUILD = '577000';
   const ROUND_ORDER = ["playin", "quarterfinal", "semifinal", "bronze", "final"];
   const SERIES_STARS = Object.freeze([4, 4.5, 5]);
   const STORAGE_KEY = "fifa-tournament-hub-v1";
@@ -19,6 +19,7 @@
   let listenersInstalled = false;
   let autoLockInProgress = false;
   let autoMigrationInProgress = false;
+  let drawResetInProgress = false;
 
   const ui = (tr, en) => window.FIFA_I18N?.language === "en" ? en : tr;
   const clamp = (value, min = 0, max = 100) => Math.max(min, Math.min(max, Number(value) || 0));
@@ -397,27 +398,127 @@
     await engine()?.saveChampionshipState?.(state, ui("Yarı final kurası resmîleştirildi.", "Semi-final draw made official."));
   }
 
-  async function resetRoundDraw(round) {
-    const draw = currentDraw(lastDraw);
-    let state = journeyState(app()?.getState?.(), draw);
-    const affected = round === "quarterfinal" ? ["quarterfinal", "semifinal", "bronze", "final"] : ["semifinal", "bronze", "final"];
-    if (hasCompletedRoundMatches(state, affected)) throw new Error(ui("Bu kuraya bağlı maç sonucu bulunduğu için kura sıfırlanamaz.", "This draw cannot be reset because dependent match results exist."));
-    (state.rounds?.[round] || []).forEach(series => {
-      series.homeSource = { type: "draw-pending", draw: round };
-      series.awaySource = { type: "draw-pending", draw: round };
-      series.homeId = null; series.awayId = null; series.winnerId = null; series.loserId = null; series.status = "waiting";
+  function clearSeriesForDraw(series, drawName) {
+    if (!series) return;
+    series.homeSource = { type: "draw-pending", draw: drawName };
+    series.awaySource = { type: "draw-pending", draw: drawName };
+    series.homeId = null;
+    series.awayId = null;
+    series.winnerId = null;
+    series.loserId = null;
+    series.homeWins = 0;
+    series.awayWins = 0;
+    series.status = "waiting";
+    series.completedAt = null;
+    (series.matches || []).forEach(match => {
+      match.completed = false;
+      match.notRequired = false;
+      match.homeScore = null;
+      match.awayScore = null;
+      match.homeTeam = "";
+      match.awayTeam = "";
+      match.confirmation = { home: false, away: false, admin: false };
+      match.updatedAt = null;
     });
-    state.draws ||= {};
-    state.draws[round] = { status: "pending", mode: null, drawnAt: null, pairings: [] };
-    if (round === "quarterfinal") {
-      (state.rounds?.semifinal || []).forEach(series => {
-        series.homeSource = { type: "draw-pending", draw: "semifinal" };
-        series.awaySource = { type: "draw-pending", draw: "semifinal" };
-      });
-      state.draws.semifinal = { status: "pending", mode: null, drawnAt: null, pairings: [] };
+  }
+
+  function clearDependentFinalSeries(series) {
+    if (!series) return;
+    series.homeId = null;
+    series.awayId = null;
+    series.winnerId = null;
+    series.loserId = null;
+    series.homeWins = 0;
+    series.awayWins = 0;
+    series.status = "waiting";
+    series.completedAt = null;
+    (series.matches || []).forEach(match => {
+      match.completed = false;
+      match.notRequired = false;
+      match.homeScore = null;
+      match.awayScore = null;
+      match.homeTeam = "";
+      match.awayTeam = "";
+      match.confirmation = { home: false, away: false, admin: false };
+      match.updatedAt = null;
+    });
+  }
+
+  function clearSeriesState(series, { resetSources = false, drawRound = "" } = {}) {
+    if (!series) return;
+    if (resetSources) {
+      series.homeSource = { type: "draw-pending", draw: drawRound || series.round };
+      series.awaySource = { type: "draw-pending", draw: drawRound || series.round };
     }
+    series.homeId = null;
+    series.awayId = null;
+    series.homeWins = 0;
+    series.awayWins = 0;
+    series.winnerId = null;
+    series.loserId = null;
+    series.status = "waiting";
+    series.completedAt = null;
+    (series.matches || []).forEach(match => {
+      match.completed = false;
+      match.notRequired = false;
+      match.homeScore = null;
+      match.awayScore = null;
+      match.homeTeam = "";
+      match.awayTeam = "";
+      match.completedAt = null;
+      match.updatedAt = null;
+      match.confirmation = { home: false, away: false };
+    });
+  }
+
+  async function resetRoundDraw(round) {
+    if (drawResetInProgress) return;
+    drawResetInProgress = true;
+    try {
+      const draw = currentDraw(lastDraw);
+      let state = journeyState(app()?.getState?.(), draw);
+
+      const playedInRound = hasCompletedRoundMatches(state, [round]);
+    if (playedInRound) {
+      throw new Error(round === "semifinal"
+        ? ui("Yarı final maçlarından en az biri oynandığı için SF kurası sıfırlanamaz.", "The semi-final draw cannot be reset because at least one SF match has been played.")
+        : ui("Çeyrek final maçlarından en az biri oynandığı için QF kurası sıfırlanamaz.", "The quarter-final draw cannot be reset because at least one QF match has been played."));
+    }
+
+    state.draws ||= {};
+
+    if (round === "semifinal") {
+      (state.rounds?.semifinal || []).forEach(series => clearSeriesState(series, { resetSources: true, drawRound: "semifinal" }));
+      state.draws.semifinal = { status: "pending", mode: null, drawnAt: null, pairings: [] };
+      (state.rounds?.bronze || []).forEach(series => clearSeriesState(series));
+      (state.rounds?.final || []).forEach(series => clearSeriesState(series));
+    } else if (round === "quarterfinal") {
+      (state.rounds?.quarterfinal || []).forEach(series => clearSeriesState(series, { resetSources: true, drawRound: "quarterfinal" }));
+      state.draws.quarterfinal = { status: "pending", mode: null, drawnAt: null, pairings: [] };
+      (state.rounds?.semifinal || []).forEach(series => clearSeriesState(series, { resetSources: true, drawRound: "semifinal" }));
+      state.draws.semifinal = { status: "pending", mode: null, drawnAt: null, pairings: [] };
+      (state.rounds?.bronze || []).forEach(series => clearSeriesState(series));
+      (state.rounds?.final || []).forEach(series => clearSeriesState(series));
+    } else {
+      throw new Error(ui("Geçersiz kura turu.", "Invalid draw round."));
+    }
+
+    state.championId = null;
+    state.runnerUpId = null;
+    state.thirdId = null;
+    if (state.status === "completed") state.status = "official";
     state.updatedAt = nowISO();
-    await engine()?.saveChampionshipState?.(resolveJourney(state), ui("Kura sıfırlandı.", "Draw reset."));
+
+    const resolved = resolveJourney(state);
+    await engine()?.saveChampionshipState?.(resolved, round === "semifinal"
+      ? ui("Yarı final kurası sıfırlandı. Yeni SF kurası çekilebilir.", "Semi-final draw reset. A new SF draw can now be conducted.")
+      : ui("Çeyrek final kurası sıfırlandı. Yeni QF kurası çekilebilir.", "Quarter-final draw reset. A new QF draw can now be conducted."));
+
+      lastPayload = app()?.getState?.() || lastPayload;
+      return resolved;
+    } finally {
+      drawResetInProgress = false;
+    }
   }
 
   function usedTeamsForPlayer(draw, state, playerId, excludedMatchId = "") {
@@ -1300,7 +1401,8 @@
         const pairings = [...root.querySelectorAll("[data-qf-seed]")].map(select => ({ homeId: select.dataset.qfSeed, awayId: select.value }));
         perform(() => saveQuarterfinalDraw(pairings, "manual"));
       } else if (action === "reset-qf-draw") {
-        if (confirm(ui("Çeyrek final kurası sıfırlansın mı? Henüz oynanmış QF maçı yoksa yeni kura çekilebilir.", "Reset the quarter-final draw? A new draw can be conducted if no QF match has been played."))) perform(() => resetRoundDraw("quarterfinal"));
+        if (drawResetInProgress) return;
+        perform(() => resetRoundDraw("quarterfinal"));
       } else if (action === "draw-sf-random") {
         const state = journeyState(app()?.getState?.(), currentDraw());
         const order = secureShuffle((state.rounds?.quarterfinal || []).map(series => series.winnerId).filter(Boolean).map(String));
@@ -1310,7 +1412,8 @@
         const order = [...root.querySelectorAll("[data-sf-slot]")].sort((a,b) => Number(a.dataset.sfSlot)-Number(b.dataset.sfSlot)).map(select => select.value);
         perform(() => saveSemifinalDraw(semifinalPairingsFromOrder(order), "manual"));
       } else if (action === "reset-sf-draw") {
-        if (confirm(ui("Yarı final kurası sıfırlansın mı? Henüz oynanmış SF maçı yoksa yeni kura çekilebilir.", "Reset the semi-final draw? A new draw can be conducted if no SF match has been played."))) perform(() => resetRoundDraw("semifinal"));
+        if (drawResetInProgress) return;
+        perform(() => resetRoundDraw("semifinal"));
       } else if (action === "export-black-box") {
         downloadFile(`FIFA10_TOURNAMENT_BLACK_BOX_${Date.now()}.json`, JSON.stringify({
           version: VERSION, exportedAt: nowISO(), drawId: currentDraw()?.drawId,
