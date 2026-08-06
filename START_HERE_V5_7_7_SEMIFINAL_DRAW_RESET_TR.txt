@@ -1,0 +1,18 @@
+FIFA UNIVERSE V5.7.7 — YARI FINAL KURASI SIFIRLAMA HOTFIX
+
+1) Deploy patch içindeki dosyaları mevcut projenin köküne kopyalayın.
+2) Vercel deploy tamamlandıktan sonra şu adresi açın:
+   https://fifa9-tournament-hub.vercel.app/?fifa9build=577000
+3) Ctrl + Shift + R yapın.
+4) FIFA 10 Elemeler > Canlı Turnuva Ağacı bölümüne gidin.
+5) Henüz SF maçı sonucu yoksa "KURAYI SIFIRLA" düğmesine basın ve onaylayın.
+6) Beklenen sonuç:
+   - SF1 / SF2 eşleşmeleri temizlenir.
+   - Yarı final kura kaydı PENDING olur; timestamp/mode/pairings temizlenir.
+   - QF sonuçları aynen korunur.
+   - 3.lük ve Final oyuncu placeholder'ları temizlenir.
+   - Yeni yarı final açık kurası tekrar girilebilir/çekilebilir.
+
+KORUMA:
+Herhangi bir SF maçı sonucu kaydedilmişse reset engellenir ve açık hata mesajı gösterilir.
+Yeni Supabase SQL gerekmez.

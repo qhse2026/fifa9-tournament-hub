@@ -1,4 +1,4 @@
-# FIFA Universe V5.7.6 — Unified Team Passport
+# FIFA Universe V5.7.7 — Unified Team Passport
 
 ## Düzeltilen sorun
 FIFA 10 Championship eleme maçlarında seçilen takımlar resmî istatistik havuzuna giriyor, ancak FIFA 10 Eleme Merkezi > Takımlar > Oyuncu Takım Listeleri ekranı yalnız grup fikstürlerini okuyordu.
@@ -12,4 +12,4 @@ FIFA 10 Championship eleme maçlarında seçilen takımlar resmî istatistik hav
 - Resmî grup puan tablosu yalnız 78 grup maçından oluşmaya devam eder.
 
 ## Build
-576000
+577000
