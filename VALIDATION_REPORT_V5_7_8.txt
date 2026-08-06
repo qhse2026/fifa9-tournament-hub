@@ -1,0 +1,7 @@
+V5.7.8 Validation
+- QuotaSafe storage layer loaded before draw engine: PASS
+- app.js main cache uses quota-safe writer: PASS
+- draw engine official saves use quota-safe writer: PASS
+- build marker 578000: PASS
+- no official match/team/championship fields removed by compaction: PASS (compaction limited to historical ledgers/snapshots)
+- SF draw reset logic retained from V5.7.7: PASS

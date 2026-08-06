@@ -2,7 +2,7 @@
   "use strict";
 
   const VERSION = "3.2.0";
-  const BUILD = '577000';
+  const BUILD = '578000';
   const STORAGE_KEY = "fifa-tournament-hub-v1";
   const SYNC_HISTORY_KEY = "fifa10-sync-history-v1";
   const GROUPS = Object.freeze(["A", "B", "C"]);
@@ -484,7 +484,12 @@
     recordBlackBoxTransition(next, previous, message);
     payload = next;
     // Operational rule: device commit is authoritative and must never wait for the network.
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    if (window.FIFA_STORAGE_SAFE?.setMainState) {
+      const persisted = window.FIFA_STORAGE_SAFE.setMainState(next);
+      if (!persisted) throw new Error("Yerel depolama kotası dolu; resmî kayıt güvenli şekilde yazılamadı.");
+    } else {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    }
     recordSyncEvent(
       "local",
       message ? `${message} Cihaz kaydı tamamlandı.` : "Cihaz kaydı tamamlandı.",
@@ -646,7 +651,12 @@
       draft.draw = draw;
       draft.updatedAt = nowISO();
       payload = next;
+      if (window.FIFA_STORAGE_SAFE?.setMainState) {
+      const persisted = window.FIFA_STORAGE_SAFE.setMainState(next);
+      if (!persisted) throw new Error("Yerel depolama kotası dolu; resmî kayıt güvenli şekilde yazılamadı.");
+    } else {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    }
       activeTab = "draw";
       persistViewState();
       syncManualGroupOverlay();
@@ -2530,7 +2540,12 @@
     draft.players.push({ id:`F10-${Date.now().toString(36)}`, name, elo:NEW_PLAYER_ELO, source:"new", registeredAt:nowISO() });
     draft.status = "registration";
     draft.updatedAt = nowISO();
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    if (window.FIFA_STORAGE_SAFE?.setMainState) {
+      const persisted = window.FIFA_STORAGE_SAFE.setMainState(next);
+      if (!persisted) throw new Error("Yerel depolama kotası dolu; resmî kayıt güvenli şekilde yazılamadı.");
+    } else {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    }
     notify(`${name} FIFA 10'a ${NEW_PLAYER_ELO} geçici Standing Rating ile kaydedildi.`, "success");
     setTimeout(() => location.reload(), 450);
   }

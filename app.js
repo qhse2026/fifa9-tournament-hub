@@ -331,7 +331,9 @@
   }
 
   function cacheState() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    const safe = window.FIFA_STORAGE_SAFE?.setMainState?.(state);
+    if (safe === false) throw new Error("Yerel depolama dolu; güvenli sıkıştırma sonrasında da kayıt yapılamadı.");
+    if (safe == null) localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }
 
   function saveState(showIndicator = false, immediate = false) {
@@ -11760,7 +11762,7 @@ ${shareData.url}`)}`;
     const action = event.target.closest("[data-action]");
     if (!action) return;
     const type = action.dataset.action;
-    if (type === "open-fifa10-print-centre") { window.open(`fifa10-print-centre.html?fifa9build=577000`, "_blank", "noopener"); return; }
+    if (type === "open-fifa10-print-centre") { window.open(`fifa10-print-centre.html?fifa9build=578000`, "_blank", "noopener"); return; }
     if (type === "open-fifa10-player-picker") { openFifa10PlayerPicker(); return; }
     if (type === "select-fifa10-registration-player") { selectFifa10RegistrationPlayer(action.dataset.playerName || ""); return; }
     if (type === "toggle-fifa10-registration") { toggleFifa10Registration(); return; }

@@ -1,0 +1,10 @@
+FIFA UNIVERSE V5.7.8 — QUOTA-SAFE STORAGE HOTFIX
+
+1) Deploy paketi mevcut sitenin üzerine yükleyin.
+2) URL build değeri 578000 olmalı.
+3) Ctrl + Shift + R ile hard refresh yapın.
+4) FIFA 10 Elemeler > Canlı Turnuva Ağacı bölümüne gidin.
+5) Henüz SF sonucu girilmediyse "Kurayı Sıfırla" kullanın.
+6) SF eşleşmeleri temizlenmeli; QF sonuçları değişmemeli.
+
+Bu sürüm localStorage doluluğunu otomatik yönetir. Resmî maçlar/takımlar/kuralar silinmez; gerektiğinde yalnız geçmiş Black Box snapshot yoğunluğu azaltılır.
