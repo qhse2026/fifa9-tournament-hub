@@ -99,6 +99,7 @@
     archive: "Turnuva Arşivi",
     benchmark: "Turnuva Karnesi & Performans Atlası",
     alltime: "Tüm Zamanlar",
+    podium: "Şampiyonlar Kürsüsü",
     teams: "Takım İstatistikleri",
     backup: "Veri & Yedek",
     playeraccess: "Oyuncu Girişi",
@@ -114,6 +115,7 @@
   let adminAuthRestoreUntil = 0;
   let museumSelectedEdition = 9;
   let museumSelectedPlayerName = "";
+  let podiumSelectedEdition = null; // null = varsayılan: en son tamamlanmış edisyon (renderChampionsPodium içinde çözülür)
   let state = loadState();
   let fifa10TransferImport = readFifa10TransferFromLocation();
   if (fifa10TransferImport) {
@@ -3108,6 +3110,7 @@ function renderFifa10EloBlock({limit=10}={}) {
       case "playeraccess": renderPlayerAccessPage(); break;
       case "finalpoll": renderFinalPollPage(); break;
       case "seasonhub": renderFifa10LeagueSystem(); break;
+      case "podium": renderChampionsPodium(); break;
       default: renderDashboard();
     }
   }
@@ -3169,7 +3172,7 @@ function renderFifa10EloBlock({limit=10}={}) {
 
   function dashboardTournamentPodiums() {
     return allMuseumHonours()
-      .filter(item => item.competition === "oruc" && Number(item.edition) >= 1 && Number(item.edition) <= 9)
+      .filter(item => item.competition === "oruc" && Number(item.edition) >= 1 && Number(item.edition) <= 10)
       .sort((a, b) => Number(a.edition) - Number(b.edition));
   }
 
@@ -3192,11 +3195,18 @@ function renderFifa10EloBlock({limit=10}={}) {
     const live = dashboardFifa9PodiumSnapshot();
     const records = dashboardTournamentPodiums();
     const championCards = records.length ? records : historicalHonours().slice(0, 8);
+    const maxEdition = championCards.length ? Math.max(...championCards.map(item => Number(item.edition) || 0)) : 9;
+    const minEdition = championCards.length ? Math.min(...championCards.map(item => Number(item.edition) || 0)) : 1;
 
     return `<section class="home-champions-section fifa09-legacy-podium" aria-labelledby="homeChampionsTitle">
+      <div class="podium-beam-field">
+        <div class="podium-fixture podium-fixture-l"></div><div class="podium-fixture podium-fixture-c"></div><div class="podium-fixture podium-fixture-r"></div>
+        <div class="podium-beam podium-beam-l"></div><div class="podium-beam podium-beam-c"></div><div class="podium-beam podium-beam-r"></div>
+      </div>
+      <div class="podium-dust" id="homePodiumDustField"></div>
       <div class="home-champions-heading">
         <div><span>03 / FIFA 09 LEGACY</span><h3 id="homeChampionsTitle">The Final Chapter<br>is now history.</h3></div>
-        <div><p>FIFA 09 tamamlandı. Şampiyonluk kürsüsü, kupalar ve dokuz edisyonluk şampiyonlar listesi artık Oruç Reis FIFA World mirasının kalıcı parçası.</p><button type="button" data-nav="alltime">Tüm zamanları aç <b>↗</b></button></div>
+        <div><p>FIFA 09 tamamlandı. Şampiyonluk kürsüsü, kupalar ve dokuz edisyonluk şampiyonlar listesi artık Oruç Reis FIFA World mirasının kalıcı parçası.</p><button type="button" data-nav="podium">Şampiyonlar Kürsüsünü aç <b>↗</b></button></div>
       </div>
 
       <div class="home-podium-shell">
@@ -3209,9 +3219,9 @@ function renderFifa10EloBlock({limit=10}={}) {
       </div>
 
       <div class="home-champion-wall">
-        <div class="home-champion-wall-title"><div><span>CHAMPIONS ARCHIVE</span><h4>FIFA I — IX Şampiyonları</h4></div><small>${championCards.filter(item => item.winner).length} tamamlanmış edisyon</small></div>
+        <div class="home-champion-wall-title"><div><span>CHAMPIONS ARCHIVE</span><h4>FIFA ${String(minEdition).padStart(2, "0")} — FIFA ${String(maxEdition).padStart(2, "0")} Şampiyonları</h4></div><small>${championCards.filter(item => item.winner).length} tamamlanmış edisyon</small></div>
         <div class="home-champion-cards">
-          ${championCards.map(record => `<article class="home-champion-card ${Number(record.edition) === 9 ? "current legacy-sealed" : ""}">
+          ${championCards.map(record => `<article class="home-champion-card ${Number(record.edition) === maxEdition ? "current legacy-sealed" : ""}" data-nav="podium" data-action="set-podium-edition" data-edition="${Number(record.edition) || ""}" role="button" tabindex="0">
             <div class="home-champion-edition"><span>FIFA</span><strong>${String(Number(record.edition) || 0).padStart(2, "0")}</strong></div>
             <div class="home-champion-mini-trophy"><img src="assets/trophies/fifa9-champion-gold.webp" alt="" loading="lazy" decoding="async" /></div>
             <div class="home-champion-name"><small>ŞAMPİYON</small><strong>${escapeHTML(record.winner || "—")}</strong></div>
@@ -3221,6 +3231,89 @@ function renderFifa10EloBlock({limit=10}={}) {
         </div>
       </div>
     </section>`;
+  }
+
+  function seedPodiumDust(containerId, count = 22) {
+    const dustField = document.getElementById(containerId);
+    if (!dustField) return;
+    for (let i = 0; i < count; i += 1) {
+      const m = document.createElement("div");
+      m.className = "podium-mote";
+      m.style.left = Math.random() * 100 + "%";
+      m.style.bottom = Math.random() * 18 + "%";
+      m.style.setProperty("--drift", (Math.random() * 60 - 30) + "px");
+      m.style.animationDuration = (7 + Math.random() * 8) + "s";
+      m.style.animationDelay = Math.random() * 8 + "s";
+      dustField.appendChild(m);
+    }
+  }
+
+  // Her turnuvanın (edisyonun) tam ekran "Şampiyonlar Kürsüsü" sahnesi.
+  // Veri kaynağı: allMuseumHonours() -- yani hem tarihî FIFA01-08 kayıtları
+  // (historical-data.js), hem otomatik senkronize edilen FIFA09/FIFA10
+  // (syncCompletedFifa9Legacy / syncCompletedFifa10Legacy), hem de yönetici
+  // tarafından elle girilmiş Kupa Kaydı (customHonours) kayıtları tek bir
+  // listede birleşir. Bu sayfa o listeyi filtrelemekten başka bir şey yapmaz;
+  // yeni bir veri deposu icat etmez.
+  function renderChampionsPodium() {
+    const records = allMuseumHonours()
+      .filter(item => item.competition === "oruc" && Number(item.edition) >= 1 && item.winner)
+      .sort((a, b) => Number(a.edition) - Number(b.edition));
+    const editions = records.map(item => Number(item.edition));
+    const maxEdition = editions.length ? Math.max(...editions) : null;
+    if (!podiumSelectedEdition || !editions.includes(podiumSelectedEdition)) {
+      podiumSelectedEdition = maxEdition;
+    }
+    const record = records.find(item => Number(item.edition) === podiumSelectedEdition) || null;
+
+    const TROPHY_IMG = {
+      gold: "assets/trophies/fifa9-champion-gold.webp",
+      silver: "assets/trophies/fifa9-runner-up-silver.webp",
+      bronze: "assets/trophies/fifa9-third-place-bronze.webp"
+    };
+
+    const renderPlace = (rank, placeKey, label, name) => {
+      const empty = !name;
+      const plateLabel = empty ? "BEKLENİYOR" : rank === 1 ? `FIFA ${String(podiumSelectedEdition).padStart(2, "0")} ŞAMPİYONU` : label.toUpperCase();
+      return `<div class="cp-place cp-place-${placeKey} ${empty ? "is-empty" : ""}">
+        <div class="cp-rank">${escapeHTML(label)} <b>${rank}</b></div>
+        <div class="cp-trophy-well"><div class="cp-glow"></div><img class="cp-trophy-img" src="${TROPHY_IMG[placeKey]}" alt="${placeKey === "gold" ? "Altın" : placeKey === "silver" ? "Gümüş" : "Bronz"} kupa" loading="${placeKey === "gold" ? "eager" : "lazy"}" decoding="async" /></div>
+        <div class="cp-plate"><small>${plateLabel}</small><strong>${escapeHTML(name || "—")}</strong></div>
+        <div class="cp-block"></div>
+      </div>`;
+    };
+
+    const podiumHtml = record
+      ? `<div class="cp-grid">
+          ${renderPlace(2, "silver", "İkinci", record.runnerUp)}
+          ${renderPlace(1, "gold", "Şampiyon", record.winner)}
+          ${renderPlace(3, "bronze", "Üçüncü", record.third)}
+        </div>`
+      : `<div class="info-box">Henüz tamamlanmış bir turnuva kaydı yok. Bir turnuva sona erdiğinde kürsüsü otomatik olarak burada belirir.</div>`;
+
+    const rail = editions.length
+      ? `<div class="cp-rail-wrap"><div class="cp-rail">${editions.map(e => `<button class="cp-pill ${e === podiumSelectedEdition ? "active" : ""}" data-action="set-podium-edition" data-edition="${e}">FIFA ${String(e).padStart(2, "0")}</button>`).join("")}</div></div>`
+      : "";
+
+    view.innerHTML = `<div class="cp-page">
+      <section class="cp-stage">
+        <div class="podium-beam-field">
+          <div class="podium-fixture podium-fixture-l"></div><div class="podium-fixture podium-fixture-c"></div><div class="podium-fixture podium-fixture-r"></div>
+          <div class="podium-beam podium-beam-l"></div><div class="podium-beam podium-beam-c"></div><div class="podium-beam podium-beam-r"></div>
+        </div>
+        <div class="podium-dust" id="cpDustField"></div>
+        <div class="stage-floor"></div>
+        <div class="cp-header">
+          <div class="cp-eyebrow">Oruç Reis Kupası${podiumSelectedEdition ? ` · FIFA ${String(podiumSelectedEdition).padStart(2, "0")}` : ""}</div>
+          <h1 class="cp-title">Şampiyonlar <em>Kürsüsü</em></h1>
+          <p class="cp-sub">${record ? `FIFA ${String(podiumSelectedEdition).padStart(2, "0")} sezonunun kürsüsü. Kazanan üç isim, kalıcı olarak burada ışıldıyor.` : "Her turnuva bittiğinde, kürsüsü otomatik olarak bu galeriye eklenir."}</p>
+        </div>
+        ${podiumHtml}
+        ${rail}
+        <div class="cp-footnote">${records.length} tamamlanmış edisyon · Oruç Reis Kupası tarihi</div>
+      </section>
+    </div>`;
+    seedPodiumDust("cpDustField");
   }
 
   function renderDashboard() {
@@ -3244,6 +3337,7 @@ function renderFifa10EloBlock({limit=10}={}) {
       ${renderFifa10FormatSpine()}
       ${renderFifa10RegistrationBlock({compact:true})}
     </div>`;
+    seedPodiumDust("homePodiumDustField");
   }
 
   function getLiveState() {
@@ -11840,7 +11934,11 @@ ${shareData.url}`)}`;
   document.addEventListener("click", event => {
     if (window.FIFA_CHAT_UI?.handleClick?.(event)) return;
     const nav = event.target.closest("[data-nav]");
-    if (nav) { navTo(nav.dataset.nav); return; }
+    if (nav) {
+      if (nav.dataset.nav === "podium" && nav.dataset.edition) podiumSelectedEdition = Number(nav.dataset.edition) || null;
+      navTo(nav.dataset.nav);
+      return;
+    }
     const championshipJump = event.target.closest("[data-championship-jump]");
     if (championshipJump) {
       const targets = { operations: "championshipMatchOperations", bracket: "championshipLiveBracket", standings: "championshipOfficialStandings" };
@@ -11876,6 +11974,7 @@ ${shareData.url}`)}`;
       return;
     }
     if (type === "set-museum-edition") { museumSelectedEdition = Number(action.dataset.edition) || 9; renderSeasonMuseum(); return; }
+    if (type === "set-podium-edition") { podiumSelectedEdition = Number(action.dataset.edition) || null; renderChampionsPodium(); return; }
     if (type === "create-fifa10-draft") { createFifa10Draft(); return; }
     if (type === "auto-assign-fifa10") { autoAssignFifa10Players(); renderSeasonWorkspace(); return; }
     if (type === "save-fifa10-draft") { seasonSystem().fifa10Draft.updatedAt = new Date().toISOString(); saveState(true,true); renderSeasonWorkspace(); toast("FIFA 10 kadrosu kaydedildi.","success"); return; }
