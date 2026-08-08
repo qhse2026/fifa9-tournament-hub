@@ -338,6 +338,7 @@
 
   function saveState(showIndicator = false, immediate = false) {
     syncCompletedFifa9Legacy();
+    syncCompletedFifa10Legacy();
     cacheState();
     if (!cloudConfigured || !cloud?.save || !cloudAdmin) {
       if (showIndicator && !cloudConfigured) toast("Değişiklikler bu cihazda kaydedildi.", "success");
@@ -2437,6 +2438,92 @@
     return { changed, snapshot };
   }
 
+  // FIFA 10 equivalent of completedFifa9SeasonSnapshot()/syncCompletedFifa9Legacy().
+  // BUGFIX: this pair never existed for edition 10, so a finished FIFA 10 Triple
+  // Circuit championship had no path into customHonours / seasonSystem().seasons —
+  // the Onur Tablosu ("kürsü"), the home-page podium, and the player trophy-history
+  // cards all read exclusively from those two places, so they stayed on their
+  // "Yeni format" / empty placeholders even after the Grand Final was decided.
+  // There is also no separate "close tournament" action anywhere in the app —
+  // FIFA 09 finalizes itself automatically the moment a champion exists, and this
+  // mirrors that same automatic, no-button behaviour for FIFA 10.
+  function completedFifa10SeasonSnapshot() {
+    const championship = seasonSystem().fifa10Draft?.championshipOS;
+    const finalSeries = championship?.rounds?.final?.[0] || null;
+    const bronzeSeries = championship?.rounds?.bronze?.[0] || null;
+    const championId = finalSeries?.winnerId || null;
+    if (!championId) return null; // Grand Final not decided yet — nothing to archive.
+    const runnerUpId = finalSeries?.loserId || null;
+    const thirdId = bronzeSeries?.winnerId || null;
+    const matches = [...fifa10CurrentMatches(), ...fifa10ChampionshipMatches()]
+      .filter(matchComplete)
+      .map(match => ({
+        id: match.id,
+        edition: 10,
+        stage: currentMatchStageLabel(match),
+        homeName: playerName(match.homeId),
+        awayName: playerName(match.awayId),
+        homeTeam: match.homeTeam || "",
+        awayTeam: match.awayTeam || "",
+        homeScore: Number(match.homeScore),
+        awayScore: Number(match.awayScore),
+        allowDraw: Boolean(match.allowDraw),
+        winnerName: matchWinnerId(match) ? playerName(matchWinnerId(match)) : ""
+      })).filter(match => match.homeName && match.awayName && !/^P\d+$/i.test(match.homeName) && !/^P\d+$/i.test(match.awayName));
+    return {
+      id: "season-fifa-10-triple-circuit",
+      edition: 10,
+      status: "completed",
+      format: "FIFA 10 Triple Circuit",
+      champion: playerName(championId),
+      runnerUp: runnerUpId ? playerName(runnerUpId) : "",
+      third: thirdId ? playerName(thirdId) : "",
+      participants: (seasonSystem().fifa10Draft?.draw?.participants || []).map(player => ({ id: player.id, name: String(player.name || "").trim() })).filter(player => player.name),
+      matches,
+      completedAt: finalSeries?.updatedAt || championship?.updatedAt || new Date().toISOString(),
+      archivedAt: new Date().toISOString(),
+      source: "auto-fifa10-legacy-sync"
+    };
+  }
+
+  function syncCompletedFifa10Legacy() {
+    const snapshot = completedFifa10SeasonSnapshot();
+    if (!snapshot) return { changed: false, snapshot: null };
+    const system = seasonSystem();
+    let changed = false;
+
+    const honourRecord = {
+      id: "honour-fifa-10-triple-circuit",
+      edition: 10,
+      competition: "oruc",
+      winner: snapshot.champion,
+      runnerUp: snapshot.runnerUp,
+      third: snapshot.third
+    };
+    const honourIndex = system.customHonours.findIndex(item => Number(item.edition) === 10 && normalizeCompetition(item.competition) === "oruc");
+    const previousHonour = honourIndex >= 0 ? system.customHonours[honourIndex] : null;
+    if (!previousHonour || previousHonour.winner !== honourRecord.winner || previousHonour.runnerUp !== honourRecord.runnerUp || previousHonour.third !== honourRecord.third) {
+      if (honourIndex >= 0) system.customHonours[honourIndex] = honourRecord;
+      else system.customHonours.push(honourRecord);
+      changed = true;
+    }
+
+    const seasonIndex = system.seasons.findIndex(item => Number(item.edition) === 10);
+    const previousSeason = seasonIndex >= 0 ? system.seasons[seasonIndex] : null;
+    const previousSignature = previousSeason ? JSON.stringify({ champion: previousSeason.champion, runnerUp: previousSeason.runnerUp, third: previousSeason.third, matches: previousSeason.matches || [] }) : "";
+    const nextSignature = JSON.stringify({ champion: snapshot.champion, runnerUp: snapshot.runnerUp, third: snapshot.third, matches: snapshot.matches });
+    if (previousSignature !== nextSignature) {
+      // Merge onto whatever was already stored for edition 10 (rather than a bare
+      // overwrite like the FIFA 09 version) so this never clobbers unrelated fields
+      // some other part of the app may come to store on the same seasons[] entry.
+      const archived = { ...previousSeason, ...snapshot, archivedAt: previousSeason?.archivedAt || snapshot.archivedAt };
+      if (seasonIndex >= 0) system.seasons[seasonIndex] = archived;
+      else system.seasons.push(archived);
+      changed = true;
+    }
+    return { changed, snapshot };
+  }
+
   function archivedSeasonMatches() {
     return (seasonSystem().seasons || []).flatMap(season => (season.matches || []).map((match, index) => ({
       id: match.id || `archive-${season.edition}-${index + 1}`,
@@ -2955,6 +3042,7 @@ function renderFifa10EloBlock({limit=10}={}) {
 
   function renderFifa10LeagueSystem() {
     syncCompletedFifa9Legacy();
+    syncCompletedFifa10Legacy();
     const draft=fifa10RegistrationState();
     const assignment=fifa10AssignPots();
     const honour=allMuseumHonours().find(item=>Number(item.edition)===9&&item.competition==="oruc")||currentFifa9Honour();
@@ -3137,6 +3225,7 @@ function renderFifa10EloBlock({limit=10}={}) {
 
   function renderDashboard() {
     syncCompletedFifa9Legacy();
+    syncCompletedFifa10Legacy();
     const assignment=fifa10AssignPots();
     const honour=allMuseumHonours().find(item=>Number(item.edition)===9&&item.competition==="oruc")||currentFifa9Honour();
     const champion=honour?.winner||"Çağlar Can Tatar";
@@ -12247,8 +12336,9 @@ ${shareData.url}`)}`;
       setCloudState(cloudConfigured ? "error" : "not-configured");
       const replacementResult = applyConfiguredPhase2Replacement({ silent: true });
       const legacyResult = syncCompletedFifa9Legacy();
+      const fifa10LegacyResult = syncCompletedFifa10Legacy();
       const fifa10Result = ensureFifa10IntegratedTournament();
-      if (replacementResult.changed || legacyResult.changed || fifa10Result.changed) cacheState();
+      if (replacementResult.changed || legacyResult.changed || fifa10LegacyResult.changed || fifa10Result.changed) cacheState();
       render();
       return;
     }
@@ -12261,10 +12351,11 @@ ${shareData.url}`)}`;
           if (transferWasApplied) state.fifa10StandaloneOperations = fifa10TransferImport;
           const replacementResult = applyConfiguredPhase2Replacement({ silent: true });
           const legacyResult = syncCompletedFifa9Legacy();
+          const fifa10LegacyResult = syncCompletedFifa10Legacy();
           const fifa10Result = ensureFifa10IntegratedTournament();
           cloudUpdatedAt = meta.updatedAt || cloudUpdatedAt;
           cacheState();
-          if ((replacementResult.changed || legacyResult.changed || fifa10Result.changed || transferWasApplied) && cloudAdmin) {
+          if ((replacementResult.changed || legacyResult.changed || fifa10LegacyResult.changed || fifa10Result.changed || transferWasApplied) && cloudAdmin) {
             Promise.resolve(saveState(false, true)).then(() => {
               if (transferWasApplied) fifa10TransferImport = null;
             });
@@ -12289,9 +12380,10 @@ ${shareData.url}`)}`;
           finalPollMyVote = null;
           const replacementResult = applyConfiguredPhase2Replacement({ silent: true });
           const legacyResult = syncCompletedFifa9Legacy();
+          const fifa10LegacyResult = syncCompletedFifa10Legacy();
           const fifa10Result = ensureFifa10IntegratedTournament();
           updateAuthUI();
-          if (cloudInitialStateLoaded && (replacementResult.changed || legacyResult.changed || fifa10Result.changed || transferWasApplied) && cloudAdmin) {
+          if (cloudInitialStateLoaded && (replacementResult.changed || legacyResult.changed || fifa10LegacyResult.changed || fifa10Result.changed || transferWasApplied) && cloudAdmin) {
             Promise.resolve(saveState(false, true)).then(() => {
               if (transferWasApplied) fifa10TransferImport = null;
             });
@@ -12310,8 +12402,9 @@ ${shareData.url}`)}`;
       toast("Canlı veriye bağlanılamadı. Son kayıtlı görünüm gösteriliyor.", "error");
     }
     const legacyResult = syncCompletedFifa9Legacy();
+    const fifa10LegacyResult = syncCompletedFifa10Legacy();
     const fifa10Result = ensureFifa10IntegratedTournament();
-    if (legacyResult.changed || fifa10Result.changed) { cacheState(); if (cloudAdmin) saveState(false, true); }
+    if (legacyResult.changed || fifa10LegacyResult.changed || fifa10Result.changed) { cacheState(); if (cloudAdmin) saveState(false, true); }
     updateAuthUI();
     render();
     window.FIFA_CHAT_UI?.onCloudReady?.();
