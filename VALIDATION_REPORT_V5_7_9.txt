@@ -1,0 +1,66 @@
+FIFA UNIVERSE V5.7.9 — GRAND FINAL BEST OF 3
+VALIDATION REPORT
+
+STATUS: PASS
+
+1. Championship Grand Final template
+   PASS — F10-FINAL-1 bestOf = 3
+   PASS — M1 = 4★
+   PASS — M2 = 4.5★
+   PASS — M3 = 5★
+   PASS — target wins = 2
+
+2. Series resolution
+   PASS — synthetic 2-0 completes the Final and marks M3 notRequired
+   PASS — synthetic 1-1 leaves M3 required
+   PASS — championId / runnerUpId resolve only after two series wins
+
+3. Third-place format
+   PASS — remains bestOf = 1
+   PASS — remains 4.5★
+
+4. Existing-state migration
+   PASS — unplayed legacy single-match Final has a safe upgrade path to BO3
+   PASS — semifinal winner sources / Final participants are preserved
+   PASS — an already-played old single-match Final is explicitly blocked from automatic reinterpretation
+   PASS — admin-open auto-persist writes the migrated BO3 state through the existing quota-safe save layer
+
+5. Unified statistics integration
+   PASS — Championship official feed uses the actual series.bestOf
+   PASS — app statistical projection defaults Final to BO3 if legacy bestOf is absent
+   PASS — every completed Final-series match remains a separate official FIFA 10 fixture
+
+6. Team Passport
+   PASS — Final is no longer forced to single-match labeling
+   PASS — BO3 Final team usage can show M1 / M2 / M3 separately
+   PASS — existing no-repeat team rule remains active across the full tournament
+
+7. Live Tournament Tree
+   PASS — Grand Final header shows BO3 · 4★ → 4.5★ → 5★
+   PASS — series card displays series score for bestOf=3
+
+8. Player Result Desk
+   PASS — result desk continues to read the dynamic Championship match array
+   PASS — build aligned to 579000
+   PASS — no new Supabase schema migration required by this client update
+
+9. Build/cache
+   PASS — canonical query = fifa9build=579000
+   PASS — Championship OS build = 579000
+   PASS — Draw Engine build = 579000
+   PASS — Result Desk build = 579000
+   PASS — modified asset cache query versions bumped to 5.7.9
+
+10. JavaScript syntax
+   PASS — fifa-championship-os-v4719.js
+   PASS — fifa10-draw-engine-v4713.js
+   PASS — live-table-motion-v311.js
+   PASS — fifa10-player-result-desk-v572.js
+   PASS — app.js
+
+Recommended smoke test after deploy:
+- Open FIFA 10 Elemeler.
+- Verify Final shows BO3 and M1 4★ / M2 4.5★ / M3 5★.
+- Enter M1 result: series becomes 1-0.
+- Enter M2 for same winner: series becomes 2-0, Champion is set, M3 becomes not required.
+- Alternative: split M1/M2 1-1; verify M3 remains playable and determines the champion.

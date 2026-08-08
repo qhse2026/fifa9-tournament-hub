@@ -1,8 +1,8 @@
 (() => {
   "use strict";
 
-  const VERSION = "2.4.1";
-  const BUILD = '578000';
+  const VERSION = "2.5.0";
+  const BUILD = '579000';
   const ROUND_ORDER = ["playin", "quarterfinal", "semifinal", "bronze", "final"];
   const SERIES_STARS = Object.freeze([4, 4.5, 5]);
   const STORAGE_KEY = "fifa-tournament-hub-v1";
@@ -19,6 +19,7 @@
   let listenersInstalled = false;
   let autoLockInProgress = false;
   let autoMigrationInProgress = false;
+  let autoFinalFormatMigrationInProgress = false;
   let drawResetInProgress = false;
 
   const ui = (tr, en) => window.FIFA_I18N?.language === "en" ? en : tr;
@@ -192,7 +193,7 @@
           seriesTemplate("F10-BR-1", "bronze", "THIRD PLACE", 1, { type: "loser", seriesId: "F10-SF-1" }, { type: "loser", seriesId: "F10-SF-2" })
         ],
         final: [
-          seriesTemplate("F10-FINAL-1", "final", "GRAND FINAL", 1, { type: "winner", seriesId: "F10-SF-1" }, { type: "winner", seriesId: "F10-SF-2" })
+          seriesTemplate("F10-FINAL-1", "final", "GRAND FINAL", 3, { type: "winner", seriesId: "F10-SF-1" }, { type: "winner", seriesId: "F10-SF-2" })
         ]
       }
     };
@@ -287,11 +288,41 @@
     return resolveJourney(upgraded);
   }
 
+  function migrateGrandFinalToBestOf3(stored) {
+    if (!stored?.rounds?.final?.[0]) return stored;
+    const current = stored.rounds.final[0];
+    if (Number(current.bestOf) === 3 && Array.isArray(current.matches) && current.matches.length === 3) return stored;
+    const played = (current.matches || []).some(match => Boolean(match?.completed));
+    if (played) {
+      const blocked = deepClone(stored);
+      blocked.finalFormatMigrationBlocked = true;
+      return blocked;
+    }
+    const upgraded = deepClone(stored);
+    const source = upgraded.rounds.final[0];
+    const migrated = seriesTemplate(
+      source.id || "F10-FINAL-1",
+      "final",
+      source.label || "GRAND FINAL",
+      3,
+      deepClone(source.homeSource || { type: "winner", seriesId: "F10-SF-1" }),
+      deepClone(source.awaySource || { type: "winner", seriesId: "F10-SF-2" })
+    );
+    migrated.homeId = source.homeId || null;
+    migrated.awayId = source.awayId || null;
+    upgraded.rounds.final[0] = migrated;
+    upgraded.finalFormatMigrated = true;
+    upgraded.finalFormatMigratedAt = nowISO();
+    upgraded.build = BUILD;
+    upgraded.updatedAt = nowISO();
+    return upgraded;
+  }
+
   function journeyState(payload, draw) {
     const stored = draft(payload).championshipOS;
     if (stored?.basedOnDrawId !== draw?.drawId) return resolveJourney(createJourney(draw, false));
-    if (stored?.version === 2) return resolveJourney(stored);
-    if (stored?.version === 1) return migrateLegacyJourney(stored, draw);
+    if (stored?.version === 2) return resolveJourney(migrateGrandFinalToBestOf3(stored));
+    if (stored?.version === 1) return resolveJourney(migrateGrandFinalToBestOf3(migrateLegacyJourney(stored, draw)));
     return resolveJourney(createJourney(draw, false));
   }
 
@@ -1133,15 +1164,17 @@
       quarterfinal: ui("ÇEYREK FİNAL · KURA · BEST OF 3", "QUARTER-FINAL · DRAW · BEST OF 3"),
       semifinal: ui("YARI FİNAL · YENİ KURA · BEST OF 3", "SEMI-FINAL · NEW DRAW · BEST OF 3"),
       bronze: ui("ÜÇÜNCÜLÜK · 4.5★", "THIRD PLACE · 4.5★"),
-      final: ui("BÜYÜK FİNAL · 5★", "GRAND FINAL · 5★")
+      final: ui("BÜYÜK FİNAL · BEST OF 3", "GRAND FINAL · BEST OF 3")
     };
     const operational = activeOperationalSeries(state);
     const completedKnockout = allSeries(state).flatMap(series => series.matches || []).filter(match => match.completed).length;
     const pendingDraw = renderDrawControl(state, draw, admin);
     const migrationWarning = state.migrationBlocked ? `<div class="fco-notice error"><b>!</b><span>${ui("Eski sabit bracket üzerinde QF veya sonrası sonucu bulundu. Yeni kura sistemine otomatik dönüşüm yapılmadı; veri korunuyor.", "Quarter-final or later results exist on the legacy fixed bracket. Automatic migration to the new draw system was blocked to protect data.")}</span></div>` : "";
+    const finalFormatWarning = state.finalFormatMigrationBlocked ? `<div class="fco-notice error"><b>!</b><span>${ui("Eski tek maçlık Büyük Final sonucu zaten oynanmış görünüyor. Bu sonuç otomatik olarak Best of 3 serisine dönüştürülmedi; veri korunuyor.", "A legacy single-match Grand Final result already appears to have been played. It was not automatically reinterpreted as a Best of 3 series; the data was preserved.")}</span></div>` : "";
     return `<section class="fco-panel championship-frontline" data-fco-panel="command">
       <section class="fco-frontline-status"><div><span>FIFA 10 · CHAMPIONSHIP FRONTLINE</span><h3>${ui("Elemeler başladı.", "Knockouts are live.")} <em>${ui("Play-In sabit; QF ve SF kura ile.", "Play-In is fixed; QF and SF are drawn.")}</em></h3><p>${locked ? ui("Play-In eşleşmeleri resmî. Dört Play-In galibi belli olunca çeyrek final kurası; dört QF galibi belli olunca yeni yarı final kurası çekilir.", "Play-In pairings are official. The quarter-final draw follows the four Play-In winners; a new semi-final draw follows the four QF winners.") : ui("Grup ligi tamamlandı. Önce Championship seedlerini ve Play-In'i resmîleştirin.", "The group league is complete. First seal the Championship seeds and Play-In.")}</p></div><aside><b>${completedKnockout}</b><small>${ui("ELEME MAÇI İŞLENDİ", "KNOCKOUT MATCHES RECORDED")}</small><button type="button" data-fco-action="open-player-result-desk">${ui("OYUNCU SONUÇ MASASI", "PLAYER RESULT DESK")} ↗</button></aside></section>
       ${migrationWarning}
+      ${finalFormatWarning}
 
       <section class="fco-match-operations" id="championshipMatchOperations"><header><div><span>01 · MATCH OPERATIONS</span><h4>${ui("Maçlar ve Sonuç Girişi", "Matches & Result Entry")}</h4><p>${ui("Aktif turdaki oynanabilir seriler burada. Kura gereken aşamada sistem sonuç girişini durdurur ve kura merkezini açar.", "Playable series are shown here. When a draw is required, result entry pauses and the draw centre opens.")}</p></div><b>${operational.length} ${ui("AKTİF SERİ", "ACTIVE SERIES")}</b></header>
         ${!locked ? `<div class="fco-frontline-lock"><strong>${ui("Resmî Play-In omurgası henüz oluşturulmadı.", "The official Play-In route has not been created yet.")}</strong>${admin ? `<button type="button" data-fco-action="lock-journey" ${groupComplete ? "" : "disabled"}>${ui("SEEDLERİ & PLAY-IN'İ RESMÎLEŞTİR", "SEAL SEEDS & PLAY-IN")}</button>` : `<span>${ui("Yönetici girişi bekleniyor.", "Waiting for administrator.")}</span>`}</div>` : operational.length ? `<div class="fco-operation-grid">${operational.map(series => renderSeries(draw, state, series, admin)).join("")}</div>` : pendingDraw || (state.championId ? `<div class="fco-operation-complete"><strong>${ui("Turnuva tamamlandı.", "Tournament complete.")}</strong><span>FIFA 10 Champion · ${esc(playerName(draw, state.championId))}</span></div>` : `<div class="fco-operation-complete"><strong>${ui("Aktif tur tamamlandı.", "The active round is complete.")}</strong><span>${ui("Bir sonraki operasyon için kura veya eşleşme bekleniyor.", "Waiting for the next draw or pairing operation.")}</span></div>`)}
@@ -1307,6 +1340,13 @@
       setTimeout(() => engine()?.saveChampionshipState?.(journey, ui("Championship yeni kura sistemine geçirildi.", "Championship migrated to the new draw system.")).then(() => {
         sessionStorage.setItem(`fco-draw-migration:${lastDraw?.drawId}:${BUILD}`, "done");
       }).finally(() => { autoMigrationInProgress = false; rerender(); }), 80);
+    }
+    if (journey.finalFormatMigrated && !journey.finalFormatMigrationBlocked && admin && !autoFinalFormatMigrationInProgress && !sessionStorage.getItem(`fco-final-bo3-migration:${lastDraw?.drawId}:${BUILD}`)) {
+      autoFinalFormatMigrationInProgress = true;
+      sessionStorage.setItem(`fco-final-bo3-migration:${lastDraw?.drawId}:${BUILD}`, "attempted");
+      setTimeout(() => engine()?.saveChampionshipState?.(journey, ui("Büyük Final Best of 3 formatına geçirildi.", "Grand Final upgraded to Best of 3.")).then(() => {
+        sessionStorage.setItem(`fco-final-bo3-migration:${lastDraw?.drawId}:${BUILD}`, "done");
+      }).finally(() => { autoFinalFormatMigrationInProgress = false; rerender(); }), 95);
     }
     if (groupComplete && journey.status === "preview" && admin && !autoLockInProgress && !sessionStorage.getItem(`fco-autolock:${lastDraw?.drawId}:${BUILD}`)) {
       autoLockInProgress = true;

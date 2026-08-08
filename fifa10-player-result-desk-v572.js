@@ -1,7 +1,7 @@
 (() => {
   "use strict";
   const VERSION = "1.0.0";
-  const BUILD = "578000";
+  const BUILD = "579000";
   const rowId = () => window.FIFA_CLOUD_CONFIG?.tournamentRowId || "fifa-9";
   const esc = value => String(value ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
   const ui = (tr,en) => window.FIFA_I18N?.language === "en" ? en : tr;

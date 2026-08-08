@@ -1,0 +1,23 @@
+FIFA UNIVERSE V5.7.9 — GRAND FINAL BEST OF 3
+
+1) Bu paketi mevcut V5.7.8 çalışan projenizin üzerine yükleyin.
+2) Deploy sonrası şu adresi açın:
+   https://fifa9-tournament-hub.vercel.app/?fifa9build=579000
+3) Ctrl+Shift+R ile bir kez tam yenileme yapın.
+4) FIFA 10 Eleme Merkezi > Canlı Turnuva Ağacı bölümünde Büyük Finali kontrol edin.
+
+BEKLENEN FORMAT
+- GRAND FINAL · BO3
+- M1: 4★
+- M2: 4.5★
+- M3: 5★ (gerekirse)
+- İlk 2 galibiyet şampiyonluğu getirir.
+- Seri 2-0 biterse M3 otomatik NOT REQUIRED olur.
+
+MEVCUT VERİ
+- Final henüz oynanmadıysa mevcut finalistler korunur ve tek maç placeholder otomatik BO3'e dönüşür.
+- Play-In, QF, SF ve takım seçimleri korunur.
+- Üçüncülük maçı tek maç 4.5★ olarak kalır.
+
+SUPABASE
+Yeni SQL gerekmiyor. Player Result Desk mevcut bestOf alanını ve maç dizisini dinamik okur. Siteyi admin olarak bir kez açmak, yeni BO3 state'inin buluta kaydedilmesi için gereklidir.

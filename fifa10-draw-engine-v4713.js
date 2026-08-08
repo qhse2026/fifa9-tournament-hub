@@ -2,7 +2,7 @@
   "use strict";
 
   const VERSION = "3.2.0";
-  const BUILD = '578000';
+  const BUILD = '579000';
   const STORAGE_KEY = "fifa-tournament-hub-v1";
   const SYNC_HISTORY_KEY = "fifa10-sync-history-v1";
   const GROUPS = Object.freeze(["A", "B", "C"]);
@@ -1000,7 +1000,7 @@
       };
       const round = match.championshipRound || "championship";
       const game = Number(match.seriesGame || match.number || 1);
-      const singleMatch = Number(match.bestOf) === 1 || round === "bronze" || round === "final";
+      const singleMatch = Number(match.bestOf) === 1 || round === "bronze";
       return `${labels[round] || "CHAMPIONSHIP"}${match.seriesLabel ? ` · ${match.seriesLabel}` : ""}${singleMatch ? "" : ` · M${game}`}`;
     }
     return `GRUP ${match?.group || "–"} · ${match?.legLabel || `${match?.leg || "–"}. DEVRE`}`;

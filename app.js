@@ -2937,7 +2937,7 @@ function renderFifa10EloBlock({limit=10}={}) {
       {no:"04",tag:"DIRECT ACCESS",title:"İlk 4 doğrudan çeyrek final",desc:"Genel sıralamanın ilk dört oyuncusu hem seri başı hem doğrudan çeyrek finalist.",meta:"1 · 2 · 3 · 4"},
       {no:"05",tag:"CHAMPIONSHIP PLAY-IN",title:"Son dört bilet",desc:"5–12 arasındaki oyuncular dört Best of 3 seride çeyrek final bileti arar. 13. ve 14. doğrudan elenir; ek ön eleme oynanmaz.",meta:"5–12 · 6–11 · 7–10 · 8–9 · Best of 3"},
       {no:"06",tag:"KNOCKOUT",title:"Çeyrek final ve yarı final",desc:"Her tur üç takım seviyesini test eden Best of 3 formatında.",meta:"Maç 1: 4★ · Maç 2: 4.5★ · Maç 3: 5★"},
-      {no:"07",tag:"FINAL NIGHT",title:"Podyum ve Büyük Final",desc:"Yarı final kaybedenleri üçüncülük; kazananları tek maçlık büyük final oynar.",meta:"Üçüncülük 4.5★ · Final 5★"}
+      {no:"07",tag:"FINAL NIGHT",title:"Podyum ve Büyük Final",desc:"Yarı final kaybedenleri üçüncülük; kazananları Best of 3 Büyük Final Serisi oynar.",meta:"Üçüncülük 4.5★ · Final M1 4★ · M2 4.5★ · M3 5★"}
     ];
     return `<section class="f10-format-spine ${detailed?"detailed":""}"><header><div><span>FIFA 10 · COMPETITION BLUEPRINT</span><h3>Finale giden ana omurga</h3></div><p>Üç grup, üç devre, tek genel tablo ve Best of 3 eleme serileri. Her üst sıra daha kısa ve daha avantajlı bir şampiyonluk yolu sağlar.</p></header><div class="f10-spine-track">${stages.map((stage,index)=>`<article><div class="f10-spine-number">${stage.no}</div><div><small>${stage.tag}</small><h4>${stage.title}</h4><p>${stage.desc}</p><strong>${stage.meta}</strong></div>${index<stages.length-1?"<i></i>":""}</article>`).join("")}</div>${detailed?`<div class="f10-team-protocol"><header><span>TEAM PASSPORT</span><h4>Aynı takım, turnuva boyunca yalnızca bir kez.</h4></header><div><article><strong>4★</strong><p>Oyuncu 3 takım seçer; istediği biriyle oynar.</p></article><article><strong>4.5★</strong><p>En fazla 2 seçim. İkinci hak kullanılırsa ilk takım iptal olur ve tekrar kullanılamaz.</p></article><article><strong>5★</strong><p>Tek kura. Değişiklik hakkı yoktur.</p></article></div></div>`:""}</section>`;
   }
@@ -11128,7 +11128,7 @@ ${shareData.url}`)}`;
             phase: "fifa10-championship",
             round: Number(game?.number || gameIndex + 1),
             seriesGame: Number(game?.number || gameIndex + 1),
-            bestOf: Number(series?.bestOf || (round === "bronze" || round === "final" ? 1 : 3)),
+            bestOf: Number(series?.bestOf || (round === "bronze" ? 1 : 3)),
             stars: Number(game?.stars) || null,
             sequence: 1000 + (roundOrder[round] || 9) * 100 + seriesIndex * 10 + Number(game?.number || gameIndex + 1),
             allowDraw: false,
@@ -11762,7 +11762,7 @@ ${shareData.url}`)}`;
     const action = event.target.closest("[data-action]");
     if (!action) return;
     const type = action.dataset.action;
-    if (type === "open-fifa10-print-centre") { window.open(`fifa10-print-centre.html?fifa9build=578000`, "_blank", "noopener"); return; }
+    if (type === "open-fifa10-print-centre") { window.open(`fifa10-print-centre.html?fifa9build=579000`, "_blank", "noopener"); return; }
     if (type === "open-fifa10-player-picker") { openFifa10PlayerPicker(); return; }
     if (type === "select-fifa10-registration-player") { selectFifa10RegistrationPlayer(action.dataset.playerName || ""); return; }
     if (type === "toggle-fifa10-registration") { toggleFifa10Registration(); return; }
