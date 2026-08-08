@@ -1,0 +1,14 @@
+{
+  "name": "fifa9-tournament-hub-tests",
+  "private": true,
+  "description": "Bu SADECE test araçları içindir. Sitenin kendisi hâlâ build sistemi olmadan çalışır (bkz. tests/README.md) — bu dosya onu değiştirmez.",
+  "type": "module",
+  "scripts": {
+    "test": "npm run test:syntax && npm run test:smoke",
+    "test:syntax": "node tests/syntax-check.mjs",
+    "test:smoke": "node tests/smoke.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.56.0"
+  }
+}
