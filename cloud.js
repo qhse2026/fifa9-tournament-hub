@@ -11,7 +11,20 @@
   let lastRemoteUpdatedAt = null;
   let saveTail = Promise.resolve();
 
+  // BUGFIX (Bağlanıyor / "Connecting" stuck forever):
+  // init() previously awaited getSession() / applySession() / fetchState() with no
+  // upper bound. If the Supabase project is paused, slow to wake, or the request
+  // simply stalls, those promises never settle — init() never resolves *or*
+  // rejects, so app.js's try/catch around cloud.init() never runs and the UI is
+  // left on the "connecting" label permanently, with no error and no fallback.
+  // withTimeout() forces a rejection after CLOUD_INIT_TIMEOUT_MS so a stall always
+  // surfaces as a normal error instead of a silent hang.
+  const CLOUD_INIT_TIMEOUT_MS = 10000;
   const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+  const withTimeout = (promise, ms, message) => Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(message)), ms))
+  ]);
 
   function clonePayload(value) {
     if (typeof structuredClone === "function") return structuredClone(value);
@@ -75,11 +88,15 @@
   async function fetchState() {
     if (!client) return null;
     emitStatus("loading");
-    const { data, error } = await client
-      .from("tournament_state")
-      .select("payload, updated_at, edition")
-      .eq("id", config.tournamentRowId || "fifa-9")
-      .maybeSingle();
+    const { data, error } = await withTimeout(
+      client
+        .from("tournament_state")
+        .select("payload, updated_at, edition")
+        .eq("id", config.tournamentRowId || "fifa-9")
+        .maybeSingle(),
+      CLOUD_INIT_TIMEOUT_MS,
+      "Turnuva verisi zaman aşımına uğradı."
+    );
     if (error) {
       emitStatus("error", error.message);
       throw error;
@@ -136,9 +153,28 @@
       auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
     });
 
-    const { data } = await client.auth.getSession();
-    await applySession(data?.session || null);
-    await fetchState();
+    try {
+      const { data } = await withTimeout(
+        client.auth.getSession(),
+        CLOUD_INIT_TIMEOUT_MS,
+        "Oturum bilgisi zaman aşımına uğradı."
+      );
+      await withTimeout(
+        applySession(data?.session || null),
+        CLOUD_INIT_TIMEOUT_MS,
+        "Kullanıcı bilgisi zaman aşımına uğradı."
+      );
+      await fetchState(); // fetchState() already has its own timeout + emitStatus("error", ...)
+    } catch (error) {
+      // Whichever step stalled or failed, make sure the UI is told — otherwise it
+      // is left showing "Bağlanıyor" forever with no way out. Rethrow so the
+      // existing try/catch in app.js's initializeCloud() still runs its own
+      // fallback (cached/local view + toast), exactly as it already does for any
+      // other cloud.init() failure.
+      emitStatus("error", error.message || "Canlı bağlantı kurulamadı.");
+      throw error;
+    }
+
     subscribe();
 
     client.auth.onAuthStateChange((_event, nextSession) => {
@@ -209,7 +245,17 @@
   async function signIn(email, password) {
     if (!client) throw new Error("Cloud connection is not configured.");
     emitStatus("connecting");
-    const { data, error } = await client.auth.signInWithPassword({ email, password });
+    let data, error;
+    try {
+      ({ data, error } = await withTimeout(
+        client.auth.signInWithPassword({ email, password }),
+        CLOUD_INIT_TIMEOUT_MS,
+        "Giriş isteği zaman aşımına uğradı."
+      ));
+    } catch (timeoutError) {
+      emitStatus("error", timeoutError.message);
+      throw timeoutError;
+    }
     if (error) {
       emitStatus("error", error.message);
       throw error;
