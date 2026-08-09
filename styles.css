@@ -18,6 +18,10 @@
   --shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
   --radius: 20px;
   --sidebar: 272px;
+  /* FAZ 4 — RADİKAL GEÇİŞ: tek bir yeni token, ama panel-title (112 kullanım),
+     .hero h2, .group-banner h2, .section-title, .kpi-value hepsi buradan
+     besleniyor. Tek satırlık bir değişiklik dokunmadığım her sayfaya yayılır. */
+  --font-display: 'Fraunces', Georgia, serif;
 }
 
 * { box-sizing: border-box; }
@@ -135,7 +139,7 @@ a { color: inherit; }
 .hero::after { content:""; position:absolute; inset:-40% -20% auto auto; width:520px; height:520px; border:1px solid rgba(213,168,78,.18); border-radius:50%; box-shadow: 0 0 0 45px rgba(213,168,78,.028), 0 0 0 90px rgba(213,168,78,.02); }
 .hero-copy { position: relative; z-index: 2; }
 .hero-kicker { display: inline-flex; gap: 8px; align-items: center; color: var(--gold-bright); font-weight: 800; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; }
-.hero h2 { margin: 12px 0 12px; max-width: 720px; font-size: clamp(38px, 5vw, 72px); line-height: .96; letter-spacing: -.055em; }
+.hero h2 { margin: 12px 0 12px; max-width: 720px; font-family: var(--font-display); font-weight: 600; font-size: clamp(38px, 5vw, 72px); line-height: .96; letter-spacing: -.03em; }
 .hero h2 span { color: transparent; background: linear-gradient(135deg,#fff 20%,#f1d695 70%,#a76b20); background-clip: text; -webkit-background-clip:text; }
 .hero p { max-width: 650px; color: #b0bdca; line-height: 1.75; font-size: 15px; }
 .hero-actions { margin-top: 24px; display: flex; gap: 10px; flex-wrap: wrap; }
@@ -154,11 +158,17 @@ a { color: inherit; }
 .kpi-card, .panel {
   border:1px solid var(--line); background:linear-gradient(160deg, rgba(12,29,48,.89), rgba(7,18,31,.88));
   border-radius:var(--radius); box-shadow:0 12px 40px rgba(0,0,0,.18);
+  position:relative;
+}
+.kpi-card::before, .panel::before {
+  content:""; position:absolute; left:18px; right:18px; top:0; height:1px;
+  background:linear-gradient(90deg,transparent,rgba(240,207,131,.4),transparent);
+  pointer-events:none;
 }
 .kpi-card { padding:20px; min-height:126px; position:relative; overflow:hidden; }
 .kpi-card::after { content:""; position:absolute; width:90px;height:90px;border-radius:50%;background:rgba(213,168,78,.06);right:-28px;bottom:-35px; }
 .kpi-label { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.13em; font-weight:800; }
-.kpi-value { margin-top:12px; font-size:30px; font-weight:900; }
+.kpi-value { margin-top:12px; font-family: var(--font-display); font-weight:600; font-size:32px; }
 .kpi-note { margin-top:5px; color:#9fb0c1; font-size:12px; }
 .kpi-progress { height:4px; background:rgba(255,255,255,.06); border-radius:999px; margin-top:14px; overflow:hidden; }
 .kpi-progress span { display:block;height:100%;background:linear-gradient(90deg,var(--gold),var(--gold-bright));border-radius:999px; }
@@ -168,10 +178,10 @@ a { color: inherit; }
 .grid-3 { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
 .panel { padding:22px; }
 .panel-header { display:flex; justify-content:space-between; gap:16px; align-items:flex-start; margin-bottom:18px; }
-.panel-title { margin:0; font-size:18px; }
+.panel-title { margin:0; font-family: var(--font-display); font-weight:600; font-size:21px; letter-spacing:-.01em; }
 .panel-subtitle { color:var(--muted); font-size:12px; margin-top:5px; line-height:1.55; }
 .panel-actions { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
-.section-title { margin:31px 0 14px; display:flex; align-items:center; gap:12px; font-size:18px; }
+.section-title { margin:31px 0 14px; display:flex; align-items:center; gap:12px; font-family: var(--font-display); font-weight:600; font-size:20px; }
 .section-title::after { content:""; height:1px; flex:1; background:linear-gradient(90deg,var(--line-strong),transparent); }
 
 .progress-rail { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; }
@@ -242,7 +252,7 @@ textarea { min-height:100px;resize:vertical; }
 .group-banner { border-radius:18px;padding:20px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;gap:20px;overflow:hidden;position:relative; }
 .group-banner.gold { border:1px solid rgba(213,168,78,.38);background:linear-gradient(110deg,rgba(124,82,25,.38),rgba(10,25,42,.85)); }
 .group-banner.silver { border:1px solid rgba(191,201,213,.3);background:linear-gradient(110deg,rgba(107,123,140,.24),rgba(10,25,42,.85)); }
-.group-banner h2 { margin:0;font-size:29px; }
+.group-banner h2 { margin:0; font-family: var(--font-display); font-weight:600; font-size:32px; letter-spacing:-.015em; }
 .group-banner p { margin:6px 0 0;color:#b9c5d0;font-size:12px; }
 .group-emblem { font-size:50px;opacity:.6; }
 
