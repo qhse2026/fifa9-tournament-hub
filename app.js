@@ -128,6 +128,7 @@
   let allTimeEliteCategory = "legacy";
   let allTimeMatchRecordCategory = "biggest";
   let allTimeRecentWindow = 10;
+  let allTimeLegacyRadarPlayerName = "";
   let tournamentBenchmarkMetric = "benchmark";
   let tournamentBenchmarkSelectedPlayer = "";
   let tournamentBenchmarkSection = "report-card";
@@ -4814,14 +4815,107 @@ function renderFifa10EloBlock({limit=10}={}) {
     };
   }
 
-  function renderAllTimeLegacyPodium(rows) {
-    const podium = rows.slice(0,3);
-    if (!podium.length) return `<div class="info-box">20 maç barajını geçen oyuncu bulunmuyor.</div>`;
-    const order = podium.length >= 3 ? [podium[1], podium[0], podium[2]] : podium;
-    return `<div class="at-legacy-podium">${order.map((row,index)=>{
-      const actualRank=rows.indexOf(row)+1;
-      return `<article class="place-${actualRank}"><span class="at-podium-rank">${actualRank}</span><div class="at-podium-crown">${actualRank===1?"♛":actualRank===2?"◆":"◇"}</div><h3>${escapeHTML(row.name)}</h3><strong>${row.legacyRating.toFixed(1)}</strong><small>LEGACY RATING</small><div><span>${row.ppg.toFixed(2)} PPG</span><span>${row.winRate.toFixed(1)}% G</span><span>${row.gdPerGame>0?"+":""}${row.gdPerGame.toFixed(2)} AV/M</span></div></article>`;
-    }).join("")}</div>`;
+  // ==========================================================================
+  // FAZ 4 — MASTERPIECE GÖRSEL KATMANI
+  // Aşağıdaki iki fonksiyon renderAllTime() içindeki Legacy Rating ve Rekorlar
+  // Odası bölümlerinin YERİNE geçer. Veri kaynağı aynı (buildAllTimeAnalytics),
+  // yeni bir veri modeli / paralel sistem YOK -- sadece sunum katmanı.
+  // Stiller: champions-podium.css (bkz. "MASTERPIECE VISUAL SYSTEM" bölümü).
+  // ==========================================================================
+
+  const LEGACY_RADAR_AXES = [
+    { key: "ppg", label: "PPG" },
+    { key: "win", label: "Galibiyet" },
+    { key: "goalDifference", label: "Averaj" },
+    { key: "attack", label: "Atak" },
+    { key: "defense", label: "Savunma" },
+    { key: "unbeaten", label: "Yenilmezlik" },
+    { key: "trophies", label: "Kupa" },
+    { key: "experience", label: "Tecrübe" }
+  ];
+
+  function renderLegacyRadarSVG(breakdown) {
+    const cx = 170, cy = 150, R = 105;
+    const n = LEGACY_RADAR_AXES.length;
+    const angle = i => (Math.PI * 2 * i / n) - Math.PI / 2;
+    const point = (i, value) => {
+      const r = (Math.max(0, Math.min(100, value)) / 100) * R;
+      return [cx + r * Math.cos(angle(i)), cy + r * Math.sin(angle(i))];
+    };
+    let grid = "";
+    [0.25, 0.5, 0.75, 1].forEach(f => {
+      const pts = LEGACY_RADAR_AXES.map((_, i) => point(i, f * 100).join(",")).join(" ");
+      grid += `<polygon points="${pts}" fill="none" stroke="rgba(255,255,255,${f === 1 ? 0.16 : 0.07})" stroke-width="1"/>`;
+    });
+    let axes = "";
+    LEGACY_RADAR_AXES.forEach((ax, i) => {
+      const [x, y] = point(i, 100);
+      const [lx, ly] = [cx + (R + 26) * Math.cos(angle(i)), cy + (R + 26) * Math.sin(angle(i))];
+      axes += `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="rgba(255,255,255,.09)" stroke-width="1"/>`;
+      axes += `<text x="${lx}" y="${ly}" fill="#91a3b7" font-size="10.5" font-family="Inter" font-weight="700" text-anchor="middle" dominant-baseline="middle">${escapeHTML(ax.label)}</text>`;
+    });
+    const dataPts = LEGACY_RADAR_AXES.map((ax, i) => point(i, breakdown?.[ax.key] || 0).join(",")).join(" ");
+    const dots = LEGACY_RADAR_AXES.map((ax, i) => {
+      const [x, y] = point(i, breakdown?.[ax.key] || 0);
+      return `<circle cx="${x}" cy="${y}" r="3.5" fill="#f0cf83" stroke="#1a1206" stroke-width="1.5"/>`;
+    }).join("");
+    return `<svg viewBox="0 0 340 300" class="lr-radar-svg">
+      <defs><radialGradient id="lrRadarFill" cx="50%" cy="50%" r="70%">
+        <stop offset="0%" stop-color="#f0cf83" stop-opacity="0.55"/>
+        <stop offset="100%" stop-color="#d5a84e" stop-opacity="0.12"/>
+      </radialGradient></defs>
+      ${grid}${axes}
+      <polygon points="${dataPts}" fill="url(#lrRadarFill)" stroke="#f0cf83" stroke-width="2" stroke-linejoin="round" class="lr-radar-poly"/>
+      ${dots}
+    </svg>`;
+  }
+
+  function renderLegacyRatingMasterpiece(analytics) {
+    const top10 = analytics.legacyTop10;
+    if (!top10.length) return `<div class="info-box">20 maç barajını geçen oyuncu bulunmuyor.</div>`;
+    if (!allTimeLegacyRadarPlayerName || !top10.some(row => row.name === allTimeLegacyRadarPlayerName)) {
+      allTimeLegacyRadarPlayerName = top10[0].name;
+    }
+    const selected = top10.find(row => row.name === allTimeLegacyRadarPlayerName) || top10[0];
+    const maxScore = top10[0].legacyRating;
+    return `<div class="lr-grid">
+      <div class="lr-list">${top10.map((row, index) => `
+        <div class="lr-row ${row.name === selected.name ? "active" : ""}" data-action="set-legacy-radar-player" data-player-name="${escapeHTML(row.name)}">
+          <div class="lr-rank">${index + 1}</div>
+          <div><div class="lr-name">${escapeHTML(row.name)}</div><div class="lr-bar-track"><div class="lr-bar-fill" style="width:${maxScore ? (row.legacyRating / maxScore * 100) : 0}%"></div></div></div>
+          <div class="lr-score">${row.legacyRating.toFixed(1)}</div>
+        </div>`).join("")}</div>
+      <div class="lr-radar-panel">
+        <div class="lr-radar-name">${escapeHTML(selected.name)}</div>
+        <div class="lr-radar-sub">LEGACY RATING · ${selected.legacyRating.toFixed(1)}</div>
+        ${renderLegacyRadarSVG(selected.legacyBreakdown)}
+        <div class="lr-radar-foot">${selected.ppg.toFixed(2)} PPG · ${selected.winRate.toFixed(1)}% galibiyet · ${selected.gdPerGame > 0 ? "+" : ""}${selected.gdPerGame.toFixed(2)} averaj/maç</div>
+      </div>
+    </div>`;
+  }
+
+  function renderRecordsWallMasterpiece(analytics) {
+    const r = analytics.records;
+    const plaques = [
+      { icon: "🏆", label: "En Çok Şampiyonluk", row: r.titles, value: row => `${row.titles} şampiyonluk · ${row.finals} final` },
+      { icon: "🥈", label: "En Çok Final", row: r.finals, value: row => `${row.finals} final · ${row.podiums} podyum` },
+      { icon: "🎯", label: "En Yüksek PPG · 20+", row: r.ppg, value: row => `${row.ppg.toFixed(2)} PPG · ${row.games} maç` },
+      { icon: "⚽", label: "En Çok Gol", row: r.goals, value: row => `${row.gf} gol · maç başı ${row.avgGoals.toFixed(2)}` },
+      { icon: "🛡", label: "En Sağlam Savunma · 20+", row: r.defense, value: row => `Maç başı ${row.gaPerGame.toFixed(2)} gol yedi` },
+      { icon: "📈", label: "En Çok Galibiyet", row: r.wins, value: row => `${row.wins} galibiyet · ${row.points} puan` },
+      { icon: "🎪", label: "En Yüksek Galibiyet Oranı · 20+", row: r.winRate, value: row => `%${row.winRate.toFixed(1)}` },
+      { icon: "🧤", label: "En Çok Clean Sheet", row: r.cleanSheets, value: row => `${row.cleanSheets} maç` }
+    ].filter(p => p.row);
+    const matchPlaques = [
+      r.biggestWin ? { icon: "🔥", label: "En Farklı Galibiyet", name: `${r.biggestWin.winner} · ${r.biggestWin.score}`, value: `${r.biggestWin.margin} fark karşı ${r.biggestWin.loser}` } : null,
+      r.highestScoringMatch ? { icon: "💥", label: "En Gollü Maç", name: `${r.highestScoringMatch.homeName} ${r.highestScoringMatch.score} ${r.highestScoringMatch.awayName}`, value: `${r.highestScoringMatch.totalGoals} gol` } : null,
+      analytics.highestScoringDraws?.[0] ? { icon: "🤝", label: "En Gollü Beraberlik", name: `${analytics.highestScoringDraws[0].homeName} ${analytics.highestScoringDraws[0].score} ${analytics.highestScoringDraws[0].awayName}`, value: `${analytics.highestScoringDraws[0].totalGoals} gol` } : null,
+      r.topRivalry ? { icon: "⚔", label: "En Çok Oynanan Rekabet", name: `${r.topRivalry.playerA} – ${r.topRivalry.playerB}`, value: `${r.topRivalry.meetings} maç` } : null
+    ].filter(Boolean);
+    return `<div class="rw-grid">
+      ${plaques.map(p => `<div class="rw-plaque"><div class="rw-icon">${p.icon}</div><div class="rw-label">${escapeHTML(p.label)}</div><div class="rw-name">${escapeHTML(p.row.name)}</div><div class="rw-value">${escapeHTML(p.value(p.row))}</div></div>`).join("")}
+      ${matchPlaques.map(p => `<div class="rw-plaque rw-plaque-match"><div class="rw-icon">${p.icon}</div><div class="rw-label">${escapeHTML(p.label)}</div><div class="rw-name">${escapeHTML(p.name)}</div><div class="rw-value">${escapeHTML(p.value)}</div></div>`).join("")}
+    </div>`;
   }
 
   function renderEliteRankingTable(category) {
@@ -5542,8 +5636,7 @@ function renderFifa10EloBlock({limit=10}={}) {
 
       <section class="panel mt-24 at-legacy-section">
         <div class="panel-header"><div><div class="eyebrow">THE DEFINITIVE RANKING</div><h3 class="panel-title">FIFA 9 Legacy Rating</h3><div class="panel-subtitle">PPG %25 · Galibiyet %20 · Averaj %15 · Hücum %10 · Savunma %10 · Yenilmezlik %10 · Kupa %5 · Tecrübe %5.</div></div><span class="badge badge-gold">MIN. 20 MAÇ</span></div>
-        ${renderAllTimeLegacyPodium(analytics.legacyTop10)}
-        <div class="at-legacy-list">${analytics.legacyTop10.map((row,index)=>`<article><span>${index+1}</span><strong>${escapeHTML(row.name)}</strong><i><b style="width:${row.legacyRating}%"></b></i><em>${row.legacyRating.toFixed(1)}</em><small>${row.ppg.toFixed(2)} PPG · ${row.avgGoals.toFixed(2)} GF/M · ${row.gaPerGame.toFixed(2)} GA/M</small></article>`).join("")}</div>
+        ${renderLegacyRatingMasterpiece(analytics)}
       </section>
 
       <section class="panel mt-24 at-elite-centre">
@@ -5559,29 +5652,17 @@ function renderFifa10EloBlock({limit=10}={}) {
 
       ${renderAllTimeMatchRecords(analytics)}
 
-      <div class="grid-2 mt-24">
-        <section class="panel">
-          <div class="panel-header"><div><h3 class="panel-title">Rekorlar Odası</h3><div class="panel-subtitle">Toplam başarı, kupa ve rekabet rekorları.</div></div></div>
-          <div class="records-grid">
-            ${renderRecordTile("En Çok Şampiyonluk", analytics.records.titles, row => `${row.titles} şampiyonluk · ${row.finals} final`)}
-            ${renderRecordTile("En Çok Final", analytics.records.finals, row => `${row.finals} final · ${row.podiums} podyum`)}
-            ${renderRecordTile("En Çok Galibiyet", analytics.records.wins, row => `${row.wins} galibiyet · ${row.points} puan`)}
-            ${renderRecordTile("En Çok Gol", analytics.records.goals, row => `${row.gf} gol · maç başı ${row.avgGoals.toFixed(2)}`)}
-            ${renderRecordTile("En İyi PPG · 20+", analytics.records.ppg, row => `${row.ppg.toFixed(2)} PPG · ${row.games} maç`)}
-            ${renderRecordTile("En Sağlam Savunma · 20+", analytics.records.defense, row => `Maç başı ${row.gaPerGame.toFixed(2)} gol yedi`)}
-            ${renderMatchRecordTile("En Farklı Galibiyet", analytics.records.biggestWin)}
-            ${renderScoringMatchRecordTile("En Gollü Maç", analytics.records.highestScoringMatch)}
-            ${renderScoringMatchRecordTile("En Gollü Beraberlik", analytics.highestScoringDraws?.[0] || null)}
-            ${renderRivalryRecordTile("En Çok Oynanan Rekabet", analytics.records.topRivalry)}
-          </div>
-        </section>
-        <section class="panel">
-          <div class="panel-header"><div><h3 class="panel-title">Şampiyonlar Kulübü</h3><div class="panel-subtitle">Kupaya uzanan oyuncuların özeti.</div></div></div>
-          <div class="champion-strip">${analytics.champions.map(c => `<div class="champion-chip"><div class="name">${escapeHTML(c.name)}</div><div class="titles">${c.titles}× Şampiyon</div><div class="small">${c.finals} final · ${c.podiums} podyum</div></div>`).join("")}</div>
-          <div class="info-box mt-24">Legacy Rating lideri: <strong>${escapeHTML(analytics.legacyTop10[0]?.name || "–")}</strong> · ${analytics.legacyTop10[0]?.legacyRating?.toFixed?.(1) || "–"}/100</div>
-          <div class="info-box mt-16">En çok oynanan rekabet: <strong>${analytics.records.topRivalry ? `${escapeHTML(analytics.records.topRivalry.playerA)} – ${escapeHTML(analytics.records.topRivalry.playerB)}` : "–"}</strong>${analytics.records.topRivalry ? ` · ${analytics.records.topRivalry.meetings} maç` : ""}</div>
-        </section>
-      </div>
+      <section class="panel mt-24 rw-section">
+        <div class="panel-header"><div><h3 class="panel-title">Rekorlar Odası</h3><div class="panel-subtitle">Toplam başarı, kupa ve rekabet rekorları.</div></div></div>
+        ${renderRecordsWallMasterpiece(analytics)}
+      </section>
+
+      <section class="panel mt-24">
+        <div class="panel-header"><div><h3 class="panel-title">Şampiyonlar Kulübü</h3><div class="panel-subtitle">Kupaya uzanan oyuncuların özeti.</div></div></div>
+        <div class="champion-strip">${analytics.champions.map(c => `<div class="champion-chip"><div class="name">${escapeHTML(c.name)}</div><div class="titles">${c.titles}× Şampiyon</div><div class="small">${c.finals} final · ${c.podiums} podyum</div></div>`).join("")}</div>
+        <div class="info-box mt-24">Legacy Rating lideri: <strong>${escapeHTML(analytics.legacyTop10[0]?.name || "–")}</strong> · ${analytics.legacyTop10[0]?.legacyRating?.toFixed?.(1) || "–"}/100</div>
+        <div class="info-box mt-16">En çok oynanan rekabet: <strong>${analytics.records.topRivalry ? `${escapeHTML(analytics.records.topRivalry.playerA)} – ${escapeHTML(analytics.records.topRivalry.playerB)}` : "–"}</strong>${analytics.records.topRivalry ? ` · ${analytics.records.topRivalry.meetings} maç` : ""}</div>
+      </section>
 
       <div class="grid-2 mt-24">
         <section class="panel">
@@ -5655,28 +5736,6 @@ function renderFifa10EloBlock({limit=10}={}) {
       </div>
       <div class="player-stat-footer"><span>${row.games} maç · ${formatGD(row.gd)} averaj</span><span>${row.cleanSheets} clean sheet</span></div>
     </article>`;
-  }
-
-  function renderRecordTile(label, row, metaFn) {
-    if (!row) return `<div class="record-tile"><div class="record-label">${escapeHTML(label)}</div><div class="record-value">–</div><div class="record-note">Kayıt oluşmadı.</div></div>`;
-    return `<div class="record-tile"><div class="record-label">${escapeHTML(label)}</div><div class="record-value">${escapeHTML(row.name)}</div><div class="record-note">${escapeHTML(metaFn(row))}</div></div>`;
-  }
-
-  function renderMatchRecordTile(label, record) {
-    if (!record) return `<div class="record-tile"><div class="record-label">${escapeHTML(label)}</div><div class="record-value">–</div><div class="record-note">Kayıt oluşmadı.</div></div>`;
-    return `<div class="record-tile accent-gold"><div class="record-label">${escapeHTML(label)}</div><div class="record-value">${escapeHTML(record.winner)}</div><div class="record-note">${escapeHTML(record.loser)} karşısında ${record.score} · ${record.margin} fark · ${record.editionLabel}</div></div>`;
-  }
-
-  function renderScoringMatchRecordTile(label, record) {
-    if (!record) return `<div class="record-tile"><div class="record-label">${escapeHTML(label)}</div><div class="record-value">–</div><div class="record-note">Kayıt oluşmadı.</div></div>`;
-    const matchup = `${record.homeName} – ${record.awayName}`;
-    const total = Number(record.totalGoals ?? (Number(record.homeScore || 0) + Number(record.awayScore || 0)));
-    return `<div class="record-tile accent-blue"><div class="record-label">${escapeHTML(label)}</div><div class="record-value">${escapeHTML(matchup)}</div><div class="record-note">${escapeHTML(record.score)} · ${total} gol · ${escapeHTML(record.editionLabel)} · ${escapeHTML(record.stage || "Maç")}</div></div>`;
-  }
-
-  function renderRivalryRecordTile(label, record) {
-    if (!record) return `<div class="record-tile"><div class="record-label">${escapeHTML(label)}</div><div class="record-value">–</div><div class="record-note">Kayıt oluşmadı.</div></div>`;
-    return `<div class="record-tile accent-blue"><div class="record-label">${escapeHTML(label)}</div><div class="record-value">${escapeHTML(record.playerA)} – ${escapeHTML(record.playerB)}</div><div class="record-note">${record.meetings} maç · ${record.winsA}-${record.draws}-${record.winsB} rekabet özeti</div></div>`;
   }
 
   function renderSelectedPlayerPanel(player) {
@@ -11974,6 +12033,7 @@ ${shareData.url}`)}`;
       return;
     }
     if (type === "set-museum-edition") { museumSelectedEdition = Number(action.dataset.edition) || 9; renderSeasonMuseum(); return; }
+    if (type === "set-legacy-radar-player") { allTimeLegacyRadarPlayerName = action.dataset.playerName || ""; renderAllTime(); return; }
     if (type === "set-podium-edition") { podiumSelectedEdition = Number(action.dataset.edition) || null; renderChampionsPodium(); return; }
     if (type === "create-fifa10-draft") { createFifa10Draft(); return; }
     if (type === "auto-assign-fifa10") { autoAssignFifa10Players(); renderSeasonWorkspace(); return; }
