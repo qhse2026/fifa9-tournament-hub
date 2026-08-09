@@ -476,10 +476,57 @@ function fpiTicker() {
     }).join("") : `<p>${ui("Grafik için turnuva verisi bekleniyor.", "Awaiting tournament data for the chart.")}</p>`}</div></section>`;
   }
 
-  function passportMuseumSection(player, analytics) {
+  function buildEditionAwards(data) {
+    // FAZ 4 — turnuva bazlı bireysel ödül sistemi. Sıfırdan maç ayrıştırma
+    // YAPMIYOR: zaten doğrulanmış passportPerformanceAnalytics()'i her oyuncu
+    // için çalıştırıp, her edisyonda hangi oyuncunun lider olduğunu buluyor.
+    const players = data.players || [];
+    const byEdition = new Map();
+    players.forEach(player => {
+      const analytics = passportPerformanceAnalytics(player, data);
+      analytics.editions.forEach(row => {
+        if (!row.games) return;
+        if (!byEdition.has(row.edition)) byEdition.set(row.edition, []);
+        byEdition.get(row.edition).push({ name: player.name, key: player.key || normalize(player.name), ...row });
+      });
+    });
+
+    const MIN_GAMES = 3;
+    const AWARD_DEFS = [
+      { id: "topscorer", label: ui("Gol Kralı", "Top Scorer"), icon: "⚽", minGames: 1, metric: r => r.gf, valueFn: r => `${r.gf} ${ui("gol", "goals")}` },
+      { id: "bestdefense", label: ui("En İyi Savunma", "Best Defence"), icon: "🛡", minGames: MIN_GAMES, metric: r => -r.gaPerMatch, valueFn: r => `${r.gaPerMatch.toFixed(2)} GA/M` },
+      { id: "bestppg", label: ui("En Yüksek PPG", "Best PPG"), icon: "🎯", minGames: MIN_GAMES, metric: r => r.ppg, valueFn: r => `${r.ppg.toFixed(2)} PPG` },
+      { id: "bigmatch", label: ui("Büyük Maç Kralı", "Big Match King"), icon: "🔥", minGames: 1, requireBigGames: true, metric: r => r.bigMatch, valueFn: r => `${r.bigMatch.toFixed(1)} ${ui("puan", "pts")}` }
+    ];
+
+    const awardsByEdition = new Map();
+    for (const [edition, rows] of byEdition.entries()) {
+      const awards = [];
+      AWARD_DEFS.forEach(def => {
+        const eligible = rows.filter(r => r.games >= def.minGames && (!def.requireBigGames || r.bigGames > 0));
+        if (!eligible.length) return;
+        const winner = [...eligible].sort((a, b) => def.metric(b) - def.metric(a) || a.name.localeCompare(b.name, "tr"))[0];
+        awards.push({ id: def.id, label: def.label, icon: def.icon, edition, winner: winner.name, winnerKey: winner.key, value: def.valueFn(winner) });
+      });
+      if (awards.length) awardsByEdition.set(edition, awards);
+    }
+    return awardsByEdition;
+  }
+
+  function playerEditionAwards(player, awardsByEdition) {
+    const key = player?.key || normalize(player?.name || "");
+    const won = [];
+    for (const awards of awardsByEdition.values()) {
+      awards.forEach(award => { if (award.winnerKey === key) won.push(award); });
+    }
+    return won.sort((a, b) => b.edition - a.edition);
+  }
+
+  function passportMuseumSection(player, analytics, editionAwards) {
     const trophyBlock = (title, icon, rows, empty) => `<article class="v2-museum-shelf"><header><span>${icon}</span><h4>${esc(title)}</h4><b>${rows.length}</b></header><div>${rows.length ? rows.map(item => `<button type="button"><strong>FIFA ${item.edition}</strong><small>${esc(item.winner || item.runnerUp || item.third || "")}</small></button>`).join("") : `<p>${esc(empty)}</p>`}</div></article>`;
     const medalBlock = `<article class="v2-museum-shelf medals"><header><span>◈</span><h4>${ui("Bireysel Rekor Madalyaları", "Individual Record Medals")}</h4><b>${analytics.medals.length}</b></header><div>${analytics.medals.length ? analytics.medals.map(item => `<button type="button"><strong>${esc(item.icon)} ${esc(item.label)}</strong><small>${esc(item.value)}</small>${item.detail ? `<em>${esc(item.detail)}</em>` : ""}</button>`).join("") : `<p>${ui("Bu oyuncu şu anda Tüm Zamanlar Merkezi'nde bir rekorun sahibi değil.", "This player does not currently hold an All-Time Centre record.")}</p>`}</div></article>`;
-    return `<section class="v2-player-museum"><header><div><span>PLAYER MUSEUM</span><h3>${esc(player.name)} · ${ui("Müze", "Museum")}</h3><p>${ui("Şampiyonluklar, final kürsüleri ve bireysel rekorlar tek vitrinde.", "Championships, podium finishes and individual records in one display.")}</p></div></header><div class="v2-museum-grid">${trophyBlock(ui("Şampiyonluk Kupaları", "Championship Trophies"), "🏆", analytics.honours.titles, ui("Henüz şampiyonluk yok.", "No championship yet."))}${trophyBlock(ui("İkincilik Kupaları", "Runner-up Trophies"), "🥈", analytics.honours.runnerUps, ui("Henüz ikincilik yok.", "No runner-up finish yet."))}${trophyBlock(ui("Üçüncülük Kupaları", "Third-place Trophies"), "🥉", analytics.honours.thirds, ui("Henüz üçüncülük yok.", "No third-place finish yet."))}${medalBlock}</div></section>`;
+    const awardBlock = `<article class="v2-museum-shelf awards"><header><span>🎖</span><h4>${ui("Turnuva Bazlı Ödül Plaketleri", "Tournament Award Plaques")}</h4><b>${(editionAwards || []).length}</b></header><div>${(editionAwards || []).length ? editionAwards.map(item => `<button type="button"><strong>${esc(item.icon)} ${esc(item.label)}</strong><small>FIFA ${item.edition} · ${esc(item.value)}</small></button>`).join("") : `<p>${ui("Bu oyuncu şu anda bir edisyona özel ödülün sahibi değil.", "This player does not currently hold an edition-specific award.")}</p>`}</div></article>`;
+    return `<section class="v2-player-museum"><header><div><span>PLAYER MUSEUM</span><h3>${esc(player.name)} · ${ui("Müze", "Museum")}</h3><p>${ui("Şampiyonluklar, final kürsüleri, turnuva ödülleri ve bireysel rekorlar tek vitrinde.", "Championships, podium finishes, tournament awards and individual records in one display.")}</p></div></header><div class="v2-museum-grid">${trophyBlock(ui("Şampiyonluk Kupaları", "Championship Trophies"), "🏆", analytics.honours.titles, ui("Henüz şampiyonluk yok.", "No championship yet."))}${trophyBlock(ui("İkincilik Kupaları", "Runner-up Trophies"), "🥈", analytics.honours.runnerUps, ui("Henüz ikincilik yok.", "No runner-up finish yet."))}${trophyBlock(ui("Üçüncülük Kupaları", "Third-place Trophies"), "🥉", analytics.honours.thirds, ui("Henüz üçüncülük yok.", "No third-place finish yet."))}${awardBlock}${medalBlock}</div></section>`;
   }
 
   function renderPlayers(mount) {
@@ -494,6 +541,7 @@ function fpiTicker() {
     const standing = (standingAnalytics.players || []).find(row => normalize(row.name) === player.key);
     const standingDna = standing?.fpi?.dna || [];
     const passport = passportPerformanceAnalytics(player, data);
+    const editionAwards = playerEditionAwards(player, buildEditionAwards(data));
     const chartMetric = passportMetricMeta(passportChartMetric);
     const signed = value => `${Number(value) >= 0 ? "+" : ""}${Number(value) || 0}`;
     mount.innerHTML = `<div class="v2-page">${routeNav("playershub")}${modeBar(data, "playershub")}${pageIntro("UNIVERSAL PLAYER PASSPORT", ui("Bir oyuncu. Bütün kariyer.", "One player. The whole career."), ui("Aktif turnuva, Player Standing, tüm zamanlar, kariyer evresi, takım kullanımı ve rekabet geçmişi tek kalıcı profilde.", "Live tournament, Player Standing, all-time history, career state, team usage and rivalry history in one permanent profile."), `<label class="v2-page-player-select"><span>${ui("OYUNCU SEÇ", "SELECT PLAYER")}</span><select id="v2PlayerSelect">${data.players.map(row => `<option value="${esc(row.name)}" ${row.key === player.key ? "selected" : ""}>${esc(row.name)}</option>`).join("")}</select></label>`)}
@@ -502,7 +550,7 @@ function fpiTicker() {
       ${passportChartSection(passport, passportChartMetric)}
       <section class="v2-passport-performance-table"><header><div><span>TOURNAMENT PERFORMANCE MATRIX</span><h3>${ui("Turnuva bazlı oyuncu kartı", "Tournament-by-tournament player card")}</h3><p>${ui("Hücum, savunma, büyük maç puanı, maç sayısı ve gol ortalamaları tek tabloda.", "Attack, defence, big match score, matches played and goal averages in one table.")}</p></div><aside><strong>${esc(chartMetric.label)}</strong><small>${esc(chartMetric.description)}</small></aside></header><div class="v2-passport-table-wrap"><table><thead><tr><th>FIFA</th><th>${ui("Hücum", "Attack")}</th><th>${ui("Savunma", "Defence")}</th><th>${ui("Büyük Maç", "Big Match")}</th><th>MP</th><th>${ui("Gol Ort.", "GF Avg")}</th><th>${ui("Yenilen Ort.", "GA Avg")}</th></tr></thead><tbody>${passport.editions.map(row => `<tr><td><strong>${esc(row.label)}</strong></td><td>${row.attack.toFixed(1)}</td><td>${row.defense.toFixed(1)}</td><td>${row.bigMatch.toFixed(1)}</td><td>${row.games}</td><td>${row.gfPerMatch.toFixed(2)}</td><td>${row.gaPerMatch.toFixed(2)}</td></tr>`).join("") || `<tr><td colspan="7">${ui("Turnuva performans verisi henüz oluşmadı.", "Tournament performance data has not formed yet.")}</td></tr>`}</tbody></table></div></section>
       ${standing ? `<section class="v2-standing-identity"><header><div><span>STANDING IDENTITY</span><h3>${esc(standing.name)} · World #${standing.rank}</h3><p>${esc(standing.standing.why)}</p></div><button type="button" data-action="open-fpi-centre">${ui("Tam Standing dosyasını aç", "Open full Standing dossier")} ↗</button></header><div class="v2-standing-identity-metrics"><article><span>STANDING RATING</span><b>${standing.rating}</b><small>PEAK ${standing.peak} · FLOOR ${standing.floor}</small></article><article><span>STANDING INDEX</span><b>${standing.standing.index}</b><small>${standing.fpi.confidence}% ${standing.fpi.confidenceBand}</small></article><article><span>MOMENTUM SHIFT</span><b class="${standing.last5Change>=0?"positive":"negative"}">${signed(standing.last5Change)}</b><small>${standing.fpi.signal}</small></article><article><span>NEXT TARGET</span><b>${standing.standing.nextTarget ? `#${standing.rank-1}` : "LEADER"}</b><small>${esc(standing.standing.nextTarget?.name || ui("Liderliği koru", "Defend the lead"))}</small></article></div><div class="v2-standing-dna">${standingDna.map(component=>`<article><span>${esc(component.label)}</span><b>${Number(component.value).toFixed(0)}</b><i><em style="width:${component.value}%"></em></i></article>`).join("")}</div></section>` : ""}
-      ${passportMuseumSection(player, passport)}
+      ${passportMuseumSection(player, passport, editionAwards)}
       <section class="v2-player-detail-grid"><div><header><span>CAREER TIMELINE</span><h3>${ui("Kariyer evreleri", "Career states")}</h3></header><div class="v2-career-line">${(career?.segments || []).map(segment => `<article class="${segment.state}"><i></i><b>FIFA ${segment.edition}</b><span>${esc(segment.label)}</span><small>${Number(segment.score).toFixed(1)}</small></article>`).join("") || `<p>${ui("Kariyer evresi için daha fazla veri gerekiyor.", "More data is required for career states.")}</p>`}</div></div><div><header><span>RIVALRY</span><h3>${ui("En güçlü rekabetler", "Strongest rivalries")}</h3></header><div class="v2-rival-list">${rivals.map(row => { const opponent = normalize(row.playerA) === player.key ? row.playerB : row.playerA; return `<article><strong>${esc(opponent)}</strong><span>${row.matches} MP</span><b>${Number(row.heat || 0).toFixed(0)}</b></article>`; }).join("") || `<p>${ui("Rekabet verisi bekleniyor.", "Awaiting rivalry data.")}</p>`}</div></div></section>
       <section class="v2-player-history"><div><header><span>${ui("SON MAÇLAR", "RECENT MATCHES")}</span></header>${recent.map(entry => `<article><span>FIFA ${entry.edition} · ${Number(entry.stars || 0) || "–"}★</span><strong>${esc(entry.opponent)}</strong><b class="p${entry.points}">${entry.points === 3 ? "W" : entry.points === 1 ? "D" : "L"}</b><small>${entry.gf}–${entry.ga} · ${esc(entry.team || "–")}</small></article>`).join("")}</div><div><header><span>${ui("KULLANILAN TAKIMLAR", "USED TEAMS")}</span><b>${teams.length}</b></header><div>${teams.slice(0, 24).map(team => `<span>${esc(team)}</span>`).join("") || `<p>${ui("Takım kaydı bulunmuyor.", "No team records.")}</p>`}</div></div></section>
     </div>`;
