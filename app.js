@@ -3276,9 +3276,14 @@ function renderFifa10EloBlock({limit=10}={}) {
     const renderPlace = (rank, placeKey, label, name) => {
       const empty = !name;
       const plateLabel = empty ? "BEKLENİYOR" : rank === 1 ? `FIFA ${String(podiumSelectedEdition).padStart(2, "0")} ŞAMPİYONU` : label.toUpperCase();
+      const is3D = placeKey === "gold" && !empty;
       return `<div class="cp-place cp-place-${placeKey} ${empty ? "is-empty" : ""}">
         <div class="cp-rank">${escapeHTML(label)} <b>${rank}</b></div>
-        <div class="cp-trophy-well"><div class="cp-glow"></div><img class="cp-trophy-img" src="${TROPHY_IMG[placeKey]}" alt="${placeKey === "gold" ? "Altın" : placeKey === "silver" ? "Gümüş" : "Bronz"} kupa" loading="${placeKey === "gold" ? "eager" : "lazy"}" decoding="async" /></div>
+        <div class="cp-trophy-well">
+          <div class="cp-glow"></div>
+          <img class="cp-trophy-img" id="${is3D ? "cpGoldTrophyImgFallback" : ""}" src="${TROPHY_IMG[placeKey]}" alt="${placeKey === "gold" ? "Altın" : placeKey === "silver" ? "Gümüş" : "Bronz"} kupa" loading="${placeKey === "gold" ? "eager" : "lazy"}" decoding="async" />
+          ${is3D ? '<div id="cpGoldTrophy3D" class="cp-trophy-3d-canvas" title="Sürükleyerek döndür"></div>' : ""}
+        </div>
         <div class="cp-plate"><small>${plateLabel}</small><strong>${escapeHTML(name || "—")}</strong></div>
         <div class="cp-block"></div>
       </div>`;

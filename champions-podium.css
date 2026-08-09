@@ -235,6 +235,14 @@
 .cp-place.is-empty .cp-trophy-img{ opacity:.25; filter:grayscale(1) drop-shadow(0 22px 18px rgba(0,0,0,.5)); }
 .cp-place.is-empty .cp-plate strong{ color:var(--muted); }
 
+/* --- 3D kupa canvas kapsayıcısı (trophy-3d.js). Yüklenene kadar / başarısız
+   olursa üstündeki statik <img> zaten görünür durumda kalır -- bu kapsayıcı
+   sadece 3D sahne kurulunca .is-ready sınıfıyla öne çıkar. --- */
+.cp-trophy-3d-canvas{ position:absolute; inset:0; opacity:0; pointer-events:none; transition:opacity .5s ease; cursor:grab; }
+.cp-trophy-3d-canvas:active{ cursor:grabbing; }
+.cp-trophy-3d-canvas.is-ready{ opacity:1; pointer-events:auto; }
+.cp-trophy-3d-canvas canvas{ display:block; width:100%!important; height:100%!important; }
+
 .cp-rail-wrap{ position:relative; z-index:2; display:flex; justify-content:center; }
 .cp-rail{ display:flex; align-items:center; gap:6px; padding:7px; border:1px solid rgba(255,255,255,.09); border-radius:999px; background:rgba(8,16,26,.7); backdrop-filter:blur(6px); overflow-x:auto; max-width:100%; scrollbar-width:none; }
 .cp-rail::-webkit-scrollbar{ display:none; }

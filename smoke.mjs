@@ -33,9 +33,19 @@
 import { chromium } from "playwright";
 import { fileURLToPath } from "url";
 import path from "path";
+import http from "http";
+import handler from "./_static_server.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const SITE_INDEX = "file://" + path.resolve(__dirname, "..", "index.html");
+const ROOT = path.resolve(__dirname, "..");
+
+// file:// üzerinden test etmiyoruz: ES module (type="module") scriptleri
+// (bkz. trophy-3d.js) file:// kökeninde tarayıcı CORS politikası gereği
+// YÜKLENEMEZ -- bu evrensel bir tarayıcı kısıtlamasıdır, kodun kendisiyle
+// ilgisi yoktur, ama file:// testini yanlış-pozitif hataya düşürür. Gerçek
+// deploy (Vercel/https) ile birebir aynı koşulu simüle etmek için yerel bir
+// HTTP sunucusu açıyoruz.
+const PORT = 8793;
 
 // titleMap'teki TÜM rotalar (app.js'ten programatik olarak doğrulanmalı —
 // bu liste elle senkron tutulmalı; app.js'e yeni bir rota eklerse burayı
@@ -59,6 +69,9 @@ function bad(label, detail) {
 }
 
 async function main() {
+  const server = http.createServer((req, res) => handler(req, res, ROOT));
+  await new Promise((resolve) => server.listen(PORT, resolve));
+  const SITE_INDEX = `http://localhost:${PORT}/index.html`;
   const browser = await chromium.launch();
   const page = await browser.newPage({ viewport: { width: 1400, height: 1000 } });
 
@@ -138,6 +151,7 @@ async function main() {
   else bad(`Plaket sayısı 3 değil: ${plateCount}`);
 
   await browser.close();
+  await new Promise((resolve) => server.close(resolve));
 
   console.log(`\n${"=".repeat(50)}`);
   console.log(`SONUÇ: ${pass} geçti, ${fail} başarısız`);
