@@ -80,7 +80,7 @@
       .team-cell:empty:before{content:""}
     }
   </style>
-  <link rel="stylesheet" href="fifa10-player-result-desk-v572.css?v=5.7.3">
+  <link rel="stylesheet" href="styles/fifa10-player-result-desk-v572.css?v=5.7.3">
 </head>
 <body>
   <header class="toolbar">
@@ -96,12 +96,12 @@
   <div class="screen-note"><strong>Oyuncu Sonuç Masası:</strong> Eleme maçında iki rakip aynı skor ve takımları teyit ettiğinde sonuç otomatik resmî ağaca işlenir. <strong>Yazdırma:</strong> A4 · Yatay · Ölçek %100; üstbilgi ve altbilgileri kapatın.</div>
   <main id="printRoot"></main>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="cloud-config.js?v=5.7.2"></script>
-  <script src="cloud.js?v=5.7.2"></script>
-  <script src="fifa10-team-pools.js?v=5.7.2"></script>
-  <script src="language.js?v=5.7.2"></script>
-  <script src="qrcode-generator-2.0.4.js?v=5.7.2"></script>
-  <script src="fifa10-player-result-desk-v572.js?v=5.7.4"></script>
+  <script src="src/cloud/cloud-config.js?v=5.7.2"></script>
+  <script src="src/cloud/cloud.js?v=5.7.2"></script>
+  <script src="src/engines/fifa10-team-pools.js?v=5.7.2"></script>
+  <script src="src/ui/language.js?v=5.7.2"></script>
+  <script src="src/vendor/qrcode-generator-2.0.4.js?v=5.7.2"></script>
+  <script src="src/ui/fifa10-player-result-desk-v572.js?v=5.7.4"></script>
   <script>
   (() => {
     "use strict";

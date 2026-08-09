@@ -1,0 +1,564 @@
+/* FIFA 9 v44.8.1 — Final Chapter Progression & Locked Draw Control */
+.fc-draw-policy-panel{display:grid;grid-template-columns:minmax(240px,.72fr) minmax(0,1.28fr);gap:18px;margin:18px 0;padding:18px;border:1px solid rgba(115,219,255,.16);border-radius:20px;background:linear-gradient(145deg,rgba(8,35,49,.95),rgba(5,21,31,.96))}.fc-draw-policy-panel>div:first-child>span,.fc-progression-head span{color:#72dcff;font-size:7px;font-weight:950;letter-spacing:.14em}.fc-draw-policy-panel h3,.fc-progression-head h3{margin:5px 0;color:#fff}.fc-draw-policy-panel p,.fc-progression-head p{margin:0;color:#7895a1;font-size:9px;line-height:1.55}.fc-policy-options{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.fc-policy-options button{display:grid;gap:5px;min-height:92px;padding:12px;border:1px solid rgba(255,255,255,.08);border-radius:13px;background:rgba(255,255,255,.025);color:#fff;text-align:left;cursor:pointer}.fc-policy-options button:hover{border-color:rgba(115,219,255,.3);background:rgba(20,66,84,.42)}.fc-policy-options button.active{border-color:rgba(230,191,99,.52);background:linear-gradient(145deg,rgba(113,78,15,.25),rgba(12,45,59,.55));box-shadow:inset 0 0 0 1px rgba(230,191,99,.12)}.fc-policy-options strong{font-size:10px}.fc-policy-options small{color:#728d98;font-size:7px;line-height:1.45}
+.fc-progression-centre{margin:18px 0;padding:18px;border:1px solid rgba(230,191,99,.16);border-radius:22px;background:linear-gradient(145deg,rgba(13,34,45,.96),rgba(7,22,31,.97));box-shadow:0 18px 55px rgba(0,0,0,.16)}.fc-progression-head{display:grid;grid-template-columns:1fr auto;align-items:center;gap:15px;margin-bottom:14px}.fc-progression-head aside{min-width:170px;padding:10px 12px;border:1px solid rgba(230,191,99,.2);border-radius:12px;background:rgba(230,191,99,.06);text-align:center}.fc-progression-head aside strong{display:block;color:#f0cc76;font-size:9px}.fc-progression-head aside small{color:#8f7c52;font-size:6px}.fc-route-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.fc-route-grid article{min-height:104px;padding:11px;border:1px solid rgba(255,255,255,.07);border-radius:13px;background:rgba(255,255,255,.024)}.fc-route-grid header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:9px}.fc-route-grid header b{color:#dff5fc;font-size:8px}.fc-route-grid header span{color:#e7c675;font-size:6px;font-weight:900}.fc-route-grid article>div,.fc-stage-entrant-pool>div,.fc-manual-draw-intro>div,.fc-eliminated-route>div{display:flex;flex-wrap:wrap;gap:5px}.fc-route-player{padding:5px 7px;border:1px solid rgba(115,219,255,.13);border-radius:8px;background:rgba(45,129,159,.1);color:#bfeefa;font-size:7px;font-weight:850}.fc-route-empty{padding:5px 7px;color:#657f8a;font-size:7px}.fc-eliminated-route{display:grid;grid-template-columns:90px 1fr;align-items:center;gap:10px;margin-top:9px;padding:10px;border-radius:12px;background:rgba(198,68,68,.055)}.fc-eliminated-route>span{color:#e98787;font-size:7px;font-weight:950;letter-spacing:.12em}
+.fc-stage-entrant-pool{margin-top:13px;padding:12px;border:1px dashed rgba(115,219,255,.19);border-radius:13px;background:rgba(10,41,54,.42)}.fc-stage-entrant-pool>span{display:block;margin-bottom:8px;color:#7394a1;font-size:7px;font-weight:950;letter-spacing:.1em}.fc-engine-stage.ready .fc-engine-stage-actions{display:flex;flex-wrap:wrap;gap:7px}.fc-series-routing{display:grid!important;grid-template-columns:auto 1fr;align-items:center;gap:5px 10px}.fc-series-routing span{color:#77e1a9}.fc-series-routing em{justify-self:end;color:#f0cb75;font-size:7px;font-style:normal;font-weight:900}.fc-series-routing small{grid-column:1/-1;color:#879ea8;font-size:7px}
+.fc-manual-draw-intro{padding:13px;border:1px solid rgba(115,219,255,.15);border-radius:14px;background:rgba(9,38,51,.62)}.fc-manual-draw-intro>span{display:block;margin-bottom:9px;color:#71dcff;font-size:7px;font-weight:950;letter-spacing:.13em}.fc-manual-draw-intro p{margin:10px 0 0;color:#7995a1;font-size:8px;line-height:1.5}.fc-manual-pair-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:13px 0}.fc-manual-pair{display:grid;grid-template-columns:1fr 26px 1fr;align-items:end;gap:6px;padding:11px;border:1px solid rgba(255,255,255,.07);border-radius:12px;background:rgba(255,255,255,.025)}.fc-manual-pair>span{grid-column:1/-1;color:#718e9a;font-size:6px;font-weight:950;letter-spacing:.1em}.fc-manual-pair select{width:100%;min-width:0;padding:8px;border:1px solid rgba(115,219,255,.14);border-radius:8px;background:#092434;color:#e9f9fd;font-size:8px}.fc-manual-pair b{align-self:center;color:#e6c36f;font-size:7px;text-align:center}.fc-lock-confirm{display:flex;align-items:flex-start;gap:8px;padding:11px;border:1px solid rgba(230,191,99,.18);border-radius:11px;background:rgba(230,191,99,.055);color:#c5b584;font-size:8px;line-height:1.45}.fc-lock-confirm input{margin-top:2px;accent-color:#dcb65e}
+@media(max-width:980px){.fc-draw-policy-panel{grid-template-columns:1fr}.fc-route-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:680px){.fc-policy-options{grid-template-columns:1fr}.fc-route-grid,.fc-manual-pair-grid{grid-template-columns:1fr}.fc-progression-head{grid-template-columns:1fr}.fc-progression-head aside{justify-self:stretch}.fc-eliminated-route{grid-template-columns:1fr}.fc-manual-pair{grid-template-columns:1fr}.fc-manual-pair b{padding:2px}.fc-manual-pair>span{grid-column:auto}}
+
+
+/* FIFA 9 v44.8.2 — Final Chapter Focus, larger visual scale and live bracket */
+
+/* Larger desktop shell and navigation */
+@media (min-width:1100px){
+  .app-shell{grid-template-columns:305px minmax(0,1fr)}
+  .sidebar{width:305px}
+  .hub-nav .nav-item{min-height:41px;font-size:10px}
+  .hub-nav .nav-item.stage{min-height:52px}
+  .hub-nav .nav-item.stage strong{font-size:10px}
+  .hub-nav .nav-item.stage small{font-size:7px}
+  .nav-cluster-toggle strong{font-size:11px}
+  .nav-cluster-toggle small{font-size:7px}
+}
+.current-stage-heading{color:#f0cb76!important}
+.completed-stage-heading{margin-top:12px!important}
+.final-chapter-primary{
+  position:relative;
+  display:grid!important;
+  grid-template-columns:28px minmax(0,1fr) auto!important;
+  min-height:61px!important;
+  padding:10px!important;
+  border-color:rgba(230,191,99,.34)!important;
+  background:linear-gradient(100deg,rgba(126,88,21,.28),rgba(16,55,71,.52))!important;
+  box-shadow:inset 3px 0 #e6bf63,0 10px 30px rgba(0,0,0,.16)!important;
+}
+.final-chapter-primary>span:nth-child(2){display:grid;text-align:left}
+.final-chapter-primary strong{font-size:11px!important;color:#fff}
+.final-chapter-primary small{font-size:7px!important;color:#bda66d!important}
+.final-chapter-primary em{
+  padding:5px 7px;border-radius:7px;background:#e6bf63;color:#171006;
+  font-size:6px;font-style:normal;font-weight:1000;letter-spacing:.08em
+}
+.final-control-link{margin-bottom:9px!important}
+.completed-stages{opacity:.84}
+
+/* Larger Final Chapter content */
+.fc-engine-page{gap:24px}
+.fc-engine-hero{min-height:300px;padding:42px 48px}
+.fc-engine-hero h2{font-size:clamp(52px,5.1vw,78px)}
+.fc-engine-hero p{max-width:920px;font-size:14px}
+.fc-engine-mark{width:218px;height:218px;flex-basis:218px}
+.fc-engine-mark strong{font-size:68px}
+.fc-engine-mark span{font-size:11px}
+.fc-direct-mini span{padding:10px 14px;font-size:12px}
+.fc-engine-toolbar{padding:17px 20px}
+.fc-engine-toolbar small{font-size:11px}
+.fc-progression-centre{padding:25px;border-radius:25px}
+.fc-progression-head{margin-bottom:19px}
+.fc-progression-head h3{font-size:24px}
+.fc-progression-head p{font-size:11px}
+.fc-progression-head aside{min-width:200px;padding:13px}
+.fc-progression-head aside strong{font-size:11px}
+.fc-route-grid{gap:12px}
+.fc-route-grid article{min-height:142px;padding:15px;border-radius:16px}
+.fc-route-grid header{margin-bottom:13px}
+.fc-route-grid header b{font-size:10px}
+.fc-route-grid header span{font-size:7px}
+.fc-route-player{padding:7px 10px;font-size:9px}
+.fc-route-empty{font-size:9px}
+.fc-eliminated-route{padding:14px}
+.fc-eliminated-route>span{font-size:8px}
+.fc-draw-policy-panel{padding:23px}
+.fc-draw-policy-panel h3{font-size:22px}
+.fc-draw-policy-panel p{font-size:10px}
+.fc-policy-options button{min-height:108px;padding:15px}
+.fc-policy-options strong{font-size:11px}
+.fc-policy-options small{font-size:8px}
+.fc-direct-panel{padding:21px}
+.fc-engine-stage{padding:27px}
+.fc-engine-stage-head h3{font-size:28px}
+.fc-engine-stage-head p{font-size:12px}
+.fc-engine-series-grid{gap:17px}
+.fc-engine-series-head{padding:18px}
+.fc-engine-series-head h4{font-size:16px}
+.fc-engine-game{padding:14px 16px}
+.fc-game-side strong{font-size:12px}
+.fc-game-side span{font-size:10px}
+
+/* Live tournament bracket */
+.fc-bracket-board{
+  padding:25px;
+  border:1px solid rgba(113,220,255,.18);
+  border-radius:26px;
+  background:
+    radial-gradient(circle at 82% 12%,rgba(230,191,99,.09),transparent 29%),
+    linear-gradient(155deg,rgba(8,34,47,.98),rgba(5,20,30,.98));
+  box-shadow:0 22px 65px rgba(0,0,0,.22);
+}
+.fc-bracket-board-head{
+  display:grid;grid-template-columns:1fr auto;align-items:center;gap:18px;margin-bottom:17px
+}
+.fc-bracket-board-head>div>span{
+  color:#72dcff;font-size:8px;font-weight:1000;letter-spacing:.15em
+}
+.fc-bracket-board-head h3{margin:6px 0 5px;color:#fff;font-size:27px}
+.fc-bracket-board-head p{margin:0;color:#7f9aa5;font-size:11px}
+.fc-bracket-board-head aside{
+  min-width:164px;padding:12px 15px;border:1px solid rgba(230,191,99,.24);
+  border-radius:15px;background:rgba(230,191,99,.065);text-align:center
+}
+.fc-bracket-board-head aside strong{
+  display:block;max-width:220px;color:#f0cf7d;font-size:15px;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis
+}
+.fc-bracket-board-head aside small{
+  display:block;margin-top:4px;color:#9b8555;font-size:7px;font-weight:950;letter-spacing:.12em
+}
+.fc-tree-direct-strip{
+  display:grid;grid-template-columns:auto 1fr;align-items:center;gap:13px;
+  margin-bottom:16px;padding:12px 14px;border:1px solid rgba(230,191,99,.17);
+  border-radius:13px;background:rgba(230,191,99,.045)
+}
+.fc-tree-direct-strip>span{color:#d6b65f;font-size:7px;font-weight:1000;letter-spacing:.12em}
+.fc-tree-direct-strip>div{display:flex;flex-wrap:wrap;gap:7px}
+.fc-tree-direct-strip b{
+  padding:6px 9px;border-radius:8px;background:rgba(230,191,99,.09);
+  color:#efd58d;font-size:9px
+}
+.fc-bracket-scroll{overflow-x:auto;padding:4px 3px 14px;scrollbar-color:#315b70 #071a26}
+.fc-bracket-tree{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:38px;
+  min-width:0;
+  align-items:stretch
+}
+.fc-tree-stage{position:relative;display:grid;grid-template-rows:auto 1fr;gap:12px}
+.fc-tree-stage:not(:last-child)::after{
+  content:"";position:absolute;right:-30px;top:50%;width:23px;height:2px;
+  background:linear-gradient(90deg,rgba(113,220,255,.55),rgba(230,191,99,.45))
+}
+.fc-tree-stage:not(:last-child)::before{
+  content:"›";position:absolute;right:-36px;top:calc(50% - 12px);
+  color:#e5c574;font-size:24px;font-weight:900
+}
+.fc-tree-stage>header{
+  min-height:50px;padding:10px 12px;border:1px solid rgba(255,255,255,.07);
+  border-radius:12px;background:rgba(255,255,255,.026)
+}
+.fc-tree-stage>header span{
+  display:block;color:#e6c46d;font-size:9px;font-weight:1000;letter-spacing:.09em
+}
+.fc-tree-stage>header small{display:block;margin-top:4px;color:#718d98;font-size:8px}
+.fc-tree-stage-body{display:flex;flex-direction:column;justify-content:space-around;gap:12px}
+.fc-tree-match{
+  position:relative;overflow:hidden;border:1px solid rgba(255,255,255,.09);
+  border-radius:15px;background:linear-gradient(150deg,rgba(12,39,53,.96),rgba(5,20,29,.96));
+  box-shadow:0 10px 30px rgba(0,0,0,.15)
+}
+.fc-tree-match.live{border-color:rgba(113,220,255,.22)}
+.fc-tree-match.complete{border-color:rgba(102,220,157,.32);box-shadow:inset 0 0 32px rgba(102,220,157,.035)}
+.fc-tree-match.placeholder{opacity:.64;border-style:dashed}
+.fc-tree-match>header{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 11px;
+  border-bottom:1px solid rgba(255,255,255,.065)
+}
+.fc-tree-match>header span{color:#dbeef5;font-size:9px;font-weight:900}
+.fc-tree-match>header b{
+  padding:4px 6px;border-radius:6px;background:rgba(113,220,255,.07);
+  color:#75dcff;font-size:6px;letter-spacing:.07em
+}
+.fc-tree-match.complete>header b{background:rgba(102,220,157,.1);color:#77e2aa}
+.fc-tree-player{
+  position:relative;display:grid;grid-template-columns:21px minmax(0,1fr) auto;
+  align-items:center;gap:7px;padding:9px 11px;border-bottom:1px solid rgba(255,255,255,.045)
+}
+.fc-tree-player>span{
+  display:grid;place-items:center;width:20px;height:20px;border-radius:6px;
+  background:rgba(255,255,255,.055);color:#7896a2;font-size:7px;font-weight:1000
+}
+.fc-tree-player strong{
+  min-width:0;color:#eaf8fc;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+}
+.fc-tree-player em{
+  padding:3px 5px;border-radius:5px;background:rgba(102,220,157,.12);
+  color:#79e2aa;font-size:5px;font-style:normal;font-weight:1000
+}
+.fc-tree-player.winner{background:linear-gradient(90deg,rgba(102,220,157,.085),transparent)}
+.fc-tree-player.empty strong{color:#607b86;font-weight:700}
+.fc-tree-series-score{
+  display:flex;align-items:center;justify-content:space-between;padding:7px 11px;
+  background:rgba(255,255,255,.025)
+}
+.fc-tree-series-score span{color:#6e8a95;font-size:6px}
+.fc-tree-series-score strong{color:#edcf80;font-size:11px}
+.fc-tree-match>footer{
+  padding:7px 11px;border-top:1px solid rgba(230,191,99,.09);
+  color:#b59d63;font-size:6px;font-weight:900
+}
+.fc-tree-final{align-self:center;min-height:230px;border-color:rgba(230,191,99,.27)}
+.fc-tree-final .fc-tree-cup{
+  display:grid;place-items:center;height:66px;font-size:31px;
+  background:radial-gradient(circle,rgba(230,191,99,.15),transparent 65%)
+}
+.fc-bracket-legend{
+  display:flex;flex-wrap:wrap;gap:16px;margin-top:3px;padding-top:13px;
+  border-top:1px solid rgba(255,255,255,.06)
+}
+.fc-bracket-legend span{display:flex;align-items:center;gap:6px;color:#78949f;font-size:8px}
+.fc-bracket-legend i{width:9px;height:9px;border-radius:50%}
+.fc-bracket-legend i.live{background:#71dcff}
+.fc-bracket-legend i.complete{background:#72dfa8}
+.fc-bracket-legend i.waiting{background:#596f79}
+
+@media(max-width:1100px){
+  .fc-engine-hero{padding:32px}
+  .fc-engine-mark{width:165px;height:165px;flex-basis:165px}
+  .fc-bracket-board{padding:19px}
+}
+@media(max-width:760px){
+  .fc-bracket-board-head{grid-template-columns:1fr}
+  .fc-bracket-board-head aside{justify-self:stretch}
+  .fc-tree-direct-strip{grid-template-columns:1fr}
+  .fc-engine-hero h2{font-size:43px}
+  .fc-route-grid{grid-template-columns:1fr}
+}
+
+
+/* FIFA 9 v44.8.3 — Readable bracket and admin-screen preservation */
+
+.fc-engine-page{
+  width:100%;
+  max-width:none;
+}
+.fc-bracket-board-v3{
+  padding:30px;
+}
+.fc-bracket-board-v3 .fc-bracket-board-head h3{
+  font-size:32px;
+}
+.fc-bracket-board-v3 .fc-bracket-board-head p{
+  max-width:920px;
+  font-size:13px;
+  line-height:1.6;
+}
+.fc-entry-route-zone,
+.fc-title-bracket-zone{
+  margin-top:20px;
+  padding:22px;
+  border:1px solid rgba(255,255,255,.075);
+  border-radius:22px;
+  background:rgba(4,21,31,.62);
+}
+.fc-entry-route-zone>header,
+.fc-title-bracket-zone>header{
+  display:flex;
+  align-items:end;
+  justify-content:space-between;
+  gap:15px;
+  margin-bottom:16px;
+}
+.fc-entry-route-zone>header span,
+.fc-title-bracket-zone>header span{
+  color:#72dcff;
+  font-size:8px;
+  font-weight:1000;
+  letter-spacing:.14em;
+}
+.fc-entry-route-zone>header h4,
+.fc-title-bracket-zone>header h4{
+  margin:5px 0 0;
+  color:#fff;
+  font-size:23px;
+}
+.fc-entry-route-zone>header small,
+.fc-title-bracket-zone>header small{
+  color:#738f9a;
+  font-size:9px;
+}
+.fc-entry-route-grid{
+  display:grid;
+  grid-template-columns:minmax(0,1.45fr) 70px minmax(360px,.75fr);
+  align-items:center;
+  gap:18px;
+}
+.fc-route-column{
+  min-width:0;
+}
+.fc-route-column-head,
+.fc-title-stage-head{
+  display:flex;
+  align-items:end;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:10px;
+  padding:0 3px;
+}
+.fc-route-column-head strong,
+.fc-title-stage-head strong{
+  color:#efcb75;
+  font-size:11px;
+  letter-spacing:.08em;
+}
+.fc-route-column-head small,
+.fc-title-stage-head small{
+  color:#708b96;
+  font-size:8px;
+}
+.fc-route-card-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:13px;
+}
+.fc-route-card-grid.ticket-grid{
+  grid-template-columns:1fr;
+}
+.fc-route-arrow,
+.fc-title-connector{
+  display:grid;
+  place-items:center;
+  gap:5px;
+  color:#efc96e;
+}
+.fc-route-arrow span,
+.fc-title-connector span{
+  display:grid;
+  place-items:center;
+  width:46px;
+  height:46px;
+  border:1px solid rgba(230,191,99,.24);
+  border-radius:50%;
+  background:rgba(230,191,99,.06);
+  font-size:27px;
+}
+.fc-route-arrow small{
+  color:#8c784d;
+  font-size:6px;
+  font-weight:1000;
+  letter-spacing:.08em;
+}
+.fc-title-bracket-grid{
+  display:grid;
+  grid-template-columns:minmax(470px,1.25fr) 55px minmax(330px,.8fr) 55px minmax(285px,.65fr);
+  align-items:stretch;
+  gap:14px;
+}
+.fc-title-stage{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+}
+.fc-title-stage-cards{
+  display:flex;
+  flex-direction:column;
+  justify-content:space-around;
+  gap:14px;
+  flex:1;
+}
+.quarterfinal-stage .fc-title-stage-cards{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+}
+.fc-tree-match{
+  min-height:0;
+  border-radius:17px;
+}
+.fc-tree-match>header{
+  min-height:43px;
+  padding:11px 13px;
+}
+.fc-tree-match>header span{
+  font-size:11px;
+}
+.fc-tree-match>header b{
+  padding:5px 7px;
+  font-size:7px;
+}
+.fc-tree-player{
+  grid-template-columns:27px minmax(0,1fr) auto;
+  min-height:54px;
+  padding:10px 13px;
+}
+.fc-tree-player>span{
+  width:25px;
+  height:25px;
+  font-size:8px;
+}
+.fc-tree-player>div{
+  min-width:0;
+  display:grid;
+  gap:3px;
+}
+.fc-tree-player strong{
+  font-size:12px;
+}
+.fc-tree-player small{
+  color:#6f8d98;
+  font-size:7px;
+  font-weight:750;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.fc-tree-player em{
+  padding:4px 6px;
+  font-size:6px;
+}
+.fc-tree-series-score{
+  padding:9px 13px;
+}
+.fc-tree-series-score span{
+  font-size:7px;
+}
+.fc-tree-series-score strong{
+  font-size:14px;
+}
+.fc-tree-match>footer{
+  min-height:29px;
+  padding:8px 13px;
+  font-size:7px;
+}
+.fc-route-preview{
+  border-color:rgba(230,191,99,.18);
+  background:
+    linear-gradient(145deg,rgba(91,65,19,.12),rgba(6,24,35,.98));
+}
+.fc-route-preview.entrants-ready{
+  border-color:rgba(113,220,255,.32);
+}
+.fc-route-preview>header b{
+  color:#e4c574;
+  background:rgba(230,191,99,.08);
+}
+.fc-tree-final{
+  min-height:270px;
+}
+.fc-tree-final .fc-tree-cup{
+  height:80px;
+  font-size:38px;
+}
+.fc-bracket-note{
+  margin-top:17px;
+  padding:12px 14px;
+  border:1px solid rgba(230,191,99,.14);
+  border-radius:12px;
+  background:rgba(230,191,99,.045);
+  color:#829ca7;
+  font-size:9px;
+  line-height:1.55;
+}
+.fc-bracket-note strong{
+  color:#e8c978;
+}
+.fc-bracket-legend{
+  font-size:9px;
+}
+
+/* Larger route and policy cards below the bracket */
+.fc-progression-centre{
+  padding:30px;
+}
+.fc-route-grid{
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:15px;
+}
+.fc-route-grid article{
+  min-height:165px;
+  padding:18px;
+}
+.fc-route-grid header b{
+  font-size:12px;
+}
+.fc-route-grid header span{
+  font-size:8px;
+}
+.fc-route-player{
+  padding:9px 11px;
+  font-size:10px;
+}
+.fc-draw-policy-panel{
+  padding:28px;
+}
+.fc-policy-options button{
+  min-height:125px;
+}
+.fc-policy-options strong{
+  font-size:13px;
+}
+.fc-policy-options small{
+  font-size:9px;
+  line-height:1.45;
+}
+
+/* Admin modal stability and clearer interaction */
+#adminLoginForm{
+  min-width:min(520px,80vw);
+}
+#adminLoginForm .field label{
+  font-size:10px;
+}
+#adminLoginForm input{
+  min-height:46px;
+  font-size:14px;
+}
+body.viewer-mode .fc-bracket-board{
+  opacity:1;
+}
+
+/* Full-HD and ultrawide use the available area instead of shrinking text */
+@media(min-width:1450px){
+  .view{
+    padding-left:24px;
+    padding-right:24px;
+  }
+  .fc-engine-page{
+    max-width:1680px;
+    margin:0 auto;
+  }
+  .fc-engine-hero{
+    min-height:330px;
+    padding:48px 55px;
+  }
+  .fc-engine-hero h2{
+    font-size:82px;
+  }
+}
+@media(max-width:1250px){
+  .fc-entry-route-grid{
+    grid-template-columns:1fr;
+  }
+  .fc-route-arrow{
+    grid-template-columns:auto auto;
+    justify-content:center;
+  }
+  .fc-route-arrow span{
+    transform:rotate(90deg);
+  }
+  .fc-title-bracket-grid{
+    grid-template-columns:1fr;
+  }
+  .fc-title-connector span{
+    transform:rotate(90deg);
+  }
+  .quarterfinal-stage .fc-title-stage-cards{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+@media(max-width:760px){
+  .fc-bracket-board-v3{
+    padding:16px;
+  }
+  .fc-entry-route-zone,
+  .fc-title-bracket-zone{
+    padding:14px;
+  }
+  .fc-route-card-grid,
+  .quarterfinal-stage .fc-title-stage-cards{
+    grid-template-columns:1fr;
+  }
+  .fc-route-grid{
+    grid-template-columns:1fr;
+  }
+  .fc-tree-player strong{
+    font-size:11px;
+  }
+}

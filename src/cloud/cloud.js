@@ -1,0 +1,475 @@
+(() => {
+  "use strict";
+
+  const config = window.FIFA_CLOUD_CONFIG || {};
+  let client = null;
+  let session = null;
+  let admin = false;
+  let playerProfile = null;
+  let channel = null;
+  let callbacks = { onState: () => {}, onAuth: () => {}, onStatus: () => {} };
+  let lastRemoteUpdatedAt = null;
+  let saveTail = Promise.resolve();
+
+  // BUGFIX (Bağlanıyor / "Connecting" stuck forever):
+  // init() previously awaited getSession() / applySession() / fetchState() with no
+  // upper bound. If the Supabase project is paused, slow to wake, or the request
+  // simply stalls, those promises never settle — init() never resolves *or*
+  // rejects, so app.js's try/catch around cloud.init() never runs and the UI is
+  // left on the "connecting" label permanently, with no error and no fallback.
+  // withTimeout() forces a rejection after CLOUD_INIT_TIMEOUT_MS so a stall always
+  // surfaces as a normal error instead of a silent hang.
+  const CLOUD_INIT_TIMEOUT_MS = 10000;
+  const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+  const withTimeout = (promise, ms, message) => Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(message)), ms))
+  ]);
+
+  function clonePayload(value) {
+    if (typeof structuredClone === "function") return structuredClone(value);
+    return JSON.parse(JSON.stringify(value));
+  }
+
+  function isStatementTimeout(error) {
+    const message = String(error?.message || error || "");
+    return error?.code === "57014" || /statement timeout|canceling statement/i.test(message);
+  }
+
+  function isConfigured() {
+    return Boolean(
+      config.supabaseUrl &&
+      config.supabaseAnonKey &&
+      !String(config.supabaseUrl).includes("PASTE_") &&
+      !String(config.supabaseAnonKey).includes("PASTE_")
+    );
+  }
+
+  function emitStatus(status, detail = "") {
+    callbacks.onStatus({ status, detail, configured: isConfigured(), admin, playerProfile, user: session?.user || null });
+  }
+
+  async function checkAdmin(user) {
+    if (!client || !user) return false;
+    const { data, error } = await client
+      .from("tournament_admins")
+      .select("user_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (error) {
+      console.warn("Admin role check failed", error);
+      return false;
+    }
+    return Boolean(data?.user_id);
+  }
+
+  async function checkPlayerProfile(user) {
+    if (!client || !user) return null;
+    const { data, error } = await client
+      .from("player_profiles")
+      .select("user_id, player_name, active")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (error) {
+      if (error.code !== "42P01") console.warn("Player profile check failed", error);
+      return null;
+    }
+    return data?.active === false ? null : (data || null);
+  }
+
+  async function applySession(nextSession) {
+    session = nextSession || null;
+    const user = session?.user || null;
+    [admin, playerProfile] = await Promise.all([checkAdmin(user), checkPlayerProfile(user)]);
+    callbacks.onAuth({ user, isAdmin: admin, playerProfile });
+    emitStatus(admin ? "admin-online" : playerProfile ? "player-online" : "viewer-online");
+  }
+
+  async function fetchState() {
+    if (!client) return null;
+    emitStatus("loading");
+    const { data, error } = await withTimeout(
+      client
+        .from("tournament_state")
+        .select("payload, updated_at, edition")
+        .eq("id", config.tournamentRowId || "fifa-9")
+        .maybeSingle(),
+      CLOUD_INIT_TIMEOUT_MS,
+      "Turnuva verisi zaman aşımına uğradı."
+    );
+    if (error) {
+      emitStatus("error", error.message);
+      throw error;
+    }
+    if (data?.payload && Object.keys(data.payload).length) {
+      lastRemoteUpdatedAt = data.updated_at || null;
+      callbacks.onState(data.payload, { source: "initial", updatedAt: data.updated_at || null });
+    }
+    emitStatus(admin ? "admin-online" : playerProfile ? "player-online" : "viewer-online");
+    return data;
+  }
+
+  function subscribe() {
+    if (!client || channel) return;
+    channel = client
+      .channel("fifa9-live-state")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "tournament_state",
+          filter: `id=eq.${config.tournamentRowId || "fifa-9"}`
+        },
+        payload => {
+          const row = payload.new || null;
+          if (!row?.payload) return;
+          if (row.updated_at && row.updated_at === lastRemoteUpdatedAt) return;
+          lastRemoteUpdatedAt = row.updated_at || null;
+          callbacks.onState(row.payload, { source: "realtime", updatedAt: row.updated_at || null });
+          emitStatus(admin ? "admin-online" : playerProfile ? "player-online" : "viewer-online");
+        }
+      )
+      .subscribe(status => {
+        if (status === "SUBSCRIBED") emitStatus(admin ? "admin-online" : playerProfile ? "player-online" : "viewer-online");
+        if (["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(status)) emitStatus("reconnecting", status);
+      });
+  }
+
+  async function init(nextCallbacks = {}) {
+    callbacks = { ...callbacks, ...nextCallbacks };
+    if (!isConfigured()) {
+      emitStatus("not-configured");
+      callbacks.onAuth({ user: null, isAdmin: false, playerProfile: null });
+      return { configured: false, isAdmin: false, playerProfile: null, user: null };
+    }
+    if (!window.supabase?.createClient) {
+      emitStatus("error", "Supabase client could not be loaded");
+      return { configured: true, isAdmin: false, playerProfile: null, user: null };
+    }
+
+    emitStatus("connecting");
+    client = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey, {
+      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+    });
+
+    try {
+      const { data } = await withTimeout(
+        client.auth.getSession(),
+        CLOUD_INIT_TIMEOUT_MS,
+        "Oturum bilgisi zaman aşımına uğradı."
+      );
+      await withTimeout(
+        applySession(data?.session || null),
+        CLOUD_INIT_TIMEOUT_MS,
+        "Kullanıcı bilgisi zaman aşımına uğradı."
+      );
+      await fetchState(); // fetchState() already has its own timeout + emitStatus("error", ...)
+    } catch (error) {
+      // Whichever step stalled or failed, make sure the UI is told — otherwise it
+      // is left showing "Bağlanıyor" forever with no way out. Rethrow so the
+      // existing try/catch in app.js's initializeCloud() still runs its own
+      // fallback (cached/local view + toast), exactly as it already does for any
+      // other cloud.init() failure.
+      emitStatus("error", error.message || "Canlı bağlantı kurulamadı.");
+      throw error;
+    }
+
+    subscribe();
+
+    client.auth.onAuthStateChange((_event, nextSession) => {
+      setTimeout(() => applySession(nextSession).catch(error => console.warn("Auth state refresh failed", error)), 0);
+    });
+
+    return { configured: true, isAdmin: admin, playerProfile, user: session?.user || null };
+  }
+
+  async function performSave(payload) {
+    if (!client || !isConfigured()) throw new Error("Cloud connection is not configured.");
+    if (!admin) throw new Error("Only the tournament administrator can save changes.");
+    emitStatus("syncing");
+    let finalError = null;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const updatedAt = new Date().toISOString();
+      const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+      const timeoutId = controller ? setTimeout(() => controller.abort(), 6000) : null;
+      try {
+        let query = client
+          .from("tournament_state")
+          .update({
+            payload,
+            edition: Number(config.edition || 9),
+            updated_at: updatedAt,
+            updated_by: session?.user?.id || null
+          })
+          .eq("id", config.tournamentRowId || "fifa-9")
+          .select("updated_at")
+          .single();
+        if (controller && typeof query.abortSignal === "function") query = query.abortSignal(controller.signal);
+        const { data, error } = await Promise.race([
+          query,
+          new Promise((_, reject) => setTimeout(() => reject(new Error("Cloud save timeout")), 6500))
+        ]);
+        if (!error) {
+          lastRemoteUpdatedAt = data?.updated_at || updatedAt;
+          emitStatus("saved", data?.updated_at || updatedAt);
+          setTimeout(() => emitStatus("admin-online"), 900);
+          return data;
+        }
+        finalError = error;
+      } catch (error) {
+        finalError = error;
+      } finally {
+        if (timeoutId) clearTimeout(timeoutId);
+      }
+      if ((!isStatementTimeout(finalError) && !/timeout|abort/i.test(String(finalError?.message || finalError || ""))) || attempt > 0) break;
+      await wait(300);
+    }
+    emitStatus("error", finalError?.message || "Cloud save failed.");
+    throw finalError || new Error("Cloud save failed.");
+  }
+
+  function save(payload) {
+    // All modules share one authenticated client. Queue writes so the main
+    // application, FIFA 10 engine and startup migrations cannot update the
+    // same JSON row concurrently and block each other until statement timeout.
+    const snapshot = clonePayload(payload);
+    const job = saveTail.then(
+      () => performSave(snapshot),
+      () => performSave(snapshot)
+    );
+    saveTail = job.catch(() => {});
+    return job;
+  }
+
+  async function signIn(email, password) {
+    if (!client) throw new Error("Cloud connection is not configured.");
+    emitStatus("connecting");
+    let data, error;
+    try {
+      ({ data, error } = await withTimeout(
+        client.auth.signInWithPassword({ email, password }),
+        CLOUD_INIT_TIMEOUT_MS,
+        "Giriş isteği zaman aşımına uğradı."
+      ));
+    } catch (timeoutError) {
+      emitStatus("error", timeoutError.message);
+      throw timeoutError;
+    }
+    if (error) {
+      emitStatus("error", error.message);
+      throw error;
+    }
+    await applySession(data.session || null);
+    return { user: data.user, isAdmin: admin, playerProfile };
+  }
+
+  async function signOut() {
+    if (!client) return;
+    const { error } = await client.auth.signOut();
+    if (error) throw error;
+    await applySession(null);
+  }
+
+
+  async function fetchRegistrationPlayers() {
+    if (!client || !isConfigured()) return [];
+    const { data, error } = await client.rpc("get_fifa09_registration_players", {
+      p_tournament_id: config.tournamentRowId || "fifa-9"
+    });
+    if (error) throw error;
+    return (data || []).map(item => ({
+      playerName: item.player_name,
+      claimed: Boolean(item.claimed)
+    }));
+  }
+
+
+  async function fetchFinalChapterPlayers() {
+    if (!client || !isConfigured()) return [];
+    const { data, error } = await client.rpc("get_fifa09_final_chapter_players", {
+      p_tournament_id: config.tournamentRowId || "fifa-9"
+    });
+    if (error) throw error;
+    return (data || []).map(item => ({
+      playerName: item.player_name,
+      groupName: item.group_name,
+      groupOrder: Number(item.group_order) || 9,
+      seedOrder: Number(item.seed_order) || 99,
+      claimed: false
+    }));
+  }
+
+  async function signUpPlayer(email, password, playerName) {
+    if (!client) throw new Error("Cloud connection is not configured.");
+    const cleanEmail = String(email || "").trim();
+    const cleanName = String(playerName || "").trim();
+    if (!cleanEmail || !cleanName) throw new Error("E-posta ve oyuncu seçimi zorunludur.");
+    if (String(password || "").length < 8) throw new Error("Parola en az 8 karakter olmalıdır.");
+
+    const { data, error } = await client.auth.signUp({
+      email: cleanEmail,
+      password: String(password),
+      options: {
+        data: {
+          account_type: "player",
+          player_name: cleanName,
+          tournament_id: config.tournamentRowId || "fifa-9"
+        }
+      }
+    });
+    if (error) throw error;
+
+    if (data?.session) {
+      await applySession(data.session);
+      if (!playerProfile) {
+        await claimPlayerIdentity(cleanName);
+      }
+    }
+
+    return {
+      user: data?.user || null,
+      session: data?.session || null,
+      playerProfile,
+      requiresEmailConfirmation: Boolean(data?.user && !data?.session)
+    };
+  }
+
+  async function claimPlayerIdentity(playerName) {
+    if (!client || !session?.user) throw new Error("Oyuncu kimliğini seçmek için giriş yapmalısın.");
+    const { data, error } = await client.rpc("claim_player_identity", {
+      p_player_name: String(playerName || "").trim(),
+      p_tournament_id: config.tournamentRowId || "fifa-9"
+    });
+    if (error) throw error;
+    await applySession(session);
+    return data;
+  }
+
+  async function fetchPollStatus(slug = "fifa09-format-continuation") {
+    if (!client || !isConfigured()) return null;
+    const { data, error } = await client.rpc("get_fifa_poll_status", {
+      p_slug: slug,
+      p_tournament_id: config.tournamentRowId || "fifa-9"
+    });
+    if (error) throw error;
+    return data || null;
+  }
+
+  async function fetchMyPollVote(slug = "fifa09-format-continuation") {
+    if (!client || !session?.user) return null;
+    const { data, error } = await client.rpc("get_my_fifa_poll_vote", { p_slug: slug });
+    if (error) throw error;
+    return data || null;
+  }
+
+  async function submitPollVote(slug, choice) {
+    if (!client || !session?.user) throw new Error("Oy kullanmak için oyuncu hesabıyla giriş yapmalısın.");
+    if (!playerProfile) throw new Error("Hesabın kayıtlı bir FIFA09 oyuncusuna bağlı değil.");
+    const { data, error } = await client.rpc("submit_fifa_poll_vote", {
+      p_slug: slug,
+      p_choice: choice
+    });
+    if (error) throw error;
+    return data;
+  }
+
+  async function submitPublicPollVote(slug, playerName, choice) {
+    if (!client || !isConfigured()) throw new Error("Canlı oylama bağlantısı yapılandırılmamış.");
+    const cleanPlayerName = String(playerName || "").trim();
+    if (!cleanPlayerName) throw new Error("Oyuncu seçimi zorunludur.");
+    const { data, error } = await client.rpc("submit_fifa_public_poll_vote", {
+      p_slug: slug,
+      p_player_name: cleanPlayerName,
+      p_choice: choice,
+      p_tournament_id: config.tournamentRowId || "fifa-9"
+    });
+    if (error) throw error;
+    return data;
+  }
+
+  async function managePoll(slug, action) {
+    if (!client || !admin) throw new Error("Oylamayı yalnızca turnuva yöneticisi yönetebilir.");
+    const { data, error } = await client.rpc("admin_manage_fifa_poll", {
+      p_slug: slug,
+      p_action: action
+    });
+    if (error) throw error;
+    return data;
+  }
+
+  async function fetchAvailability() {
+    if (!client || !isConfigured()) return [];
+    const [{ data: profiles, error: profileError }, { data: availability, error: availabilityError }] = await Promise.all([
+      client.from("player_profiles").select("user_id, player_name, active").eq("active", true),
+      client.from("player_availability").select("user_id, status, note, updated_at")
+    ]);
+    if (profileError) throw profileError;
+    if (availabilityError) throw availabilityError;
+    const availabilityMap = new Map((availability || []).map(item => [item.user_id, item]));
+    return (profiles || []).map(profile => {
+      const row = availabilityMap.get(profile.user_id) || {};
+      return {
+        userId: profile.user_id,
+        playerName: profile.player_name,
+        status: row.status || "unavailable",
+        note: row.note || "",
+        updatedAt: row.updated_at || null
+      };
+    });
+  }
+
+  async function setAvailability(status, note = "") {
+    if (!client || !session?.user) throw new Error("Uygunluk durumunu değiştirmek için oyuncu hesabıyla giriş yapmalısın.");
+    if (!playerProfile) throw new Error("Bu hesap henüz bir oyuncu profiline bağlanmamış.");
+    const allowed = ["now", "evening", "unavailable", "open"];
+    if (!allowed.includes(status)) throw new Error("Geçersiz uygunluk durumu.");
+    const { error } = await client.from("player_availability").upsert({
+      user_id: session.user.id,
+      status,
+      note: String(note || "").trim().slice(0, 120),
+      updated_at: new Date().toISOString()
+    }, { onConflict: "user_id" });
+    if (error) throw error;
+    return true;
+  }
+
+  async function linkPlayerAccount(email, playerName) {
+    if (!client || !admin) throw new Error("Oyuncu hesaplarını yalnızca turnuva yöneticisi bağlayabilir.");
+    const { data, error } = await client.rpc("link_player_account", {
+      p_email: String(email || "").trim(),
+      p_player_name: String(playerName || "").trim()
+    });
+    if (error) throw error;
+    return data;
+  }
+
+  async function refresh() {
+    return fetchState();
+  }
+
+  window.FIFA_CLOUD = {
+    init,
+    save,
+    signIn,
+    signOut,
+    signUpPlayer,
+    claimPlayerIdentity,
+    fetchRegistrationPlayers,
+    fetchFinalChapterPlayers,
+    fetchPollStatus,
+    fetchMyPollVote,
+    submitPollVote,
+    submitPublicPollVote,
+    managePoll,
+    refresh,
+    fetchAvailability,
+    setAvailability,
+    linkPlayerAccount,
+    isConfigured,
+    getClient: () => client,
+    getUser: () => session?.user || null,
+    getPlayerProfile: () => playerProfile,
+    isAdmin: () => admin
+  };
+})();
